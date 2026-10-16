@@ -61,7 +61,6 @@ describe('isPristine', () => {
     const baselines: Baselines = { button: [canonicalHash(RAW, 'ui', '')] };
     // A prefix with regex metacharacters would break the internal RegExp build;
     // isPristine must swallow it and treat the file as customized, not crash.
-    expect(() => isPristine(baselines, 'button', RAW, '(', '@/lib')).not.toThrow();
     expect(isPristine(baselines, 'button', RAW, '(', '@/lib')).toBe(false);
   });
 });
@@ -102,6 +101,14 @@ function realHistoricalBlob(name: string): string | null {
  */
 const GIT_HISTORY_TIMEOUT_MS = 30_000;
 
+let buttonBlob: string | null | undefined;
+
+/** One `git log --all` walk serves both tests below. */
+function historicalButton(): string | null {
+  if (buttonBlob === undefined) buttonBlob = realHistoricalBlob('button');
+  return buttonBlob;
+}
+
 describe('closed loop against the real generated baseline', () => {
   // The synthetic round-trip can't catch generator<->runtime divergence, a stale
   // dist, or real-blob edge cases (comma selectors, host bindings, multi-tag
@@ -109,14 +116,14 @@ describe('closed loop against the real generated baseline', () => {
   // and asserts the generated LEGACY_BASELINES recognizes it — exercising
   // generator -> baked hashes -> runtime canonicalize end-to-end.
   it('recognizes a real historical button blob as pristine (default prefix)', () => {
-    const raw = realHistoricalBlob('button');
+    const raw = historicalButton();
     if (raw === null) return; // not a git checkout — skip
     const installed = raw.replaceAll(/(\.\.\/)+lib\//g, '@/components/lib/');
     expect(isPristine(loadBaselines(), 'button', installed, 'ui', '@/components/lib')).toBe(true);
   }, GIT_HISTORY_TIMEOUT_MS);
 
   it('recognizes the same real blob under a custom prefix + alias', () => {
-    const raw = realHistoricalBlob('button');
+    const raw = historicalButton();
     if (raw === null) return;
     const installed = applyPrefixTransforms(
       'button.component.ts', raw.replaceAll(/(\.\.\/)+lib\//g, '@/x/lib/'), 'acme',

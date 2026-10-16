@@ -79,6 +79,19 @@ const render: NonNullable<Story['render']> = (args) => ({
 /** Interactive playground — every input is wired to the Controls panel. */
 export const Playground: Story = { render };
 
+/** A missing value (`NaN`, `null` or `undefined`) breaks the line and draws no marker. */
+export const MissingValuesGaps: Story = {
+    args: {
+        series: [
+            { name: 'Sensor A', data: [
+                { name: 'Mon', value: 12 }, { name: 'Tue', value: 18 }, { name: 'Wed', value: Number.NaN },
+                { name: 'Thu', value: 15 }, { name: 'Fri', value: 22 }, { name: 'Sat', value: 20 },
+            ] },
+        ],
+    },
+    render,
+};
+
 export const SmoothMonotone: Story = {
     args: { curve: 'monotone' },
     render,

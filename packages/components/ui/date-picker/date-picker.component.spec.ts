@@ -47,6 +47,25 @@ describe('DatePickerComponent', () => {
         expect(span.nativeElement.textContent).toContain('Pick date');
     });
 
+    it.each([DatePickerComponent, DateRangePickerComponent])(
+        'closes on Escape through the overlay stack and hands focus back to the trigger (%s)',
+        async picker => {
+            fixture.detectChanges();
+            const host = fixture.debugElement.query(By.directive(picker));
+            const trigger = host.query(By.css('button')).nativeElement as HTMLButtonElement;
+            trigger.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(host.query(By.directive(CalendarComponent))).toBeTruthy();
+
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+            fixture.detectChanges();
+
+            expect(host.query(By.directive(CalendarComponent))).toBeFalsy();
+            expect(document.activeElement).toBe(trigger);
+        },
+    );
+
     it('should toggle calendar on click', async () => {
         fixture.detectChanges();
         const picker = fixture.debugElement.query(By.directive(DatePickerComponent));

@@ -56,7 +56,7 @@ export const ICON_DEMO_LOCALES: Record<string, IconDemoLocale> = {
   en: {
     code: 'en',
     heading: 'Icon',
-    description: 'SVG icon component with 140+ built-in Lucide icons, extensible via DI, with weight and color control.',
+    description: 'SVG icon component with 1000+ built-in icons, extensible via DI, with weight and color control.',
     sectionSizes: 'Sizes',
     sectionSizesDesc: 'Use the size input with preset names or custom pixel values.',
     sectionWeights: 'Weights',
@@ -123,7 +123,7 @@ export const ICON_DEMO_LOCALES: Record<string, IconDemoLocale> = {
     code: 'he',
     rtl: true,
     heading: 'אייקון',
-    description: 'רכיב אייקון SVG עם 140+ אייקוני Lucide מובנים, ניתן להרחבה באמצעות DI, עם שליטה במשקל ובצבע.',
+    description: 'רכיב אייקון SVG עם 1000+ אייקונים מובנים, ניתן להרחבה באמצעות DI, עם שליטה במשקל ובצבע.',
     sectionSizes: 'גדלים',
     sectionSizesDesc: 'השתמש בקלט size עם שמות מוגדרים מראש או ערכי פיקסלים מותאמים אישית.',
     sectionWeights: 'משקלים',
@@ -190,7 +190,7 @@ export const ICON_DEMO_LOCALES: Record<string, IconDemoLocale> = {
     code: 'ar',
     rtl: true,
     heading: 'أيقونة',
-    description: 'مكوّن أيقونة SVG مع أكثر من 140 أيقونة Lucide مدمجة، قابل للتوسيع عبر DI، مع التحكم في الوزن واللون.',
+    description: 'مكوّن أيقونة SVG مع أكثر من 1000 أيقونة مدمجة، قابل للتوسيع عبر DI، مع التحكم في الوزن واللون.',
     sectionSizes: 'الأحجام',
     sectionSizesDesc: 'استخدم إدخال size مع الأسماء المحددة مسبقًا أو قيم البكسل المخصصة.',
     sectionWeights: 'الأوزان',
@@ -256,7 +256,7 @@ export const ICON_DEMO_LOCALES: Record<string, IconDemoLocale> = {
   de: {
     code: 'de',
     heading: 'Symbol',
-    description: 'SVG-Symbol-Komponente mit 140+ integrierten Lucide-Symbolen, erweiterbar über DI, mit Gewichts- und Farbsteuerung.',
+    description: 'SVG-Symbol-Komponente mit 1000+ integrierten Symbolen, erweiterbar über DI, mit Gewichts- und Farbsteuerung.',
     sectionSizes: 'Größen',
     sectionSizesDesc: 'Verwenden Sie den size-Input mit vordefinierten Namen oder benutzerdefinierten Pixelwerten.',
     sectionWeights: 'Gewichte',
@@ -322,7 +322,7 @@ export const ICON_DEMO_LOCALES: Record<string, IconDemoLocale> = {
   fr: {
     code: 'fr',
     heading: 'Icône',
-    description: 'Composant d\'icône SVG avec plus de 140 icônes Lucide intégrées, extensible via DI, avec contrôle du poids et de la couleur.',
+    description: 'Composant d\'icône SVG avec plus de 1000 icônes intégrées, extensible via DI, avec contrôle du poids et de la couleur.',
     sectionSizes: 'Tailles',
     sectionSizesDesc: 'Utilisez l\'entrée size avec des noms prédéfinis ou des valeurs de pixels personnalisées.',
     sectionWeights: 'Poids',
@@ -388,7 +388,7 @@ export const ICON_DEMO_LOCALES: Record<string, IconDemoLocale> = {
   es: {
     code: 'es',
     heading: 'Icono',
-    description: 'Componente de icono SVG con más de 140 iconos Lucide integrados, extensible mediante DI, con control de peso y color.',
+    description: 'Componente de icono SVG con más de 1000 iconos integrados, extensible mediante DI, con control de peso y color.',
     sectionSizes: 'Tamaños',
     sectionSizesDesc: 'Usa la entrada size con nombres predefinidos o valores de píxeles personalizados.',
     sectionWeights: 'Pesos',
@@ -454,7 +454,7 @@ export const ICON_DEMO_LOCALES: Record<string, IconDemoLocale> = {
   ja: {
     code: 'ja',
     heading: 'アイコン',
-    description: '140以上の組み込みLucideアイコンを持つSVGアイコンコンポーネント。DIで拡張可能、ウェイトとカラーを制御できます。',
+    description: '1000以上の組み込みアイコンを持つSVGアイコンコンポーネント。DIで拡張可能、ウェイトとカラーを制御できます。',
     sectionSizes: 'サイズ',
     sectionSizesDesc: 'プリセット名またはカスタムピクセル値でsize入力を使用します。',
     sectionWeights: 'ウェイト',
@@ -520,7 +520,7 @@ export const ICON_DEMO_LOCALES: Record<string, IconDemoLocale> = {
   zh: {
     code: 'zh',
     heading: '图标',
-    description: 'SVG图标组件，内置140+个Lucide图标，可通过DI扩展，支持粗细和颜色控制。',
+    description: 'SVG图标组件，内置1000+个图标，可通过DI扩展，支持粗细和颜色控制。',
     sectionSizes: '尺寸',
     sectionSizesDesc: '使用size输入配合预设名称或自定义像素值。',
     sectionWeights: '粗细',
@@ -586,7 +586,7 @@ export const ICON_DEMO_LOCALES: Record<string, IconDemoLocale> = {
   ru: {
     code: 'ru',
     heading: 'Иконка',
-    description: 'Компонент SVG-иконки с 140+ встроенными иконками Lucide, расширяемый через DI, с управлением толщиной и цветом.',
+    description: 'Компонент SVG-иконки с 1000+ встроенными иконками, расширяемый через DI, с управлением толщиной и цветом.',
     sectionSizes: 'Размеры',
     sectionSizesDesc: 'Используйте ввод size с предустановленными именами или пользовательскими значениями пикселей.',
     sectionWeights: 'Толщина',
@@ -652,7 +652,7 @@ export const ICON_DEMO_LOCALES: Record<string, IconDemoLocale> = {
   pt: {
     code: 'pt',
     heading: 'Ícone',
-    description: 'Componente de ícone SVG com mais de 140 ícones Lucide integrados, extensível via DI, com controle de peso e cor.',
+    description: 'Componente de ícone SVG com mais de 1000 ícones integrados, extensível via DI, com controle de peso e cor.',
     sectionSizes: 'Tamanhos',
     sectionSizesDesc: 'Use a entrada size com nomes predefinidos ou valores de pixel personalizados.',
     sectionWeights: 'Pesos',

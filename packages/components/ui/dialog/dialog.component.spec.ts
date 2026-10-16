@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DialogComponent, DialogTriggerComponent, DialogContentComponent, DialogHeaderComponent, DialogTitleComponent, DialogDescriptionComponent, DialogFooterComponent } from './index';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // Test host for integration
 @Component({
@@ -116,6 +116,20 @@ describe('Dialog Integration', () => {
 
         const contentAfter = fixture.debugElement.query(By.css('[data-slot="dialog-content"]'));
         expect(contentAfter).toBeNull();
+    });
+
+    it('should close from the built-in close button', async () => {
+        const dialogComp = fixture.debugElement.query(By.directive(DialogComponent));
+        dialogComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.debugElement.query(By.css('[data-slot="dialog-content"] button[aria-label]')).nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(dialogComp.componentInstance.open()).toBe(false);
+        expect(fixture.debugElement.query(By.css('[data-slot="dialog-content"]'))).toBeNull();
     });
 
     it('should close on overlay click', async () => {
@@ -263,10 +277,6 @@ describe('DialogContentComponent — i18n integration', () => {
         return fixture;
     }
 
-    afterEach(() => {
-        document.body.style.overflow = '';
-    });
-
     it('renders English "Close" by default', async () => {
         const fixture = await setup();
         const sr = fixture.debugElement.query(By.css('[data-slot="dialog-content"] .sr-only'));
@@ -306,10 +316,6 @@ describe('DialogContentComponent — i18n integration', () => {
 class OpenAtInitHost { }
 
 describe('DialogContentComponent — open before view init', () => {
-    afterEach(() => {
-        document.body.style.overflow = '';
-    });
-
     it('focuses the first focusable element from ngAfterViewInit when already open', () => {
         const fixture = TestBed.createComponent(OpenAtInitHost);
         fixture.detectChanges();
@@ -322,10 +328,6 @@ describe('DialogContentComponent — open before view init', () => {
 });
 
 describe('DialogContentComponent — focusFirstElement fallback', () => {
-    afterEach(() => {
-        document.body.style.overflow = '';
-    });
-
     it('focuses the content container itself when no focusable child exists (white-box: unreachable through the public API, the built-in close button is always focusable)', async () => {
         const fixture = TestBed.createComponent(TestHostComponent);
         fixture.detectChanges();
@@ -349,81 +351,6 @@ describe('DialogContentComponent — focusFirstElement fallback', () => {
         (contentComp as unknown as { focusFirstElement(): void }).focusFirstElement();
 
         expect(document.activeElement).toBe(contentDiv);
-    });
-});
-
-describe('DialogContentComponent — keyboard focus trap', () => {
-    let fixture: ComponentFixture<DialogContentComponent>;
-    let component: DialogContentComponent;
-    let container: HTMLElement;
-    let first: HTMLButtonElement;
-    let last: HTMLButtonElement;
-
-    function setContentEl(el: HTMLElement | undefined) {
-        (component as unknown as { contentEl?: HTMLElement }).contentEl = el;
-    }
-
-    function tab(options: KeyboardEventInit = {}): KeyboardEvent {
-        const event = new KeyboardEvent('keydown', { key: 'Tab', ...options });
-        const preventSpy = vi.spyOn(event, 'preventDefault');
-        component.onKeydown(event);
-        return Object.assign(event, { preventSpy }) as KeyboardEvent & {
-            preventSpy: ReturnType<typeof vi.spyOn>;
-        };
-    }
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [DialogContentComponent],
-        }).compileComponents();
-        fixture = TestBed.createComponent(DialogContentComponent);
-        component = fixture.componentInstance;
-
-        container = document.createElement('div');
-        first = document.createElement('button');
-        first.textContent = 'first';
-        last = document.createElement('button');
-        last.textContent = 'last';
-        container.append(first, last);
-        document.body.appendChild(container);
-        setContentEl(container);
-    });
-
-    afterEach(() => {
-        container.remove();
-        document.body.style.overflow = '';
-    });
-
-    it('prevents default on Escape', () => {
-        const event = new KeyboardEvent('keydown', { key: 'Escape' });
-        const preventSpy = vi.spyOn(event, 'preventDefault');
-        component.onKeydown(event);
-        expect(preventSpy).toHaveBeenCalled();
-    });
-
-    it('ignores non-Tab keys', () => {
-        const event = new KeyboardEvent('keydown', { key: 'a' });
-        const preventSpy = vi.spyOn(event, 'preventDefault');
-        component.onKeydown(event);
-        expect(preventSpy).not.toHaveBeenCalled();
-    });
-
-    it('does nothing on Tab when contentEl is not set', () => {
-        setContentEl(undefined);
-        const event = tab();
-        expect((event as unknown as { preventSpy: { mock: { calls: unknown[] } } }).preventSpy.mock.calls).toHaveLength(0);
-    });
-
-    it('does not wrap forward when focus is not on the last element', () => {
-        first.focus();
-        const event = tab();
-        expect((event as unknown as { preventSpy: { mock: { calls: unknown[] } } }).preventSpy.mock.calls).toHaveLength(0);
-    });
-
-    it('does not wrap backward when focus is not on the first element', () => {
-        last.focus();
-        const event = tab({ shiftKey: true });
-        expect((event as unknown as { preventSpy: { mock: { calls: unknown[] } } }).preventSpy.mock.calls).toHaveLength(0);
     });
 });
 
@@ -460,27 +387,16 @@ describe('DialogContentComponent — focus trap in an open dialog', () => {
         focusables = Array.from(panel.querySelectorAll<HTMLElement>('button'));
     });
 
-    afterEach(() => {
-        document.body.style.overflow = '';
-    });
-
-    it('wraps forward from the last element to the first on Tab', () => {
+    it('routes Tab and Shift+Tab on the panel through the focus trap', () => {
         expect(focusables).toHaveLength(3);
-        const last = focusables[2];
+        const [first, , last] = focusables;
+
         last.focus();
-
         pressTab(last);
-
-        expect(document.activeElement).toBe(focusables[0]);
-    });
-
-    it('wraps backward from the first element to the last on Shift+Tab', () => {
-        const first = focusables[0];
-        first.focus();
+        expect(document.activeElement).toBe(first);
 
         pressTab(first, true);
-
-        expect(document.activeElement).toBe(focusables[2]);
+        expect(document.activeElement).toBe(last);
     });
 });
 

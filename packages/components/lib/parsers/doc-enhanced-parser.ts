@@ -1,3 +1,4 @@
+import { DEFAULT_PARSER_LIMITS, type ParserLimits } from './limits';
 import { readOle2 } from './ole2-reader';
 import { isValidImageMagicBytes } from './image-validator';
 import type {
@@ -128,7 +129,8 @@ function parseExtendedFib(wordDoc: Uint8Array): ExtendedFib {
 
     const fcMin = readU32(wordDoc, 24);
     const fcMac = readU32(wordDoc, 28);
-    const ccpText = readU32(wordDoc, 76);
+    // A stream holds at most one character per byte, so the claim is clamped to the stream.
+    const ccpText = Math.min(readU32(wordDoc, 76), wordDoc.length);
 
     const fcStshf = readU32(wordDoc, 0x00A2);
     const lcbStshf = readU32(wordDoc, 0x00A6);
@@ -1203,11 +1205,17 @@ function resolveStyleCharProps(
 
 // ── Section K: Table Detection & Construction ──────────────────────────
 
+/** Where a picture's bytes can live, and how far into nested OfficeArt data to follow them. */
+interface PictureSources {
+    readonly dataStream: Uint8Array | undefined;
+    readonly wordDoc: Uint8Array | undefined;
+    readonly maxArtDepth: number;
+}
+
 function buildDocxElements(
     paragraphs: ReadonlyArray<DocParaInfo>,
     fonts: ReadonlyArray<string>,
-    dataStream: Uint8Array | undefined,
-    wordDoc: Uint8Array | undefined,
+    sources: PictureSources,
     styles: ReadonlyArray<DocStyleDef>,
 ): ReadonlyArray<DocxElement> {
     const elements: DocxElement[] = [];
@@ -1217,12 +1225,12 @@ function buildDocxElements(
     while (i < paragraphs.length) {
         const para = paragraphs[i];
         if (para.paraProps.inTable && !para.paraProps.isInnerCell) {
-            const tableResult = buildTable(paragraphs, i, fonts, dataStream, wordDoc, styles, styleCharCache);
+            const tableResult = buildTable(paragraphs, i, fonts, sources, styles, styleCharCache);
             elements.push(tableResult.table);
             i = tableResult.nextIndex;
         } else {
             const styleProps = resolveStyleCharProps(para.paraProps.istd ?? 0, styles, styleCharCache);
-            buildParagraphElement(para, fonts, dataStream, wordDoc, styleProps, elements);
+            buildParagraphElement(para, fonts, sources, styleProps, elements);
             i++;
         }
     }
@@ -1233,8 +1241,7 @@ function buildDocxElements(
 function buildParagraphElement(
     para: DocParaInfo,
     fonts: ReadonlyArray<string>,
-    dataStream: Uint8Array | undefined,
-    wordDoc: Uint8Array | undefined,
+    sources: PictureSources,
     styleCharProps: CharProps,
     outputElements: DocxElement[],
 ): void {
@@ -1244,7 +1251,7 @@ function buildParagraphElement(
     }
 
     const extractedImages: DocxImage[] = [];
-    const docxRuns = convertRuns(para.runs, fonts, dataStream, wordDoc, styleCharProps, extractedImages);
+    const docxRuns = convertRuns(para.runs, fonts, sources, styleCharProps, extractedImages);
 
     for (const img of extractedImages) {
         outputElements.push(img);
@@ -1337,8 +1344,7 @@ function detectListType(listId: number): DocxListType {
 function convertRuns(
     runs: ReadonlyArray<TextRun>,
     fonts: ReadonlyArray<string>,
-    dataStream: Uint8Array | undefined,
-    wordDoc: Uint8Array | undefined,
+    sources: PictureSources,
     styleCharProps: CharProps,
     extractedImages: DocxImage[],
 ): ReadonlyArray<DocxRun> {
@@ -1350,7 +1356,7 @@ function convertRuns(
 
         // Handle special characters (images)
         if (run.props.isSpecialChar && run.text === '\u0001' && run.props.picLocation !== undefined) {
-            const image = tryExtractImage(dataStream, wordDoc, run.props.picLocation);
+            const image = tryExtractImage(sources, run.props.picLocation);
             if (image) {
                 extractedImages.push(image);
                 continue;
@@ -1375,16 +1381,16 @@ function convertRuns(
 }
 
 function tryExtractImage(
-    dataStream: Uint8Array | undefined,
-    wordDoc: Uint8Array | undefined,
+    sources: PictureSources,
     picLocation: number,
 ): DocxImage | null {
+    const { dataStream, wordDoc, maxArtDepth } = sources;
     if (dataStream) {
-        const image = extractInlineImage(dataStream, picLocation);
+        const image = extractInlineImage(dataStream, picLocation, maxArtDepth);
         if (image) return image;
     }
     if (wordDoc) {
-        return extractInlineImage(wordDoc, picLocation);
+        return extractInlineImage(wordDoc, picLocation, maxArtDepth);
     }
     return null;
 }
@@ -1456,8 +1462,7 @@ function buildTable(
     paragraphs: ReadonlyArray<DocParaInfo>,
     startIndex: number,
     fonts: ReadonlyArray<string>,
-    dataStream: Uint8Array | undefined,
-    wordDoc: Uint8Array | undefined,
+    sources: PictureSources,
     styles: ReadonlyArray<DocStyleDef>,
     styleCharCache: Map<number, CharProps>,
 ): { readonly table: DocxTable; readonly nextIndex: number } {
@@ -1472,7 +1477,7 @@ function buildTable(
         if (para.paraProps.isTtp) {
             const rowParas = collectRowParagraphs(paragraphs, startIndex, i);
             const rowProps = extractRowProps();
-            const row = buildTableRow(rowParas, rowProps, fonts, dataStream, wordDoc, styles, styleCharCache);
+            const row = buildTableRow(rowParas, rowProps, fonts, sources, styles, styleCharCache);
             rows.push(row);
             i++;
             startIndex = i;
@@ -1484,7 +1489,7 @@ function buildTable(
     if (startIndex < i) {
         const rowParas = collectRowParagraphs(paragraphs, startIndex, i);
         if (rowParas.length > 0) {
-            const row = buildTableRow(rowParas, {}, fonts, dataStream, wordDoc, styles, styleCharCache);
+            const row = buildTableRow(rowParas, {}, fonts, sources, styles, styleCharCache);
             rows.push(row);
         }
     }
@@ -1517,8 +1522,7 @@ function buildTableRow(
     cellParas: ReadonlyArray<DocParaInfo>,
     rowProps: TableRowProps,
     fonts: ReadonlyArray<string>,
-    dataStream: Uint8Array | undefined,
-    wordDoc: Uint8Array | undefined,
+    sources: PictureSources,
     styles: ReadonlyArray<DocStyleDef>,
     styleCharCache: Map<number, CharProps>,
 ): DocxTableRow {
@@ -1530,7 +1534,7 @@ function buildTableRow(
         currentCellParas.push(para);
 
         if (hasCellMark) {
-            const cellElements = buildCellElements(currentCellParas, fonts, dataStream, wordDoc, styles, styleCharCache);
+            const cellElements = buildCellElements(currentCellParas, fonts, sources, styles, styleCharCache);
             const cellStyle = buildCellStyle(cells.length, rowProps);
             cells.push({ elements: cellElements, colSpan: 1, rowSpan: 1, cellStyle });
             currentCellParas = [];
@@ -1538,7 +1542,7 @@ function buildTableRow(
     }
 
     if (currentCellParas.length > 0) {
-        const cellElements = buildCellElements(currentCellParas, fonts, dataStream, wordDoc, styles, styleCharCache);
+        const cellElements = buildCellElements(currentCellParas, fonts, sources, styles, styleCharCache);
         cells.push({ elements: cellElements, colSpan: 1, rowSpan: 1 });
     }
 
@@ -1553,15 +1557,14 @@ function buildTableRow(
 function buildCellElements(
     paras: ReadonlyArray<DocParaInfo>,
     fonts: ReadonlyArray<string>,
-    dataStream: Uint8Array | undefined,
-    wordDoc: Uint8Array | undefined,
+    sources: PictureSources,
     styles: ReadonlyArray<DocStyleDef>,
     styleCharCache: Map<number, CharProps>,
 ): ReadonlyArray<DocxParagraph | DocxTable> {
     const elements: DocxElement[] = [];
     for (const p of paras) {
         const styleProps = resolveStyleCharProps(p.paraProps.istd ?? 0, styles, styleCharCache);
-        buildParagraphElement(p, fonts, dataStream, wordDoc, styleProps, elements);
+        buildParagraphElement(p, fonts, sources, styleProps, elements);
     }
     return elements.filter((el): el is DocxParagraph | DocxTable => el.type === 'paragraph' || el.type === 'table');
 }
@@ -1578,7 +1581,7 @@ function buildCellStyle(cellIndex: number, rowProps: TableRowProps): DocxTableCe
 
 // ── Section L: Image Extraction ────────────────────────────────────────
 
-function extractInlineImage(dataStream: Uint8Array, picLocation: number): DocxImage | null {
+function extractInlineImage(dataStream: Uint8Array, picLocation: number, maxArtDepth: number): DocxImage | null {
     if (picLocation < 0 || picLocation + 68 > dataStream.length) return null;
 
     // Read PICF header
@@ -1595,16 +1598,25 @@ function extractInlineImage(dataStream: Uint8Array, picLocation: number): DocxIm
     const artStart = picLocation + 68;
     const artEnd = Math.min(picLocation + lcb, dataStream.length);
 
-    return findBlipImage(dataStream, artStart, artEnd, width, height);
+    return findBlipImage(dataStream, artStart, artEnd, { width, height, maxDepth: maxArtDepth }, 0);
+}
+
+/** Picture size from the PICF, and how deep into nested OfficeArt containers to look for the BLIP. */
+interface BlipSearch {
+    readonly width: number;
+    readonly height: number;
+    readonly maxDepth: number;
 }
 
 function findBlipImage(
     data: Uint8Array,
     start: number,
     end: number,
-    width: number,
-    height: number,
+    search: BlipSearch,
+    depth: number,
 ): DocxImage | null {
+    // Containers nest by the file's say-so, a few bytes per level.
+    if (depth > search.maxDepth) return null;
     let offset = start;
 
     while (offset + 8 <= end) {
@@ -1614,12 +1626,12 @@ function findBlipImage(
 
         // BLIP record types: 0xF01A-0xF02A
         if (fbt >= 0xF01A && fbt <= 0xF02A) {
-            return extractBlipData(data, offset + 8, recLen, fbt, width, height);
+            return extractBlipData(data, offset + 8, recLen, fbt, search.width, search.height);
         }
 
         // Container record: recurse
         if ((verInst & 0x0F) === 0x0F) {
-            const inner = findBlipImage(data, offset + 8, Math.min(offset + 8 + recLen, end), width, height);
+            const inner = findBlipImage(data, offset + 8, Math.min(offset + 8 + recLen, end), search, depth + 1);
             if (inner) return inner;
         }
 
@@ -1695,16 +1707,20 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 
 // ── Section M: Top-Level Orchestration ─────────────────────────────────
 
-export function parseDocEnhanced(data: Uint8Array): DocxParseResult {
+/**
+ * Reads a legacy Word .doc file with its formatting, tables and images.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
+export function parseDocEnhanced(data: Uint8Array, limits: ParserLimits = DEFAULT_PARSER_LIMITS): DocxParseResult {
     try {
-        return parseDocInternal(data);
+        return parseDocInternal(data, limits);
     } catch {
-        return fallbackToBasicParsing(data);
+        return fallbackToBasicParsing(data, limits);
     }
 }
 
-function parseDocInternal(data: Uint8Array): DocxParseResult {
-    const ole2 = readOle2(data);
+function parseDocInternal(data: Uint8Array, limits: ParserLimits): DocxParseResult {
+    const ole2 = readOle2(data, limits);
 
     const wordDoc = ole2.streams.get('WordDocument');
     if (!wordDoc) throw new Error('Invalid DOC: missing WordDocument stream');
@@ -1718,7 +1734,7 @@ function parseDocInternal(data: Uint8Array): DocxParseResult {
 
     // Parse piece table for text + FC mapping
     const pieceResult = parsePieceTable(wordDoc, tableStream, fib);
-    if (!pieceResult) return fallbackToBasicParsing(data);
+    if (!pieceResult) return fallbackToBasicParsing(data, limits);
 
     // Parse supporting structures (each degrades gracefully)
     const fonts = safeParse(() => parseFontTable(tableStream, fib.fcSttbfFfn, fib.lcbSttbfFfn), []);
@@ -1735,7 +1751,7 @@ function parseDocInternal(data: Uint8Array): DocxParseResult {
     );
 
     // Build final elements (paragraphs, tables, images)
-    const elements = buildDocxElements(paragraphs, fonts, dataStream, wordDoc, styles);
+    const elements = buildDocxElements(paragraphs, fonts, { dataStream, wordDoc, maxArtDepth: limits.maxNestingDepth }, styles);
 
     // Extract plain text
     const plainText = paragraphs
@@ -1763,8 +1779,8 @@ function safeParse<T>(fn: () => T, fallback: T): T {
     }
 }
 
-function fallbackToBasicParsing(data: Uint8Array): DocxParseResult {
-    const ole2 = readOle2(data);
+function fallbackToBasicParsing(data: Uint8Array, limits: ParserLimits): DocxParseResult {
+    const ole2 = readOle2(data, limits);
     const wordDoc = ole2.streams.get('WordDocument');
     if (!wordDoc) {
         return emptyResult();

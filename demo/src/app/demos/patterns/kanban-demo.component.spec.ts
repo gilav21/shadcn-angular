@@ -4,6 +4,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideUiLocale } from '../../../../../packages/components/lib/i18n';
 import { KanbanDemoComponent } from './kanban-demo.component';
 import { KANBAN_DEMO_LOCALES } from './kanban-demo.locales';
+import { describe, it, expect } from 'vitest';
 
 describe('KanbanDemoComponent', () => {
   it('renders English title and a sample card under default locale', () => {

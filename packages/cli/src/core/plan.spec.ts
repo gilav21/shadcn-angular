@@ -74,6 +74,28 @@ describe('classifyComponent', () => {
       entry.peerFiles = original;
     }
   });
+
+  it('queues a peer file that changed but does not turn the component into a conflict', async () => {
+    // Only the peer differs: the component's own files match the remote, so the
+    // developer has no edits of their own to protect.
+    const entry = registry['data-table'] as { peerFiles?: readonly string[] };
+    const original = entry.peerFiles;
+    entry.peerFiles = ['alpha.directive.ts'];
+    try {
+      (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+      (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+        async (p: string) => (p.includes('alpha') ? 'LOCAL PEER EDIT' : 'REMOTE'),
+      );
+      const peerSet = new Set<string>();
+      const verdict = await classifyComponent(
+        'data-table', '/proj/ui', opts, '@/lib', new Map(), peerSet,
+      );
+      expect(verdict).toBe('skip');
+      expect([...peerSet]).toEqual(['alpha.directive.ts']);
+    } finally {
+      entry.peerFiles = original;
+    }
+  });
 });
 
 describe('collectBreakingChanges (data-table context-menu migration)', () => {

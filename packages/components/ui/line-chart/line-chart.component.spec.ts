@@ -162,16 +162,16 @@ describe('LineChartComponent', () => {
         expect(component.crosshairX()).toBe(component.categoryTicks()[2].x);
     });
 
-    it('falls back to zero when a series lacks a value at the hovered index', () => {
-        const ragged: ChartSeries[] = [
+    it('shows a dash, not a number, for a series with no value at the hovered index', () => {
+        const ragged = [
             { name: 'Full', data: [{ name: 'A', value: 5 }, { name: 'B', value: 6 }, { name: 'C', value: 7 }] },
             { name: 'Short', data: [{ name: 'A', value: 1 }] },
-        ];
+            { name: 'Gappy', data: [{ name: 'A', value: 1 }, { name: 'B', value: 2 }, { name: 'C', value: Number.NaN }] },
+        ] as ChartSeries[];
         fixture.componentRef.setInput('series', ragged);
         fixture.detectChanges();
         component.setHover(2);
-        const shortRow = component.tooltipRows().find(r => r.label === 'Short')!;
-        expect(shortRow.value).toContain('0');
+        expect(component.tooltipRows().map(r => r.value)).toEqual(['7', '—', '—']);
     });
 
     it('emits pointHover with the hovered category and clears on leave', () => {
@@ -285,5 +285,27 @@ describe('LineChartComponent', () => {
         const root = fixture.nativeElement.querySelector('[data-slot="line-chart"]') as HTMLElement;
         expect(root.classList).toContain('my-chart');
         expect(root.classList).toContain('w-full');
+    });
+
+    // T-8 (UC-7)
+    it('draws a gap at a missing value and no marker for it', () => {
+        const missing = [
+            { name: 'A', value: 3 },
+            { name: 'B', value: Number.NaN },
+            { name: 'C', value: 5 },
+            { name: 'D', value: undefined },
+            { name: 'E', value: 7 },
+        ] as unknown as ChartSeries['data'];
+        fixture.componentRef.setInput('series', [{ name: 'Gappy', data: missing }, { name: 'Null', data: [{ name: 'A', value: null }] }] as unknown as ChartSeries[]);
+        fixture.detectChanges();
+
+        const root = fixture.nativeElement as HTMLElement;
+        const path = root.querySelector('path[data-slot="line-series"]')!.getAttribute('d')!;
+        expect(path.match(/M /g)).toHaveLength(3);
+        const gridLabels = Array.from(root.querySelectorAll('text')).map(t => t.textContent?.trim());
+        expect(gridLabels.some(t => t === 'NaN')).toBe(false);
+        expect(root.querySelectorAll('circle[aria-label^="Gappy"]')).toHaveLength(3);
+        const attributes = Array.from(root.querySelectorAll('svg *')).flatMap(el => Array.from(el.attributes).map(a => a.value));
+        expect(attributes.filter(v => v.includes('NaN') || v.includes('Infinity'))).toEqual([]);
     });
 });

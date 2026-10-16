@@ -100,103 +100,46 @@ describe('BentoGridComponent', () => {
         return fixture.debugElement.query(By.directive(BentoGridComponent)).componentInstance as BentoGridComponent;
     }
 
-    it('should display string content in items', () => {
+    it('renders each item with its content, applies rowHeight and gap, and drops the border only when showBorders and editable are both off', async () => {
         const items = fixture.debugElement.queryAll(By.css('.bento-item'));
-        expect(items).toHaveLength(3);
-        expect(items[0].nativeElement.textContent).toContain('Item 1');
-        expect(items[1].nativeElement.textContent).toContain('Item 2');
-        expect(items[2].nativeElement.textContent).toContain('Item 3');
-    });
-
-    it('should apply border class when showBorders is true', () => {
-        const items = fixture.debugElement.queryAll(By.css('.bento-item'));
+        expect(items.map(i => i.nativeElement.textContent.trim())).toEqual(['Item 1', 'Item 2', 'Item 3']);
         expect(items[0].nativeElement.classList.contains('border')).toBe(true);
-    });
 
-    it('should not apply border class when showBorders and editable are both false', async () => {
+        const gridEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+        expect(gridEl.style.gridAutoRows).toBe('120px');
+        expect(gridEl.style.gap).toBe('1rem');
+
         component.showBorders.set(false);
-        component.editable.set(false);
         fixture.detectChanges();
         await fixture.whenStable();
-
-        const items = fixture.debugElement.queryAll(By.css('.bento-item'));
-        expect(items[0].nativeElement.classList.contains('border')).toBe(false);
+        expect(fixture.debugElement.queryAll(By.css('.bento-item'))[0].nativeElement.classList.contains('border')).toBe(false);
     });
 
-    it('should set grid-auto-rows style from rowHeight input', () => {
-        const gridEl = fixture.debugElement.query(By.css('.grid'));
-        expect(gridEl.nativeElement.style.gridAutoRows).toBe('120px');
-    });
-
-    it('should set gap style from gap input', () => {
-        const gridEl = fixture.debugElement.query(By.css('.grid'));
-        expect(gridEl.nativeElement.style.gap).toBe('1rem');
-    });
-
-    describe('Selection toggle', () => {
-        it('should deselect an item when toggleSelection is called again on a selected item', () => {
+    describe('Selection', () => {
+        it('toggles an item and emits selectionChange, replaces the selection when multi=false, and clears it on demand', () => {
             component.editable.set(true);
             fixture.detectChanges();
 
             const grid = getGrid();
             grid.toggleSelection('1', false);
             expect(grid.isSelected('1')).toBe(true);
+            expect(component.lastSelectionChange).toEqual(['1']);
 
             grid.toggleSelection('1', false);
             expect(grid.isSelected('1')).toBe(false);
-        });
 
-        it('should emit selectionChange when toggling selection', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-
-            const grid = getGrid();
             grid.toggleSelection('1', false);
-
-            expect(component.lastSelectionChange).toEqual(['1']);
-        });
-    });
-
-    describe('Multi-selection', () => {
-        it('should replace selection when multi=false', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-
-            const grid = getGrid();
-            grid.toggleSelection('1', false);
-            expect(grid.isSelected('1')).toBe(true);
-
             grid.toggleSelection('2', false);
             expect(grid.isSelected('1')).toBe(false);
             expect(grid.isSelected('2')).toBe(true);
-        });
-    });
 
-    describe('Clear selection', () => {
-        it('should clear all selected items', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-
-            const grid = getGrid();
             grid.toggleSelection('1', true);
-            grid.toggleSelection('2', true);
-            expect(grid.isSelected('1')).toBe(true);
             expect(grid.isSelected('2')).toBe(true);
+            expect(grid.isSelected('1')).toBe(true);
 
             grid.clearSelection();
-
             expect(grid.isSelected('1')).toBe(false);
             expect(grid.isSelected('2')).toBe(false);
-        });
-
-        it('should emit selectionChange with empty array when clearing', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-
-            const grid = getGrid();
-            grid.toggleSelection('1', true);
-            grid.clearSelection();
-
             expect(component.lastSelectionChange).toEqual([]);
         });
     });
@@ -241,51 +184,24 @@ describe('BentoGridComponent', () => {
         });
     });
 
-    describe('areAdjacent', () => {
-        it('should return true for horizontally touching items', () => {
-            const grid = getGrid();
-            const a: DashboardItem = { id: 'a', x: 1, y: 1, cols: 2, rows: 1, content: '' };
-            const b: DashboardItem = { id: 'b', x: 3, y: 1, cols: 1, rows: 1, content: '' };
+    it('areAdjacent is true only for items sharing an edge, from either side, never for gaps or diagonals', () => {
+        const grid = getGrid();
+        const at = (id: string, x: number, y: number, cols = 1): DashboardItem => ({ id, x, y, cols, rows: 1, content: '' });
 
-            expect(grid.areAdjacent(a, b)).toBe(true);
-        });
-
-        it('should return true for vertically touching items', () => {
-            const grid = getGrid();
-            const a: DashboardItem = { id: 'a', x: 1, y: 1, cols: 2, rows: 1, content: '' };
-            const b: DashboardItem = { id: 'b', x: 1, y: 2, cols: 1, rows: 1, content: '' };
-
-            expect(grid.areAdjacent(a, b)).toBe(true);
-        });
-
-        it('should return false for non-touching items', () => {
-            const grid = getGrid();
-            const a: DashboardItem = { id: 'a', x: 1, y: 1, cols: 1, rows: 1, content: '' };
-            const b: DashboardItem = { id: 'b', x: 3, y: 3, cols: 1, rows: 1, content: '' };
-
-            expect(grid.areAdjacent(a, b)).toBe(false);
-        });
-
-        it('should return false for diagonally touching items', () => {
-            const grid = getGrid();
-            const a: DashboardItem = { id: 'a', x: 1, y: 1, cols: 1, rows: 1, content: '' };
-            const b: DashboardItem = { id: 'b', x: 2, y: 2, cols: 1, rows: 1, content: '' };
-
-            expect(grid.areAdjacent(a, b)).toBe(false);
-        });
-
-        it('should return true when items share an edge (b is left of a)', () => {
-            const grid = getGrid();
-            const a: DashboardItem = { id: 'a', x: 3, y: 1, cols: 1, rows: 1, content: '' };
-            const b: DashboardItem = { id: 'b', x: 1, y: 1, cols: 2, rows: 1, content: '' };
-
-            expect(grid.areAdjacent(a, b)).toBe(true);
-        });
+        expect(grid.areAdjacent(at('a', 1, 1, 2), at('b', 3, 1))).toBe(true);
+        expect(grid.areAdjacent(at('a', 1, 1, 2), at('b', 1, 2))).toBe(true);
+        expect(grid.areAdjacent(at('a', 3, 1), at('b', 1, 1, 2))).toBe(true);
+        expect(grid.areAdjacent(at('a', 1, 1), at('b', 3, 3))).toBe(false);
+        expect(grid.areAdjacent(at('a', 1, 1), at('b', 2, 2))).toBe(false);
     });
 
-    describe('canMerge', () => {
-        it('should return false when selected items are not adjacent', () => {
+    describe('canMerge / mergeSelected', () => {
+        beforeEach(() => {
             component.editable.set(true);
+            fixture.detectChanges();
+        });
+
+        it('canMerge is false when the selected items are not adjacent or one is no longer in items', () => {
             component.items.set([
                 { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'Item 1' },
                 { id: '2', x: 4, y: 4, cols: 1, rows: 1, content: 'Item 2' },
@@ -295,59 +211,55 @@ describe('BentoGridComponent', () => {
             const grid = getGrid();
             grid.toggleSelection('1', true);
             grid.toggleSelection('2', true);
+            expect(grid.canMerge()).toBe(false);
 
+            component.items.set([{ id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'Item 1' }]);
+            fixture.detectChanges();
             expect(grid.canMerge()).toBe(false);
         });
-    });
 
-    describe('mergeSelected', () => {
-        it('should merge two adjacent items into one covering the bounding box', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-
+        it('merges two adjacent items into their bounding box and clears the selection', () => {
             const grid = getGrid();
             grid.toggleSelection('1', true);
             grid.toggleSelection('2', true);
-
             expect(grid.canMerge()).toBe(true);
 
             grid.mergeSelected();
 
-            expect(component.lastItemsChange).toBeTruthy();
-            const merged = component.lastItemsChange!;
-
-            const mergedItem = merged.find(i => i.id === '1');
-            expect(mergedItem).toBeTruthy();
-            expect(mergedItem!.x).toBe(1);
-            expect(mergedItem!.y).toBe(1);
-            expect(mergedItem!.cols).toBe(3);
-            expect(mergedItem!.rows).toBe(1);
-
-            expect(merged.find(i => i.id === '2')).toBeUndefined();
-        });
-
-        it('should clear selection after merging', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-
-            const grid = getGrid();
-            grid.toggleSelection('1', true);
-            grid.toggleSelection('2', true);
-            grid.mergeSelected();
-
+            expect(component.lastItemsChange).toHaveLength(2);
+            expect(component.lastItemsChange).toEqual(expect.arrayContaining([
+                { id: '1', x: 1, y: 1, cols: 3, rows: 1, content: 'Item 1' },
+                { id: '3', x: 1, y: 2, cols: 1, rows: 1, content: 'Item 3' },
+            ]));
             expect(grid.isSelected('1')).toBe(false);
             expect(grid.isSelected('2')).toBe(false);
         });
 
-        it('should not merge when canMerge is false', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-
+        it('does not merge a single selected item', () => {
             const grid = getGrid();
             grid.toggleSelection('1', true);
             grid.mergeSelected();
 
             expect(component.lastItemsChange).toBeNull();
+        });
+
+        it('sorts vertically-stacked items by row before merging', () => {
+            component.items.set([
+                { id: 'bottom', x: 1, y: 2, cols: 1, rows: 1, content: 'B' },
+                { id: 'top', x: 1, y: 1, cols: 1, rows: 1, content: 'T' },
+            ]);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.toggleSelection('bottom', true);
+            grid.toggleSelection('top', true);
+            expect(grid.canMerge()).toBe(true);
+            grid.mergeSelected();
+
+            const merged = component.lastItemsChange!;
+            expect(merged).toHaveLength(1);
+            expect(merged[0].id).toBe('top');
+            expect(merged[0].y).toBe(1);
+            expect(merged[0].rows).toBe(2);
         });
     });
 
@@ -390,16 +302,6 @@ describe('BentoGridComponent', () => {
             expect(newItem!.y).toBe(1);
             expect(newItem!.rows).toBe(1);
         });
-
-        it('should not split an item with cols < 2', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-
-            const grid = getGrid();
-            grid.splitItem('2', 'vertical');
-
-            expect(component.lastItemsChange).toBeNull();
-        });
     });
 
     describe('splitItem horizontal', () => {
@@ -428,16 +330,17 @@ describe('BentoGridComponent', () => {
             expect(newItem!.y).toBe(2);
             expect(newItem!.cols).toBe(2);
         });
+    });
 
-        it('should not split an item with rows < 2', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
+    it('refuses to split an item that is too small along the split axis', () => {
+        component.editable.set(true);
+        fixture.detectChanges();
 
-            const grid = getGrid();
-            grid.splitItem('1', 'horizontal');
+        const grid = getGrid();
+        grid.splitItem('2', 'vertical');
+        grid.splitItem('1', 'horizontal');
 
-            expect(component.lastItemsChange).toBeNull();
-        });
+        expect(component.lastItemsChange).toBeNull();
     });
 
     describe('addItemAt', () => {
@@ -498,53 +401,39 @@ describe('BentoGridComponent', () => {
             expect(gridEl.classList).toContain('my-grid');
         });
 
-        it('should produce grid cells when editable', () => {
+        it('produces grid cells only when editable', () => {
+            expect(getGrid().gridCells()).toHaveLength(0);
             component.editable.set(true);
             fixture.detectChanges();
             // 4 cols x (max(8, lowest item bottom 3) + 2 spare rows)
             expect(getGrid().gridCells()).toHaveLength(40);
         });
-
-        it('should produce no grid cells when not editable', () => {
-            component.editable.set(false);
-            fixture.detectChanges();
-            expect(getGrid().gridCells()).toHaveLength(0);
-        });
     });
 
-    describe('input transforms', () => {
-
-        it('should transform numeric rowHeight to px', () => {
-            const f = makeStandaloneGrid();
-            f.componentRef.setInput('rowHeight', 200);
+    it('turns bare numbers and numeric strings into px and keeps values that already carry a unit, for every dimension input', () => {
+        const f = makeStandaloneGrid();
+        const grid = f.componentInstance;
+        // Each input carries its own transform, so each needs all three classes of value.
+        const inputs = {
+            rowHeight: () => grid.rowHeight(),
+            gap: () => grid.gap(),
+            columnWidth: () => grid.columnWidth(),
+            borderRadius: () => grid.borderRadius(),
+            itemPadding: () => grid.itemPadding(),
+        };
+        for (const [name, read] of Object.entries(inputs)) {
+            f.componentRef.setInput(name, 12);
             f.detectChanges();
-            expect(f.componentInstance.rowHeight()).toBe('200px');
-        });
+            expect(read(), name + ' number').toBe('12px');
 
-        it('should transform numeric-string gap to px', () => {
-            const f = makeStandaloneGrid();
-            f.componentRef.setInput('gap', '24');
+            f.componentRef.setInput(name, '24');
             f.detectChanges();
-            expect(f.componentInstance.gap()).toBe('24px');
-        });
+            expect(read(), name + ' numeric string').toBe('24px');
 
-        it('should keep non-numeric rowHeight unchanged', () => {
-            const f = makeStandaloneGrid();
-            f.componentRef.setInput('rowHeight', '5rem');
+            f.componentRef.setInput(name, '3rem');
             f.detectChanges();
-            expect(f.componentInstance.rowHeight()).toBe('5rem');
-        });
-
-        it('should transform numeric columnWidth / borderRadius / itemPadding', () => {
-            const f = makeStandaloneGrid();
-            f.componentRef.setInput('columnWidth', 80);
-            f.componentRef.setInput('borderRadius', 8);
-            f.componentRef.setInput('itemPadding', 12);
-            f.detectChanges();
-            expect(f.componentInstance.columnWidth()).toBe('80px');
-            expect(f.componentInstance.borderRadius()).toBe('8px');
-            expect(f.componentInstance.itemPadding()).toBe('12px');
-        });
+            expect(read(), name + ' unit string').toBe('3rem');
+        }
     });
 
     describe('helper methods', () => {
@@ -565,12 +454,10 @@ describe('BentoGridComponent', () => {
             expect(f.nativeElement.textContent).toContain('Plain note');
         });
 
-        it('castMenuData should return null for nullish', () => {
+        it('castMenuData is null for nullish data, and isDragging follows draggedItemId', () => {
             expect(getGrid().castMenuData(null)).toBeNull();
             expect(getGrid().castMenuData(undefined)).toBeNull();
-        });
 
-        it('isDragging reflects draggedItemId', () => {
             const grid = getGrid();
             expect(grid.isDragging('1')).toBe(false);
             grid.draggedItemId.set('1');
@@ -584,83 +471,56 @@ describe('BentoGridComponent', () => {
             return { calls, show: (...a: unknown[]) => { calls.push(a); } };
         }
 
-        it('onContextMenu shows menu with item when editable', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const menu = fakeMenu();
-            const item: DashboardItem = { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' };
-            const ev = new MouseEvent('contextmenu', { clientX: 50, clientY: 60 });
-            grid.onContextMenu(ev, item, menu as never);
-            expect(menu.calls).toHaveLength(1);
-            expect(menu.calls[0]).toEqual([50, 60, item]);
-        });
+        function containerContextMenu(menu: ReturnType<typeof fakeMenu>, clientX: number, clientY: number): void {
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const ev = new MouseEvent('contextmenu', { clientX, clientY });
+            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            Object.defineProperty(ev, 'target', { value: containerEl });
+            getGrid().onContainerContextMenu(ev, menu as never);
+        }
 
-        it('onContextMenu does nothing when not editable', () => {
-            component.editable.set(false);
-            fixture.detectChanges();
+        it('onContextMenu shows the menu with the item, but only when editable', () => {
             const grid = getGrid();
             const menu = fakeMenu();
             const item: DashboardItem = { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' };
+
             grid.onContextMenu(new MouseEvent('contextmenu'), item, menu as never);
             expect(menu.calls).toHaveLength(0);
+
+            component.editable.set(true);
+            fixture.detectChanges();
+            grid.onContextMenu(new MouseEvent('contextmenu', { clientX: 50, clientY: 60 }), item, menu as never);
+            expect(menu.calls).toEqual([[50, 60, item]]);
         });
 
-        it('onContainerContextMenu shows empty-cell menu on free cell', () => {
+        it('onContainerContextMenu offers the add-here menu on a free cell only', () => {
+            const menu = fakeMenu();
+            containerContextMenu(menu, 5, 5);
+            expect(menu.calls).toHaveLength(0);
+
             component.editable.set(true);
             component.items.set([]);
             fixture.detectChanges();
-            const grid = getGrid();
-            const menu = fakeMenu();
-            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
-            const ev = new MouseEvent('contextmenu', { clientX: 5, clientY: 5 });
-            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
-            Object.defineProperty(ev, 'target', { value: containerEl });
-            grid.onContainerContextMenu(ev, menu as never);
+            containerContextMenu(menu, 5, 5);
             expect(menu.calls).toHaveLength(1);
             expect((menu.calls[0][2] as { type: string }).type).toBe('empty');
         });
 
-        it('onContainerContextMenu ignores clicks on a bento-item', () => {
+        it('onContainerContextMenu ignores a click on a bento-item and one over an occupied cell', () => {
             component.editable.set(true);
             fixture.detectChanges();
-            const grid = getGrid();
             const menu = fakeMenu();
             const itemEl = fixture.debugElement.query(By.css('.bento-item')).nativeElement as HTMLElement;
-            const ev = new MouseEvent('contextmenu');
-            Object.defineProperty(ev, 'target', { value: itemEl });
-            grid.onContainerContextMenu(ev, menu as never);
+            const onItem = new MouseEvent('contextmenu');
+            Object.defineProperty(onItem, 'target', { value: itemEl });
+            getGrid().onContainerContextMenu(onItem, menu as never);
             expect(menu.calls).toHaveLength(0);
-        });
 
-        it('onContainerContextMenu does nothing when not editable', () => {
-            component.editable.set(false);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const menu = fakeMenu();
-            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
-            const ev = new MouseEvent('contextmenu');
-            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
-            Object.defineProperty(ev, 'target', { value: containerEl });
-            grid.onContainerContextMenu(ev, menu as never);
-            expect(menu.calls).toHaveLength(0);
-        });
-
-        it('onContainerContextMenu does not show menu over an occupied cell', () => {
-            component.editable.set(true);
-            component.items.set([
-                { id: 'big', x: 1, y: 1, cols: 12, rows: 12, content: '' },
-            ]);
+            component.items.set([{ id: 'big', x: 1, y: 1, cols: 12, rows: 12, content: '' }]);
             component.cols.set(12);
             fixture.detectChanges();
-            const grid = getGrid();
-            const menu = fakeMenu();
-            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
-            const rect = containerEl.getBoundingClientRect();
-            const ev = new MouseEvent('contextmenu', { clientX: rect.left + 5, clientY: rect.top + 5 });
-            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
-            Object.defineProperty(ev, 'target', { value: containerEl });
-            grid.onContainerContextMenu(ev, menu as never);
+            const rect = fixture.debugElement.query(By.css('.grid')).nativeElement.getBoundingClientRect();
+            containerContextMenu(menu, rect.left + 5, rect.top + 5);
             expect(menu.calls).toHaveLength(0);
         });
     });
@@ -682,10 +542,15 @@ describe('BentoGridComponent', () => {
             return ev;
         }
 
-        it('onDragStart sets draggedItemId and dragOffset', () => {
+        it('onDragStart records the dragged id and grab offset only when editable, falling back to a zeroed rect outside a bento-item', () => {
+            const grid = getGrid();
+            const notEditable = makeDragEvent('dragstart');
+            Object.defineProperty(notEditable, 'target', { value: document.body });
+            grid.onDragStart(notEditable, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' });
+            expect(grid.draggedItemId()).toBeNull();
+
             component.editable.set(true);
             fixture.detectChanges();
-            const grid = getGrid();
             const itemEl = fixture.debugElement.query(By.css('.bento-item')).nativeElement as HTMLElement;
             const ev = makeDragEvent('dragstart', 100, 100);
             Object.defineProperty(ev, 'target', { value: itemEl });
@@ -693,16 +558,11 @@ describe('BentoGridComponent', () => {
             expect(grid.draggedItemId()).toBe('1');
             expect(grid.dragOffset()).not.toBeNull();
             expect(ev.dataTransfer!.effectAllowed).toBe('move');
-        });
 
-        it('onDragStart does nothing when not editable', () => {
-            component.editable.set(false);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const ev = makeDragEvent('dragstart');
-            Object.defineProperty(ev, 'target', { value: document.body });
-            grid.onDragStart(ev, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' });
-            expect(grid.draggedItemId()).toBeNull();
+            const orphan = makeDragEvent('dragstart', 10, 10);
+            Object.defineProperty(orphan, 'target', { value: document.body });
+            grid.onDragStart(orphan, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' });
+            expect(grid.dragOffset()).toEqual({ x: 10, y: 10 });
         });
 
         it('onDragEnd clears drag state', () => {
@@ -716,22 +576,22 @@ describe('BentoGridComponent', () => {
             expect(grid.dragOffset()).toBeNull();
         });
 
-        it('onDragOver sets dropEffect move when editable', () => {
+        it('onDragOver sets dropEffect move only when editable, and tolerates a missing dataTransfer', () => {
+            const grid = getGrid();
+            const target: DashboardItem = { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' };
+            const notEditable = makeDragEvent('dragover');
+            grid.onDragOver(notEditable, target);
+            expect(notEditable.dataTransfer!.dropEffect).toBe('');
+
             component.editable.set(true);
             fixture.detectChanges();
-            const grid = getGrid();
             const ev = makeDragEvent('dragover');
-            grid.onDragOver(ev, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' });
+            grid.onDragOver(ev, target);
             expect(ev.dataTransfer!.dropEffect).toBe('move');
-        });
 
-        it('onDragOver does nothing when not editable', () => {
-            component.editable.set(false);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const ev = makeDragEvent('dragover');
-            grid.onDragOver(ev, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' });
-            expect(ev.dataTransfer!.dropEffect).toBe('');
+            const bare = new Event('dragover') as DragEvent;
+            Object.defineProperty(bare, 'dataTransfer', { value: null });
+            expect(() => grid.onDragOver(bare, target)).not.toThrow();
         });
 
         it('onContainerDragOver sets copy for external and updates dropPreview for internal', () => {
@@ -752,6 +612,32 @@ describe('BentoGridComponent', () => {
             grid.onContainerDragOver(intEv);
             expect(intEv.dataTransfer!.dropEffect).toBe('move');
             expect(grid.dropPreview()).not.toBeNull();
+        });
+
+        it('onContainerDragOver leaves the drop preview alone when not editable, without dataTransfer, or for a missing dragged item', () => {
+            const grid = getGrid();
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const dragOver = (dataTransfer: unknown): { prevented: boolean } => {
+                const ev = new Event('dragover') as DragEvent;
+                const result = { prevented: false };
+                Object.defineProperty(ev, 'preventDefault', { value: () => { result.prevented = true; } });
+                Object.defineProperty(ev, 'clientX', { value: 30 });
+                Object.defineProperty(ev, 'clientY', { value: 40 });
+                Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+                Object.defineProperty(ev, 'dataTransfer', { value: dataTransfer });
+                grid.onContainerDragOver(ev);
+                return result;
+            };
+
+            expect(dragOver(null).prevented).toBe(false);
+
+            component.editable.set(true);
+            fixture.detectChanges();
+            expect(() => dragOver(null)).not.toThrow();
+
+            grid.draggedItemId.set('ghost');
+            dragOver({ types: [], dropEffect: '' });
+            expect(grid.dropPreview()).toBeNull();
         });
     });
 
@@ -784,37 +670,42 @@ describe('BentoGridComponent', () => {
             expect(grid.draggedItemId()).toBeNull();
         });
 
-        it('onDrop handles external widget drop', () => {
+        it('onDrop emits an external widget drop, and ignores invalid JSON and an empty payload', () => {
             component.editable.set(true);
             fixture.detectChanges();
             const grid = getGrid();
-            const ev = dropEventWithData(JSON.stringify({ type: 'widget', id: 'w9' }));
             const externalDrops: { widgetId: string; targetId: string | null }[] = [];
             grid.externalDrop.subscribe(e => externalDrops.push(e));
-            grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
-            expect(externalDrops).toHaveLength(1);
-            expect(externalDrops[0].widgetId).toBe('w9');
-            expect(externalDrops[0].targetId).toBe('2');
+            const target: DashboardItem = { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' };
+
+            grid.onDrop(dropEventWithData('{not json'), target);
+            grid.onDrop(dropEventWithData(null), target);
+            expect(externalDrops).toHaveLength(0);
+
+            grid.onDrop(dropEventWithData(JSON.stringify({ type: 'widget', id: 'w9' })), target);
+            expect(externalDrops).toEqual([{ widgetId: 'w9', targetId: '2' }]);
         });
 
-        it('onDrop ignores invalid external JSON', () => {
+        it('onDrop commits nothing when not editable, when the dragged item is missing, or when there is no preview', () => {
+            const grid = getGrid();
+            const target: DashboardItem = { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' };
+            grid.draggedItemId.set('1');
+            grid.onDrop(dropEventWithData(null), target);
+            expect(component.lastItemsChange).toBeNull();
+
             component.editable.set(true);
             fixture.detectChanges();
-            const grid = getGrid();
-            const ev = dropEventWithData('{not json');
-            const drops: unknown[] = [];
-            grid.externalDrop.subscribe(e => drops.push(e));
-            grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
-            expect(drops).toHaveLength(0);
-        });
-
-        it('onDrop does nothing when not editable', () => {
-            component.editable.set(false);
-            fixture.detectChanges();
-            const grid = getGrid();
-            grid.draggedItemId.set('1');
-            grid.onDrop(dropEventWithData(null), { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
+            grid.dropPreview.set({ x: 2, y: 2, cols: 1, rows: 1 });
+            grid.draggedItemId.set('ghost');
+            grid.onDrop(dropEventWithData(null), target);
             expect(component.lastItemsChange).toBeNull();
+            expect(grid.draggedItemId()).toBeNull();
+
+            grid.draggedItemId.set('1');
+            grid.dropPreview.set(null);
+            grid.onDrop(dropEventWithData(null), target);
+            expect(component.lastItemsChange).toBeNull();
+            expect(grid.draggedItemId()).toBeNull();
         });
 
         it('onContainerDrop moves a dragged item to a free cell', () => {
@@ -836,45 +727,47 @@ describe('BentoGridComponent', () => {
             expect(grid.draggedItemId()).toBeNull();
         });
 
-        it('onContainerDrop emits external widget drop with coords', () => {
+        it('onContainerDrop emits an external widget drop with coords, and ignores invalid JSON and a non-widget payload', () => {
             component.editable.set(true);
             fixture.detectChanges();
             const grid = getGrid();
             const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
             const rect = containerEl.getBoundingClientRect();
-            const ev = dropEventWithData(JSON.stringify({ type: 'widget', id: 'wX' }), rect.left + 10, rect.top + 10);
-            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            const drop = (data: string): void => {
+                const ev = dropEventWithData(data, rect.left + 10, rect.top + 10);
+                Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+                grid.onContainerDrop(ev);
+            };
             const drops: { widgetId: string; targetId: string | null }[] = [];
             grid.externalDrop.subscribe(e => drops.push(e));
-            grid.onContainerDrop(ev);
+
+            drop('bad');
+            drop(JSON.stringify({ type: 'not-widget' }));
+            expect(drops).toHaveLength(0);
+
+            drop(JSON.stringify({ type: 'widget', id: 'wX' }));
             expect(drops).toHaveLength(1);
-            expect(drops[0].widgetId).toBe('wX');
-            expect(drops[0].targetId).toBeNull();
+            expect(drops[0]).toMatchObject({ widgetId: 'wX', targetId: null });
         });
 
-        it('onContainerDrop ignores invalid JSON', () => {
+        it('onContainerDrop does nothing when not editable or when the dragged item is missing', () => {
+            const grid = getGrid();
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const drop = (): void => {
+                const ev = dropEventWithData(null);
+                Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+                grid.onContainerDrop(ev);
+            };
+            grid.draggedItemId.set('1');
+            drop();
+            expect(grid.draggedItemId()).toBe('1');
+
             component.editable.set(true);
             fixture.detectChanges();
-            const grid = getGrid();
-            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
-            const ev = dropEventWithData('bad', 10, 10);
-            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
-            const drops: unknown[] = [];
-            grid.externalDrop.subscribe(e => drops.push(e));
-            grid.onContainerDrop(ev);
-            expect(drops).toHaveLength(0);
-        });
-
-        it('onContainerDrop does nothing when not editable', () => {
-            component.editable.set(false);
-            fixture.detectChanges();
-            const grid = getGrid();
-            grid.draggedItemId.set('1');
-            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
-            const ev = dropEventWithData(null);
-            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
-            grid.onContainerDrop(ev);
-            expect(grid.draggedItemId()).toBe('1');
+            grid.draggedItemId.set('ghost');
+            drop();
+            expect(component.lastItemsChange).toBeNull();
+            expect(grid.draggedItemId()).toBeNull();
         });
     });
 
@@ -900,29 +793,14 @@ describe('BentoGridComponent', () => {
             mockRect(fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement, 1200, 1200);
         });
 
-        it('onResizeStart sets resizing state and preview', () => {
+        it('resizing state is set on start, the item grows south-east on mousemove, and mouseup commits it', () => {
             const grid = getGrid();
             const item = component.items()[0];
             startResize(grid, item, 'se');
             expect(grid.resizingItemId()).toBe('1');
             expect(grid.resizeDirection()).toBe('se');
             expect(grid.resizePreview()).toEqual({ id: '1', cols: 3, rows: 3, x: 2, y: 2 });
-        });
 
-        it('does nothing when not editable', () => {
-            component.editable.set(false);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const ev = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
-            Object.defineProperty(ev, 'target', { value: document.body });
-            grid.onResizeStart(ev, component.items()[0], 'se');
-            expect(grid.resizingItemId()).toBeNull();
-        });
-
-        it('mousemove grows item to the south-east then commits on mouseup', () => {
-            const grid = getGrid();
-            const item = component.items()[0];
-            startResize(grid, item, 'se');
             globalThis.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 300, clientY: 340 }));
             expect(grid.resizePreview()).toEqual({ id: '1', cols: 5, rows: 5, x: 2, y: 2 });
             globalThis.window.dispatchEvent(new MouseEvent('mouseup', { clientX: 300, clientY: 340 }));
@@ -931,6 +809,28 @@ describe('BentoGridComponent', () => {
             expect(component.lastItemsChange).toEqual([
                 { id: '1', x: 2, y: 2, cols: 5, rows: 5, content: 'Resizable' },
             ]);
+        });
+
+        it('onResizeStart does nothing when not editable, outside a bento-item, or for an item with no grid ancestor', () => {
+            const grid = getGrid();
+            const start = (target: EventTarget): void => {
+                const ev = new MouseEvent('mousedown', { clientX: 10, clientY: 10 });
+                Object.defineProperty(ev, 'target', { value: target });
+                grid.onResizeStart(ev, component.items()[0], 'se');
+            };
+            const detached = document.createElement('div');
+            detached.className = 'bento-item';
+
+            component.editable.set(false);
+            fixture.detectChanges();
+            start(document.body);
+            expect(grid.resizingItemId()).toBeNull();
+
+            component.editable.set(true);
+            fixture.detectChanges();
+            start(document.body);
+            start(detached);
+            expect(grid.resizingItemId()).toBeNull();
         });
 
         it.each([
@@ -1003,22 +903,26 @@ describe('BentoGridComponent', () => {
             expect(grid.dropPreview()).toBeNull();
         });
 
-        it('onTouchDragStart does nothing when not editable', () => {
+        it('onTouchDragStart does nothing when not editable or while resizing, and falls back to a zeroed rect outside a bento-item', () => {
+            const grid = getGrid();
+            const start = (): void => grid.onTouchDragStart(
+                makeTouchEvent('touchstart', [{ clientX: 15, clientY: 20 }], document.body), component.items()[0]);
+
             component.editable.set(false);
             fixture.detectChanges();
-            const grid = getGrid();
-            const ev = makeTouchEvent('touchstart', [{ clientX: 10, clientY: 10 }], document.body);
-            grid.onTouchDragStart(ev, component.items()[0]);
+            start();
             expect(grid.draggedItemId()).toBeNull();
-        });
 
-        it('onTouchDragStart is ignored while resizing', () => {
-            const grid = getGrid();
+            component.editable.set(true);
+            fixture.detectChanges();
             grid.resizingItemId.set('1');
-            const ev = makeTouchEvent('touchstart', [{ clientX: 10, clientY: 10 }], document.body);
-            grid.onTouchDragStart(ev, component.items()[0]);
+            start();
             expect(grid.draggedItemId()).toBeNull();
             grid.resizingItemId.set(null);
+
+            start();
+            expect(grid.dragOffset()).toEqual({ x: 15, y: 20 });
+            globalThis.window.dispatchEvent(makeTouchEvent('touchend', []));
         });
     });
 
@@ -1147,109 +1051,34 @@ describe('BentoGridComponent', () => {
         });
     });
 
-    describe('canMerge / mergeSelected — remaining paths', () => {
-        it('returns false when a selected id is no longer present in items', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            grid.toggleSelection('1', true);
-            grid.toggleSelection('2', true);
-            component.items.set([
-                { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'Item 1' },
-            ]);
-            fixture.detectChanges();
-            expect(grid.canMerge()).toBe(false);
-        });
-
-        it('sorts vertically-stacked items by row before merging', () => {
-            component.editable.set(true);
-            component.items.set([
-                { id: 'bottom', x: 1, y: 2, cols: 1, rows: 1, content: 'B' },
-                { id: 'top', x: 1, y: 1, cols: 1, rows: 1, content: 'T' },
-            ]);
-            fixture.detectChanges();
-            const grid = getGrid();
-            grid.toggleSelection('bottom', true);
-            grid.toggleSelection('top', true);
-            expect(grid.canMerge()).toBe(true);
-            grid.mergeSelected();
-
-            const merged = component.lastItemsChange!;
-            expect(merged).toHaveLength(1);
-            expect(merged[0].id).toBe('top');
-            expect(merged[0].y).toBe(1);
-            expect(merged[0].rows).toBe(2);
-        });
+    it('emits nothing for an undefined delete id or an unknown split id', () => {
+        component.editable.set(true);
+        fixture.detectChanges();
+        getGrid().deleteItem(undefined);
+        getGrid().splitItem('does-not-exist', 'vertical');
+        expect(component.lastItemsChange).toBeNull();
     });
 
-    describe('guard clauses', () => {
-        it('deleteItem does nothing for an undefined id', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            getGrid().deleteItem(undefined);
-            expect(component.lastItemsChange).toBeNull();
-        });
+    it('resize helpers fall back safely when no resize is in flight', () => {
+        const grid = getGrid();
+        const p = priv(grid);
+        expect(p.computeResizeDeltas(50, 60, 'se')).toEqual({ deltaX: 0, deltaY: 0, direction: 'se' });
+        expect(p.computeResizePreview('se', 100, 100)).toEqual({ cols: 1, rows: 1, x: 1, y: 1 });
+        expect(p.flipResizeDirectionForRtl('bogus')).toBe('bogus');
 
-        it('splitItem does nothing for an unknown id', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            getGrid().splitItem('does-not-exist', 'vertical');
-            expect(component.lastItemsChange).toBeNull();
-        });
+        p.commitResize();
+        expect(component.lastItemsChange).toBeNull();
 
-        it('onContainerDragOver does nothing when not editable', () => {
-            component.editable.set(false);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const ev = new Event('dragover') as DragEvent;
-            let prevented = false;
-            Object.defineProperty(ev, 'preventDefault', { value: () => { prevented = true; } });
-            grid.onContainerDragOver(ev);
-            expect(prevented).toBe(false);
-        });
+        grid.resizingItemId.set('1');
+        grid.resizePreview.set(null);
+        p.handleResizeEnd();
+        expect(grid.resizingItemId()).toBeNull();
 
-        it('computeResizeDeltas returns raw direction with zero deltas when no initial state', () => {
-            const result = priv(getGrid()).computeResizeDeltas(50, 60, 'se');
-            expect(result).toEqual({ deltaX: 0, deltaY: 0, direction: 'se' });
-        });
-
-        it('computeResizePreview returns a unit preview when no initial state', () => {
-            const result = priv(getGrid()).computeResizePreview('se', 100, 100);
-            expect(result).toEqual({ cols: 1, rows: 1, x: 1, y: 1 });
-        });
-
-        it('commitResize returns early when there is no active resize', () => {
-            const grid = getGrid();
-            priv(grid).commitResize();
-            expect(component.lastItemsChange).toBeNull();
-        });
-    });
-
-    describe('internal drop edge cases', () => {
-        it('ignores an internal drop whose dragged item is missing from items', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            grid.draggedItemId.set('ghost');
-            grid.dropPreview.set({ x: 2, y: 2, cols: 1, rows: 1 });
-            const ev = makeDrop(10, 10);
-            Object.defineProperty(ev, 'stopPropagation', { value: () => undefined });
-            grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
-            expect(component.lastItemsChange).toBeNull();
-            expect(grid.draggedItemId()).toBeNull();
-        });
-
-        it('ignores an external drop with no payload', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const drops: unknown[] = [];
-            grid.externalDrop.subscribe(e => drops.push(e));
-            const ev = makeDrop(10, 10);
-            Object.defineProperty(ev, 'stopPropagation', { value: () => undefined });
-            grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
-            expect(drops).toHaveLength(0);
-        });
+        grid.resizingItemId.set('ghost');
+        grid.resizePreview.set({ id: 'ghost', cols: 2, rows: 2, x: 1, y: 1 });
+        p.commitResize();
+        expect(grid.resizingItemId()).toBeNull();
+        expect(component.lastItemsChange).toBeNull();
     });
 
     describe('RTL coordinate mirroring', () => {
@@ -1304,12 +1133,15 @@ describe('BentoGridComponent', () => {
     });
 
     describe('shrinkItem geometry', () => {
-        it('produces strips on all sides and keeps the largest fragment', () => {
+        it('produces strips on all sides and keeps the largest fragment, the later one on a tie', () => {
             const p = priv(getGrid());
-            const winner = { x: 2, y: 2, cols: 1, rows: 1 };
-            const loser: DashboardItem = { id: 'l', x: 1, y: 1, cols: 3, rows: 3, content: '' };
+            const tie = p.shrinkItem({ x: 2, y: 2, cols: 1, rows: 1 }, { id: 'l', x: 1, y: 1, cols: 3, rows: 3, content: '' });
             // All four strips have area 3; a tie goes to the last candidate, the right strip.
-            expect(p.shrinkItem(winner, loser)).toEqual({ id: 'l', x: 3, y: 1, cols: 1, rows: 3, content: '' });
+            expect(tie).toEqual({ id: 'l', x: 3, y: 1, cols: 1, rows: 3, content: '' });
+
+            // Candidates: top 15, bottom 12, left 20. Top survives bottom, then left wins.
+            const larger = p.shrinkItem({ x: 2, y: 5, cols: 10, rows: 1 }, { id: 'l', x: 0, y: 0, cols: 3, rows: 10, content: '' });
+            expect(larger).toEqual({ id: 'l', x: 0, y: 0, cols: 2, rows: 10, content: '' });
         });
 
         it('keeps non-overlapping items via resolveOverlaps when shrink yields null (white-box: unreachable through the public API, the real shrinkItem returns the loser itself when nothing overlaps)', () => {
@@ -1369,14 +1201,17 @@ describe('BentoGridComponent', () => {
     });
 
     describe('long-press context menus (touch)', () => {
-        const longPress = async (target: HTMLElement, clientX: number, clientY: number): Promise<void> => {
+        beforeEach(() => vi.useFakeTimers());
+        afterEach(() => vi.useRealTimers());
+
+        const longPress = (target: HTMLElement, clientX: number, clientY: number): void => {
             target.dispatchEvent(makeTouchEvent('touchstart', [{ clientX, clientY }]));
-            await new Promise(resolve => setTimeout(resolve, 600));
+            vi.advanceTimersByTime(600);
             globalThis.window.dispatchEvent(makeTouchEvent('touchend', []));
             target.dispatchEvent(makeTouchEvent('touchend', []));
         };
 
-        it('opens the widget menu when a widget is held', async () => {
+        it('opens the widget menu when a widget is held', () => {
             component.editable.set(true);
             fixture.detectChanges();
 
@@ -1386,13 +1221,13 @@ describe('BentoGridComponent', () => {
 
             const itemEl = fixture.debugElement.queryAll(By.css('.bento-item'))[1].nativeElement as HTMLElement;
             const rect = itemEl.getBoundingClientRect();
-            await longPress(itemEl, rect.left + 3, rect.top + 3);
+            longPress(itemEl, rect.left + 3, rect.top + 3);
 
             expect(show).toHaveBeenCalledTimes(1);
             expect((show.mock.calls[0][2] as DashboardItem).id).toBe('2');
         });
 
-        it('opens the add-here menu when a free cell is held', async () => {
+        it('opens the add-here menu when a free cell is held', () => {
             component.editable.set(true);
             component.items.set([]);
             fixture.detectChanges();
@@ -1403,13 +1238,13 @@ describe('BentoGridComponent', () => {
 
             const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
             const rect = containerEl.getBoundingClientRect();
-            await longPress(containerEl, rect.left + 2, rect.top + 2);
+            longPress(containerEl, rect.left + 2, rect.top + 2);
 
             expect(show).toHaveBeenCalledTimes(1);
             expect((show.mock.calls[0][2] as { type: string }).type).toBe('empty');
         });
 
-        it('does not open a menu while not editable', async () => {
+        it('does not open a menu while not editable', () => {
             component.editable.set(false);
             fixture.detectChanges();
 
@@ -1419,33 +1254,9 @@ describe('BentoGridComponent', () => {
 
             const itemEl = fixture.debugElement.queryAll(By.css('.bento-item'))[0].nativeElement as HTMLElement;
             const rect = itemEl.getBoundingClientRect();
-            await longPress(itemEl, rect.left + 3, rect.top + 3);
+            longPress(itemEl, rect.left + 3, rect.top + 3);
 
             expect(show).not.toHaveBeenCalled();
-        });
-    });
-
-    describe('onResizeStart guards', () => {
-        it('returns when the event target is not inside a bento-item', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const ev = new MouseEvent('mousedown', { clientX: 10, clientY: 10 });
-            Object.defineProperty(ev, 'target', { value: document.body });
-            grid.onResizeStart(ev, component.items()[0], 'se');
-            expect(grid.resizingItemId()).toBeNull();
-        });
-
-        it('returns when the bento-item has no grid ancestor', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const detached = document.createElement('div');
-            detached.className = 'bento-item';
-            const ev = new MouseEvent('mousedown', { clientX: 10, clientY: 10 });
-            Object.defineProperty(ev, 'target', { value: detached });
-            grid.onResizeStart(ev, component.items()[0], 'se');
-            expect(grid.resizingItemId()).toBeNull();
         });
     });
 
@@ -1458,60 +1269,6 @@ describe('BentoGridComponent', () => {
             priv(grid).handleTouchDragMove(10, 10, component.items()[0]);
             spy.mockRestore();
             expect(grid.dropPreview()).toBeNull();
-        });
-    });
-
-    describe('onDragOver / onContainerDragOver without dataTransfer', () => {
-        it('onDragOver does not throw when dataTransfer is absent', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const ev = new Event('dragover') as DragEvent;
-            Object.defineProperty(ev, 'dataTransfer', { value: null });
-            expect(() =>
-                grid.onDragOver(ev, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' }),
-            ).not.toThrow();
-        });
-
-        it('onContainerDragOver does not throw when dataTransfer is absent', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
-            const ev = new Event('dragover') as DragEvent;
-            Object.defineProperty(ev, 'dataTransfer', { value: null });
-            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
-            expect(() => grid.onContainerDragOver(ev)).not.toThrow();
-        });
-
-        it('onContainerDragOver leaves dropPreview untouched when the dragged item is missing', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            grid.draggedItemId.set('ghost');
-            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
-            const ev = new Event('dragover') as DragEvent;
-            Object.defineProperty(ev, 'clientX', { value: 30 });
-            Object.defineProperty(ev, 'clientY', { value: 40 });
-            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
-            Object.defineProperty(ev, 'dataTransfer', { value: { types: [], dropEffect: '' } });
-            grid.onContainerDragOver(ev);
-            expect(grid.dropPreview()).toBeNull();
-        });
-    });
-
-    describe('handleInternalDrop with no preview', () => {
-        it('clears drag state without emitting when dropPreview is null', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            grid.draggedItemId.set('1');
-            grid.dropPreview.set(null);
-            const ev = makeDrop(10, 10);
-            Object.defineProperty(ev, 'stopPropagation', { value: () => undefined });
-            grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
-            expect(component.lastItemsChange).toBeNull();
-            expect(grid.draggedItemId()).toBeNull();
         });
     });
 
@@ -1539,113 +1296,23 @@ describe('BentoGridComponent', () => {
             ]);
             expect(grid.draggedItemId()).toBeNull();
         });
-
-        it('does nothing when the dragged item is missing from items', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            grid.draggedItemId.set('ghost');
-            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
-            const ev = makeDrop(10, 10, containerEl);
-            grid.onContainerDrop(ev);
-            expect(component.lastItemsChange).toBeNull();
-            expect(grid.draggedItemId()).toBeNull();
-        });
-
-        it('ignores external JSON that is not a widget payload', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
-            const ev = new Event('drop') as DragEvent;
-            Object.defineProperty(ev, 'clientX', { value: 10 });
-            Object.defineProperty(ev, 'clientY', { value: 10 });
-            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
-            Object.defineProperty(ev, 'dataTransfer', {
-                value: { dropEffect: '', getData: () => JSON.stringify({ type: 'not-widget' }) },
-            });
-            const drops: unknown[] = [];
-            grid.externalDrop.subscribe(e => drops.push(e));
-            grid.onContainerDrop(ev);
-            expect(drops).toHaveLength(0);
-        });
     });
 
-    describe('shrinkItem — largest-fragment tie-break', () => {
-        it('keeps the earlier candidate when it is strictly larger than the next one', () => {
-            const p = priv(getGrid());
-            const winner = { x: 2, y: 5, cols: 10, rows: 1 };
-            const loser: DashboardItem = { id: 'l', x: 0, y: 0, cols: 3, rows: 10, content: '' };
-            // Candidates: top 15, bottom 12, left 20. Top survives bottom, then left wins.
-            expect(p.shrinkItem(winner, loser)).toEqual({ id: 'l', x: 0, y: 0, cols: 2, rows: 10, content: '' });
-        });
-    });
+    it('a touch drag ends without emitting when there is no drop preview or the dragged item is missing', () => {
+        component.editable.set(true);
+        fixture.detectChanges();
+        const grid = getGrid();
+        grid.draggedItemId.set('1');
+        grid.dropPreview.set(null);
+        priv(grid).handleTouchDragEnd();
+        expect(component.lastItemsChange).toBeNull();
+        expect(grid.draggedItemId()).toBeNull();
 
-    describe('handleResizeEnd false branch', () => {
-        it('does not commit when resizingItemId is set but there is no preview', () => {
-            const grid = getGrid();
-            grid.resizingItemId.set('1');
-            grid.resizePreview.set(null);
-            priv(grid).handleResizeEnd();
-            expect(component.lastItemsChange).toBeNull();
-            expect(grid.resizingItemId()).toBeNull();
-        });
-    });
-
-    describe('flipResizeDirectionForRtl fallback', () => {
-        it('falls back to the input direction for an unmapped value', () => {
-            const result = priv(getGrid()).flipResizeDirectionForRtl('bogus');
-            expect(result).toBe('bogus');
-        });
-    });
-
-    describe('onDragStart / onTouchDragStart without a .bento-item ancestor', () => {
-        it('onDragStart falls back to a zeroed rect when no bento-item is found', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const ev = new Event('dragstart') as DragEvent;
-            Object.defineProperty(ev, 'clientX', { value: 10 });
-            Object.defineProperty(ev, 'clientY', { value: 10 });
-            Object.defineProperty(ev, 'target', { value: document.body });
-            Object.defineProperty(ev, 'dataTransfer', { value: { effectAllowed: '' } });
-            grid.onDragStart(ev, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' });
-            expect(grid.dragOffset()).toEqual({ x: 10, y: 10 });
-        });
-
-        it('onTouchDragStart falls back to a zeroed rect when no bento-item is found', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            const ev = makeTouchEvent('touchstart', [{ clientX: 15, clientY: 20 }], document.body);
-            grid.onTouchDragStart(ev, component.items()[0]);
-            expect(grid.dragOffset()).toEqual({ x: 15, y: 20 });
-            globalThis.window.dispatchEvent(makeTouchEvent('touchend', []));
-        });
-    });
-
-    describe('handleTouchDragEnd branches', () => {
-        it('clears drag state without emitting when there is no drop preview', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            grid.draggedItemId.set('1');
-            grid.dropPreview.set(null);
-            priv(grid).handleTouchDragEnd();
-            expect(component.lastItemsChange).toBeNull();
-            expect(grid.draggedItemId()).toBeNull();
-        });
-
-        it('clears drag state without emitting when the dragged item is missing from items', () => {
-            component.editable.set(true);
-            fixture.detectChanges();
-            const grid = getGrid();
-            grid.draggedItemId.set('ghost');
-            grid.dropPreview.set({ x: 1, y: 1, cols: 1, rows: 1 });
-            priv(grid).handleTouchDragEnd();
-            expect(component.lastItemsChange).toBeNull();
-            expect(grid.draggedItemId()).toBeNull();
-        });
+        grid.draggedItemId.set('ghost');
+        grid.dropPreview.set({ x: 1, y: 1, cols: 1, rows: 1 });
+        priv(grid).handleTouchDragEnd();
+        expect(component.lastItemsChange).toBeNull();
+        expect(grid.draggedItemId()).toBeNull();
     });
 
     describe('getGridCoordinatesFromPoint without a drag offset', () => {
@@ -1658,44 +1325,18 @@ describe('BentoGridComponent', () => {
             expect(grid.dropPreview()).not.toBeNull();
         });
     });
-
-    describe('commitResize false branch', () => {
-        it('resets resize state without emitting when the resized item is missing from items', () => {
-            const grid = getGrid();
-            grid.resizingItemId.set('ghost');
-            grid.resizePreview.set({ id: 'ghost', cols: 2, rows: 2, x: 1, y: 1 });
-            priv(grid).commitResize();
-            expect(component.lastItemsChange).toBeNull();
-            expect(grid.resizingItemId()).toBeNull();
-        });
-    });
 });
 
 describe('BentoGridItemComponent', () => {
-    let fixture: ComponentFixture<BentoGridItemComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [BentoGridItemComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(BentoGridItemComponent);
-        fixture.detectChanges();
-    });
-
-    it('should apply grid-column span style', () => {
+    it('applies the column and row spans as grid styles', async () => {
+        await TestBed.configureTestingModule({ imports: [BentoGridItemComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(BentoGridItemComponent);
         fixture.componentRef.setInput('span', 2);
-        fixture.detectChanges();
-
-        const div = fixture.debugElement.query(By.css('div'));
-        expect(div.nativeElement.style.gridColumn).toBe('span 2');
-    });
-
-    it('should apply grid-row span style', () => {
         fixture.componentRef.setInput('rowSpan', 3);
         fixture.detectChanges();
 
-        const div = fixture.debugElement.query(By.css('div'));
-        expect(div.nativeElement.style.gridRow).toBe('span 3');
+        const div = fixture.debugElement.query(By.css('div')).nativeElement as HTMLElement;
+        expect(div.style.gridColumn).toBe('span 2');
+        expect(div.style.gridRow).toBe('span 3');
     });
 });

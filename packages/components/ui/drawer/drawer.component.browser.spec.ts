@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { DrawerComponent, DrawerContentComponent, DrawerTriggerComponent } from './index';
 
 /** Browser-only: which edge the panel docks to is layout, asserted as geometry. */
@@ -20,11 +20,6 @@ class DirectionHost {
 }
 
 describe('Drawer RTL Support (browser)', () => {
-    afterEach(() => {
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    });
-
     it.each([
         { dir: 'ltr' as const, edge: 'right' },
         { dir: 'rtl' as const, edge: 'left' },

@@ -3,6 +3,7 @@ import { PdfReader, buildFontInfo, getPageMediaBox, buildImageDataUrl, resolveIm
 import { TtfFont } from './ttf-parser';
 import { buildTtf } from './ttf-builder';
 import type { TtfBuilderGlyph } from './ttf-builder';
+import { DEFAULT_PARSER_LIMITS, DrawPath, type ParserLimits } from './limits';
 
 // Fallback font for glyphs missing from embedded PDF fonts.
 // Loaded lazily from bundled NotoSans-Regular.ttf in Node.js environments.
@@ -656,6 +657,21 @@ function buildFallbackGlyph(
 const SERIF_KEYWORDS = ['times', 'georgia', 'cambria', 'garamond', 'palatino', 'bodoni', 'baskerville', 'bookman', 'century'];
 const MONO_KEYWORDS = ['courier', 'mono', 'consolas', 'menlo', 'lucidaconsole', 'inconsolata'];
 
+const STYLE_SUFFIX = /(?:Bold|Italic|Regular|Medium|Light|Condensed|Black|Heavy|Oblique|Book|Demi|Semi|Ultra|Thin|Extra|PS)$/i;
+
+/**
+ * Drops one trailing style word and the whitespace before it ("Arial Bold" →
+ * "Arial"). Found from the word backwards: a `\s+` regex retried from every
+ * space of a long run of spaces is quadratic.
+ */
+function stripStyleSuffix(name: string): string {
+    const word = STYLE_SUFFIX.exec(name);
+    if (!word) return name;
+    let end = word.index;
+    while (end > 0 && /\s/.test(name.charAt(end - 1))) end--;
+    return end === word.index ? name : name.slice(0, end);
+}
+
 /**
  * Dynamically extract a CSS font-family from any PDF BaseFontName.
  * No static map needed — works for any font by parsing the name.
@@ -683,9 +699,8 @@ function getSystemFontFamily(baseFontName: string): string {
     name = name.replaceAll(/[-_,]+/g, ' ').trim();
 
     // Remove style/weight suffixes (run twice to catch consecutive: "PS Bold" → "")
-    const stylePat = /(?=(\s+))\1(Bold|Italic|Regular|Medium|Light|Condensed|Black|Heavy|Oblique|Book|Demi|Semi|Ultra|Thin|Extra|PS)$/gi;
-    name = name.replaceAll(stylePat, '').trim();
-    name = name.replaceAll(stylePat, '').trim();
+    name = stripStyleSuffix(name).trim();
+    name = stripStyleSuffix(name).trim();
 
     // Title-case all-lowercase names: "arialuni" → "Arialuni"
     if (name === name.toLowerCase() && name.length > 0) {
@@ -2134,6 +2149,8 @@ class PixelPerfectProcessor {
     // Graphics tracking
     private readonly pathRects: PathRect[] = [];
     private readonly imageItems: ImageItem[] = [];
+    /** Form XObjects being drawn on the current page; a fresh one per page. */
+    private formDraws: DrawPath<PdfObject>;
     private pathPoints: number[] = [];
     private readonly generalPathPoints: Array<{ tx: number; ty: number }> = [];
 
@@ -2141,13 +2158,20 @@ class PixelPerfectProcessor {
         this.reader = reader;
         this.fontRegistry = fontRegistry;
         this.zoom = zoom;
+        this.formDraws = this.newFormDraws();
         // general.cc:326-327: text_scale_factor1 = max(zoom, font_size_multiplier)
         this.textScaleFactor1 = Math.max(zoom, FONT_SIZE_MULTIPLIER);
         this.textScaleFactor2 = zoom / this.textScaleFactor1;
     }
 
+    private newFormDraws(): DrawPath<PdfObject> {
+        const { maxNestingDepth, maxFormDrawsPerPage } = this.reader.limits;
+        return new DrawPath(maxNestingDepth, maxFormDrawsPerPage);
+    }
+
     processPage(pageObj: PdfObject, _pageIndex: number): ProcessedPage {
         this.resetState();
+        this.formDraws = this.newFormDraws();
         this.lines.length = 0;
         this.pathRects.length = 0;
         this.imageItems.length = 0;
@@ -3005,13 +3029,13 @@ class PixelPerfectProcessor {
         const subtype = this.reader.getString(objDict['Subtype']);
 
         if (subtype === 'Form') {
-            this.processFormXObject(ref, resources, pageWidth, pageHeight);
+            this.formDraws.enter(this.reader.resolveDeep(ref), () => this.drawFormXObject(ref, resources, pageWidth, pageHeight));
         } else if (subtype === 'Image') {
             this.processImageXObject(ref, objDict);
         }
     }
 
-    private processFormXObject(
+    private drawFormXObject(
         ref: PdfObject,
         parentResources: Record<string, PdfObject>,
         pageWidth: number,
@@ -3425,7 +3449,11 @@ function assemblePageHtml(
 
 // ── Main Entry Point ──────────────────────────────────────────────────
 
-export async function renderPixelPerfectPaged(buffer: ArrayBuffer, options?: PixelPerfectOptions): Promise<PixelPerfectPagedResult> {
+/**
+ * Renders a PDF page by page with absolutely positioned text, for pixel-faithful display.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
+export async function renderPixelPerfectPaged(buffer: ArrayBuffer, options?: PixelPerfectOptions, limits: ParserLimits = DEFAULT_PARSER_LIMITS): Promise<PixelPerfectPagedResult> {
     const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
     if (header.length < 5 ||
         header[0] !== 0x25 || header[1] !== 0x50 || header[2] !== 0x44 ||
@@ -3433,7 +3461,7 @@ export async function renderPixelPerfectPaged(buffer: ArrayBuffer, options?: Pix
         throw new Error('Not a valid PDF file.');
     }
 
-    const reader = new PdfReader(buffer);
+    const reader = new PdfReader(buffer, limits);
     try {
         reader.parse();
     } catch {

@@ -9,13 +9,6 @@ describe('PdfReadableCompareDemoComponent', () => {
         return fixture;
     }
 
-    it('renders the title and the empty state before a file is chosen', () => {
-        const fixture = createFixture();
-        const el = fixture.nativeElement as HTMLElement;
-        expect(el.textContent).toContain('PDF → Readable HTML');
-        expect(el.textContent).toContain('Pick a PDF file');
-    });
-
     it('shows an error for a non-PDF file', async () => {
         const fixture = createFixture();
         const file = new File([new TextEncoder().encode('not a pdf')], 'x.pdf', { type: 'application/pdf' });

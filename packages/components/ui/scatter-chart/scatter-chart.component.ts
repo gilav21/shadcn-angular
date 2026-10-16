@@ -23,6 +23,7 @@ import {
     getChartColor,
     formatChartValue,
     getChartSummary,
+    extent,
 } from '../../lib/chart.utils';
 import { linearScale, niceDomain } from '../../lib/chart-scale';
 import { nearestPoint2D, pointerToSvg } from '../../lib/chart-interaction';
@@ -167,14 +168,14 @@ export class ScatterChartComponent implements AfterViewInit {
 
     readonly xDomain = computed<[number, number]>(() => {
         const xs = this.allVisiblePoints().map(p => p.x);
-        if (xs.length === 0) return [0, 1];
-        return niceDomain(Math.min(...xs), Math.max(...xs), 5);
+        const range = extent(xs);
+        return range ? niceDomain(range[0], range[1], 5) : [0, 1];
     });
 
     readonly yDomain = computed<[number, number]>(() => {
         const ys = this.allVisiblePoints().map(p => p.y);
-        if (ys.length === 0) return [0, 1];
-        return niceDomain(Math.min(...ys), Math.max(...ys), 5);
+        const range = extent(ys);
+        return range ? niceDomain(range[0], range[1], 5) : [0, 1];
     });
 
     protected readonly area = computed(() => {

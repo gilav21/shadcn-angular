@@ -5,7 +5,7 @@ import {
   ContextMenuItemComponent,
   ContextMenuSeparatorComponent,
   ContextMenuShortcutComponent,
-  ContextMenuIntegrations,
+  TreeContextMenuDirective,
   ToastService,
   TreeComponent,
   TreeIconComponent,
@@ -29,7 +29,7 @@ import { TREE_VIEW_DEMO_LOCALES } from './tree-view-demo.locales';
     ContextMenuItemComponent,
     ContextMenuSeparatorComponent,
     ContextMenuShortcutComponent,
-    ...ContextMenuIntegrations,
+    TreeContextMenuDirective,
   ],
   template: `
     <section class="space-y-4">

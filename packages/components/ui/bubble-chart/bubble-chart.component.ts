@@ -23,6 +23,7 @@ import {
     getChartColor,
     formatChartValue,
     getChartSummary,
+    extent,
 } from '../../lib/chart.utils';
 import { linearScale, niceDomain, sizeScale } from '../../lib/chart-scale';
 import { nearestPoint2D, pointerToSvg } from '../../lib/chart-interaction';
@@ -169,14 +170,14 @@ export class BubbleChartComponent implements AfterViewInit {
 
     private readonly xDomain = computed<[number, number]>(() => {
         const xs = this.allPoints().map(p => p.x);
-        if (xs.length === 0) return [0, 1];
-        return niceDomain(Math.min(...xs), Math.max(...xs), 5);
+        const range = extent(xs);
+        return range ? niceDomain(range[0], range[1], 5) : [0, 1];
     });
 
     private readonly yDomain = computed<[number, number]>(() => {
         const ys = this.allPoints().map(p => p.y);
-        if (ys.length === 0) return [0, 1];
-        return niceDomain(Math.min(...ys), Math.max(...ys), 5);
+        const range = extent(ys);
+        return range ? niceDomain(range[0], range[1], 5) : [0, 1];
     });
 
     protected readonly area = computed(() => {
@@ -202,8 +203,7 @@ export class BubbleChartComponent implements AfterViewInit {
 
     private readonly radiusScale = computed(() => {
         const zs = this.allPoints().map(p => p.z);
-        const min = zs.length ? Math.min(...zs) : 0;
-        const max = zs.length ? Math.max(...zs) : 1;
+        const [min, max] = extent(zs) ?? [0, 1];
         return sizeScale([min, max], [this.minRadius(), this.maxRadius()]);
     });
 

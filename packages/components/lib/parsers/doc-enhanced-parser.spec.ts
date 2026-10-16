@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseDocEnhanced } from './doc-enhanced-parser';
+import { DEFAULT_PARSER_LIMITS, type ParserLimits } from './limits';
 import type { DocxParagraph, DocxTable, DocxImage } from './docx-parser';
 import {
     buildOle2Doc,
@@ -640,7 +641,7 @@ describe('parseDocEnhanced — images', () => {
         expect(image?.height).toBe(100);
     });
 
-    function imageDoc(dataStream: Uint8Array): ReturnType<typeof parseDocEnhanced> {
+    function imageDoc(dataStream: Uint8Array, limits?: ParserLimits): ReturnType<typeof parseDocEnhanced> {
         const text = '\r';
         const textFc = 0x200;
         const chpxPage = buildChpxFkpPage([
@@ -650,7 +651,7 @@ describe('parseDocEnhanced — images', () => {
                 sprms: [0x55, 0x08, 0x01, 0x03, 0x6a, 0x00, 0x00, 0x00, 0x00],
             },
         ]);
-        return parseDocEnhanced(assembleEnhancedDoc({ text, textFc, chpxPage, dataStream }));
+        return parseDocEnhanced(assembleEnhancedDoc({ text, textFc, chpxPage, dataStream }), limits);
     }
 
     it('detects a JPEG BLIP and emits an image/jpeg data URL', () => {
@@ -663,10 +664,19 @@ describe('parseDocEnhanced — images', () => {
 
     it('recurses into an OfficeArt container to find the BLIP', () => {
         const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 2]);
-        const image = imageDoc(buildPicfWithBlip(gif, 0xf01e, true)).elements
+        const image = imageDoc(buildPicfWithBlip(gif, 0xf01e, 1)).elements
             .find((e): e is DocxImage => (e as DocxImage).type === 'image');
         // GIF magic 0x47,0x49 -> image/gif in detectMimeType.
         expect(image?.dataUrl.startsWith('data:image/gif;base64,')).toBe(true);
+    });
+
+    it('T-16 stops the BLIP lookup at the nesting cap', () => {
+        const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 2]);
+        const caps = { ...DEFAULT_PARSER_LIMITS, maxNestingDepth: 3 };
+        const imageAt = (depth: number): DocxImage | undefined => imageDoc(buildPicfWithBlip(gif, 0xf01e, depth), caps)
+            .elements.find((e): e is DocxImage => (e as DocxImage).type === 'image');
+        expect(imageAt(3)?.dataUrl.startsWith('data:image/gif;base64,')).toBe(true);
+        expect(imageAt(4)).toBeUndefined();
     });
 });
 
@@ -1041,7 +1051,7 @@ function buildPicfWithSecondaryUid(image: Uint8Array): Uint8Array {
     return data;
 }
 
-function buildPicfWithBlip(image: Uint8Array, fbt = 0xf01e, wrapInContainer = false): Uint8Array {
+function buildPicfWithBlip(image: Uint8Array, fbt = 0xf01e, containerDepth = 0): Uint8Array {
     // PICF header is 68 bytes: lcb(4) at 0, dimensions at 20/22.
     // After PICF, an OfficeArt BLIP record: verInst(2)+fbt(2)+len(4)+UID(16)+
     // [tag byte]+image. fbt 0xF01D/0xF01E/0xF029/0xF02A use a 17-byte skip.
@@ -1053,17 +1063,16 @@ function buildPicfWithBlip(image: Uint8Array, fbt = 0xf01e, wrapInContainer = fa
     writeU32(blip, 4, blipRecLen);
     blip.set(image, 8 + skip);
 
-    // Optionally wrap the BLIP in an OfficeArt container so the recursion
-    // branch in findBlipImage is exercised.
-    let art: Uint8Array;
-    if (wrapInContainer) {
-        art = new Uint8Array(8 + blip.length);
-        writeU16(art, 0, 0x000f); // verInst low nibble 0x0F => container -> recurse
-        writeU16(art, 2, 0xf000); // container fbt
-        writeU32(art, 4, blip.length);
-        art.set(blip, 8);
-    } else {
-        art = blip;
+    // Optionally wrap the BLIP in nested OfficeArt containers so the
+    // recursion branch in findBlipImage is exercised.
+    let art = blip;
+    for (let level = 0; level < containerDepth; level++) {
+        const container = new Uint8Array(8 + art.length);
+        writeU16(container, 0, 0x000f); // verInst low nibble 0x0F => container -> recurse
+        writeU16(container, 2, 0xf000); // container fbt
+        writeU32(container, 4, art.length);
+        container.set(art, 8);
+        art = container;
     }
 
     const lcb = 68 + art.length;

@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { getConfig, getPrefix } from '../utils/config.js';
-import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
+import { getComponentNames, isComponentName, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { diffComponentFiles, type FileDiff } from '../core/diff-core.js';
 
@@ -53,7 +53,7 @@ export async function diff(components: string[], options: DiffOptions): Promise<
     let totalDiffs = 0;
 
     for (const name of names) {
-        if (!(name in registry)) {
+        if (!isComponentName(name)) {
             console.log(chalk.red(`Unknown component: ${name}`));
             continue;
         }

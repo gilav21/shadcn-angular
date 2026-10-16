@@ -71,22 +71,15 @@ describe('RadioGroup data-driven mode', () => {
     fixture.detectChanges();
   });
 
-  it('uses displayWith for labels', () => {
+  it('uses displayWith for labels, valueAttribute for values, and disabledWith for disabling', () => {
     const labels = fixture.debugElement.queryAll(By.css('label'));
     expect(labels).toHaveLength(2);
     expect(labels[0].nativeElement.textContent).toContain('Apple');
     expect(labels[1].nativeElement.textContent).toContain('Banana');
-  });
 
-  it('uses valueAttribute for item values', () => {
     const inputs = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
     expect(inputs.map((i) => i.nativeElement.value)).toEqual(['a', 'b']);
-  });
-
-  it('disables options via disabledWith', () => {
-    const items = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
-    expect(items[0].nativeElement.disabled).toBe(false);
-    expect(items[1].nativeElement.disabled).toBe(true);
+    expect(inputs.map((i) => i.nativeElement.disabled)).toEqual([false, true]);
   });
 });
 

@@ -13,7 +13,7 @@ import {
 import { cn, isRtl } from '../../lib/utils';
 import { observeChartWidth } from '../../lib/chart-responsive';
 import { ChartClickEvent, ChartDirection } from '../../lib/chart.types';
-import { formatChartValue, getChartSummary } from '../../lib/chart.utils';
+import { formatChartValue, getChartSummary, extent } from '../../lib/chart.utils';
 import { bandScale, linearScale, niceDomain, niceTimeTicks, timeScale } from '../../lib/chart-scale';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
 import { CandlestickAxisMode, OhlcPoint } from './candlestick.types';
@@ -198,8 +198,7 @@ export class CandlestickComponent implements AfterViewInit {
     private readonly timeScaleFn = computed(() => {
         const a = this.area();
         const ts = this.timestamps();
-        const lo = Math.min(...ts);
-        const hi = Math.max(...ts);
+        const [lo, hi] = extent(ts) ?? [0, 0];
         const range: [number, number] = this.isRtl() ? [a.right, a.left] : [a.left, a.right];
         return timeScale([lo, hi === lo ? lo + 1 : hi], range);
     });
@@ -349,7 +348,8 @@ export class CandlestickComponent implements AfterViewInit {
         const ts = this.timestamps();
         const scale = this.timeScaleFn();
         const loc = this.locale();
-        return niceTimeTicks(Math.min(...ts), Math.max(...ts), 5).map(t => ({
+        const [lo, hi] = extent(ts) ?? [0, 0];
+        return niceTimeTicks(lo, hi, 5).map(t => ({
             key: String(t),
             label: formatPeriod(t, loc),
             x: scale.scale(t),

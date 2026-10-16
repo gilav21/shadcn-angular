@@ -89,7 +89,7 @@ import {
     type RichTextInlineStyle,
     type RichTextHistoryEntrySnapshot,
 } from './rich-text-editor.host';
-import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
+import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text.locales';
 import {
     matchBlockInputRule,
     matchInlineInputRule,

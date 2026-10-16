@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { performInstall, planInstall, previewComponentMerges, expandForTests } from './install.js';
 import { getDefaultConfig } from '../utils/config.js';
 import { isPristineLib } from './lib-reconcile.js';
 import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex } from '../utils/shortcut-registry.js';
 import { fetchAndTransform, fetchLibContent } from './fetch.js';
+import { resolveRef } from './ref.js';
 import { registry, type ComponentName } from '../registry/index.js';
 import type { ConflictCheckResult } from './plan.js';
+import { hashContent } from './manifest.js';
+import { applyPrefixTransforms } from '../utils/prefix.js';
 
 vi.mock('fs-extra', () => ({
   default: {
@@ -28,6 +33,9 @@ vi.mock('./fetch.js', () => ({
   fetchLibContent: vi.fn(async (f: string) => `// lib ${f}`),
   normalizeContent: (s: string) => s.replaceAll('\r\n', '\n').trim(),
 }));
+// The ref is a git rev-parse locally and a GitHub API call remotely; left real, whether
+// a component's ref gets recorded would depend on the network answering.
+vi.mock('./ref.js', () => ({ resolveRef: vi.fn(async () => null), fetchAtRef: vi.fn(async () => null) }));
 vi.mock('../utils/package-manager.js', () => ({ installPackages: vi.fn(async () => undefined) }));
 vi.mock('../utils/shortcut-registry.js', () => ({ writeShortcutRegistryIndex: vi.fn(async () => undefined) }));
 // Control baseline recognition for the L5 pre-manifest pristine-lib path.
@@ -103,6 +111,7 @@ function resetMocks(): void {
   asMock(fs.readJsonSync).mockReturnValue({});
   asMock(fetchAndTransform).mockImplementation(async (f: string) => `// ${f}`);
   asMock(fetchLibContent).mockImplementation(async (f: string) => `// lib ${f}`);
+  asMock(resolveRef).mockResolvedValue(null);
   asMock(installPackages).mockResolvedValue(undefined);
   asMock(writeShortcutRegistryIndex).mockResolvedValue(undefined);
 }
@@ -178,15 +187,11 @@ describe('performInstall --include-tests', () => {
 
 describe('planInstall', () => {
   beforeEach(() => vi.clearAllMocks());
-  it('reports a fresh install (no files present)', async () => {
-    const plan = await planInstall({ ...base, components: ['badge'] });
-    expect(plan.toInstall).toContain('badge');
-    expect(plan.conflicting).toEqual([]);
-  });
-
   it('returns the grouped summary: requested vs shared, with file counts (T-9)', async () => {
     const plan = await planInstall({ ...base, components: ['badge'] });
 
+    expect(plan.toInstall).toContain('badge');
+    expect(plan.conflicting).toEqual([]);
     expect(plan.summary.requested.components.map(c => c.name)).toEqual(['badge']);
     expect(plan.summary.requested.files).toBe(registry['badge'].files.length);
     // `skeleton` is pulled in as a dependency, never requested.
@@ -212,25 +217,29 @@ describe('planInstall', () => {
 describe('performInstall', () => {
   beforeEach(() => vi.clearAllMocks());
   it('writes files for a fresh component and reports it installed', async () => {
+    asMock(resolveRef).mockResolvedValueOnce('abc123');
     const result = await performInstall({ ...base, components: ['badge'] });
     expect(result.installed).toContain('badge');
     expect((fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
     // The merge report is threaded out; newly-created files land in `created`.
     expect(result.mergeReport.created.length).toBeGreaterThan(0);
     expect(result.mergeReport.overwritten).toEqual([]);
-  });
 
-  it('records installed files in components.lock.json with content hashes', async () => {
-    await performInstall({ ...base, components: ['badge'] });
+    // The written files are recorded with content hashes so a later update can 3-way merge.
     const writeJson = fs.writeJson as unknown as ReturnType<typeof vi.fn>;
     const lockCall = writeJson.mock.calls.find(c =>
       String(c[0]).replaceAll('\\', '/').endsWith('components.lock.json'));
     expect(lockCall).toBeDefined();
-    const manifest = lockCall![1] as { files: Record<string, { sha256: string; component: string }> };
+    const manifest = lockCall![1] as {
+      files: Record<string, { sha256: string; component: string }>;
+      components?: Record<string, { ref: string }>;
+    };
     const entries = Object.values(manifest.files);
     expect(entries.length).toBeGreaterThan(0);
     expect(entries[0].sha256).toMatch(/^[a-f0-9]{64}$/);
     expect(entries[0].component).toBe('badge');
+    // The version each component was installed at is its merge base for the next update.
+    expect(manifest.components?.['badge']).toEqual({ ref: 'abc123' });
   });
 
   it('overwrites a changed component only when listed in overwrite, else declines it', async () => {
@@ -316,41 +325,49 @@ describe('performInstall', () => {
 describe('performInstall prunes obsolete files (B7)', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('deletes a reinstalled component\'s obsolete old-layout file', async () => {
-    // page-builder declares `page-builder/property-editor.component.ts` obsolete
-    // (replaced by sub/). Present on disk + untracked (no manifest) => pruned.
-    const OBSOLETE = 'page-builder/property-editor.component.ts';
-    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      async (p: string) => String(p).replaceAll('\\', '/').endsWith(OBSOLETE),
-    );
+  // page-builder declares this file obsolete (replaced by sub/). PUBLISHED is
+  // the real source we shipped before that move (`git show
+  // e57aa555^:packages/components/ui/page-builder/property-editor.component.ts`,
+  // stored LF; the historical blob is CRLF, which the baseline hash normalizes
+  // away). EDITED is the same file with one line changed by its user.
+  const OBSOLETE = 'page-builder/property-editor.component.ts';
+  const PUBLISHED = readFileSync(
+    fileURLToPath(new URL('./__fixtures__/property-editor.component.pre-e57aa555.txt', import.meta.url)), 'utf-8',
+  );
+  const EDITED = PUBLISHED.replace('Columns (Width)', 'Width in columns');
+  const keptUntracked = `Kept ${OBSOLETE}: it differs from every version we shipped (delete it manually if intended).`;
+  // How a consumer with `prefix: acme` and CRLF endings really holds that same
+  // published file: proving it ours must canonicalize with THEIR config.
+  const ACME = getDefaultConfig();
+  ACME.prefix = 'acme';
+  const PUBLISHED_ACME_CRLF = applyPrefixTransforms(OBSOLETE, PUBLISHED, 'acme').replaceAll('\n', '\r\n');
+  const keptModified = `Kept ${OBSOLETE}: it differs from the version we installed (delete it manually if intended).`;
 
-    const result = await performInstall({ ...base, components: ['page-builder'], options: { branch: 'master', overwrite: true } });
-
-    expect(result.pruned).toContain(OBSOLETE);
-    const removed = (fs.remove as unknown as ReturnType<typeof vi.fn>).mock.calls
-      .map(c => String(c[0]).replaceAll('\\', '/'));
-    expect(removed.some(p => p.endsWith(OBSOLETE))).toBe(true);
-  });
-
-  it('keeps an obsolete file the user modified from baseline', async () => {
-    const OBSOLETE = 'page-builder/property-editor.component.ts';
-    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockImplementation(
-      async (p: string) => {
-        const norm = String(p).replaceAll('\\', '/');
-        return norm.endsWith(OBSOLETE) || norm.endsWith('components.lock.json');
-      },
-    );
-    // Manifest records a DIFFERENT baseline for the obsolete file => "modified" => protected.
-    (fs.readJson as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      version: 1,
-      files: { [OBSOLETE]: { sha256: 'deadbeef', component: 'page-builder' } },
+  // Same path, same status, different content is the only pair that tells the
+  // content rule apart from a status-only rule — hence both untracked rows.
+  it.each([
+    { label: 'clean against the lockfile', content: EDITED, recorded: EDITED, pruned: true, warning: null },
+    { label: 'untracked and byte-identical to a published version', content: PUBLISHED, recorded: null, pruned: true, warning: null },
+    { label: 'untracked and edited before the lockfile existed', content: EDITED, recorded: null, pruned: false, warning: keptUntracked },
+    { label: 'untracked, published, but installed with another prefix and CRLF', content: PUBLISHED_ACME_CRLF, recorded: null, pruned: true, warning: null, config: ACME },
+    { label: 'modified from the lockfile baseline', content: PUBLISHED, recorded: EDITED, pruned: false, warning: keptModified },
+  ])('prunes an obsolete file only when it is provably ours and unedited: $label', async ({ content, recorded, pruned, warning, config = base.config }) => {
+    asMock(fs.pathExists).mockImplementation(async (p: string) => {
+      const norm = String(p).replaceAll('\\', '/');
+      return norm.endsWith(OBSOLETE) || (recorded !== null && norm.endsWith('components.lock.json'));
     });
-    (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('USER EDITED');
+    asMock(fs.readJson).mockResolvedValue({
+      version: 1,
+      files: recorded === null ? {} : { [OBSOLETE]: { sha256: hashContent(recorded), component: 'page-builder' } },
+    });
+    asMock(fs.readFile).mockResolvedValue(content);
 
-    const result = await performInstall({ ...base, components: ['page-builder'], options: { branch: 'master', overwrite: true } });
+    const result = await performInstall({ ...base, config, components: ['page-builder'], options: { branch: 'master', overwrite: true } });
 
-    expect(result.pruned).not.toContain(OBSOLETE);
-    expect(result.warnings.some(w => w.includes(OBSOLETE))).toBe(true);
+    const removed = asMock(fs.remove).mock.calls.map(c => String(c[0]).replaceAll('\\', '/'));
+    expect(result.pruned.includes(OBSOLETE)).toBe(pruned);
+    expect(removed.some(p => p.endsWith(OBSOLETE))).toBe(pruned);
+    expect(result.warnings.filter(w => w.startsWith(`Kept ${OBSOLETE}`))).toEqual(warning === null ? [] : [warning]);
   });
 });
 

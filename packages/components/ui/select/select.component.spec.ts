@@ -3,7 +3,7 @@ import { SelectComponent, SelectTriggerComponent, SelectContentComponent, Select
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
 // Test host for integration
 @Component({
@@ -959,5 +959,90 @@ describe('SelectComponent — signal-forms readiness', () => {
 
         expect(renderedValue(fixture)).toContain('sf2');
         expect(fixture.componentInstance.emissions).toEqual([]);
+    });
+});
+
+@Component({
+    template: `
+        <form [formGroup]="form">
+            <p data-testid="elsewhere">Shipping details</p>
+            @if (projected()) {
+                <ui-select formControlName="country">
+                    <ui-select-trigger>
+                        <ui-select-value placeholder="Country" />
+                    </ui-select-trigger>
+                    <ui-select-content>
+                        <ui-select-item value="nl">Netherlands</ui-select-item>
+                        <ui-select-item value="se">Sweden</ui-select-item>
+                    </ui-select-content>
+                </ui-select>
+            } @else {
+                <ui-select formControlName="country" [options]="countries" ariaLabel="Country" />
+            }
+        </form>
+    `,
+    imports: [
+        ReactiveFormsModule,
+        SelectComponent,
+        SelectTriggerComponent,
+        SelectContentComponent,
+        SelectValueComponent,
+        SelectItemComponent,
+    ],
+})
+class TouchedStateHost {
+    readonly projected = signal(false);
+    readonly countries = ['Netherlands', 'Sweden'];
+    readonly form = new FormGroup({ country: new FormControl<string | null>(null, Validators.required) });
+}
+
+describe('Select touched state', () => {
+    async function settle(fixture: ComponentFixture<TouchedStateHost>): Promise<void> {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        fixture.detectChanges();
+    }
+
+    it.each([
+        { mode: 'data-driven', projected: false, trigger: 'button[role="combobox"]', option: '[role="option"]' },
+        { mode: 'projected', projected: true, trigger: '[data-slot="select-trigger"]', option: '[data-slot="select-item"]' },
+    ])('marks the form control touched only after the user closed the popup ($mode)', async ({ projected, trigger, option }) => {
+        await TestBed.configureTestingModule({ imports: [TouchedStateHost] }).compileComponents();
+        const fixture = TestBed.createComponent(TouchedStateHost);
+        fixture.componentInstance.projected.set(projected);
+        await settle(fixture);
+        const country = fixture.componentInstance.form.controls.country;
+        const host: HTMLElement = fixture.nativeElement;
+        const elsewhere = host.querySelector<HTMLElement>('[data-testid="elsewhere"]')!;
+        const open = async (): Promise<void> => {
+            host.querySelector<HTMLElement>(trigger)!.click();
+            await settle(fixture);
+        };
+
+        elsewhere.click();
+        await settle(fixture);
+        expect(country.touched).toBe(false);
+
+        await open();
+        elsewhere.click();
+        await settle(fixture);
+        expect(country.touched).toBe(true);
+
+        country.markAsUntouched();
+        await open();
+        (document.activeElement ?? document.body).dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+        );
+        await settle(fixture);
+        expect(country.touched).toBe(true);
+
+        country.markAsUntouched();
+        await open();
+        host.querySelectorAll<HTMLElement>(option)[1].click();
+        await settle(fixture);
+        expect(country.touched).toBe(true);
+        expect(country.dirty).toBe(true);
+        expect(country.value).toBe(projected ? 'se' : 'Sweden');
     });
 });

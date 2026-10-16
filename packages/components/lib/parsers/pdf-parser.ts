@@ -1,5 +1,6 @@
 import { ByteSink } from './byte-sink';
 import { zlibInflate } from './inflate';
+import { DEFAULT_PARSER_LIMITS, DecodeBudget, DrawPath, visitOnce, type ParserLimits } from './limits';
 
 /**
  * Ceiling for a single decoded PDF stream. A stream's filter chain can expand
@@ -397,8 +398,11 @@ function decodeCCITTFax(data: Uint8Array, parms: Record<string, PdfObject>, read
     const encodedByteAlign = !!parms['EncodedByteAlign'];
     const blackIs1 = !!parms['BlackIs1'];
 
+    // Columns and Rows are the file's claim, not the image's size: a row that
+    // alone exceeds the pixel cap is refused, and rows stop where the cap does.
+    if (columns <= 0 || columns > reader.limits.maxImagePixels) return new Uint8Array(0);
     const rowBytes = Math.ceil(columns / 8);
-    const maxRows = rows > 0 ? rows : 10000;
+    const maxRows = Math.min(rows > 0 ? rows : 10000, Math.floor(reader.limits.maxImagePixels / columns));
     const output: Uint8Array[] = [];
     const bitReader = new CCITTBitReader(data);
 
@@ -428,7 +432,9 @@ function decodeCCITTGroup3Row(reader: CCITTBitReader, columns: number): Uint8Arr
     const line = new Uint8Array(columns);
     let col = 0;
     let isWhite = true;
-    while (col < columns) {
+    // Past the end of the data every bit reads 0, which is no code at all, so a
+    // row cut short would otherwise alternate zero-length runs forever.
+    while (col < columns && !reader.exhausted) {
         const tree = isWhite ? whiteTree : blackTree;
         const runLen = ccittDecodeRun(reader, tree);
         const fill = isWhite ? 0 : 1;
@@ -716,10 +722,22 @@ export class PdfReader {
     private readonly parsedObjects: Map<string, PdfObject> = new Map();
     private readonly compressedObjects: Map<string, { streamObjNum: number; index: number }> = new Map();
     private trailer: Record<string, PdfObject> | null = null;
+    /** References being parsed right now: an object whose /Length leads back to itself must not recurse. */
+    private readonly resolving = new Set<string>();
+    /** Arrays and dictionaries open right now in the value being parsed. */
+    private nesting = 0;
+    /** What every filtered stream this parse decodes may produce in total. */
+    private readonly decodeBudget: DecodeBudget;
 
-    constructor(buffer: ArrayBuffer) {
+    /**
+     * `limits` holds the caps the reader and its renderers apply to what the
+     * file declares — image size, nesting, page count, form draws and total
+     * decoded bytes.
+     */
+    constructor(buffer: ArrayBuffer, readonly limits: ParserLimits = DEFAULT_PARSER_LIMITS) {
         this.data = new Uint8Array(buffer);
         this.text = new TextDecoder('latin1').decode(this.data);
+        this.decodeBudget = new DecodeBudget(limits.maxDecodedBytesTotal);
     }
 
     parse(): void {
@@ -753,12 +771,22 @@ export class PdfReader {
         let match = this.findLastStartxref(this.text.slice(-1024));
         match ??= this.findLastStartxref(this.text.slice(-8192));
         if (!match) throw new Error('Could not find startxref in PDF');
-        const xrefOffset = Number.parseInt(match[1], 10);
+        this.walkXRefChain(Number.parseInt(match[1], 10));
+    }
 
-        if (this.text.substring(xrefOffset, xrefOffset + 4) === 'xref') {
-            this.parseTraditionalXRef(xrefOffset);
-        } else {
-            this.parseXRefStream(xrefOffset);
+    /**
+     * Reads the newest xref section, then each /Prev behind it. A section
+     * already read ends the walk, so a /Prev that points back at itself or at a
+     * later section cannot loop, and the walk needs no call stack however long
+     * the chain of incremental updates is.
+     */
+    private walkXRefChain(newest: number): void {
+        const seen = new Set<number>();
+        let offset: number | null = newest;
+        while (offset !== null && visitOnce(seen, offset)) {
+            offset = this.text.substring(offset, offset + 4) === 'xref'
+                ? this.parseTraditionalXRef(offset)
+                : this.parseXRefStream(offset);
         }
     }
 
@@ -859,22 +887,28 @@ export class PdfReader {
         }
     }
 
-    private parseTrailerDict(offset: number): void {
+    /** Adopts the section's trailer; returns the /Prev offset it names, if any. */
+    private parseTrailerDict(offset: number): number | null {
         const trailerPos = this.text.indexOf('trailer', offset);
-        if (trailerPos === -1) return;
+        if (trailerPos === -1) return null;
         const dictStart = this.text.indexOf('<<', trailerPos);
-        if (dictStart === -1) return;
+        if (dictStart === -1) return null;
         const result = this.parseObjectAt(dictStart);
-        if (result.obj.type !== 'dict') return;
+        if (result.obj.type !== 'dict') return null;
         const dict = result.obj.value as Record<string, PdfObject>;
         this.trailer ??= dict;
-        const prev = dict['Prev'];
-        if (prev?.type === 'number') {
-            this.parseTraditionalXRef(prev.value as number);
-        }
+        return this.prevOffset(dict);
     }
 
-    private parseTraditionalXRef(offset: number): void {
+    private prevOffset(dict: Record<string, PdfObject>): number | null {
+        const prev = dict['Prev'];
+        return prev?.type === 'number' ? prev.value as number : null;
+    }
+
+    /** Smallest an entry can be: 10 + 1 + 5 + 1 + 1 characters, with no terminator. */
+    private static readonly MIN_XREF_ENTRY_CHARS = 18;
+
+    private parseTraditionalXRef(offset: number): number | null {
         let pos = offset + 4;
         pos = this.skipWhitespace(pos);
 
@@ -888,14 +922,17 @@ export class PdfReader {
             pos += headerMatch[0].length;
             pos = this.skipWhitespace(pos);
 
-            for (let i = 0; i < count; i++) {
+            // The count is the file's claim; the bytes left bound what it can hold.
+            const holdable = Math.ceil((this.text.length - pos) / PdfReader.MIN_XREF_ENTRY_CHARS);
+            for (let i = 0; i < Math.min(count, holdable); i++) {
+                if (this.text.startsWith('trailer', pos)) break;
                 this.parseXRefEntry(this.text.substring(pos, pos + 20), startObj, i);
                 pos += 20;
                 while (pos < this.text.length && (this.text[pos] === '\r' || this.text[pos] === '\n' || this.text[pos] === ' ')) pos++;
             }
         }
 
-        this.parseTrailerDict(offset);
+        return this.parseTrailerDict(offset);
     }
 
     private readXRefField(decoded: Uint8Array, bytePos: number, fieldOffset: number, fieldWidth: number): number {
@@ -948,18 +985,15 @@ export class PdfReader {
         }
     }
 
-    private followPrevXRef(dict: Record<string, PdfObject>): void {
-        const prev = dict['Prev'];
-        if (prev?.type !== 'number') return;
-        const prevOffset = prev.value as number;
-        if (this.text.substring(prevOffset, prevOffset + 4) === 'xref') {
-            this.parseTraditionalXRef(prevOffset);
-        } else {
-            this.parseXRefStream(prevOffset);
-        }
+    /** An xref stream entry is three fields of 0-8 bytes; all-zero widths would consume no input. */
+    private static isValidXRefWidths(w: number[]): boolean {
+        return w.length >= 3
+            && w.every(width => Number.isInteger(width) && width >= 0 && width <= 8)
+            && w[0] + w[1] + w[2] > 0;
     }
 
-    private parseXRefStream(offset: number): void {
+    /** Adopts the section's entries and trailer; returns the /Prev offset it names, if any. */
+    private parseXRefStream(offset: number): number | null {
         const result = this.parseObjectAt(offset);
         const obj = result.obj;
         if (obj.type !== 'stream' || !obj.stream) throw new Error('Expected xref stream');
@@ -971,11 +1005,12 @@ export class PdfReader {
         const wArr = dict['W'];
         if (wArr?.type !== 'array') throw new Error('Missing /W in xref stream');
         const w = (wArr.value as PdfObject[]).map(o => o.value as number);
+        if (!PdfReader.isValidXRefWidths(w)) throw new Error('Invalid /W in xref stream');
 
         const indexArr = this.getXRefIndexArray(dict);
         const decoded = this.decodeStreamData(dict, streamData);
         this.processXRefStreamEntries(decoded, w, indexArr);
-        this.followPrevXRef(dict);
+        return this.prevOffset(dict);
     }
 
     private skipWhitespace(pos: number): number {
@@ -986,10 +1021,8 @@ export class PdfReader {
     private resolveStreamLength(dict: Record<string, PdfObject>): number {
         const lengthObj = dict['Length'];
         if (!lengthObj) return 0;
-        if (lengthObj.type === 'ref') {
-            return this.resolveRef(lengthObj).value as number;
-        }
-        return lengthObj.value as number;
+        const length = lengthObj.type === 'ref' ? this.resolveRef(lengthObj) : lengthObj;
+        return typeof length.value === 'number' ? length.value : 0;
     }
 
     private parseObjectAt(offset: number): { obj: PdfObject; endPos: number } {
@@ -1038,7 +1071,7 @@ export class PdfReader {
         const ch2 = pos + 1 < this.text.length ? this.text[pos + 1] : '';
 
         if (ch === '<' && ch2 === '<') {
-            return this.parseDict(pos);
+            return this.parseNested(pos, () => this.parseDict(pos));
         }
         if (ch === '<') {
             return this.parseHexString(pos);
@@ -1050,7 +1083,7 @@ export class PdfReader {
             return this.parseName(pos);
         }
         if (ch === '[') {
-            return this.parseArray(pos);
+            return this.parseNested(pos, () => this.parseArray(pos));
         }
         if (ch === 't' && this.text.substring(pos, pos + 4) === 'true') {
             return { obj: { type: 'boolean', value: true }, endPos: pos + 4 };
@@ -1081,6 +1114,53 @@ export class PdfReader {
             };
         }
         return { obj: { type: 'number', value: num }, endPos: afterNum };
+    }
+
+    /**
+     * Parses the container at `pos` unless it would open past the nesting cap.
+     * One that would is skipped whole and read as null: following it down costs
+     * a stack frame per level, and a file can nest to its own length.
+     */
+    private parseNested(pos: number, parse: () => { obj: PdfObject; endPos: number }): { obj: PdfObject; endPos: number } {
+        if (this.nesting >= this.limits.maxNestingDepth) {
+            return { obj: { type: 'null', value: null }, endPos: this.skipContainer(pos) };
+        }
+        this.nesting++;
+        try {
+            return parse();
+        } finally {
+            this.nesting--;
+        }
+    }
+
+    /** The end of the dictionary or array opening at `pos`, found without recursion. */
+    private skipContainer(pos: number): number {
+        let depth = 0;
+        let i = pos;
+        while (i < this.text.length) {
+            const ch = this.text[i];
+            const pair = ch + this.text.charAt(i + 1);
+            if (ch === '(') {
+                i = this.parseLiteralString(i).endPos;
+            } else if (pair === '<<' || pair === '>>') {
+                depth += pair === '<<' ? 1 : -1;
+                i += 2;
+            } else if (ch === '<') {
+                // Not parseHexString: malformed hex is skipped, not decoded.
+                const close = this.text.indexOf('>', i);
+                i = close === -1 ? this.text.length : close + 1;
+            } else {
+                depth += PdfReader.bracketDelta(ch);
+                i++;
+            }
+            if (depth <= 0) return i;
+        }
+        return i;
+    }
+
+    private static bracketDelta(ch: string): number {
+        if (ch === '[') return 1;
+        return ch === ']' ? -1 : 0;
     }
 
     private parseDict(pos: number): { obj: PdfObject; endPos: number } {
@@ -1265,9 +1345,15 @@ export class PdfReader {
             return this.parsedObjects.get(key) ?? { type: 'null', value: null };
         }
 
-        const result = this.parseObjectAt(entry.offset);
-        this.parsedObjects.set(key, result.obj);
-        return result.obj;
+        if (this.resolving.has(key)) return { type: 'null', value: null };
+        this.resolving.add(key);
+        try {
+            const result = this.parseObjectAt(entry.offset);
+            this.parsedObjects.set(key, result.obj);
+            return result.obj;
+        } finally {
+            this.resolving.delete(key);
+        }
     }
 
     /**
@@ -1385,6 +1471,7 @@ export class PdfReader {
         const filterObj = dict['Filter'];
         if (!filterObj) return rawStream;
 
+        if (this.decodeBudget.spent) return new Uint8Array(0);
         const filters = this.resolveFilterNames(filterObj);
         const decodeParms = this.getDecodeParmsArray(dict, filters.length);
         let result = rawStream;
@@ -1398,7 +1485,13 @@ export class PdfReader {
                 return rawStream;
             }
         }
-        return result;
+        // A stream referenced from many places is decoded again at each one; the
+        // budget is what keeps those repeats from adding up to gigabytes. Past
+        // it the stream reads as empty, and the budget is spent so the next
+        // reference is refused before it decodes anything.
+        if (this.decodeBudget.take(result.length)) return result;
+        this.decodeBudget.spendRemainder();
+        return new Uint8Array(0);
     }
 
     getStreamData(obj: PdfObject): Uint8Array {
@@ -1448,22 +1541,30 @@ export class PdfReader {
 
     private static readonly INHERITABLE_PAGE_KEYS = ['Resources', 'MediaBox', 'CropBox', 'Rotate'] as const;
 
-    private collectPages(node: PdfObject, inherited: Record<string, PdfObject> = {}): PdfObject[] {
-        const dict = this.getDict(node);
-        const typeObj = dict['Type'];
-        const typeName = typeObj ? this.getString(typeObj) : '';
-        const kids = dict['Kids'];
-
-        if (typeName === 'Page' || (!kids && dict['Contents'])) {
-            this.applyInheritedPageKeys(dict, inherited);
-            return [this.resolveDeep(node)];
-        }
-
-        if (!kids) return [];
-        const nextInherited = this.mergeInheritablePageKeys(dict, inherited);
+    /**
+     * Walks the page tree depth-first, in page order. Each node is visited once,
+     * so a /Kids that lists an ancestor, or the same child many times, yields
+     * every distinct page once; the walk keeps its own stack, so a tree of any
+     * depth costs no call stack.
+     */
+    private collectPages(root: PdfObject): PdfObject[] {
         const pages: PdfObject[] = [];
-        for (const kid of this.getArray(kids)) {
-            pages.push(...this.collectPages(kid, nextInherited));
+        const seen = new Set<PdfObject>();
+        const pending: Array<{ node: PdfObject; inherited: Record<string, PdfObject> }> = [{ node: root, inherited: {} }];
+        for (let next = pending.pop(); next && pages.length < this.limits.maxPages; next = pending.pop()) {
+            const resolved = this.resolveDeep(next.node);
+            if (!visitOnce(seen, resolved)) continue;
+            const dict = this.getDict(resolved);
+            const kids = dict['Kids'];
+
+            if (this.getString(dict['Type']) === 'Page' || (!kids && dict['Contents'])) {
+                this.applyInheritedPageKeys(dict, next.inherited);
+                pages.push(resolved);
+            } else if (kids) {
+                const inherited = this.mergeInheritablePageKeys(dict, next.inherited);
+                // Pushed last-first, so the first kid is popped first.
+                for (const kid of this.getArray(kids).reverse()) pending.push({ node: kid, inherited });
+            }
         }
         return pages;
     }
@@ -1588,11 +1689,33 @@ function pdfStringToUnicode(
     return { text: result, charCodes };
 }
 
+const WHITESPACE = /\s/;
+
+/**
+ * The text between each `begin` marker (plus the one whitespace character that
+ * must follow it) and the next `end`, in order. Found with indexOf: a lazy
+ * regex retries from every unterminated `begin` and rescans to the end of the
+ * text each time, which is quadratic. Once no `end` is left, no later section
+ * can close either, so the scan stops.
+ */
+function* markedSections(text: string, begin: string, end: string): Generator<string> {
+    let from = 0;
+    for (let start = text.indexOf(begin, from); start !== -1; start = text.indexOf(begin, from)) {
+        const bodyStart = start + begin.length + 1;
+        if (!WHITESPACE.test(text.charAt(bodyStart - 1))) {
+            from = start + 1;
+            continue;
+        }
+        const close = text.indexOf(end, bodyStart);
+        if (close === -1) return;
+        yield text.slice(bodyStart, close);
+        from = close + end.length;
+    }
+}
+
 function parseBfCharEntries(text: string, map: Map<number, string>): void {
-    const bfCharRe = /beginbfchar\s([\s\S]*?)endbfchar/g;
-    let match: RegExpExecArray | null;
-    while ((match = bfCharRe.exec(text)) !== null) {
-        for (const entry of match[1].trim().split('\n')) {
+    for (const section of markedSections(text, 'beginbfchar', 'endbfchar')) {
+        for (const entry of section.trim().split('\n')) {
             const parts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/.exec(entry.trim());
             if (!parts) continue;
             const srcCode = Number.parseInt(parts[1], 16);
@@ -1642,10 +1765,8 @@ function parseBfRangeEntry(trimmed: string, map: Map<number, string>): void {
 }
 
 function parseBfRangeEntries(text: string, map: Map<number, string>): void {
-    const bfRangeRe = /beginbfrange\s([\s\S]*?)endbfrange/g;
-    let match: RegExpExecArray | null;
-    while ((match = bfRangeRe.exec(text)) !== null) {
-        for (const entry of match[1].trim().split('\n')) {
+    for (const section of markedSections(text, 'beginbfrange', 'endbfrange')) {
+        for (const entry of section.trim().split('\n')) {
             parseBfRangeEntry(entry.trim(), map);
         }
     }
@@ -2985,9 +3106,16 @@ function buildFormCtm(ctx: ContentExtractionContext, dict: Record<string, PdfObj
     return multiplyMatrix(m, ctx.gs.ctm);
 }
 
+/**
+ * Draws a form XObject unless it is already being drawn higher up (a cycle),
+ * the path is at the nesting cap, or the page's draw budget is spent. A form
+ * shared between sibling draws is drawn every time.
+ */
 function processFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObject): void {
-    if (parentCtx.formDepth >= 10) return;
+    parentCtx.formDraws.enter(formObj, () => drawFormXObject(parentCtx, formObj));
+}
 
+function drawFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObject): void {
     const dict = formObj.value as Record<string, PdfObject>;
     if (!formObj.stream) return;
     const decoded = parentCtx.reader.decodeStreamData(dict, formObj.stream);
@@ -3029,7 +3157,7 @@ function buildFormContext(
             lineCap: parentCtx.gs.lineCap, lineJoin: parentCtx.gs.lineJoin,
         },
         operandStack: [], pageIndex: parentCtx.pageIndex,
-        formDepth: parentCtx.formDepth + 1, compatibilityMode: 0,
+        formDraws: parentCtx.formDraws, compatibilityMode: 0,
         mcidStack: [], ocgOffSet: parentCtx.ocgOffSet ?? new Set<string>(),
         ocgHiddenDepth: 0, perFragment: parentCtx.perFragment,
         patternFillImage: null,
@@ -3556,7 +3684,8 @@ interface ContentExtractionContext {
     gs: GraphicsState;
     operandStack: string[];
     pageIndex: number;
-    formDepth: number;
+    /** Form XObjects being drawn right now on this page, and how many have been. */
+    formDraws: DrawPath<PdfObject>;
     compatibilityMode: number;
     mcidStack: number[];
     ocgOffSet: Set<string>;
@@ -3970,7 +4099,7 @@ function buildExtractionContext(
             dashArray: [], dashPhase: 0, lineCap: 0, lineJoin: 0,
         },
         operandStack: [], pageIndex,
-        formDepth: 0, compatibilityMode: 0,
+        formDraws: new DrawPath(reader.limits.maxNestingDepth, reader.limits.maxFormDrawsPerPage), compatibilityMode: 0,
         mcidStack: [], ocgOffSet: new Set<string>(),
         ocgHiddenDepth: 0, perFragment: options?.perFragment ?? false,
         patternFillImage: null,
@@ -4035,6 +4164,18 @@ export function resolveImageFilterName(reader: PdfReader, dict: Record<string, P
     return last.type === 'name' ? last.value as string : '';
 }
 
+const ALLOWED_BITS_PER_COMPONENT: ReadonlySet<number> = new Set([1, 2, 4, 8, 16]);
+
+/**
+ * Whether the declared raster is one we will expand into pixel rows, PNG and
+ * base64 (roughly 24 bytes per source byte). The size is the file's claim, so it
+ * is checked before anything is allocated for it.
+ */
+function isDecodableRaster(reader: PdfReader, width: number, height: number, dict: Record<string, PdfObject>): boolean {
+    const bpc = reader.getNumber(dict['BitsPerComponent']) || 8;
+    return ALLOWED_BITS_PER_COMPONENT.has(bpc) && width * height <= reader.limits.maxImagePixels;
+}
+
 export function buildImageDataUrl(
     filterName: string, xObj: PdfObject, reader: PdfReader,
     width: number, height: number, dict: Record<string, PdfObject>,
@@ -4047,6 +4188,7 @@ export function buildImageDataUrl(
         if (!xObj.stream) return null;
         return `data:image/jp2;base64,${uint8ArrayToBase64(xObj.stream)}`;
     }
+    if (!isDecodableRaster(reader, width, height, dict)) return null;
     const decoded = reader.getStreamData(xObj);
     if (decoded.length === 0) return null;
     const pngData = rawPixelsToPng(decoded, width, height, dict, reader);
@@ -5075,7 +5217,20 @@ function detectColumns(lines: TextLine[]): { lines: TextLine[]; hasColumns: bool
 const BULLET_PATTERN = /^[\u2022\u2023\u25E6\u2043\u2219\u25CF\u25CB\u25AA\u25AB\u2013\u2014\-*]\s*/;
 const BULLET_CHARS = /^[\u2022\u2023\u25E6\u2043\u2219\u25CF\u25CB\u25AA\u25AB\u2013\u2014\-*]+$/;
 const NUMBERED_PATTERN = /^(\d{1,3})[.)]\s+/;
-const NUMBERED_PATTERN_RTL_END = /(?=(\s+))\1[.)]\d{1,3}$/;
+const RTL_NUMBER_TAIL = /[.)]\d{1,3}$/;
+
+/**
+ * Where a trailing right-to-left list number starts — whitespace, then ".12"
+ * or ")12" at the end of the text — or -1. Matched from the number backwards:
+ * a `\s+` regex retried from every space of a long run is quadratic.
+ */
+function rtlNumberTailStart(text: string): number {
+    const tail = RTL_NUMBER_TAIL.exec(text);
+    if (!tail) return -1;
+    let start = tail.index;
+    while (start > 0 && WHITESPACE.test(text.charAt(start - 1))) start--;
+    return start === tail.index ? -1 : start;
+}
 
 function stripBulletItems(line: TextLine): TextLine {
     const filtered = line.items.filter(item => {
@@ -5109,8 +5264,8 @@ function stripNumberedPrefix(line: TextLine): TextLine {
         items: filtered.map(item => {
             const trimmed = item.text.replace(NUMBERED_PATTERN, '');
             if (trimmed !== item.text) return { ...item, text: trimmed };
-            const trimmedRtl = item.text.replace(NUMBERED_PATTERN_RTL_END, '');
-            if (trimmedRtl !== item.text) return { ...item, text: trimmedRtl };
+            const rtlStart = rtlNumberTailStart(item.text);
+            if (rtlStart >= 0) return { ...item, text: item.text.slice(0, rtlStart) };
             return item;
         }),
         y: line.y,
@@ -5327,7 +5482,7 @@ function appendToParagraph(
 }
 
 function isNumberedLine(lineText: string, rtl: boolean): boolean {
-    return NUMBERED_PATTERN.test(lineText) || (rtl && NUMBERED_PATTERN_RTL_END.test(lineText));
+    return NUMBERED_PATTERN.test(lineText) || (rtl && rtlNumberTailStart(lineText) >= 0);
 }
 
 function processHtmlLine(
@@ -6271,10 +6426,16 @@ function resolvePageIndex(reader: PdfReader, pageRef: PdfObject | undefined, pag
     return findPageIndexByDict(reader, dict, pages);
 }
 
-interface StructKDictOptions {
+/** One walk of the structure tree: `seen` holds the elements already visited. */
+interface StructWalk {
     readonly reader: PdfReader;
-    readonly kDict: Record<string, PdfObject>;
     readonly pages: PdfObject[];
+    readonly seen: Set<PdfObject>;
+}
+
+interface StructKDictOptions {
+    readonly walk: StructWalk;
+    readonly kDict: Record<string, PdfObject>;
     readonly effectivePage: number;
     readonly depth: number;
     readonly mcids: StructureMcidEntry[];
@@ -6283,41 +6444,45 @@ interface StructKDictOptions {
 }
 
 function processStructKDict(opts: StructKDictOptions): void {
-    const { reader, kDict, pages, effectivePage, depth, mcids, children, elemRef } = opts;
+    const { walk, kDict, effectivePage, depth, mcids, children, elemRef } = opts;
     const mcidObj = kDict['MCID'];
     if (mcidObj) {
-        const mcidVal = reader.getNumber(mcidObj);
+        const mcidVal = walk.reader.getNumber(mcidObj);
         const mcidPageRef = kDict['Pg'];
-        const mcidPage = mcidPageRef ? resolvePageIndex(reader, mcidPageRef, pages) : effectivePage;
+        const mcidPage = mcidPageRef ? resolvePageIndex(walk.reader, mcidPageRef, walk.pages) : effectivePage;
         mcids.push({ mcid: mcidVal, page: mcidPage >= 0 ? mcidPage : effectivePage });
     } else {
-        const child = parseStructureElement(reader, elemRef, pages, effectivePage, depth + 1);
+        const child = parseStructureElement(walk, elemRef, effectivePage, depth + 1);
         if (child) children.push(child);
     }
 }
 
 function processStructKArrayItem(
-    reader: PdfReader, item: PdfObject, pages: PdfObject[], effectivePage: number, depth: number,
+    walk: StructWalk, item: PdfObject, effectivePage: number, depth: number,
     mcids: StructureMcidEntry[], children: StructureNode[],
 ): void {
-    const itemResolved = reader.resolveDeep(item);
+    const itemResolved = walk.reader.resolveDeep(item);
     if (itemResolved.type === 'number') {
         mcids.push({ mcid: itemResolved.value as number, page: effectivePage });
     } else if (itemResolved.type === 'dict') {
         const itemDict = itemResolved.value as Record<string, PdfObject>;
-        processStructKDict({ reader, kDict: itemDict, pages, effectivePage, depth, mcids, children, elemRef: item });
+        processStructKDict({ walk, kDict: itemDict, effectivePage, depth, mcids, children, elemRef: item });
     }
 }
 
 function parseStructureElement(
-    reader: PdfReader, elemObj: PdfObject, pages: PdfObject[], parentPageIdx: number, depth: number,
+    walk: StructWalk, elemObj: PdfObject, parentPageIdx: number, depth: number,
 ): StructureNode | null {
     if (depth > 50) return null;
+    const { reader, pages } = walk;
     const resolved = reader.resolveDeep(elemObj);
     if (resolved.type === 'number') {
         return { type: 'MCID', mcids: [{ mcid: resolved.value as number, page: parentPageIdx }], children: [] };
     }
     if (resolved.type !== 'dict') return null;
+    // An element has one parent; a second reference to it is a shared or cyclic
+    // node, and expanding it again costs a copy of its whole subtree each time.
+    if (!visitOnce(walk.seen, resolved)) return null;
     const dict = resolved.value as Record<string, PdfObject>;
     const typeStr = reader.getString(dict['Type']);
     if (typeStr && typeStr !== 'StructElem') return null;
@@ -6339,10 +6504,10 @@ function parseStructureElement(
         mcids.push({ mcid: kResolved.value as number, page: effectivePage });
     } else if (kResolved.type === 'dict') {
         const kDict = kResolved.value as Record<string, PdfObject>;
-        processStructKDict({ reader, kDict, pages, effectivePage, depth, mcids, children, elemRef: kResolved });
+        processStructKDict({ walk, kDict, effectivePage, depth, mcids, children, elemRef: kResolved });
     } else if (kResolved.type === 'array') {
         for (const item of kResolved.value as PdfObject[]) {
-            processStructKArrayItem(reader, item, pages, effectivePage, depth, mcids, children);
+            processStructKArrayItem(walk, item, effectivePage, depth, mcids, children);
         }
     }
 
@@ -6361,10 +6526,8 @@ function collectMcidTypes(node: StructureNode, result: Map<string, string>): voi
     }
 }
 
-function collectMcidTypesFromElement(
-    reader: PdfReader, item: PdfObject, pages: PdfObject[], mcidToType: Map<string, string>,
-): void {
-    const node = parseStructureElement(reader, item, pages, 0, 0);
+function collectMcidTypesFromElement(walk: StructWalk, item: PdfObject, mcidToType: Map<string, string>): void {
+    const node = parseStructureElement(walk, item, 0, 0);
     if (node) collectMcidTypes(node, mcidToType);
 }
 
@@ -6380,14 +6543,15 @@ export function parseStructureTree(reader: PdfReader, pages: PdfObject[]): Struc
         if (!kObj) return emptyResult;
 
         const mcidToType = new Map<string, string>();
+        const walk: StructWalk = { reader, pages, seen: new Set<PdfObject>() };
 
         const kResolved = reader.resolveDeep(kObj);
         if (kResolved.type === 'array') {
             for (const item of kResolved.value as PdfObject[]) {
-                collectMcidTypesFromElement(reader, item, pages, mcidToType);
+                collectMcidTypesFromElement(walk, item, mcidToType);
             }
         } else {
-            collectMcidTypesFromElement(reader, kObj, pages, mcidToType);
+            collectMcidTypesFromElement(walk, kObj, mcidToType);
         }
 
         return { mcidToType, hasStructure: mcidToType.size > 0 };
@@ -6426,7 +6590,11 @@ function isStructureListItem(type: string): boolean {
 
 // ── Main export ─────────────────────────────────────────────────────────
 
-export async function parsePdf(buffer: ArrayBuffer): Promise<PdfParseResult> {
+/**
+ * Parses a PDF into flowing HTML and plain text.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
+export async function parsePdf(buffer: ArrayBuffer, limits: ParserLimits = DEFAULT_PARSER_LIMITS): Promise<PdfParseResult> {
     const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
     if (header.length < 5 ||
         header[0] !== 0x25 ||
@@ -6438,7 +6606,7 @@ export async function parsePdf(buffer: ArrayBuffer): Promise<PdfParseResult> {
         throw new Error('Not a valid PDF file.');
     }
 
-    const reader = new PdfReader(buffer);
+    const reader = new PdfReader(buffer, limits);
 
     try {
         reader.parse();
@@ -6593,7 +6761,11 @@ function extractAllPages(
     return { pages, allTextParts, allHtmlParts, allImageOnly };
 }
 
-export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResultPaged> {
+/**
+ * Parses a PDF into one HTML fragment per page, plus the outline.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
+export async function parsePdfPaged(buffer: ArrayBuffer, limits: ParserLimits = DEFAULT_PARSER_LIMITS): Promise<PdfParseResultPaged> {
     const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
     if (header.length < 5 ||
         header[0] !== 0x25 || header[1] !== 0x50 || header[2] !== 0x44 ||
@@ -6602,7 +6774,7 @@ export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResult
         throw new Error('Not a valid PDF file.');
     }
 
-    const reader = new PdfReader(buffer);
+    const reader = new PdfReader(buffer, limits);
     try {
         reader.parse();
     } catch {
@@ -6642,7 +6814,7 @@ function parseOutline(reader: PdfReader, pdfPages: PdfObject[]): PdfOutlineItem[
         const firstRef = outlinesDict['First'];
         if (!firstRef) return [];
         const pageMap = buildPageObjNumMap(reader, pdfPages);
-        return parseOutlineItems(reader, firstRef, pageMap, 0);
+        return parseOutlineItems(reader, firstRef, pageMap, 0, new Set<string>());
     } catch {
         return [];
     }
@@ -6689,10 +6861,15 @@ function resolveOutlinePageIndex(reader: PdfReader, item: Record<string, PdfObje
     } catch { return -1; }
 }
 
-function parseOutlineItems(reader: PdfReader, firstRef: PdfObject, pageMap: Map<string, number>, depth: number): PdfOutlineItem[] {
+/**
+ * `visited` spans the whole outline tree, not one sibling list: two items
+ * pointing at the same child list would otherwise each expand it in full.
+ */
+function parseOutlineItems(
+    reader: PdfReader, firstRef: PdfObject, pageMap: Map<string, number>, depth: number, visited: Set<string>,
+): PdfOutlineItem[] {
     if (depth > 10) return [];
     const items: PdfOutlineItem[] = [];
-    const visited = new Set<string>();
     let currentRef: PdfObject | null = firstRef;
 
     while (currentRef) {
@@ -6708,7 +6885,7 @@ function parseOutlineItems(reader: PdfReader, firstRef: PdfObject, pageMap: Map<
             let children: PdfOutlineItem[] = [];
             const childFirst = itemDict['First'];
             if (childFirst) {
-                children = parseOutlineItems(reader, childFirst, pageMap, depth + 1);
+                children = parseOutlineItems(reader, childFirst, pageMap, depth + 1, visited);
             }
 
             items.push({ title, pageIndex, children });

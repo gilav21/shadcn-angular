@@ -10,7 +10,7 @@ import {
 import { cn } from '../../lib/utils';
 import { observeChartWidth } from '../../lib/chart-responsive';
 import { ChartDirection } from '../../lib/chart.types';
-import { formatChartValue } from '../../lib/chart.utils';
+import { extent, formatChartValue } from '../../lib/chart.utils';
 import { linearScale } from '../../lib/chart-scale';
 
 interface RangeBand {
@@ -69,7 +69,7 @@ export class BulletChartComponent {
     readonly viewBox = computed(() => `0 0 ${this.svgWidth()} ${this.height()}`);
 
     readonly maxValue = computed(() =>
-        Math.max(this.value(), this.target() ?? 0, ...this.ranges(), this.min() + 1),
+        extent([this.value(), this.target() ?? 0, ...this.ranges(), this.min() + 1])?.[1] ?? this.min() + 1,
     );
 
     readonly trackWidth = computed(() => Math.max(0, this.svgWidth() - PAD * 2));

@@ -223,6 +223,13 @@ describe('HistogramComponent', () => {
             for (let i = 1; i < bars.length; i++) {
                 expect(bars[i].x).toBeLessThan(bars[i - 1].x);
             }
+
+            fixture.componentRef.setInput('dir', 'ltr');
+            fixture.detectChanges();
+            const ltrBars = component.bars();
+            for (let i = 1; i < ltrBars.length; i++) {
+                expect(ltrBars[i].x).toBeGreaterThan(ltrBars[i - 1].x);
+            }
         });
     });
 

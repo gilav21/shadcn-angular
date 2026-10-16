@@ -446,7 +446,7 @@
             {
               "name": "series",
               "type": "ChartSeries[]",
-              "description": "One filled area per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. Array order is paint order — and when {@link stacked} is on, stack order: the first series sits at the bottom. The y domain always starts at 0 and is nice-rounded over the *visible* series, so negative values fall outside the plot.",
+              "description": "One filled area per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. Array order is paint order — and when {@link stacked} is on, stack order: the first series sits at the bottom. The y domain always starts at 0 and is nice-rounded over the *visible* series, so negative values fall outside the plot. A missing value (`NaN`, `null`, `undefined` or infinite) is a gap in an overlapping area and counts as 0 in a stacked one.",
               "required": true
             },
             {
@@ -4731,7 +4731,7 @@
       "description": "Directive that copies a string to the clipboard on click and shows a localized \"Copied!\" indicator.",
       "category": "utility",
       "install": "npx @gilav21/shadcn-angular@latest add copy-to",
-      "importStatement": "import { CopyToDirective } from '@/components/ui/directives/copy-to.directive';",
+      "importStatement": "import { CopyToDirective } from '@/components/ui/copy-to.directive';",
       "selector": "[uiCopyTo]",
       "dependencies": [],
       "npmDependencies": [],
@@ -4742,7 +4742,7 @@
       "api": [
         {
           "className": "CopyToDirective",
-          "file": "packages/components/ui/directives/copy-to.directive.ts",
+          "file": "packages/components/ui/copy-to.directive.ts",
           "kind": "directive",
           "selector": "[uiCopyTo]",
           "description": "",
@@ -10637,7 +10637,7 @@
             {
               "name": "series",
               "type": "ChartSeries[]",
-              "description": "One poly-line per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. The y domain is nice-rounded over the *visible* series and always includes 0, so hiding a series via the legend rescales the axis.",
+              "description": "One poly-line per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. The y domain is nice-rounded over the *visible* series and always includes 0, so hiding a series via the legend rescales the axis. A missing value (`NaN`, `null`, `undefined` or infinite) is a gap: the line breaks there and no marker is drawn for it.",
               "required": true
             },
             {
@@ -11397,7 +11397,7 @@
             {
               "name": "step",
               "type": "number",
-              "description": "Increment used by {@link increment}/{@link decrement}; its decimal count also sets the rounding precision, avoiding float drift like `0.30000000000000004`.",
+              "description": "Grid spacing for {@link increment}/{@link decrement}, the arrow keys and the wheel. Steps follow native `<input type=number>` `stepUp`/`stepDown`: the grid is `min + k·step` (based at 0 when {@link min} is unset), an off-grid value moves to the next grid point in that direction (`2.4` ↑ `3`, `2.4` ↓ `2`), an on-grid one moves a whole step, and results are exact decimals at the precision of `min` and `step` — no `0.30000000000000004`. Typed text is never snapped. One deviation from native: stepping from an out-of-range typed value clamps into range.",
               "default": "1"
             },
             {
@@ -14725,7 +14725,7 @@
             {
               "name": "closed",
               "type": "void",
-              "description": "The user dismissed the list: `Escape`/`Tab`, or a click anywhere outside the `ui-rich-text-mention-popover` element. The host owns the teardown; this component stays rendered until it is destroyed."
+              "description": "The user dismissed the list: `Escape`/`Tab`, or a click anywhere outside this popover (whatever its host tag). The host owns the teardown; this component stays rendered until it is destroyed."
             },
             {
               "name": "itemSelect",
@@ -16809,14 +16809,13 @@
             },
             {
               "name": "defaultValue",
-              "type": "number",
-              "description": "Starting value, read once in the constructor — later changes to this input do not move the thumb.",
-              "default": "0"
+              "type": "number | undefined",
+              "description": "Starting value for an uncontrolled slider, applied once on init and snapped to the grid — later changes to this input do not move the thumb. Silent: it neither emits {@link value} nor dirties a form. A value supplied by `[value]` / `[(value)]` or by a form wins over it; a bound `[value]` of exactly `0` is indistinguishable from \"unset\" and lets the default apply."
             },
             {
               "name": "disabled",
               "type": "boolean",
-              "description": "Dims the slider and blocks pointer events, and short-circuits every keyboard and drag handler.",
+              "description": "Dims the slider and blocks pointer events, and short-circuits every keyboard and drag handler. OR-ed with the state a form pushes through {@link setDisabledState}, so a reactive-forms `disable()` also wins.",
               "default": "false"
             },
             {
@@ -16845,7 +16844,7 @@
             {
               "name": "value",
               "type": "number",
-              "description": "The slider position, as a two-way `model()`. Emits on every value change from dragging, tapping the track or keyboard input — including each intermediate value during a drag. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration.",
+              "description": "The slider position, as a two-way `model()`. Emits on every value change from dragging, tapping the track or keyboard input — including each intermediate value during a drag. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside — `writeValue` from a form, or the {@link defaultValue} seed — stays silent; only a user change emits. Note that after a `writeValue` from a reactive form, or a {@link defaultValue} seed, this still reads the earlier value — the rendered value is {@link rendered}. A consequence: a user change back to exactly that earlier value reaches the form but emits no `valueChange`, because the model already holds it.",
               "default": "0"
             }
           ],
@@ -16853,7 +16852,7 @@
             {
               "name": "value",
               "type": "number",
-              "description": "The slider position, as a two-way `model()`. Emits on every value change from dragging, tapping the track or keyboard input — including each intermediate value during a drag. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration.",
+              "description": "The slider position, as a two-way `model()`. Emits on every value change from dragging, tapping the track or keyboard input — including each intermediate value during a drag. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside — `writeValue` from a form, or the {@link defaultValue} seed — stays silent; only a user change emits. Note that after a `writeValue` from a reactive form, or a {@link defaultValue} seed, this still reads the earlier value — the rendered value is {@link rendered}. A consequence: a user change back to exactly that earlier value reaches the form but emits no `valueChange`, because the model already holds it.",
               "default": "0"
             }
           ],

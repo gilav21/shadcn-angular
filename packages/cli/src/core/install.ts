@@ -9,11 +9,16 @@ import { transformSpecForRunner, VITEST_COMPAT_LIB_FILE } from '../utils/test-tr
 import { hasJestGlobals } from '../utils/test-runner.js';
 import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
 import { registry, type ComponentDefinition, type ComponentName } from '../registry/index.js';
-import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
+import { resolveProjectPath, resolveInside, aliasToProjectPath } from '../utils/paths.js';
 import { readManifest, writeManifest, recordFile, recordComponentRef, fileStatus, removeFiles, type Manifest } from './manifest.js';
 import { resolveRef } from './ref.js';
 import { mergeWriteFile, previewMergeFile, emptyMergeReport, shouldAdvanceRef, type MergeReport, type MergeOutcome, type MergeWriteContext } from './merge.js';
 import { isPristineLib } from './lib-reconcile.js';
+import { componentFileHash } from './baseline.js';
+import { COMPONENT_BASELINES } from '../registry/component-baselines.js';
+
+/** Every published component file, canonicalized — what proves an untracked file is ours. */
+const COMPONENT_BASELINE_SET: ReadonlySet<string> = new Set(COMPONENT_BASELINES);
 
 export interface InstallResult {
     installed: ComponentName[];
@@ -200,7 +205,14 @@ async function installLibFiles(
     if (required.size === 0) return;
     await fs.ensureDir(libDir);
     for (const libFile of required) {
-        await installSingleLibFile(libFile, path.join(libDir, libFile), options, warnings, manifest);
+        let targetPath: string;
+        try {
+            targetPath = resolveInside(libDir, libFile);
+        } catch (err: unknown) {
+            warnings.push(`Could not install lib file ${libFile}: ${err instanceof Error ? err.message : String(err)}`);
+            continue;
+        }
+        await installSingleLibFile(libFile, targetPath, options, warnings, manifest);
     }
 }
 
@@ -430,7 +442,7 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     await installLibFiles(new Set(finalComponents), libDir, input.options, warnings, manifest);
     await installTestShim({ finalComponents, testsFor, includeTests, testRunner, libDir }, input, warnings, manifest);
     await installNpmDependencies(finalComponents, input.cwd, warnings);
-    const pruned = await pruneObsoleteFiles(finalComponents, targetDir, manifest, warnings);
+    const pruned = await pruneObsoleteFiles(finalComponents, { targetDir, manifest, warnings, prefix, utilsAlias });
     await ensureShortcutService(targetDir, input.cwd, input.config, input.options);
     try {
         await writeManifest(input.cwd, manifest);
@@ -441,32 +453,73 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     return { installed, skipped: result.toSkip, declined, pruned, warnings, mergeReport: report };
 }
 
+/** What deciding and performing one obsolete-file prune needs. */
+interface PruneContext {
+    readonly targetDir: string;
+    readonly manifest: Manifest;
+    readonly warnings: string[];
+    /** Selector prefix and utils alias, to canonicalize a file against the published baselines. */
+    readonly prefix: string;
+    readonly utilsAlias: string;
+}
+
 /**
  * Delete old-layout files the current registry no longer ships for a
  * (re)installed component — a type relocated to `lib/`, a sub-component moved
  * into `sub/`. Without this, a reinstall writes the new layout but leaves the
  * old files as orphans, and a stale duplicate type clashes with its relocated
- * copy (report B7). A file the user has edited from our recorded baseline is
- * kept and flagged, never silently removed.
+ * copy (report B7). Only a file that is provably ours and unedited is removed;
+ * anything else is kept and flagged.
  */
-async function pruneObsoleteFiles(
-    finalComponents: ComponentName[], targetDir: string, manifest: Manifest, warnings: string[],
-): Promise<string[]> {
+async function pruneObsoleteFiles(finalComponents: ComponentName[], ctx: PruneContext): Promise<string[]> {
     const pruned: string[] = [];
     for (const name of finalComponents) {
         for (const rel of registry[name].obsoleteFiles ?? []) {
-            const abs = path.join(targetDir, rel);
-            if (!await fs.pathExists(abs)) continue;
-            if (fileStatus(manifest, rel, await fs.readFile(abs, 'utf-8')) === 'modified') {
-                warnings.push(`Kept ${rel}: it differs from the version we installed (delete it manually if intended).`);
-                continue;
-            }
-            await fs.remove(abs);
-            removeFiles(manifest, [rel]);
-            pruned.push(rel);
+            if (await tryPruneObsoleteFile(rel, ctx)) pruned.push(rel);
         }
     }
     return pruned;
+}
+
+/** {@link pruneObsoleteFile}, with any refusal or I/O error reported as a warning. */
+async function tryPruneObsoleteFile(rel: string, ctx: PruneContext): Promise<boolean> {
+    try {
+        return await pruneObsoleteFile(rel, ctx);
+    } catch (err: unknown) {
+        ctx.warnings.push(`Could not prune ${rel}: ${err instanceof Error ? err.message : String(err)}`);
+        return false;
+    }
+}
+
+/**
+ * The reason to keep an obsolete file, or `null` when it is provably ours and
+ * unedited: `clean` against the lockfile, or untracked and byte-matching a
+ * version we published.
+ */
+function keepReason(rel: string, content: string, ctx: PruneContext): string | null {
+    const status = fileStatus(ctx.manifest, rel, content);
+    if (status === 'modified') return 'it differs from the version we installed';
+    // Untracked = installed before components.lock.json existed (B7). Only a
+    // published version is provably ours; anything else may carry user edits.
+    if (status === 'untracked' && !COMPONENT_BASELINE_SET.has(componentFileHash(content, ctx.prefix, ctx.utilsAlias))) {
+        return 'it differs from every version we shipped';
+    }
+    return null;
+}
+
+/** Delete one obsolete file unless it may hold the user's edits; `true` when deleted. */
+async function pruneObsoleteFile(rel: string, ctx: PruneContext): Promise<boolean> {
+    // `rel` comes from registry data; refuse any path that leaves the target dir.
+    const abs = resolveInside(ctx.targetDir, rel);
+    if (!await fs.pathExists(abs)) return false;
+    const reason = keepReason(rel, await fs.readFile(abs, 'utf-8'), ctx);
+    if (reason !== null) {
+        ctx.warnings.push(`Kept ${rel}: ${reason} (delete it manually if intended).`);
+        return false;
+    }
+    await fs.remove(abs);
+    removeFiles(ctx.manifest, [rel]);
+    return true;
 }
 
 /** One file's predicted merge outcome for `update --dry-run` (no write, no record). */

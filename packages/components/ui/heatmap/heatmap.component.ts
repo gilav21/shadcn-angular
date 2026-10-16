@@ -12,7 +12,7 @@ import {
 import { cn } from '../../lib/utils';
 import { observeChartWidth } from '../../lib/chart-responsive';
 import { HeatmapCell, ChartDirection } from '../../lib/chart.types';
-import { formatChartValue } from '../../lib/chart.utils';
+import { formatChartValue, extent } from '../../lib/chart.utils';
 import { sequentialColorScale } from '../../lib/chart-scale';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
 
@@ -136,8 +136,7 @@ export class HeatmapComponent {
 
     readonly valueDomain = computed<[number, number]>(() => {
         const values = this.data().map(c => c.value);
-        if (values.length === 0) return [0, 1];
-        return [Math.min(...values), Math.max(...values)];
+        return extent(values) ?? [0, 1];
     });
 
     private readonly colorScale = computed(() =>

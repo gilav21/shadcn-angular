@@ -8,24 +8,24 @@
   <div class="space-y-4">
     <h3 class="text-lg font-medium">{{ t().sectionSizes }}</h3>
     <p class="text-sm text-muted-foreground">{{ t().sectionSizesDesc }}</p>
-    <div class="flex items-end gap-6">
-      <div class="flex flex-col items-center gap-2">
+    <div class="flex flex-wrap items-end gap-x-6 gap-y-4">
+      <div class="flex shrink-0 flex-col items-center gap-2">
         <ui-icon name="star" size="xs"></ui-icon>
         <span class="text-[10px] text-muted-foreground">xs (12px)</span>
       </div>
-      <div class="flex flex-col items-center gap-2">
+      <div class="flex shrink-0 flex-col items-center gap-2">
         <ui-icon name="star" size="sm"></ui-icon>
         <span class="text-[10px] text-muted-foreground">sm (16px)</span>
       </div>
-      <div class="flex flex-col items-center gap-2">
+      <div class="flex shrink-0 flex-col items-center gap-2">
         <ui-icon name="star" size="md"></ui-icon>
         <span class="text-[10px] text-muted-foreground">md (24px)</span>
       </div>
-      <div class="flex flex-col items-center gap-2">
+      <div class="flex shrink-0 flex-col items-center gap-2">
         <ui-icon name="star" size="lg"></ui-icon>
         <span class="text-[10px] text-muted-foreground">lg (32px)</span>
       </div>
-      <div class="flex flex-col items-center gap-2">
+      <div class="flex shrink-0 flex-col items-center gap-2">
         <ui-icon name="star" size="xl"></ui-icon>
         <span class="text-[10px] text-muted-foreground">xl (48px)</span>
       </div>
@@ -38,11 +38,11 @@
   <div class="space-y-4">
     <h3 class="text-lg font-medium">{{ t().sectionWeights }}</h3>
     <p class="text-sm text-muted-foreground">{{ t().sectionWeightsDesc }}</p>
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(min(100%,24rem),1fr))] gap-4">
       @for (icon of ['heart', 'star', 'bookmark', 'shield', 'bell', 'home', 'settings', 'check-circle']; track icon) {
-      <div class="flex items-center gap-6 p-3 rounded-lg border">
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-2 p-3 rounded-lg border">
         <span class="text-sm text-muted-foreground w-24 shrink-0">{{ icon }}</span>
-        <div class="flex items-center gap-4">
+        <div class="flex flex-wrap items-center gap-4">
           <div class="flex flex-col items-center gap-1">
             <ui-icon [name]="icon" weight="light" size="lg"></ui-icon>
             <span class="text-[10px] text-muted-foreground">light</span>
@@ -73,7 +73,7 @@
 
     <div class="space-y-3">
       <h4 class="text-sm font-medium">{{ t().colorStrokeHeading }}</h4>
-      <div class="flex items-center gap-4">
+      <div class="flex flex-wrap items-center gap-4">
         <ui-icon name="heart" color="red" size="lg"></ui-icon>
         <ui-icon name="star" color="#f59e0b" size="lg"></ui-icon>
         <ui-icon name="check" color="green" size="lg"></ui-icon>
@@ -85,7 +85,7 @@
 
     <div class="space-y-3">
       <h4 class="text-sm font-medium">{{ t().colorSolidHeading }}</h4>
-      <div class="flex items-center gap-4">
+      <div class="flex flex-wrap items-center gap-4">
         <ui-icon name="heart" weight="solid" color="red" size="lg"></ui-icon>
         <ui-icon name="star" weight="solid" color="#f59e0b" size="lg"></ui-icon>
         <ui-icon name="check-circle" weight="solid" color="green" size="lg"></ui-icon>
@@ -97,7 +97,7 @@
 
     <div class="space-y-3">
       <h4 class="text-sm font-medium">{{ t().colorDualHeading }}</h4>
-      <div class="flex items-center gap-4">
+      <div class="flex flex-wrap items-center gap-4">
         <ui-icon name="heart" color="#dc2626" fillColor="#fecaca" size="lg"></ui-icon>
         <ui-icon name="star" color="#b45309" fillColor="#fef3c7" size="lg"></ui-icon>
         <ui-icon name="bookmark" color="#2563eb" fillColor="#dbeafe" size="lg"></ui-icon>
@@ -109,7 +109,7 @@
 
     <div class="space-y-3">
       <h4 class="text-sm font-medium">{{ t().colorTailwindHeading }}</h4>
-      <div class="flex items-center gap-4">
+      <div class="flex flex-wrap items-center gap-4">
         <ui-icon name="heart" class="text-red-500" size="lg"></ui-icon>
         <ui-icon name="star" class="text-yellow-500" size="lg"></ui-icon>
         <ui-icon name="check" class="text-green-500" size="lg"></ui-icon>
@@ -160,7 +160,7 @@
 
     <div class="space-y-3">
       <h4 class="text-sm font-medium">{{ t().usageFeatureHeading }}</h4>
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="flex flex-col items-center gap-3 p-6 rounded-lg border text-center">
           <div class="p-3 rounded-full bg-blue-50 dark:bg-blue-950">
             <ui-icon name="shield-check" color="#2563eb" size="lg"></ui-icon>
@@ -196,7 +196,7 @@
 
   <!-- Icon Explorer -->
   <div class="space-y-4">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-center justify-between gap-2">
       <h3 class="text-lg font-medium">{{ t().sectionExplorer }}</h3>
       <span class="text-sm text-muted-foreground">{{ iconNames.length }} icons</span>
     </div>
@@ -285,7 +285,7 @@
               [disabled]="iconExplorerSolid()"
               (valueChange)="onStrokeWidthChange($event)"
             ></ui-slider>
-            <div class="flex gap-2 mt-2.5">
+            <div class="flex flex-wrap gap-2 mt-2.5">
               @for (preset of strokeWidthPresets(); track preset.label) {
                 <ui-button
                   size="sm"

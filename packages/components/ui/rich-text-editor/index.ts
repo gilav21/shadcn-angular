@@ -4,7 +4,7 @@ export * from './rich-text-sanitizer.service';
 export * from './rich-text-paste-normalizer.service';
 export * from './rich-text-markdown.service';
 export * from './rich-text-command-registry.service';
-export * from './rich-text-locales';
+export * from './rich-text.locales';
 export * from './rich-text-input-rules';
 export * from './sub/rich-text-toolbar.component';
 export * from './rich-text-editor.api';

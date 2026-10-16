@@ -6,6 +6,7 @@ import {
     hashContent, fileStatus, recordFile, readManifest, writeManifest, type Manifest,
 } from './manifest.js';
 import { LIB_BASELINES } from '../registry/lib-baselines.js';
+import { resolveInside } from '../utils/paths.js';
 
 /**
  * Shared lib reconciliation — the missing counterpart to component drift
@@ -64,7 +65,7 @@ export function isPristineLib(file: string, local: string): boolean {
 async function classifyLibFile(
     file: string, libDir: string, manifest: Manifest, options: FetchOptions,
 ): Promise<LibDriftStatus> {
-    const target = path.join(libDir, file);
+    const target = resolveInside(libDir, file);
     if (!await fs.pathExists(target)) return 'missing';
 
     const local = await fs.readFile(target, 'utf-8');
@@ -133,8 +134,10 @@ export async function refreshLibFiles(
     await fs.ensureDir(libDir);
     for (const file of files) {
         try {
+            // `files` may come from `refresh-lib --files` / MCP `refresh_lib`,
+            // which never pass the manifest loader's path rule.
+            const target = resolveInside(libDir, file);
             const content = await fetchLibContent(file, options);
-            const target = path.join(libDir, file);
             await fs.ensureDir(path.dirname(target));
             await fs.writeFile(target, content);
             recordFile(manifest, file, content, '(lib)');

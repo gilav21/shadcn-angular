@@ -7,6 +7,7 @@ import {
   ElementRef,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { bindOverlayLayer } from '../../../lib/overlay-stack.service';
 import { MenubarService } from '../menubar.component';
 import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.component';
 
@@ -41,6 +42,11 @@ export class MenubarContentComponent {
   readonly service = inject(MenubarService);
   readonly el = inject(ElementRef);
 
+  constructor() {
+    // Non-modal layer while this menu is the open one; the stack gives Escape to the innermost layer.
+    bindOverlayLayer(() => this.menu.isOpen(), { modal: false, dismiss: () => this.menu.closeAndFocusTrigger() });
+  }
+
   classes = computed(() => cn(
     'absolute top-full z-50 mt-1 min-w-[12rem] max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
     'animate-in fade-in-0 zoom-in-95',
@@ -51,8 +57,8 @@ export class MenubarContentComponent {
   /**
    * Keyboard map for an open menu: ArrowDown/ArrowUp move through the items
    * ({@link focusNextItem} / {@link focusPrevItem}, wrapping at both ends),
-   * Escape closes the menu and returns focus to its trigger, and
-   * ArrowLeft/ArrowRight step to the adjacent menu in the bar (mirrored under
+   * Escape is the overlay stack's (it closes the menu and returns
+   * focus to its trigger), and ArrowLeft/ArrowRight step to the adjacent menu in the bar (mirrored under
    * RTL) which opens it in place. Typeahead and Home/End are not handled.
    */
   onKeydown(event: KeyboardEvent): void {
@@ -62,11 +68,6 @@ export class MenubarContentComponent {
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       this.focusPrevItem(event.target as HTMLElement);
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      this.menu.close();
-      const trigger = this.service.menus.get(this.menu.id)?.trigger;
-      trigger?.focus();
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
       this.handleArrowNav(event.key);

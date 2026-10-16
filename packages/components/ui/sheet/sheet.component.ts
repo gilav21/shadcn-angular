@@ -3,15 +3,11 @@ import {
     ChangeDetectionStrategy,
     output,
     signal,
-    inject,
-    effect,
     InjectionToken,
-    OnDestroy,
     forwardRef,
 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { OverlayStackService } from '../../lib/overlay-stack.service';
+import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 
 export const sheetVariants = cva(
     'fixed z-50 gap-4 bg-background p-4 sm:p-6 shadow-lg transition ease-in-out overflow-y-auto',
@@ -43,8 +39,7 @@ export const SHEET = new InjectionToken<SheetComponent>('SHEET');
         { provide: SHEET, useExisting: forwardRef(() => SheetComponent) },
     ],
 })
-export class SheetComponent implements OnDestroy {
-    private readonly document = inject(DOCUMENT);
+export class SheetComponent {
 
     open = signal(false);
     /**
@@ -55,41 +50,9 @@ export class SheetComponent implements OnDestroy {
      */
     openChange = output<boolean>();
 
-    private scrollbarWidth = 0;
-
     constructor() {
-        this.scrollbarWidth = globalThis.window.innerWidth - this.document.documentElement.clientWidth;
-
-        effect(() => {
-            if (this.open()) {
-                this.lockScroll();
-                this.layers.push(this);
-            } else {
-                this.unlockScroll();
-                this.layers.remove(this);
-            }
-        });
-    }
-
-    /** Registers this sheet as an overlay layer while open, so Escape reaches only the innermost one. */
-    private readonly layers = inject(OverlayStackService);
-
-    ngOnDestroy(): void {
-        this.unlockScroll();
-        this.layers.remove(this);
-    }
-
-    private lockScroll(): void {
-        const body = this.document.body;
-        this.scrollbarWidth = globalThis.window.innerWidth - this.document.documentElement.clientWidth;
-        body.style.overflow = 'hidden';
-        body.style.paddingRight = `${this.scrollbarWidth}px`;
-    }
-
-    private unlockScroll(): void {
-        const body = this.document.body;
-        body.style.overflow = '';
-        body.style.paddingRight = '';
+        // Modal: locks page scroll while open, and Escape reaches only the innermost layer.
+        bindOverlayLayer(() => this.open(), { modal: true, dismiss: () => this.hide() });
     }
 
     /**

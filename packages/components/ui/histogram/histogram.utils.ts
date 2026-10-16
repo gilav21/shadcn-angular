@@ -5,6 +5,7 @@
  */
 
 import { niceDomain } from '../../lib/chart-scale';
+import { extent } from '../../lib/chart.utils';
 import { HistogramBin, HistogramBinOptions } from './histogram.types';
 
 /**
@@ -18,24 +19,6 @@ export function sturgesBinCount(sampleSize: number): number {
 
 function finiteValues(values: readonly number[]): number[] {
     return values.filter(v => Number.isFinite(v));
-}
-
-/**
- * `[min, max]` of a non-empty sample, in one pass.
- *
- * Deliberately not `Math.min(...values)`: the spread passes one argument per
- * element, and V8 throws `RangeError: Maximum call stack size exceeded` around
- * 100k arguments. The spec's own budget is 10,000 samples, so a caller is well
- * within their rights to hand us an array that would crash the spread form.
- */
-function extent(values: readonly number[]): [number, number] {
-    let min = values[0];
-    let max = values[0];
-    for (const value of values) {
-        if (value < min) min = value;
-        if (value > max) max = value;
-    }
-    return [min, max];
 }
 
 function resolveBinCount(binCount: number | undefined, sampleSize: number): number {
@@ -68,16 +51,16 @@ function usableEdges(binEdges: number[] | undefined): number[] | undefined {
  * zero bin width.
  */
 export function computeBinEdges(values: readonly number[], binCount?: number): number[] {
-    const finite = finiteValues(values);
-    if (finite.length === 0) return [];
+    const range = extent(values);
+    if (!range) return [];
 
-    const count = resolveBinCount(binCount, finite.length);
-    const [min, max] = extent(finite);
-    const [lo, hi] = niceDomain(min, max, count);
-    const span = hi > lo ? hi - lo : 1;
-    const width = span / count;
+    const count = resolveBinCount(binCount, finiteValues(values).length);
+    const [lo, hi] = niceDomain(range[0], range[1], count);
+    const width = (hi - lo) / count;
 
-    return Array.from({ length: count + 1 }, (_, i) => lo + i * width);
+    // The last edge is `hi` itself: `lo + count·width` can land an ulp below
+    // it and drop the maximum sample from the last bin.
+    return Array.from({ length: count + 1 }, (_, i) => (i === count ? hi : lo + i * width));
 }
 
 function edgesFor(values: readonly number[], options: HistogramBinOptions): number[] {

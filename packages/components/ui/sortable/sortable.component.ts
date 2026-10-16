@@ -22,7 +22,7 @@ import { onPointerDrag } from '../../lib/touch';
 import { createFlip, type FlipHandle } from '../../lib/flip';
 import { startAutoScroll, type AutoScrollController } from '../../lib/auto-scroll';
 import { acquireAriaLive, type AriaLiveHandle } from '../../lib/sortable-aria-live';
-import { SORTABLE_LOCALES, type SortableLocale } from './sortable-locales';
+import { SORTABLE_LOCALES, type SortableLocale } from './sortable.locales';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import {
     entryDepth,

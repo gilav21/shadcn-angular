@@ -17,7 +17,7 @@ import {
 import { InputComponent } from '../../input';
 import { ButtonComponent } from '../../button';
 import { LabelComponent } from '../../label';
-import { type KanbanLocale, KANBAN_LOCALES } from '../kanban-locales';
+import { type KanbanLocale, KANBAN_LOCALES } from '../kanban.locales';
 import { type KanbanColumn, type KanbanColumnDialogMode } from '../kanban.component';
 
 @Component({

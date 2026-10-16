@@ -5,9 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "docs:json": "compodoc -p tsconfig.json -e json -d ."
+    "watch": "ng build --watch --configuration development"
   },
   "prettier": {
     "printWidth": 100,
@@ -24,8 +22,6 @@
   "private": true,
   "packageManager": "npm@11.5.1",
   "dependencies": {
-    "@analogjs/vite-plugin-angular": "^2.2.1",
-    "@analogjs/vitest-angular": "^2.2.1",
     "@angular/cdk": "^21.0.5",
     "@angular/common": "21.2.22",
     "@angular/compiler": "21.2.22",
@@ -34,7 +30,6 @@
     "@angular/platform-browser": "21.2.22",
     "@angular/router": "21.2.22",
     "@tailwindcss/postcss": "^4.1.18",
-    "@types/jest": "^30.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "rxjs": "~7.8.0",

@@ -59,7 +59,7 @@ class HostComponent {
 
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        requestAnimationFrame(() => resolve()),
     );
 }
 
@@ -83,7 +83,6 @@ describe('the base API the addons need', () => {
         await settle();
         editor = fixture.debugElement.children[0].componentInstance as NodeEditorComponent;
         root = fixture.nativeElement.querySelector('[data-slot="node-editor"]') as HTMLElement;
-        await settle();
     });
 
     afterEach(() => fixture.destroy());

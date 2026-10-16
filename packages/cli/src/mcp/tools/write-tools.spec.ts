@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs-extra';
 import path from 'node:path';
 import { registerWriteTools } from './write-tools.js';
@@ -23,7 +23,7 @@ import { changeThemeCore } from '../../commands/change-theme.js';
 import { getConfig, getDefaultConfig, type Config } from '../../utils/config.js';
 import { emptyMergeReport, type MergeReport } from '../../core/merge.js';
 import { DEFAULT_BRANCH, aliasToProjectPath, resolveProjectPath } from '../../utils/paths.js';
-import type { ComponentName } from '../../registry/index.js';
+import { registry, type ComponentDefinition, type ComponentName } from '../../registry/index.js';
 
 vi.mock('fs-extra', () => ({ default: { pathExists: vi.fn() } }));
 vi.mock('../../core/install.js', () => ({ performInstall: vi.fn() }));
@@ -161,6 +161,43 @@ describe('registerWriteTools', () => {
   });
 });
 
+// Each tool guards separately, so every one is driven; a tool that dropped its
+// guard would otherwise run against a project that has no components.json.
+describe('tools that need an initialized project', () => {
+  const NEEDS_CONFIG: [string, ToolArgs][] = [
+    ['add_component', { names: ['button'] }],
+    ['update_component', { names: ['button'] }],
+    ['diff_component', { names: ['button'] }],
+    ['doctor_fix', {}],
+    ['refresh_lib', {}],
+    ['migrate', { dryRun: true }],
+    ['apply_addon', { addon: 'data-table/context-menu' }],
+  ];
+
+  it('point at init_project and touch nothing when components.json is missing', async () => {
+    vi.mocked(getConfig).mockResolvedValue(null);
+
+    for (const [tool, args] of NEEDS_CONFIG) {
+      const res = await call(tool, args);
+      expect(res.isError, tool).toBe(true);
+      expect(text(res), tool).toContain('init_project');
+    }
+    for (const core of [performInstall, diffComponentFiles, collectDoctorReport, refreshLibCore, migrateCore, applyCore]) {
+      expect(core).not.toHaveBeenCalled();
+    }
+  });
+
+  it('reject an unknown component name before doing any work', async () => {
+    for (const tool of ['add_component', 'update_component', 'diff_component']) {
+      const res = await call(tool, { names: ['button', 'nope', 'also-nope'] });
+      expect(res.isError, tool).toBe(true);
+      expect(text(res), tool).toBe('Unknown component(s): nope, also-nope');
+    }
+    expect(performInstall).not.toHaveBeenCalled();
+    expect(diffComponentFiles).not.toHaveBeenCalled();
+  });
+});
+
 describe('init_project', () => {
   beforeEach(() => {
     vi.mocked(initProject).mockResolvedValue({ created: ['components.json'], warnings: [] });
@@ -247,19 +284,43 @@ describe('init_project', () => {
 });
 
 describe('add_component', () => {
-  it('errors when the project is not initialized', async () => {
-    vi.mocked(getConfig).mockResolvedValue(null);
-    const res = await call('add_component', { names: ['button'] });
+  // Every name list the agent supplies reaches performInstall's resolver, so
+  // each is validated — `constructor` is the inherited-name class.
+  it.each([
+    { label: 'names', args: { names: ['button', 'nope', 'constructor'] } },
+    { label: 'optionalDeps', args: { names: ['button'], optionalDeps: ['ripple', 'nope', 'constructor'] } },
+    { label: 'overwrite', args: { names: ['button'], overwrite: ['card', 'nope', 'constructor'] } },
+  ])('rejects unknown component names in $label before installing anything', async ({ args }) => {
+    const res = await call('add_component', args);
     expect(res.isError).toBe(true);
-    expect(text(res)).toContain('init_project');
+    expect(text(res)).toBe('Unknown component(s): nope, constructor');
     expect(performInstall).not.toHaveBeenCalled();
   });
 
-  it('rejects unknown component names before installing anything', async () => {
-    const res = await call('add_component', { names: ['button', 'nope', 'also-nope'] });
-    expect(res.isError).toBe(true);
-    expect(text(res)).toBe('Unknown component(s): nope, also-nope');
-    expect(performInstall).not.toHaveBeenCalled();
+  describe('with a preset that names an addon the applied manifest lacks', () => {
+    const mutable = registry as unknown as Record<string, ComponentDefinition>;
+    let original: ComponentDefinition;
+
+    beforeEach(() => {
+      original = mutable['rich-text-editor'];
+      mutable['rich-text-editor'] = {
+        ...original,
+        presets: { ...original.presets, writing: ['rich-text-editor/links', 'rich-text-editor/gone'] },
+      };
+    });
+
+    afterEach(() => {
+      mutable['rich-text-editor'] = original;
+    });
+
+    it('skips the undefined key with the CLI warning and installs the rest', async () => {
+      const res = await call('add_component', { names: ['rich-text-editor'], preset: 'writing' });
+
+      expect(vi.mocked(performInstall).mock.calls[0][0].optionalDeps).toEqual(['rich-text-editor/links']);
+      expect(parsed<InstallResult>(res).warnings).toContain(
+        'Preset "writing" lists rich-text-editor/gone, which this registry does not offer — skipping.',
+      );
+    });
   });
 
   it('delegates to performInstall with the names, overwrite set, optional deps and path', async () => {
@@ -328,20 +389,6 @@ describe('add_component', () => {
 });
 
 describe('update_component', () => {
-  it('errors when the project is not initialized', async () => {
-    vi.mocked(getConfig).mockResolvedValue(null);
-    const res = await call('update_component', { names: ['button'] });
-    expect(res.isError).toBe(true);
-    expect(text(res)).toContain('init_project');
-  });
-
-  it('rejects unknown component names', async () => {
-    const res = await call('update_component', { names: ['nope'] });
-    expect(res.isError).toBe(true);
-    expect(text(res)).toContain('Unknown component(s): nope');
-    expect(performInstall).not.toHaveBeenCalled();
-  });
-
   it('always passes the named components as the overwrite set (3-way merge is opt-out)', async () => {
     await call('update_component', { names: ['button'] });
     const input = vi.mocked(performInstall).mock.calls[0][0];
@@ -391,20 +438,6 @@ describe('update_component', () => {
 describe('diff_component', () => {
   const diffOf = (name: string, diff: string | null): ComponentDiff => ({
     name, files: [{ file: `${name}/${name}.component.ts`, diff }], hasChanges: diff !== null,
-  });
-
-  it('errors when the project is not initialized', async () => {
-    vi.mocked(getConfig).mockResolvedValue(null);
-    const res = await call('diff_component', { names: ['button'] });
-    expect(res.isError).toBe(true);
-    expect(text(res)).toContain('init_project');
-  });
-
-  it('rejects unknown component names', async () => {
-    const res = await call('diff_component', { names: ['nope'] });
-    expect(res.isError).toBe(true);
-    expect(text(res)).toContain('Unknown component(s): nope');
-    expect(diffComponentFiles).not.toHaveBeenCalled();
   });
 
   it('defaults to summary mode and diffs against the configured ui dir', async () => {
@@ -572,14 +605,6 @@ describe('doctor_fix', () => {
     vi.mocked(doctorFixCore).mockResolvedValue(['reinstalled button']);
   });
 
-  it('errors when the project is not initialized', async () => {
-    vi.mocked(getConfig).mockResolvedValue(null);
-    const res = await call('doctor_fix', {});
-    expect(res.isError).toBe(true);
-    expect(text(res)).toContain('init_project');
-    expect(collectDoctorReport).not.toHaveBeenCalled();
-  });
-
   it('returns the plan without repairing anything on dryRun', async () => {
     const res = await call('doctor_fix', { dryRun: true });
     expect(doctorFixCore).not.toHaveBeenCalled();
@@ -620,13 +645,6 @@ describe('doctor_fix', () => {
 });
 
 describe('refresh_lib', () => {
-  it('errors when the project is not initialized', async () => {
-    vi.mocked(getConfig).mockResolvedValue(null);
-    const res = await call('refresh_lib', {});
-    expect(res.isError).toBe(true);
-    expect(text(res)).toContain('init_project');
-    expect(refreshLibCore).not.toHaveBeenCalled();
-  });
 
   it('forwards files / force / dryRun to refreshLibCore and returns its result', async () => {
     const res = await call('refresh_lib', {
@@ -650,14 +668,6 @@ describe('refresh_lib', () => {
 describe('migrate', () => {
   const outcome = (status: string): MigrateOutcome =>
     ({ status, plan: { structural: ['button'] } } as unknown as MigrateOutcome);
-
-  it('errors when the project is not initialized', async () => {
-    vi.mocked(getConfig).mockResolvedValue(null);
-    const res = await call('migrate', { dryRun: true });
-    expect(res.isError).toBe(true);
-    expect(text(res)).toContain('init_project');
-    expect(migrateCore).not.toHaveBeenCalled();
-  });
 
   it('forwards dryRun / force alongside the resolved source and returns the outcome', async () => {
     vi.mocked(migrateCore).mockResolvedValue(outcome('dry-run'));
@@ -692,14 +702,6 @@ describe('apply_addon', () => {
     const res = await call('apply_addon', { addon: 'button' });
     expect(res.isError).toBe(true);
     expect(text(res)).toContain('not an addon');
-    expect(applyCore).not.toHaveBeenCalled();
-  });
-
-  it('errors when the project is not initialized', async () => {
-    vi.mocked(getConfig).mockResolvedValue(null);
-    const res = await call('apply_addon', { addon: 'data-table/context-menu' });
-    expect(res.isError).toBe(true);
-    expect(text(res)).toContain('init_project');
     expect(applyCore).not.toHaveBeenCalled();
   });
 

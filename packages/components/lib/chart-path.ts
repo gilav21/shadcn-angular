@@ -90,22 +90,49 @@ function monotoneLine(points: Point[]): string {
     return path;
 }
 
-/** Build an SVG path for a poly-line with the given curve interpolation. */
-export function linePath(points: Point[], curve: CurveType = 'linear'): string {
-    if (points.length === 0) return '';
+/**
+ * Splits `items` into maximal runs of consecutive entries that satisfy `usable`.
+ * A non-finite point never reaches an SVG attribute: it ends the current run,
+ * which is how a missing value becomes a gap.
+ */
+function runsOf<T>(items: T[], usable: (item: T) => boolean): T[][] {
+    const runs: T[][] = [];
+    let current: T[] = [];
+    for (const item of items) {
+        if (usable(item)) {
+            current.push(item);
+        } else if (current.length > 0) {
+            runs.push(current);
+            current = [];
+        }
+    }
+    if (current.length > 0) runs.push(current);
+    return runs;
+}
+
+const isFinitePoint = (p: Point): boolean => Number.isFinite(p.x) && Number.isFinite(p.y);
+
+function runLine(points: Point[], curve: CurveType): string {
     if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
     if (curve === 'step') return stepLine(points);
     if (curve === 'monotone') return monotoneLine(points);
     return linearLine(points);
 }
 
-/** Build a closed SVG area path filled down to a baseline. */
+/**
+ * Build an SVG path for a poly-line with the given curve interpolation. A
+ * point with a non-finite coordinate breaks the line: each run of finite
+ * points is its own sub-path.
+ */
+export function linePath(points: Point[], curve: CurveType = 'linear'): string {
+    return runsOf(points, isFinitePoint).map(run => runLine(run, curve)).join(' ');
+}
+
+/** Build a closed SVG area path filled down to a baseline; each run of finite points closes separately. */
 export function areaPath(points: Point[], baselineY: number, curve: CurveType = 'linear'): string {
-    if (points.length === 0) return '';
-    const top = linePath(points, curve);
-    const lastX = (points.at(-1) ?? points[0]).x;
-    const firstX = points[0].x;
-    return `${top} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
+    return runsOf(points, isFinitePoint)
+        .map(run => `${runLine(run, curve)} L ${(run.at(-1) ?? run[0]).x} ${baselineY} L ${run[0].x} ${baselineY} Z`)
+        .join(' ');
 }
 
 /**
@@ -114,11 +141,20 @@ export function areaPath(points: Point[], baselineY: number, curve: CurveType = 
  * reverse with straight segments to enclose the band.
  */
 export function bandAreaPath(upper: Point[], lower: Point[], curve: CurveType = 'linear'): string {
-    if (upper.length === 0 || lower.length === 0) return '';
-    const top = linePath(upper, curve);
-    const reversedLower = [...lower].reverse();
-    const lowerEdge = reversedLower.reduce((acc, p) => `${acc} L ${p.x} ${p.y}`, '');
-    return `${top}${lowerEdge} Z`;
+    const indices = Array.from({ length: Math.min(upper.length, lower.length) }, (_, i) => i);
+    // A band breaks where either edge has a non-finite point.
+    return runsOf(indices, i => isFinitePoint(upper[i]) && isFinitePoint(lower[i]))
+        .map(run => {
+            const top = runLine(run.map(i => upper[i]), curve);
+            const lowerEdge = run.map(i => lower[i]).reverse().reduce((acc, p) => `${acc} L ${p.x} ${p.y}`, '');
+            return `${top}${lowerEdge} Z`;
+        })
+        .join(' ');
+}
+
+/** A missing or non-finite value stacks as 0. */
+export function finiteOrZero(value: number | undefined): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 /** Compute cumulative stacking bands per series and category. */
@@ -127,12 +163,12 @@ export function stackSeries(series: ChartSeries[], mode: StackingMode = 'absolut
     const categoryCount = series[0]?.data.length ?? 0;
 
     for (let c = 0; c < categoryCount; c++) {
-        const total = series.reduce((sum, s) => sum + (s.data[c]?.value ?? 0), 0);
+        const total = series.reduce((sum, s) => sum + finiteOrZero(s.data[c]?.value), 0);
         const factor = mode === 'percent' && total !== 0 ? 100 / total : 1;
         let cumulative = 0;
         for (let s = 0; s < series.length; s++) {
             const point = series[s].data[c];
-            const value = point?.value ?? 0;
+            const value = finiteOrZero(point?.value);
             result[s].push({
                 name: point?.name ?? '',
                 value,

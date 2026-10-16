@@ -204,6 +204,9 @@ function parseSheet(
         const row = rows[r];
         const rowIndex = Number.parseInt(row.getAttribute('r') ?? `${r + 1}`, 10) - 1;
 
+        // r is the file's claim: a row past the cap is dropped, not padded out to.
+        if (!(rowIndex >= 0 && rowIndex < maxRows)) continue;
+
         while (data.length <= rowIndex) {
             data.push([]);
         }
@@ -241,6 +244,10 @@ function findSheetFiles(files: Map<string, Uint8Array>, sheets: WorkbookSheetInf
     return sheetFiles;
 }
 
+/**
+ * Reads the sheets of an .xlsx workbook. Rows past `maxRows` and columns past `maxColumns` are dropped.
+ * Input is untrusted; structures exceeding internal limits are skipped.
+ */
 export function parseXlsx(data: Uint8Array, options?: XlsxParseOptions): XlsxParseResult {
     const maxRows = options?.maxRows ?? DEFAULT_MAX_ROWS;
     const maxColumns = options?.maxColumns ?? DEFAULT_MAX_COLUMNS;

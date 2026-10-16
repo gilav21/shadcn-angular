@@ -21,6 +21,10 @@ describe('linePath', () => {
         expect(path).toContain('C');
     });
 
+    it('draws two points as a straight segment even when monotone', () => {
+        expect(linePath([{ x: 0, y: 0 }, { x: 10, y: 10 }], 'monotone')).toBe('M 0 0 L 10 10');
+    });
+
     it('emits stepped segments for step curves', () => {
         const path = linePath([{ x: 0, y: 0 }, { x: 10, y: 10 }], 'step');
         // step goes horizontally to the next x at the current y, then vertically
@@ -88,5 +92,51 @@ describe('stackSeries', () => {
         const stacked = stackSeries(series, 'absolute');
         expect(stacked[0][0].value).toBe(10);
         expect(stacked[0][0].name).toBe('q1');
+    });
+});
+
+describe('gaps at non-finite points (T-7)', () => {
+    const NaNy = { x: 20, y: Number.NaN };
+    const f = (x: number): { x: number; y: number } => ({ x, y: x / 2 });
+    const cases: [string, { x: number; y: number }[], number][] = [
+        ['a gap in the middle', [f(0), f(10), NaNy, f(30), f(40)], 2],
+        ['a leading gap', [NaNy, f(10), f(20)], 1],
+        ['a trailing gap', [f(0), f(10), NaNy], 1],
+        ['a lone point between gaps', [NaNy, f(10), { x: 20, y: Number.POSITIVE_INFINITY }], 1],
+        ['only gaps', [NaNy, { x: 10, y: Number.NaN }], 0],
+    ];
+
+    describe.each(['linear', 'monotone', 'step'] as const)('%s curve', curve => {
+        it.each(cases)('linePath breaks on %s', (_name, points, runs) => {
+            const path = linePath(points, curve);
+            expect(path.match(/M /g)?.length ?? 0).toBe(runs);
+            expect(path).not.toMatch(/NaN|Infinity/);
+        });
+
+        it.each(cases)('areaPath closes each run to the baseline on %s', (_name, points, runs) => {
+            const path = areaPath(points, 100, curve);
+            expect(path.match(/M /g)?.length ?? 0).toBe(runs);
+            expect(path.match(/Z/g)?.length ?? 0).toBe(runs);
+            expect(path).not.toMatch(/NaN|Infinity/);
+        });
+    });
+
+    it('bandAreaPath breaks where either edge is non-finite', () => {
+        const upper = [f(0), f(10), NaNy, f(30), f(40)];
+        const lower = [0, 10, 20, 30, 40].map(x => ({ x, y: 50 }));
+        const path = bandAreaPath(upper, lower, 'linear');
+        expect(path.match(/M /g)).toHaveLength(2);
+        expect(path.match(/Z/g)).toHaveLength(2);
+        expect(path).not.toMatch(/NaN|Infinity/);
+    });
+
+    it('stackSeries treats a non-finite value as 0', () => {
+        const series = [
+            { name: 'a', data: [{ name: 'x', value: 4 }, { name: 'y', value: Number.NaN }] },
+            { name: 'b', data: [{ name: 'x', value: 6 }, { name: 'y', value: 3 }] },
+        ] as ChartSeries[];
+        const bands = stackSeries(series);
+        expect(bands[0].map(b => [b.value, b.lower, b.upper])).toEqual([[4, 0, 4], [0, 0, 0]]);
+        expect(bands[1].map(b => [b.value, b.lower, b.upper])).toEqual([[6, 4, 10], [3, 0, 3]]);
     });
 });

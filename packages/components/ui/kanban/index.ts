@@ -1,5 +1,5 @@
 export * from './kanban.component';
-export * from './kanban-locales';
+export * from './kanban.locales';
 export * from './sub/kanban-column-header.component';
 export * from './sub/kanban-card-content.component';
 export * from './sub/kanban-card.component';

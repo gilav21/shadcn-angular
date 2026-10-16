@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { NgTemplateOutlet, DOCUMENT } from '@angular/common';
 import { isRtl } from '../../lib/utils';
+import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 import { DropdownMenuContentComponent } from './sub/dropdown-menu-content.component';
 import { DropdownMenuItemComponent } from './sub/dropdown-menu-item.component';
 import { DropdownMenuLabelComponent } from './sub/dropdown-menu-label.component';
@@ -60,7 +61,16 @@ export class DropdownMenuService {
      * A no-op until the trigger has registered.
      */
     focusTrigger(): void {
-        this.triggerRef?.focus();
+        const trigger = this.triggerRef;
+        if (!trigger) return;
+        // The registered element is the trigger wrapper; the control inside it is what takes focus.
+        const control = trigger.querySelector<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        (control ?? trigger).focus();
+    }
+
+    /** The registered trigger element, if any. */
+    trigger(): HTMLElement | null {
+        return this.triggerRef;
     }
 
     /**
@@ -155,6 +165,8 @@ export class DropdownMenuComponent implements OnDestroy {
     constructor() {
         this.document.addEventListener('click', this.clickListener);
         this.service.registerRoot(this.el.nativeElement);
+        // Non-modal layer: the stack gives Escape to the innermost open layer.
+        bindOverlayLayer(() => this.open(), { modal: false, dismiss: () => this.hide() });
     }
 
     private readonly clickListener = (event: MouseEvent): void => {
@@ -181,11 +193,16 @@ export class DropdownMenuComponent implements OnDestroy {
     }
 
     /**
-     * Closes the menu without restoring focus — call
-     * {@link DropdownMenuService.focusTrigger} too when closing in response to a
-     * keyboard action.
+     * Closes the menu. When focus is inside the menu it goes back to the trigger,
+     * since the panel is about to leave the DOM; a close from an outside click
+     * leaves focus where the user put it.
      */
     hide(): void {
+        const active = this.document.activeElement;
+        if (active && !this.service.trigger()?.contains(active) && this.el.nativeElement.contains(active)) {
+            // Deferred past the key event: Enter's default action would otherwise click the trigger focus just landed on and reopen the menu.
+            setTimeout(() => this.service.focusTrigger());
+        }
         this.open.set(false);
     }
 }

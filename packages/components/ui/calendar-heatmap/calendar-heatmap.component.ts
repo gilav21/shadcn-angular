@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { CalendarDay, ChartDirection } from '../../lib/chart.types';
-import { formatChartValue } from '../../lib/chart.utils';
+import { formatChartValue, extent } from '../../lib/chart.utils';
 import { sequentialColorScale } from '../../lib/chart-scale';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
 
@@ -108,15 +108,14 @@ export class CalendarHeatmapComponent {
 
     private readonly originSunday = computed(() => {
         const times = this.data().map(d => parseYmd(d.date));
-        if (times.length === 0) return 0;
-        const first = Math.min(...times);
+        const first = extent(times)?.[0];
+        if (first === undefined) return 0;
         return first - weekdayOf(first) * DAY_MS;
     });
 
     readonly valueDomain = computed<[number, number]>(() => {
         const values = this.data().map(d => d.value);
-        if (values.length === 0) return [0, 1];
-        return [Math.min(...values), Math.max(...values)];
+        return extent(values) ?? [0, 1];
     });
 
     private readonly colorScale = computed(() =>
@@ -152,7 +151,8 @@ export class CalendarHeatmapComponent {
 
     readonly weekCount = computed(() => {
         const xs = this.cells().map(c => c.x);
-        return xs.length === 0 ? 0 : (Math.max(...xs) - LEFT_PAD) / (this.cellSize() + GAP) + 1;
+        const right = extent(xs)?.[1];
+        return right === undefined ? 0 : (right - LEFT_PAD) / (this.cellSize() + GAP) + 1;
     });
 
     /** Intrinsic width of the drawn calendar (cells are fixed-size, not stretched). */

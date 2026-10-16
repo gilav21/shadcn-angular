@@ -77,7 +77,7 @@ describe('StepperComponent — data-driven public API', () => {
     expect(stepper.getStepIndex('missing')).toBe(-1);
   });
 
-  it('nextStep advances and clamps to the last step, using steps().length', () => {
+  it('nextStep advances and clamps to the last step, and prevStep steps back and clamps to zero', () => {
     stepper.nextStep();
     expect(host.activeStep()).toBe(1);
     stepper.nextStep();
@@ -85,11 +85,7 @@ describe('StepperComponent — data-driven public API', () => {
     stepper.nextStep();
     expect(host.activeStep()).toBe(2);
     expect(host.last()).toBe(2);
-  });
 
-  it('prevStep decrements and clamps to zero', () => {
-    host.activeStep.set(2);
-    fixture.detectChanges();
     stepper.prevStep();
     expect(host.activeStep()).toBe(1);
     stepper.prevStep();
@@ -97,17 +93,13 @@ describe('StepperComponent — data-driven public API', () => {
     expect(host.activeStep()).toBe(0);
   });
 
-  it('linear mode disables and dims unreachable triggers (stepTriggerClasses/canNavigateToIndex)', () => {
+  it('linear mode disables and dims unreachable triggers, and goToStep is a no-op when navigation is blocked', () => {
     host.linear.set(true);
     fixture.detectChanges();
     const triggers = fixture.debugElement.queryAll(By.css('[data-slot="stepper-trigger"]'));
     expect(triggers[2].nativeElement.disabled).toBe(true);
     expect(triggers[2].nativeElement.className).toContain('opacity-50');
-  });
 
-  it('goToStep is a no-op when navigation is blocked in linear mode', () => {
-    host.linear.set(true);
-    fixture.detectChanges();
     host.last.set(-1);
     stepper.goToStep(2);
     expect(host.activeStep()).toBe(0);
@@ -149,16 +141,14 @@ describe('Stepper sub-components without a parent stepper', () => {
     fixture.detectChanges();
   });
 
-  it('item falls back to index 0 / pending status / isLast=true', () => {
+  it('item falls back to index 0 / pending status / isLast=true, and trigger to step number 1 / clickable / no-op onClick', () => {
     const item: StepperItemComponent = fixture.debugElement.query(
       By.directive(StepperItemComponent)
     ).componentInstance;
     expect(item.index()).toBe(0);
     expect(item.status()).toBe('pending');
     expect(item.isLast()).toBe(true);
-  });
 
-  it('trigger falls back to step number 1 / clickable / no-op onClick', () => {
     const trigger: StepperTriggerComponent = fixture.debugElement.query(
       By.directive(StepperTriggerComponent)
     ).componentInstance;

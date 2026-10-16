@@ -5,20 +5,17 @@
 // axe-required tabindex, a compiler-required cast, a CJS typeof check).
 //
 // Usage (PowerShell):
-//   $env:SONAR_TOKEN = [Environment]::GetEnvironmentVariable('SONAR_TOKEN','User'); node scripts/sonar-accept.mjs
+//   npm run sonar:accept    (token from SONAR_TOKEN or packages/.env; host from SONAR_HOST_URL_LOCAL)
 //
 // Needs "Administer Issues" permission on the project (project admin/token).
-const HOST = process.env.SONAR_HOST_URL || 'http://localhost:9000';
-const TOKEN = process.env.SONAR_TOKEN;
+import { resolveSonarHost, resolveSonarToken } from './sonar-token.mjs';
+
+const HOST = resolveSonarHost();
+const TOKEN = resolveSonarToken();
 const PROJECT = 'shadcn-angular';
 const COMMENT =
   'Accepted: reviewed legitimate finding (irreducible ARIA / axe-required / ' +
   'compiler-required / known FP). See docs/sonarqube-accepted-findings.md.';
-
-if (!TOKEN) {
-  console.error('SONAR_TOKEN not set.');
-  process.exit(1);
-}
 
 const auth = { Authorization: 'Bearer ' + TOKEN };
 

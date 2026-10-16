@@ -41,7 +41,9 @@ export async function installPackages(
         if (options.dev) args.push('-d');
     }
 
-    args.push(...packages);
+    // `--` ends option parsing, so no package spec is ever read as a flag
+    // (`--registry=…`). Verified 2026-10-03 on npm 11, pnpm 9, yarn 1 and 4, bun 1.2.
+    args.push('--', ...packages);
 
     await execa(packageManager, args, { cwd: options.cwd });
 }

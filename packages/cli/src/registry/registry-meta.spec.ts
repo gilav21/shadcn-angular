@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { registry, CATEGORIES, type ComponentName } from './index.js';
+import { registry, CATEGORIES, isComponentName, type ComponentName } from './index.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..');
 
@@ -152,6 +152,19 @@ describe('rich-text-editor breaking notes after the locale cascade', () => {
     }
   });
 
+});
+
+describe('isComponentName', () => {
+  it.each([
+    ['button', true],
+    ['data-table/export', true],
+    ['constructor', false],
+    ['toString', false],
+    ['__proto__', false],
+    ['hasOwnProperty', false],
+  ])('isComponentName accepts own keys only: %s → %s', (name, expected) => {
+    expect(isComponentName(name)).toBe(expected);
+  });
 });
 
 /**

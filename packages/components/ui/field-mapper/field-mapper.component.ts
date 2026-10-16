@@ -28,7 +28,7 @@ import { ButtonComponent } from '../button';
 import { IconComponent } from '../icon';
 import { InputComponent } from '../input';
 import { NativeSelectComponent } from '../native-select';
-import { FIELD_MAPPER_LOCALES, type FieldMapperLocale } from './field-mapper-locales';
+import { FIELD_MAPPER_LOCALES, type FieldMapperLocale } from './field-mapper.locales';
 import {
     addLink,
     alignEndRows,

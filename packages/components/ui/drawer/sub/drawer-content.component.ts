@@ -8,9 +8,10 @@ import {
     ElementRef,
     AfterViewInit,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { cn } from '../../../lib/utils';
+import { focusFirstTabbable, trapTabKey } from '../../../lib/a11y';
 import { DRAWER, drawerVariants } from '../drawer.component';
-import { OverlayStackService } from '../../../lib/overlay-stack.service';
 import { DrawerHeaderComponent } from './drawer-header.component';
 import { DrawerTitleComponent } from './drawer-title.component';
 import { DrawerDescriptionComponent } from './drawer-description.component';
@@ -28,8 +29,8 @@ import { DrawerDescriptionComponent } from './drawer-description.component';
 })
 export class DrawerContentComponent implements AfterViewInit {
     readonly drawer = inject(DRAWER, { optional: true });
-    private readonly layers = inject(OverlayStackService);
     private readonly el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
     /**
      * Extra classes merged onto the panel (not the backdrop), after the
      * direction variant — pass sizing utilities here to override the default
@@ -52,7 +53,7 @@ export class DrawerContentComponent implements AfterViewInit {
     constructor() {
         effect(() => {
             if (this.drawer?.open()) {
-                this.previousActiveElement = document.activeElement;
+                this.previousActiveElement = this.document.activeElement;
                 setTimeout(() => this.focusFirstElement(), 0);
             } else if (this.previousActiveElement instanceof HTMLElement) {
                 this.previousActiveElement.focus();
@@ -70,14 +71,7 @@ export class DrawerContentComponent implements AfterViewInit {
         const content = this.el.nativeElement.querySelector('[data-slot="drawer-content"]');
         if (content) {
             this.contentEl = content;
-            const focusable = content.querySelector(
-                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-            ) as HTMLElement;
-            if (focusable) {
-                focusable.focus();
-            } else {
-                content.focus();
-            }
+            focusFirstTabbable(content);
         }
     }
 
@@ -97,35 +91,11 @@ export class DrawerContentComponent implements AfterViewInit {
     }
 
     /**
-     * Key handler on the modal wrapper: Escape closes the drawer, Tab/Shift+Tab
+     * Key handler on the modal wrapper: Tab/Shift+Tab
      * wrap focus so it stays trapped inside the panel. The panel renders inline
      * at `z-50`, not in the native top layer, so higher-z UI can cover it.
      */
     onKeydown(event: KeyboardEvent): void {
-        if (event.key === 'Escape') {
-            // One Escape, one layer: an overlay opened after this drawer owns it.
-            if (this.layers.hasOverlayAbove(this.drawer)) return;
-            event.preventDefault();
-            this.drawer?.hide();
-            return;
-        }
-
-        if (event.key === 'Tab' && this.contentEl) {
-            const focusableElements = this.contentEl.querySelectorAll(
-                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-            );
-            const firstElement = focusableElements[0] as HTMLElement;
-            const lastElement = Array.from(focusableElements).at(-1) as HTMLElement;
-
-            if (event.shiftKey) {
-                if (document.activeElement === firstElement) {
-                    event.preventDefault();
-                    lastElement?.focus();
-                }
-            } else if (document.activeElement === lastElement) {
-                    event.preventDefault();
-                    firstElement?.focus();
-                }
-        }
+        if (this.contentEl) trapTabKey(event, this.contentEl);
     }
 }

@@ -57,3 +57,92 @@ export function hasInteractiveContent(host: Element | null | undefined): boolean
     const projectionRoot = host?.firstElementChild ?? host;
     return !!projectionRoot?.querySelector(INTERACTIVE_SELECTOR);
 }
+
+/**
+ * Elements Tab can land on, before filtering. `[tabindex]` is here for the
+ * explicit stops; the negative ones are dropped by {@link tabbableElements}.
+ */
+const TABBABLE_CANDIDATES = [
+    'a[href]',
+    'button',
+    'input:not([type="hidden"])',
+    'select',
+    'textarea',
+    'summary',
+    '[tabindex]',
+    '[contenteditable]:not([contenteditable="false"])',
+    'audio[controls]',
+    'video[controls]',
+].join(',');
+
+function isTabStop(el: HTMLElement): boolean {
+    if (el.matches(':disabled') || el.closest('[inert]')) return false;
+    const explicit = el.getAttribute('tabindex');
+    if (explicit !== null && Number.parseInt(explicit, 10) < 0) return false;
+    // jsdom has no layout and no `checkVisibility`: with nothing able to measure, everything counts as visible.
+    return typeof el.checkVisibility !== 'function' || el.checkVisibility({ visibilityProperty: true });
+}
+
+/** A radio group is one tab stop: its checked button, or the first when none is checked. */
+function radioGroupKey(el: HTMLInputElement): string {
+    return `${el.form ? 'form' : ''}:${el.name}`;
+}
+
+function keepRadioStops(stops: HTMLElement[]): HTMLElement[] {
+    const checked = new Set<string>();
+    for (const el of stops) {
+        if (el instanceof HTMLInputElement && el.type === 'radio' && el.name && el.checked) checked.add(radioGroupKey(el));
+    }
+    const seen = new Set<string>();
+    return stops.filter(el => {
+        if (!(el instanceof HTMLInputElement) || el.type !== 'radio' || !el.name) return true;
+        const key = radioGroupKey(el);
+        if (seen.has(key)) return false;
+        if (checked.has(key) && !el.checked) return false;
+        seen.add(key);
+        return true;
+    });
+}
+
+/**
+ * The elements inside `container` that Tab reaches, in DOM order: enabled,
+ * visible, not inert, not `tabindex="-1"`, and one stop per radio group.
+ * The panel-level focus trap wraps at the edges of this list, so a disabled or
+ * hidden control at an edge cannot let focus slip out.
+ */
+export function tabbableElements(container: HTMLElement): HTMLElement[] {
+    const stops = Array.from(container.querySelectorAll<HTMLElement>(TABBABLE_CANDIDATES)).filter(isTabStop);
+    return keepRadioStops(stops);
+}
+
+/**
+ * Keeps Tab and Shift+Tab inside `container`: wraps at the first and last
+ * tabbable element, and pulls focus back in when it is outside. A container with
+ * nothing tabbable keeps focus on itself.
+ */
+export function trapTabKey(event: KeyboardEvent, container: HTMLElement): void {
+    if (event.key !== 'Tab') return;
+    const stops = tabbableElements(container);
+    if (stops.length === 0) {
+        event.preventDefault();
+        container.focus();
+        return;
+    }
+    const first = stops[0];
+    const last = stops.at(-1) ?? first;
+    const active = container.ownerDocument.activeElement;
+    const outside = !active || !container.contains(active);
+    // Outside the panel, or past its last stop: back to the first.
+    if (outside || (!event.shiftKey && active === last)) {
+        event.preventDefault();
+        first.focus();
+    } else if (event.shiftKey && (active === first || active === container)) {
+        event.preventDefault();
+        last.focus();
+    }
+}
+
+/** Moves focus to the first tabbable element in `container`, or to `container` itself when there is none. */
+export function focusFirstTabbable(container: HTMLElement): void {
+    (tabbableElements(container)[0] ?? container).focus();
+}

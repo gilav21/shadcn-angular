@@ -15,7 +15,7 @@ import {
   ButtonComponent,
   ContextMenuComponent,
   ContextMenuContentComponent,
-  ContextMenuIntegrations,
+  TreeContextMenuDirective,
   ContextMenuItemComponent,
   ContextMenuLabelComponent,
   ContextMenuSeparatorComponent,
@@ -94,7 +94,7 @@ const INITIAL_TREE: TreeNode[] = [
     ButtonComponent,
     BadgeComponent,
     InputComponent,
-    ...ContextMenuIntegrations,
+    TreeContextMenuDirective,
   ],
   template: `
     <div class="space-y-8">

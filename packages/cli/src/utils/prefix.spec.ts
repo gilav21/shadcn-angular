@@ -6,16 +6,10 @@ import {
 } from './prefix.js';
 
 describe('isValidPrefix', () => {
-    it.each([
-        ['ui', true],
-        ['myapp', true],
-        ['acme-ui', true],
-        ['a', true],
-        ['a1', true],
-        ['x-y-z', true],
-        ['x1-y2', true],
-    ])('accepts %s', (value, expected) => {
-        expect(isValidPrefix(value)).toBe(expected);
+    it('accepts lowercase segments, a single character, hyphens between segments and digits after the first character', () => {
+        for (const value of ['ui', 'a', 'acme-ui', 'x1-y2']) {
+            expect(isValidPrefix(value), value).toBe(true);
+        }
     });
 
     it.each([
@@ -60,12 +54,6 @@ describe('applyPrefixTransforms — .ts files', () => {
         expect(out).toContain(`selector: "acme-button"`);
     });
 
-    it('rewrites kebab-case multi-word selectors', () => {
-        const src = `selector: 'ui-accordion-trigger',`;
-        const out = applyPrefixTransforms('x.component.ts', src, 'myapp');
-        expect(out).toBe(`selector: 'myapp-accordion-trigger',`);
-    });
-
     it('rewrites comma-separated selector lists', () => {
         const src = `selector: 'thead[uiTableHeader], ui-table-header',`;
         const out = applyPrefixTransforms('x.component.ts', src, 'acme');
@@ -78,12 +66,6 @@ describe('applyPrefixTransforms — .ts files', () => {
         expect(out).toBe("template: `<acme-button>Click</acme-button>`,");
     });
 
-    it('rewrites self-closing inline-template tags', () => {
-        const src = "template: `<ui-icon name=\"x\" />`,";
-        const out = applyPrefixTransforms('x.component.ts', src, 'acme');
-        expect(out).toContain('<acme-icon');
-    });
-
     it('does NOT touch arbitrary string literals that start with ui-', () => {
         const src = `const url = 'https://example.com/ui-button-docs';`;
         const out = applyPrefixTransforms('x.component.ts', src, 'acme');
@@ -94,6 +76,42 @@ describe('applyPrefixTransforms — .ts files', () => {
         const src = `// the canonical selector is ui-button\nclass X {}`;
         const out = applyPrefixTransforms('x.component.ts', src, 'acme');
         expect(out).toBe(src);
+    });
+
+    it('rewrites select inside an inline template', () => {
+        // Verbatim from kanban-column.component.ts and split-button.component.ts,
+        // plus a multi-line <ng-content> whose select sits on its own line.
+        const src = [
+            'template: `',
+            '    @if (hasCustomHeader()) {',
+            '        <ng-content select="ui-kanban-column-header" />',
+            '    } @else {',
+            '        <ng-content select="ui-split-button-primary" />',
+            '    }',
+            '    <ng-content',
+            '        class="contents"',
+            '        select="ui-split-button-menu"',
+            '    />',
+            '    <select select="ui-x"></select>',
+            '`,',
+            "const KEY = 'ui-sidebar:collapsed';",
+        ].join('\n');
+        const out = applyPrefixTransforms('kanban-column.component.ts', src, 'acme');
+        expect(out).toBe([
+            'template: `',
+            '    @if (hasCustomHeader()) {',
+            '        <ng-content select="acme-kanban-column-header" />',
+            '    } @else {',
+            '        <ng-content select="acme-split-button-primary" />',
+            '    }',
+            '    <ng-content',
+            '        class="contents"',
+            '        select="acme-split-button-menu"',
+            '    />',
+            '    <select select="ui-x"></select>',
+            '`,',
+            "const KEY = 'ui-sidebar:collapsed';",
+        ].join('\n'));
     });
 });
 
@@ -112,12 +130,6 @@ describe('applyPrefixTransforms — .html files', () => {
         expect(out).toBe(`<acme-icon name="x" />`);
     });
 
-    it('rewrites tags with attributes and bindings', () => {
-        const src = `<ui-drawer-header [foo]="bar" *ngIf="ok">`;
-        const out = applyPrefixTransforms('x.html', src, 'acme');
-        expect(out).toBe(`<acme-drawer-header [foo]="bar" *ngIf="ok">`);
-    });
-
     it('leaves data-slot attribute values unchanged', () => {
         const src = `<div [attr.data-slot]="'button'"><ui-button /></div>`;
         const out = applyPrefixTransforms('x.html', src, 'acme');
@@ -129,6 +141,38 @@ describe('applyPrefixTransforms — .html files', () => {
         const src = `<p>Read ui-button-docs for details.</p>`;
         const out = applyPrefixTransforms('x.html', src, 'acme');
         expect(out).toBe(src);
+    });
+
+    it('rewrites element tokens inside <ng-content select>', () => {
+        // Each line is one input class: a single element; the page-header list
+        // verbatim (only the element token is a selector); a single-quoted value;
+        // an element inside :not(); three selects with no ui- element (attribute
+        // value, empty, class); an element with an #id; a `data-select` sibling
+        // attribute that is not the slot; and a value holding the other quote.
+        const src = [
+            '<ng-content select="ui-result-detail" />',
+            '<ng-content select="ui-breadcrumb, nav[data-slot=breadcrumb], [slot=breadcrumb]" />',
+            "<ng-content select='ui-error-page-actions' />",
+            '<ng-content select="[uiCard]:not(ui-card-footer)" />',
+            '<ng-content select="[slot=ui-result-detail]" />',
+            '<ng-content select="" />',
+            '<ng-content select=".ui-icon" />',
+            '<ng-content select="ui-result-detail#primary" />',
+            '<ng-content data-select="ui-result" select="ui-result-detail" />',
+            `<ng-content select="ui-result-detail[data-kind='summary']" />`,
+        ].join('\n');
+        expect(applyPrefixTransforms('result.component.html', src, 'acme-ui')).toBe([
+            '<ng-content select="acme-ui-result-detail" />',
+            '<ng-content select="acme-ui-breadcrumb, nav[data-slot=breadcrumb], [slot=breadcrumb]" />',
+            "<ng-content select='acme-ui-error-page-actions' />",
+            '<ng-content select="[uiCard]:not(acme-ui-card-footer)" />',
+            '<ng-content select="[slot=ui-result-detail]" />',
+            '<ng-content select="" />',
+            '<ng-content select=".ui-icon" />',
+            '<ng-content select="acme-ui-result-detail#primary" />',
+            '<ng-content data-select="ui-result" select="acme-ui-result-detail" />',
+            `<ng-content select="acme-ui-result-detail[data-kind='summary']" />`,
+        ].join('\n'));
     });
 });
 

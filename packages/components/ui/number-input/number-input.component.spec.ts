@@ -318,6 +318,42 @@ describe('NumberInputComponent', () => {
         expect(emitted).toHaveLength(0);
     });
 
+    /**
+     * Native `<input type=number>` `stepUp`/`stepDown` semantics, the values
+     * Chromium gives for the same attributes: an off-grid value steps to the
+     * next grid point (based at `min`, or 0) in that direction, an on-grid
+     * value moves one step, and nothing drifts.
+     */
+    it('steppers snap to the grid based at min', () => {
+        type Bounds = Readonly<{ min?: number; max?: number; step?: number }>;
+        const stepped = (from: number | null, bounds: Bounds, direction: 'up' | 'down' | 'ArrowUp'): string => {
+            const f = TestBed.createComponent(NumberInputComponent);
+            for (const [name, value] of Object.entries(bounds)) f.componentRef.setInput(name, value);
+            f.componentRef.setInput('value', from);
+            f.detectChanges();
+            if (direction === 'up') f.componentInstance.increment();
+            else if (direction === 'down') f.componentInstance.decrement();
+            else f.nativeElement.querySelector('input').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+            f.detectChanges();
+            const shown = f.componentInstance.displayValue();
+            f.destroy();
+            return shown;
+        };
+
+        expect([
+            stepped(2.4, {}, 'up'),
+            stepped(2.4, {}, 'down'),
+            stepped(2.5, {}, 'ArrowUp'),
+            stepped(0.2, { step: 0.1 }, 'up'),
+            stepped(2, { min: 1, step: 2 }, 'up'),
+            stepped(0, { min: -0.5, step: 1 }, 'up'),
+            stepped(0.5, { step: 1e-7 }, 'up'),
+            stepped(9, { min: 1, step: 2, max: 10 }, 'up'),
+            stepped(null, {}, 'up'),
+            stepped(null, { min: 5 }, 'up'),
+        ]).toEqual(['3', '2', '3', '0.3', '3', '0.5', '0.5000001', '9', '1', '5']);
+    });
+
     it('should ignore wheel when the input is not the active element', () => {
         const emitted: (number | null)[] = [];
         component.value.subscribe((v: number | null) => emitted.push(v));

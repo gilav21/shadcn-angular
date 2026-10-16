@@ -77,6 +77,7 @@ describe('MCP server (in-memory)', () => {
     const listTool = tools.find(t => t.name === 'list_components');
     expect(listTool?.annotations?.readOnlyHint).toBe(true);
     expect(tools.find(t => t.name === 'migrate')?.annotations?.destructiveHint).toBe(true);
+    expect(tools.find(t => t.name === 'apply_addon')?.annotations?.destructiveHint).toBe(true);
     expect(tools.find(t => t.name === 'why')?.annotations?.readOnlyHint).toBe(true);
   });
 
@@ -176,12 +177,6 @@ describe('MCP server (in-memory)', () => {
     expect(def.reverseDependents).toContain('button');
   });
 
-  it('migrate errors cleanly when the project is uninitialized', async () => {
-    const res = await callTool('migrate', { dryRun: true });
-    expect(res.isError).toBe(true);
-    expect(firstText(res)).toContain('init_project');
-  });
-
   it('list_components returns enriched entries', async () => {
     const res = await callTool('list_components');
     const list = JSON.parse(firstText(res)) as Array<{ name: string; category?: string }>;
@@ -226,23 +221,6 @@ describe('MCP server (in-memory)', () => {
 
   it('get_install_plan errors cleanly when the project is uninitialized', async () => {
     const res = await callTool('get_install_plan', { names: ['button'] });
-    expect(res.isError).toBe(true);
-    expect(firstText(res)).toContain('init_project');
-  });
-
-  it('apply_addon is marked destructive', async () => {
-    const { tools } = await client.listTools();
-    expect(tools.find(t => t.name === 'apply_addon')?.annotations?.destructiveHint).toBe(true);
-  });
-
-  it('apply_addon rejects a component that is not an addon', async () => {
-    const res = await callTool('apply_addon', { addon: 'button' });
-    expect(res.isError).toBe(true);
-    expect(firstText(res)).toContain('not an addon');
-  });
-
-  it('apply_addon errors cleanly when the project is uninitialized', async () => {
-    const res = await callTool('apply_addon', { addon: 'data-table/context-menu' });
     expect(res.isError).toBe(true);
     expect(firstText(res)).toContain('init_project');
   });

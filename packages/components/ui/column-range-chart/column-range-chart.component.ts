@@ -18,6 +18,7 @@ import {
   formatChartValue,
   getChartSummary,
   calculateAxisTicks,
+    extent,
 } from '../../lib/chart.utils';
 
 interface RangeBar {
@@ -159,8 +160,8 @@ export class ColumnRangeChartComponent implements AfterViewInit {
 
     const lows = data.map(d => d.low);
     const highs = data.map(d => d.high);
-    const min = Math.min(...lows);
-    const max = Math.max(...highs);
+    const min = extent(lows)?.[0] ?? 0;
+    const max = extent(highs)?.[1] ?? 100;
     const padding = (max - min) * 0.1;
 
     return { min: min - padding, max: max + padding };

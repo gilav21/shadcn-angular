@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { DatePickerComponent, DateRangePickerComponent } from './date-picker.component';
 import { CalendarComponent } from '../calendar';
 
@@ -141,4 +142,65 @@ describe('DatePicker top-layer escape', () => {
 
         expect(panel.hasAttribute('popover')).toBe(false);
     });
+});
+
+type PickerKind = 'single' | 'range';
+
+@Component({
+    template: `
+        <div class="flex flex-wrap gap-4 p-4">
+            @if (first() === 'single') {
+                <ui-date-picker data-testid="a" placeholder="Check-in" />
+            } @else {
+                <ui-date-range-picker data-testid="a" placeholder="Stay" />
+            }
+            @if (second() === 'single') {
+                <ui-date-picker data-testid="b" placeholder="Check-out" />
+            } @else {
+                <ui-date-range-picker data-testid="b" placeholder="Return trip" />
+            }
+        </div>
+    `,
+    imports: [DatePickerComponent, DateRangePickerComponent],
+})
+class TwoPickersHost {
+    readonly first = signal<PickerKind>('single');
+    readonly second = signal<PickerKind>('single');
+}
+
+const PAIRS: ReadonlyArray<{ readonly first: PickerKind; readonly second: PickerKind }> = [
+    { first: 'single', second: 'single' },
+    { first: 'range', second: 'range' },
+    { first: 'single', second: 'range' },
+    { first: 'range', second: 'single' },
+];
+
+describe('Date pickers on one page', () => {
+    for (const { first, second } of PAIRS) {
+        const pair = `${first} → ${second}`;
+        it(`opening one picker closes every other open picker (${pair})`, async () => {
+            const fixture = TestBed.createComponent(TwoPickersHost);
+            fixture.componentInstance.first.set(first);
+            fixture.componentInstance.second.set(second);
+            fixture.autoDetectChanges();
+            await fixture.whenStable();
+            const host: HTMLElement = fixture.nativeElement;
+            const trigger = (id: string): HTMLElement => host.querySelector<HTMLElement>(`[data-testid="${id}"] button`)!;
+            const isOpen = (id: string): boolean => !!host.querySelector(`[data-testid="${id}"] ui-calendar`);
+
+            await userEvent.click(trigger('a'));
+            await fixture.whenStable();
+            expect(isOpen('a')).toBe(true);
+
+            const nextMonth = host.querySelector<HTMLElement>('[data-testid="a"] ui-calendar ui-button:last-of-type button')!;
+            await userEvent.click(nextMonth);
+            await fixture.whenStable();
+            expect(isOpen('a')).toBe(true);
+
+            await userEvent.click(trigger('b'));
+            await fixture.whenStable();
+            expect(isOpen('a')).toBe(false);
+            expect(isOpen('b')).toBe(true);
+        });
+    }
 });

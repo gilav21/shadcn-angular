@@ -62,7 +62,7 @@ export interface RichTextActionDefinition {
     id: string;
     label: string;
     description?: string;
-    /** Lucide icon name shown in the picker. */
+    /** Icon name shown in the picker. */
     icon?: string;
     triggers: RichTextActionTrigger[];
     /** Which targets the action may attach to. Default: both. */

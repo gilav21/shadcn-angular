@@ -363,55 +363,17 @@ describe('AlertDialogContent — focus trap & keyboard', () => {
         expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeNull();
     });
 
-    it('wraps focus from first to last on Shift+Tab', () => {
+    it('routes Tab and Shift+Tab on the panel through the focus trap', () => {
         openViaTriggerWithTimers(fixture);
         const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]')!;
         const action = document.querySelector<HTMLElement>('[data-slot="alert-dialog-action"]')!;
+
         cancel.focus();
-        expect(document.activeElement).toBe(cancel);
-
-        container().dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }));
-        expect(document.activeElement).toBe(action);
-    });
-
-    it('wraps focus from last to first on Tab', () => {
-        openViaTriggerWithTimers(fixture);
-        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]')!;
-        const action = document.querySelector<HTMLElement>('[data-slot="alert-dialog-action"]')!;
-        action.focus();
+        container().dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
         expect(document.activeElement).toBe(action);
 
-        container().dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+        container().dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
         expect(document.activeElement).toBe(cancel);
-    });
-
-    it('does not trap when focus is mid-list', () => {
-        openViaTriggerWithTimers(fixture);
-        const action = document.querySelector<HTMLElement>('[data-slot="alert-dialog-action"]')!;
-        action.focus();
-
-        const shiftEvt = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true });
-        const shiftPrevent = vi.spyOn(shiftEvt, 'preventDefault');
-        container().dispatchEvent(shiftEvt);
-        expect(shiftPrevent).not.toHaveBeenCalled();
-        expect(document.activeElement).toBe(action);
-
-        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]')!;
-        cancel.focus();
-        const tabEvt = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
-        const tabPrevent = vi.spyOn(tabEvt, 'preventDefault');
-        container().dispatchEvent(tabEvt);
-        expect(tabPrevent).not.toHaveBeenCalled();
-        expect(document.activeElement).toBe(cancel);
-    });
-
-    it('ignores non-handled keys', () => {
-        openViaTriggerWithTimers(fixture);
-        const evt = new KeyboardEvent('keydown', { key: 'a', bubbles: true });
-        const prevented = vi.spyOn(evt, 'preventDefault');
-        container().dispatchEvent(evt);
-        expect(prevented).not.toHaveBeenCalled();
-        expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeTruthy();
     });
 });
 

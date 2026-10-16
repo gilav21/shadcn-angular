@@ -312,6 +312,10 @@ describe('CandlestickComponent', () => {
             fixture.componentRef.setInput('dir', 'rtl');
             fixture.detectChanges();
             expect(component.candles()[0].centre).toBeGreaterThan(ltrFirst);
+
+            fixture.componentRef.setInput('dir', 'ltr');
+            fixture.detectChanges();
+            expect(component.candles()[0].centre).toBe(ltrFirst);
         });
 
         it('mirrors the time axis too', async () => {

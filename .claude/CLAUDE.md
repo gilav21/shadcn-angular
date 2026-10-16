@@ -198,16 +198,22 @@ classes = computed(() => cn(
 ));
 ```
 
+Exception: a *zero-box* component — its template is only `<ng-content>` and
+its host is `display: contents` — renders no element for a class to reach, so
+it has **no** `class` input (a declared-but-ignored `class` input is a silent
+no-op for the consumer). Style the projected element instead.
+
 ---
 
 ## Component File Architecture
 
-> **Migration in progress.** The library is moving from flat files under
-> `packages/components/ui/` to a one-folder-per-component layout. During the
-> migration the flat and folder layouts coexist; the tooling
-> (`sync-registry.ts`, `validate-registry.mjs`, the CLI) is backward-compatible
-> with both. New and migrated components MUST follow the conventions below.
-> See `specs/component-architecture-refactor-spec.md` for the phased plan.
+> **Migration complete** (Phase 4 done 2026-05-20 — see
+> `specs/component-architecture-refactor-spec.md`). Every component lives in
+> its own folder under `packages/components/ui/`; no flat `*.component.ts`
+> remains. Only directives (and a few support shims) stay flat. The tooling
+> (`sync-registry.ts`, `validate-registry.mjs`, the CLI) still accepts flat
+> files, which is what keeps flat directives working. All components MUST
+> follow the conventions below.
 
 ### Layout conventions
 
@@ -279,7 +285,7 @@ If you need to style an element outside the component's own DOM tree
 (e.g., a `document.body` overlay, or a queried target element), do it via
 inline styles applied imperatively in TypeScript — save the original
 values on the element before mutating, and restore them on teardown. The
-tour component (`packages/components/ui/tour.component.ts`) is the
+tour component (`packages/components/ui/tour/tour.component.ts`) is the
 reference implementation for this pattern.
 
 ### ❌ Only Data-Driven (Don't Do This)
@@ -347,9 +353,12 @@ reference implementation for this pattern.
   private member whose contract is not obvious from its name.
 - **No Unused Declarations**: Remove all unused imports, variables,
   parameters, and types in TypeScript files and the
-  `@Component({ imports: [...] })` array. The compiler enforces
-  `noUnusedLocals` and `noUnusedParameters` — check for `ts(6133)`
-  ("declared but its value is never read") errors before finishing any file.
+  `@Component({ imports: [...] })` array. ESLint's
+  `@typescript-eslint/no-unused-vars` enforces this (prefix an intentionally
+  unused parameter with `_`). `tsconfig.json` does **not** set
+  `noUnusedLocals`/`noUnusedParameters`, so also clear the editor's faded
+  `ts(6133)` ("declared but its value is never read") hints before finishing
+  any file — they catch unused private members ESLint misses.
 
 ### 3. Testing & Documentation
 
@@ -422,7 +431,10 @@ All code must pass SonarQube with **zero issues**. Apply these rules from the st
 - **No unnecessary type assertions** (`as Type`) — only assert when the
   compiler genuinely can't infer the type (S4325)
 - **Mark never-reassigned members `readonly`** — signals, computed, viewChild,
-  arrow function properties, etc. (S2933)
+  arrow function properties, etc. This is the house convention for every new
+  member. Sonar's S2933 (mirrors typescript-eslint `prefer-readonly`) only
+  flags **private** members, so a public non-readonly member is a convention
+  miss, not a Sonar issue.
 - **Remove all unused imports, variables, parameters** (S1128, ts6133)
 - **Merge duplicate imports** from the same module into one statement (S3863)
 - **Extract repeated union types into type aliases** — if a union like
@@ -443,8 +455,10 @@ All code must pass SonarQube with **zero issues**. Apply these rules from the st
   `el.hasAttribute('data-foo-bar')` (S7761)
 - **`RegExp.exec(str)`** over `str.match(regex)` for single matches
   (S6594)
-- **`.replaceAll()`** over `.replace()` with global regex flag `/g`
-  (S7781)
+- **`.replaceAll()`** over `.replace()` with a global regex `/g` that matches
+  **fixed text** (S7781). A character class, quantifier, capture group or `i`
+  flag keeps `.replace(/…/g)` — S7781 exempts those, because a string literal
+  would not preserve the behaviour.
 - **`globalThis`** over `window` when accessing global scope (S7764)
 - **`new Array(n)`** over `Array(n)` (S7723)
 - **`Blob.text()`** over `FileReader.readAsText()` (S7756)
@@ -505,7 +519,7 @@ Before submitting a component, verify:
 - [ ] Storybook covers all options/variants
 - [ ] Demo page includes copy-paste examples
 - [ ] No unused declarations (imports, variables, parameters, types) —
-  no `ts(6133)` errors
+  ESLint `no-unused-vars` clean and no `ts(6133)` hints
 - [ ] Strict typing (no `any`, handles `undefined`)
 - [ ] **SonarQube server scan run** (`npm run sonar:gate` against
   `localhost:9000` — coverage re-measured unless the tree fingerprint proves it
@@ -704,7 +718,16 @@ must not change — responsive rules only add mobile/tablet adaptations.
 #### Responsive Spacing
 
 - ❌ `p-6` or `gap-6` alone on containers
-- ✅ `p-4 sm:p-6` and `gap-4 sm:gap-6`
+- ❌ `p-4 sm:p-6` as inline utilities either — utilities sit in
+  `@layer utilities` and override the density system, so the Density slider
+  stops working
+- ✅ Drive spacing from the component's scoped `.css` through density:
+  `:host { --_d: var(--density-<component>, var(--density, 1)); }`, then
+  inside `@layer components` key padding/gap on `[data-slot="…"]` as
+  `calc(<base> * var(--_d))`, with the responsive step as a
+  `@media (min-width: 640px)` block nested **inside** the layer. Reference:
+  `packages/components/ui/card/card.component.css`. A consumer's `class`
+  utility then still wins over the default — that is the intended override.
 - Apply to: Card, Dialog, Sheet, Drawer, Empty, and any container with
   `p-6`+ or `gap-6`+
 
@@ -760,8 +783,9 @@ with no mouse or keyboard. Use the shared `touch.ts` utility
   `touch-action: none`
 - Every `(window:mousemove)/(window:mouseup)` MUST have
   `(window:touchmove)/(window:touchend)`
-- Reference: `resizable.component.ts` and `slider.component.ts` already
-  implement both correctly — follow their pattern
+- Reference: `packages/components/ui/resizable/sub/resizable-handle.component.ts`
+  and `packages/components/ui/slider/slider.component.ts` already implement
+  both — follow their pattern
 
 #### No Right-Click-Only Context Menus
 
@@ -779,8 +803,10 @@ with no mouse or keyboard. Use the shared `touch.ts` utility
 
 - All interactive elements MUST be at least **44×44px** on touch devices
   (WCAG 2.5.8, Apple/Google HIG)
-- The global `@media (pointer: coarse)` rule in `tailwind.css` enforces
-  this as a baseline
+- The global `@media (pointer: coarse)` rule enforces this as a baseline. It
+  lands in the consumer's `tailwind.css`, written by `init` from
+  `packages/cli/src/templates/styles.ts`; in this repo it is mirrored in
+  `packages/styles.css` and `demo/src/styles.css`
 
 #### No Keyboard-Shortcut-Only Features
 
@@ -983,7 +1009,8 @@ When generating or modifying components:
 8. **Form Components**: Support both `value` input and `ControlValueAccessor`
 9. **Clean up unused declarations** — after writing or modifying code, verify
    every import, variable, and parameter is actually used. Remove any that
-   aren't. Watch for `ts(6133)` errors.
+   aren't. ESLint `no-unused-vars` must be clean; also clear `ts(6133)`
+   hints (unused private members).
 10. **SonarQube compliance** — follow ALL rules in Section 4
     "SonarQube Compliance". **Before declaring ANY work done, run the full
     SonarQube server scan** (`npm run sonar:gate` against `localhost:9000`;
@@ -1046,7 +1073,8 @@ import {
   ContentChild,
   AfterContentInit,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+// entry file in ui/<name>/ — a file in ui/<name>/sub/ uses '../../../lib/utils'
+import { cn } from '../../lib/utils';
 
 @Component({
   selector: 'ui-example-item',

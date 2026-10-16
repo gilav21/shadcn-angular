@@ -17,6 +17,7 @@ import {
     getChartColor,
     formatChartValue,
     getChartSummary,
+    extent,
 } from '../../lib/chart.utils';
 import { linearScale, niceDomain } from '../../lib/chart-scale';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
@@ -168,7 +169,7 @@ export class HistogramComponent implements AfterViewInit {
     });
 
     private readonly countDomain = computed((): [number, number] => {
-        const max = Math.max(0, ...this.bins().map(b => b.count));
+        const max = Math.max(0, extent(this.bins().map(b => b.count))?.[1] ?? 0);
         return max > 0 ? niceDomain(0, max, 5) : [0, 1];
     });
 

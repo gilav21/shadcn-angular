@@ -86,7 +86,7 @@ class HostComponent {
 
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        requestAnimationFrame(() => resolve()),
     );
 }
 

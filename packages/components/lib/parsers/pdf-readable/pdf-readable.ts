@@ -1,3 +1,4 @@
+import { DEFAULT_PARSER_LIMITS, type ParserLimits } from '../limits';
 import { PdfReader, applyRtlWordFixes } from '../pdf-parser';
 import { FontRegistry } from '../pdf-pixel-perfect';
 import { buildPageBlocks } from './readable-blocks';
@@ -26,13 +27,15 @@ let importCounter = 0;
  * the original document (fonts, colors, alignment, spacing) without absolute
  * positioning. The returned `fontFaceCss` must be added to the host document
  * (e.g. a `<style>` in `<head>`) for embedded fonts to render.
+ * Input is untrusted; structures exceeding internal limits are skipped.
  */
 export async function parsePdfReadable(
     buffer: ArrayBuffer,
     options?: PdfReadableOptions,
+    limits: ParserLimits = DEFAULT_PARSER_LIMITS,
 ): Promise<PdfReadableResult> {
     const opts = normalizeOptions(options);
-    const reader = createValidatedReader(buffer);
+    const reader = createValidatedReader(buffer, limits);
     const pages = reader.getPages();
     if (pages.length === 0) {
         throw new Error('PDF contains no pages.');
@@ -70,7 +73,7 @@ function normalizeOptions(options?: PdfReadableOptions): Required<PdfReadableOpt
     };
 }
 
-function createValidatedReader(buffer: ArrayBuffer): PdfReader {
+function createValidatedReader(buffer: ArrayBuffer, limits: ParserLimits): PdfReader {
     const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
     const isPdf = header.length === 5 &&
         header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 &&
@@ -78,7 +81,7 @@ function createValidatedReader(buffer: ArrayBuffer): PdfReader {
     if (!isPdf) {
         throw new Error('Not a valid PDF file.');
     }
-    const reader = new PdfReader(buffer);
+    const reader = new PdfReader(buffer, limits);
     try {
         reader.parse();
     } catch {

@@ -13,6 +13,7 @@ import { cn } from '../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { EYEDROPPER_LOCALES, type EyedropperLocale } from './eyedropper.locales';
 import { onPointerDrag } from '../../lib/touch';
+import { OverlayStackService } from '../../lib/overlay-stack.service';
 import { formatHex, type RGBA } from '../../lib/color';
 import { IconComponent } from '../icon';
 
@@ -88,6 +89,7 @@ export class EyedropperComponent {
     readonly pickCancel = output<void>();
 
     private readonly platformId = inject(PLATFORM_ID);
+    private readonly stack = inject(OverlayStackService);
     private readonly isBrowser = isPlatformBrowser(this.platformId);
 
     readonly picking = signal(false);
@@ -155,18 +157,22 @@ export class EyedropperComponent {
         if (!ctx) return;
         this.picking.set(true);
         this.pickStart.emit();
+        let release = (): void => undefined;
+        const finish = (emit: () => void): void => {
+            emit();
+            this.picking.set(false);
+            release();
+        };
         const cleanup = installFallbackSampler(target, ctx, {
-            onPick: (rgba) => {
-                this.colorPick.emit(formatHex(rgba));
-                this.picking.set(false);
-                cleanup();
-            },
-            onCancel: () => {
-                this.pickCancel.emit();
-                this.picking.set(false);
-                cleanup();
-            },
+            onPick: (rgba) => finish(() => this.colorPick.emit(formatHex(rgba))),
+            onCancel: () => finish(() => this.pickCancel.emit()),
         });
+        // Non-modal layer for the sampling session: Escape cancels it, and only it, even inside a dialog.
+        const unregister = this.stack.register({ modal: false, dismiss: () => finish(() => this.pickCancel.emit()) });
+        release = () => {
+            unregister();
+            cleanup();
+        };
     }
 }
 
@@ -242,24 +248,14 @@ function installFallbackSampler(
         else callbacks.onCancel();
     };
 
-    const onKey = (event: Event): void => {
-        const key = (event as KeyboardEvent).key;
-        if (key === 'Escape') {
-            event.preventDefault();
-            callbacks.onCancel();
-        }
-    };
-
     target.addEventListener('click', onCommit);
     target.addEventListener('touchend', onCommit);
-    globalThis.addEventListener('keydown', onKey);
     const dragCleanup = onPointerDrag(onMove, () => { /* drag end is not a commit */ });
 
     return () => {
         target.style.cursor = originalCursor;
         target.removeEventListener('click', onCommit);
         target.removeEventListener('touchend', onCommit);
-        globalThis.removeEventListener('keydown', onKey);
         dragCleanup();
     };
 }

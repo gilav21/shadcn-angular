@@ -121,7 +121,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "overlay-stack.service.ts"
     ],
     "testFiles": [
       "alert-dialog/alert-dialog.component.spec.ts"
@@ -576,6 +577,7 @@
       "context-menu/sub/context-menu-trigger.directive.ts"
     ],
     "libFiles": [
+      "overlay-stack.service.ts",
       "theme-presets.ts",
       "touch.ts"
     ],
@@ -615,6 +617,7 @@
       "date-picker/sub/date-range-picker.component.ts"
     ],
     "libFiles": [
+      "overlay-stack.service.ts",
       "top-layer.ts"
     ],
     "dependencies": [
@@ -666,15 +669,18 @@
       "match"
     ],
     "files": [
-      "field-mapper/field-mapper-locales.ts",
       "field-mapper/field-mapper.component.css",
       "field-mapper/field-mapper.component.html",
       "field-mapper/field-mapper.component.ts",
+      "field-mapper/field-mapper.locales.ts",
       "field-mapper/field-mapper.types.ts",
       "field-mapper/field-mapper.utils.ts",
       "field-mapper/index.ts",
       "field-mapper/sub/field-mapper-item.directive.ts",
       "field-mapper/sub/field-mapper-link-label.directive.ts"
+    ],
+    "obsoleteFiles": [
+      "field-mapper/field-mapper-locales.ts"
     ],
     "libFiles": [
       "auto-scroll.ts",
@@ -1353,6 +1359,7 @@
     ],
     "libFiles": [
       "a11y.ts",
+      "overlay-stack.service.ts",
       "touch.ts"
     ],
     "testFiles": [
@@ -1509,6 +1516,7 @@
       "parsers/file-type-detector.ts",
       "parsers/image-validator.ts",
       "parsers/inflate.ts",
+      "parsers/limits.ts",
       "parsers/ole2-reader.ts",
       "parsers/pdf-parser.ts",
       "parsers/pdf-pixel-perfect.ts",
@@ -1709,6 +1717,7 @@
       "menubar/sub/menubar-trigger.component.ts"
     ],
     "libFiles": [
+      "overlay-stack.service.ts",
       "touch.ts"
     ],
     "testFiles": [
@@ -1791,7 +1800,8 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
-      "input-group.token.ts"
+      "input-group.token.ts",
+      "numeric-step.ts"
     ],
     "dependencies": [
       "input"
@@ -2002,6 +2012,7 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
+      "numeric-step.ts",
       "touch.ts"
     ],
     "testFiles": [
@@ -2083,7 +2094,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "overlay-stack.service.ts"
     ],
     "dependencies": [
       "skeleton",
@@ -2237,7 +2249,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "numeric-step.ts"
     ],
     "testFiles": [
       "slider/slider.component.spec.ts"
@@ -2643,6 +2656,7 @@
     ],
     "libFiles": [
       "a11y.ts",
+      "overlay-stack.service.ts",
       "top-layer.ts"
     ],
     "dependencies": [
@@ -2731,15 +2745,18 @@
       "rich-text-editor/rich-text-find.utils.ts",
       "rich-text-editor/rich-text-input-rules.ts",
       "rich-text-editor/rich-text-lines.ts",
-      "rich-text-editor/rich-text-locales.ts",
       "rich-text-editor/rich-text-markdown.service.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.ts",
       "rich-text-editor/rich-text-prose.ts",
       "rich-text-editor/rich-text-resource-policy.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
+      "rich-text-editor/rich-text.locales.ts",
       "rich-text-editor/sub/rich-text-toolbar.component.css",
       "rich-text-editor/sub/rich-text-toolbar.component.html",
       "rich-text-editor/sub/rich-text-toolbar.component.ts"
+    ],
+    "obsoleteFiles": [
+      "rich-text-editor/rich-text-locales.ts"
     ],
     "dependencies": [
       "separator"
@@ -3363,6 +3380,9 @@
       "split-button/sub/split-button-menu.component.ts",
       "split-button/sub/split-button-primary.component.ts"
     ],
+    "libFiles": [
+      "overlay-stack.service.ts"
+    ],
     "dependencies": [
       "button"
     ],
@@ -3751,8 +3771,8 @@
     ],
     "files": [
       "kanban/index.ts",
-      "kanban/kanban-locales.ts",
       "kanban/kanban.component.ts",
+      "kanban/kanban.locales.ts",
       "kanban/sub/kanban-card-content.component.ts",
       "kanban/sub/kanban-card-dialog.component.ts",
       "kanban/sub/kanban-card.component.ts",
@@ -3760,6 +3780,9 @@
       "kanban/sub/kanban-column-header.component.ts",
       "kanban/sub/kanban-column.component.ts",
       "kanban/sub/kanban-delete-column-dialog.component.ts"
+    ],
+    "obsoleteFiles": [
+      "kanban/kanban-locales.ts"
     ],
     "libFiles": [
       "color.ts",
@@ -3901,14 +3924,17 @@
     ],
     "files": [
       "sortable/index.ts",
-      "sortable/sortable-locales.ts",
       "sortable/sortable.component.html",
       "sortable/sortable.component.ts",
+      "sortable/sortable.locales.ts",
       "sortable/sortable.types.ts",
       "sortable/sub/sortable-ghost.directive.ts",
       "sortable/sub/sortable-item.component.html",
       "sortable/sub/sortable-item.component.ts",
       "sortable/sub/sortable-placeholder.directive.ts"
+    ],
+    "obsoleteFiles": [
+      "sortable/sortable-locales.ts"
     ],
     "libFiles": [
       "auto-scroll.ts",
@@ -4039,6 +4065,7 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
+      "overlay-stack.service.ts",
       "touch.ts"
     ],
     "dependencies": [
@@ -4294,7 +4321,7 @@
       "copy-to-clipboard"
     ],
     "files": [
-      "directives/copy-to.directive.ts"
+      "copy-to.directive.ts"
     ],
     "libFiles": [
       "i18n/common.locales.ts",
@@ -4304,6 +4331,10 @@
       "i18n/index.ts"
     ],
     "testFiles": [
+      "copy-to.directive.spec.ts"
+    ],
+    "obsoleteFiles": [
+      "directives/copy-to.directive.ts",
       "directives/copy-to.directive.spec.ts"
     ]
   },
@@ -5622,6 +5653,7 @@
       "parsers/docx-to-editor-html.ts",
       "parsers/image-validator.ts",
       "parsers/inflate.ts",
+      "parsers/limits.ts",
       "parsers/pdf-parser.ts",
       "parsers/pdf-pixel-perfect.ts",
       "parsers/pdf-readable/pdf-readable.ts",

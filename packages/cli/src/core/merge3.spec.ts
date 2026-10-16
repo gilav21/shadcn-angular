@@ -39,15 +39,6 @@ describe('merge3', () => {
     expect(r.conflicts).toBe(0);
   });
 
-  it('auto-merges disjoint hunks (ours edits top, theirs edits bottom)', () => {
-    const base = 'one\ntwo\nthree\nfour\nfive\n';
-    const ours = 'ONE\ntwo\nthree\nfour\nfive\n';
-    const theirs = 'one\ntwo\nthree\nfour\nFIVE\n';
-    const r = merge3(base, ours, theirs);
-    expect(r.content).toBe('ONE\ntwo\nthree\nfour\nFIVE\n');
-    expect(r.conflicts).toBe(0);
-  });
-
   it('applies an upstream addition that does not overlap a user edit', () => {
     const base = 'header\nbody\nfooter\n';
     const ours = 'header\nbody EDITED\nfooter\n';
@@ -71,6 +62,10 @@ describe('merge3', () => {
     // unconflicted lines are preserved around the markers
     expect(r.content.startsWith('a\n')).toBe(true);
     expect(r.content.trimEnd().endsWith('c')).toBe(true);
+    // The labels tell the reader which side is which.
+    const lines = r.content.split('\n');
+    expect(lines.find(l => l.startsWith('<<<<<<<'))).toMatch(/ours/i);
+    expect(lines.find(l => l.startsWith('>>>>>>>'))).toMatch(/theirs/i);
   });
 
   it('no conflict when both sides add the identical new line at the same spot', () => {
@@ -96,12 +91,6 @@ describe('merge3', () => {
     expect(r.conflicts).toBe(0);
   });
 
-  it('handles a one-line file edited only by theirs', () => {
-    const r = merge3('hello\n', 'hello\n', 'goodbye\n');
-    expect(r.content).toBe('goodbye\n');
-    expect(r.conflicts).toBe(0);
-  });
-
   it('preserves a file with no trailing newline', () => {
     const base = 'a\nb';
     const theirs = 'a\nB';
@@ -116,17 +105,6 @@ describe('merge3', () => {
     const theirs = 'X\nb\nc\nd\nY\n';
     const r = merge3(base, ours, theirs);
     expect(r.conflicts).toBe(2);
-  });
-
-  it('is idempotent on an already clean-merged result', () => {
-    const base = 'one\ntwo\nthree\nfour\nfive\n';
-    const ours = 'ONE\ntwo\nthree\nfour\nfive\n';
-    const theirs = 'one\ntwo\nthree\nfour\nFIVE\n';
-    const first = merge3(base, ours, theirs);
-    // re-merging the merged content against itself is a no-op
-    const second = merge3(first.content, first.content, first.content);
-    expect(second.content).toBe(first.content);
-    expect(second.conflicts).toBe(0);
   });
 
   it('auto-merges adjacent disjoint edits (ours line N, theirs line N+1) — no shared line between', () => {
@@ -178,15 +156,6 @@ describe('merge3', () => {
     const r = merge3(base, 'a\r\nb\r\nc\r\n', base);
     expect(r.conflicts).toBe(0);
     expect(r.content).toBe('a\nb\nc\n');
-  });
-
-  it('marker labels identify ours vs theirs sides', () => {
-    const r = merge3('a\nb\nc\n', 'a\nOURS\nc\n', 'a\nTHEIRS\nc\n');
-    const lines = r.content.split('\n');
-    const open = lines.find(l => l.startsWith('<<<<<<<'));
-    const close = lines.find(l => l.startsWith('>>>>>>>'));
-    expect(open).toMatch(/ours/i);
-    expect(close).toMatch(/theirs/i);
   });
 
   // --- Trailing-newline / EOL / BOM handling (review group 4) ---

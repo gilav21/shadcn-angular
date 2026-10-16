@@ -33,7 +33,7 @@ export default defineConfig({
                 '**/*-fixtures.ts',
                 '**/index.ts',
                 '**/*.types.ts',
-                '**/*-locales.ts',
+                '**/*.locales.ts',
             ],
         },
     },

@@ -18,7 +18,7 @@ import {
     AlertDialogCancelComponent,
 } from '../../alert-dialog';
 import { ButtonComponent } from '../../button';
-import { type KanbanLocale, KANBAN_LOCALES } from '../kanban-locales';
+import { type KanbanLocale, KANBAN_LOCALES } from '../kanban.locales';
 import { type KanbanColumn, type KanbanColumnDeleteEvent } from '../kanban.component';
 
 @Component({

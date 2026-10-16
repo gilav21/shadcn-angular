@@ -22,6 +22,7 @@ import {
     getChartColor,
     formatChartValue,
     getChartSummary,
+    extent,
 } from '../../lib/chart.utils';
 import { linearScale, niceDomain, bandScale } from '../../lib/chart-scale';
 import { linePath } from '../../lib/chart-path';
@@ -171,13 +172,13 @@ export class ComboChartComponent implements AfterViewInit {
 
     readonly primaryMax = computed(() => {
         const values = this.barSeries().flatMap(s => s.data.map(d => d.value));
-        return values.length ? Math.max(...values) : 1;
+        return extent(values)?.[1] ?? 1;
     });
 
     readonly secondaryMax = computed(() => {
         if (this.showCumulative()) return 100;
         const values = this.lineSeries().flatMap(s => s.data.map(d => d.value));
-        return values.length ? Math.max(...values) : 100;
+        return extent(values)?.[1] ?? 100;
     });
 
     readonly cumulativePercents = computed(() => {

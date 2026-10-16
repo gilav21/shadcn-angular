@@ -172,7 +172,7 @@ describe('SplitButtonComponent', () => {
 
             const menu = fixture.debugElement.query(By.css('[role="menu"]'));
 
-            menu.triggerEventHandler('keydown', { key: 'Escape', preventDefault: () => { } });
+            menu.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
             expect(component.isOpen()).toBe(false);
 
             component.isOpen.set(true);

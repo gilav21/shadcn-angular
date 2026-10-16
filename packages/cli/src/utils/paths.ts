@@ -80,6 +80,21 @@ export function resolveProjectPath(cwd: string, inputPath: string): string {
     return resolved;
 }
 
+/**
+ * {@link resolveProjectPath} for a FILE or entry named by registry data or a
+ * `--files`-style argument: it must lie strictly below `base`. `''`, `.` and
+ * `x/..` resolve to `base` itself, which `resolveProjectPath` accepts (an alias
+ * may name the project root), but a recursive delete of it would wipe every
+ * installed component.
+ */
+export function resolveInside(base: string, inputPath: string): string {
+    const resolved = resolveProjectPath(base, inputPath);
+    if (resolved === path.resolve(base)) {
+        throw new Error(`Path must stay inside the project directory: ${inputPath}`);
+    }
+    return resolved;
+}
+
 export function aliasToProjectPath(aliasOrPath: string): string {
     return aliasOrPath.startsWith('@/')
         ? path.join('src', aliasOrPath.slice(2))

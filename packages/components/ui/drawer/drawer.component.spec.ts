@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DrawerComponent, DrawerTriggerComponent, DrawerContentComponent, DrawerHeaderComponent, DrawerTitleComponent, DrawerDescriptionComponent, DrawerFooterComponent, DrawerCloseComponent } from './index';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // Test host for integration
 @Component({
@@ -44,12 +44,6 @@ describe('DrawerComponent', () => {
         fixture.detectChanges();
     });
 
-    afterEach(() => {
-        // Clean up body styles
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    });
-
     it('should have data-slot="drawer"', () => {
         expect(fixture.nativeElement.getAttribute('data-slot')).toBe('drawer');
     });
@@ -74,11 +68,6 @@ describe('Drawer Integration', () => {
         fixture = TestBed.createComponent(TestHostComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
     });
 
     it('should not show content when closed', () => {

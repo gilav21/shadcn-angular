@@ -53,6 +53,24 @@ lowercase kebab-case token (e.g. `ui`, `myapp`, `acme-ui`). `data-slot`
 attribute values are intentionally not rewritten — they remain stable
 styling/testing hooks regardless of the prefix.
 
+`--prefix` rewrites the selector in exactly four positions:
+
+- `selector:` metadata in component and directive sources;
+- element tags in templates (`<ui-x>` / `</ui-x>`, inline or `.html`);
+- element tokens in `<ng-content select="…">` slots, so `<acme-result-detail>`
+  still lands in its named slot (attribute and class tokens in the slot are
+  left alone);
+- CSS element selectors in component `.css` stylesheets (not inline `styles:`
+  strings in `.ts` files).
+
+Nothing else is rewritten: string literals, `localStorage` keys, log labels
+and class names keep their `ui-` text. Components never depend on their
+selector text at runtime, so this is safe.
+
+Spec files installed by `add --include-tests` are **not** prefix-rewritten
+yet. Under a custom prefix, specs that query elements by their `ui-` tag
+will fail in your project.
+
 ## Usage
 
 Use the `add` command to add components to your project:

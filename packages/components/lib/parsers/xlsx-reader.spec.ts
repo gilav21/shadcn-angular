@@ -398,6 +398,18 @@ describe('parseXlsx — fallbacks and limits', () => {
         expect(result.truncated).toBe(true);
     });
 
+    it('T-14 a row index far beyond maxRows yields at most maxRows rows', () => {
+        // Row 5 sits at a five-row cap and is kept; rows 6 and 200,000 are past it.
+        const rows = [1, 3, 5, 6, 200_000]
+            .map(r => `<row r="${r}"><c r="A${r}" t="inlineStr"><is><t>row ${r}</t></is></c></row>`)
+            .join('');
+        const result = parseXlsx(zip([{ path: 'xl/worksheets/sheet1.xml', xml: worksheet(rows) }]), { maxRows: 5 });
+        const sheet = result.sheets[0];
+        expect(sheet.data).toEqual([['row 1'], [], ['row 3'], [], ['row 5']]);
+        expect(sheet.rowCount).toBe(5);
+        expect(result.truncated).toBe(true);
+    });
+
     it('parses multi-letter column references (AA) to the correct index', () => {
         // 26 single-letter cols A..Z then AA = index 26 (27th column).
         const bytes = zip([

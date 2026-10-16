@@ -32,8 +32,6 @@ class CloseHost {
 describe('Dialog close button (browser)', () => {
     afterEach(async () => {
         await emulateTouch(false);
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
     });
 
     async function openDialog(dir: 'ltr' | 'rtl'): Promise<HTMLElement> {

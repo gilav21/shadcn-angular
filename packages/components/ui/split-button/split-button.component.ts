@@ -14,6 +14,7 @@ import {
     viewChild,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 import { cn } from '../../lib/utils';
 import { ButtonVariant, ButtonSize, ButtonComponent } from '../button';
 
@@ -215,6 +216,14 @@ export class SplitButtonComponent implements OnDestroy {
 
     constructor() {
         this.document.addEventListener('click', this.clickListener);
+        // Non-modal layer: the stack gives Escape to the innermost open layer.
+        bindOverlayLayer(() => this.isOpen(), {
+            modal: false,
+            dismiss: () => {
+                this.el.nativeElement.querySelector('[aria-haspopup="menu"]')?.focus();
+                this.isOpen.set(false);
+            },
+        });
     }
 
     ngOnDestroy(): void {
@@ -336,11 +345,10 @@ export class SplitButtonComponent implements OnDestroy {
      * entries only (`[role="menuitem"]:not([disabled])`, so disabled entries are
      * both greyed and unreachable) and wrap around at either end; from an
      * unfocused menu ArrowDown lands on the first entry and ArrowUp on the last.
-     * Escape and Tab close the menu — Tab without `preventDefault`, so focus
-     * moves on to the next tab stop. Neither restores focus to the dropdown
-     * toggle, so after Escape the focused entry is destroyed and focus falls
-     * back to `document.body`. Enter/Space are left to the native button, which
-     * activates the entry.
+     * Tab closes the menu without `preventDefault`, so focus moves on to the next
+     * tab stop. Escape belongs to the overlay stack, which closes the menu and
+     * returns focus to the dropdown toggle. Enter/Space are left to the native
+     * button, which activates the entry.
      */
     onMenuKeydown(event: KeyboardEvent): void {
         const items: HTMLElement[] = Array.from(
@@ -359,10 +367,6 @@ export class SplitButtonComponent implements OnDestroy {
                 const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
                 items[prevIndex]?.focus();
                 break; }
-            case 'Escape':
-                event.preventDefault();
-                this.isOpen.set(false);
-                break;
             case 'Tab':
                 this.isOpen.set(false);
                 break;

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { CopyToDirective } from '../../../../../packages/components/ui/directives/copy-to.directive';
+import { CopyToDirective } from '../../../../../packages/components/ui/copy-to.directive';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { COPY_TO_DEMO_LOCALES } from './copy-to-demo.locales';
 

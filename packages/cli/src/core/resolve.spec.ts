@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { resolveDependencies } from './resolve.js';
-import { registry } from '../registry/index.js';
+import { describe, it, expect, afterEach } from 'vitest';
+import { resolveDependencies, UnknownComponentError } from './resolve.js';
+import { registry, type ComponentDefinition, type ComponentName } from '../registry/index.js';
+
+const mutable = registry as unknown as Record<string, ComponentDefinition>;
 
 describe('resolveDependencies', () => {
   it('includes the component itself', () => {
@@ -16,10 +18,12 @@ describe('resolveDependencies', () => {
     }
   });
 
-  it('is idempotent for diamond dependencies', () => {
-    const set = resolveDependencies(['autocomplete']); // -> badge, command, popover
-    expect(set.has('autocomplete')).toBe(true);
-    expect(set.has('command')).toBe(true);
+  it('follows a multi-level chain, across several requested components', () => {
+    // date-picker -> calendar -> button -> ripple
+    const set = resolveDependencies(['date-picker', 'sparkles']);
+    for (const name of ['date-picker', 'calendar', 'select', 'button', 'ripple', 'sparkles']) {
+      expect(set.has(name as never), name).toBe(true);
+    }
   });
 
   // Addon resolution invariants (the one-directional boundary).
@@ -35,5 +39,29 @@ describe('resolveDependencies', () => {
     expect(set.has('data-table')).toBe(true);
     expect(set.has('data-table/context-menu' as never)).toBe(false); // addon stays opt-in
     expect(set.has('context-menu' as never)).toBe(false);            // only the addon needs it
+  });
+
+  describe('with an in-memory entry the loader never validated', () => {
+    afterEach(() => {
+      delete mutable['fixture-a'];
+    });
+
+    // A dangling dependency, and an inherited name asked for directly — an `in`
+    // or bare-index lookup finds `constructor` on Object.prototype.
+    it.each([
+      { requested: 'fixture-a', message: 'Unknown component "fixture-b" (required by "fixture-a")' },
+      { requested: 'constructor', message: 'Unknown component "constructor"' },
+    ])('resolveDependencies throws UnknownComponentError naming the missing dependency and its dependent: $requested', ({ requested, message }) => {
+      mutable['fixture-a'] = {
+        name: 'fixture-a',
+        files: ['fixture-a/fixture-a.component.ts'],
+        dependencies: ['badge', 'fixture-b'],
+      };
+
+      const resolve = (): unknown => resolveDependencies([requested as ComponentName]);
+
+      expect(resolve).toThrow(UnknownComponentError);
+      expect(resolve).toThrow(message);
+    });
   });
 });

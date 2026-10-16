@@ -37,7 +37,8 @@ describe('IconComponent', () => {
 
     it('should render SVG content for known icon', () => {
         const svg = fixture.debugElement.query(By.css('svg'));
-        expect(svg.nativeElement.innerHTML).toContain('M20 6 9 17l-5-5');
+        const drawing = svg.nativeElement.querySelector('path');
+        expect(drawing?.getAttribute('d')).toBeTruthy();
     });
 
     it('should apply correct class based on icon name', () => {
@@ -231,6 +232,37 @@ describe('IconComponent weight input', () => {
         expect(svg.getAttribute('stroke-width')).toBe('2');
         expect(svg.getAttribute('fill')).toBe('none');
         expect(svg.getAttribute('stroke')).toBe('currentColor');
+    });
+});
+
+describe('IconComponent solid detail', () => {
+    @Component({
+        template: `
+            <ui-icon name="circle-check" weight="solid"></ui-icon>
+            <ui-icon name="circle-x" weight="solid"></ui-icon>
+            <ui-icon name="circle-check"></ui-icon>
+        `,
+        imports: [IconComponent],
+    })
+    class SolidDetailHostComponent {}
+
+    let icons: string[];
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [SolidDetailHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(SolidDetailHostComponent);
+        fixture.detectChanges();
+        icons = fixture.debugElement.queryAll(By.css('svg')).map((el) => el.nativeElement.innerHTML);
+    });
+
+    it('draws the detail of a filled glyph in the background colour, differently per glyph', () => {
+        expect(icons[0]).toContain('var(--background');
+        expect(icons[1]).toContain('var(--background');
+        expect(icons[0]).not.toBe(icons[1]);
+    });
+
+    it('keeps the outline form for the other weights', () => {
+        expect(icons[2]).not.toContain('--background');
     });
 });
 

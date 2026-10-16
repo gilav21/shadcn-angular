@@ -130,7 +130,7 @@ export default defineConfig(({ mode: _mode }) => ({
                 '**/*-fixtures.ts',
                 '**/index.ts',
                 '**/*.types.ts',
-                '**/*-locales.ts',
+                '**/*.locales.ts',
                 // Consumer-only: the vitest→jest shim runs under the installed
                 // jest consumer (e2e/jest-fixture), never under this browser suite.
                 '**/testing/vitest-compat.ts',

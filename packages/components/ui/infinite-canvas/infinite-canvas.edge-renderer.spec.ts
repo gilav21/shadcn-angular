@@ -748,20 +748,17 @@ describe('panning a large board does not accumulate paths without limit', () => 
     }
   }
 
-  it('holds a bounded number of paths however far you pan', () => {
-    const { edges, items } = ribbon(9000);
+  // One arrange for both facts: the 4,000-path cap is only reached by walking a
+  // ribbon longer than it, and 6,500 exceeds the 5,000 asserted below, so a trim
+  // that never runs cannot pass. Bigger would only buy a slower pan.
+  it('holds a bounded number of paths however far you pan, and still holds what is on screen', () => {
+    const { edges, items } = ribbon(6500);
     renderer.setEdges(edges, items);
 
-    panAcross(9000);
+    panAcross(6500);
 
-    expect(renderer.edgeCount).toBe(9000);
+    expect(renderer.edgeCount).toBe(6500);
     expect(renderer.builtPathCount).toBeLessThanOrEqual(5000);
-  });
-
-  it('still holds the paths for what is currently on screen', () => {
-    const { edges, items } = ribbon(9000);
-    renderer.setEdges(edges, items);
-    panAcross(9000);
 
     const here: CanvasRect = { x: 600, y: -50, width: 400, height: 200 };
     renderer.draw(IDENTITY, here);

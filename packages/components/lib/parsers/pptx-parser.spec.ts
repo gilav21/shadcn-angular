@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_PARSER_LIMITS } from './limits';
 import { parsePptx } from './pptx-parser';
+import { buildStoredZip } from './zip-test-fixtures';
 import type {
     PptxConnectorElement,
     PptxImageElement,
@@ -8,119 +10,8 @@ import type {
     PptxTextFrame,
 } from './pptx-parser';
 
-// ---------------------------------------------------------------------------
-// Minimal STORED (uncompressed) ZIP builder — matches what zip-reader expects:
-// a local-file-header + data section, then a central directory, then EOCD.
-// CRC32 must be correct (zip-reader validates it).
-// ---------------------------------------------------------------------------
+const buildZip = buildStoredZip;
 
-const CRC_TABLE = (() => {
-    const table = new Uint32Array(256);
-    for (let i = 0; i < 256; i++) {
-        let c = i;
-        for (let j = 0; j < 8; j++) {
-            c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-        }
-        table[i] = c;
-    }
-    return table;
-})();
-
-function crc32(data: Uint8Array): number {
-    let crc = 0xffffffff;
-    for (const byte of data) {
-        crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
-    }
-    return (crc ^ 0xffffffff) >>> 0;
-}
-
-function u16(n: number): number[] {
-    return [n & 0xff, (n >>> 8) & 0xff];
-}
-
-function u32(n: number): number[] {
-    return [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff];
-}
-
-interface ZipFile {
-    readonly path: string;
-    readonly data: Uint8Array;
-}
-
-function buildZip(files: ReadonlyArray<{ path: string; content: string | Uint8Array }>): Uint8Array {
-    const enc = new TextEncoder();
-    const normalized: ZipFile[] = files.map(f => ({
-        path: f.path,
-        data: typeof f.content === 'string' ? enc.encode(f.content) : f.content,
-    }));
-
-    const localChunks: number[] = [];
-    const centralChunks: number[] = [];
-    const offsets: number[] = [];
-
-    for (const file of normalized) {
-        const nameBytes = enc.encode(file.path);
-        const crc = crc32(file.data);
-        const offset = localChunks.length;
-        offsets.push(offset);
-
-        // Local file header
-        localChunks.push(...u32(0x04034b50));
-        localChunks.push(...u16(20)); // version needed
-        localChunks.push(...u16(0)); // flags
-        localChunks.push(...u16(0)); // method 0 = stored
-        localChunks.push(...u16(0)); // mod time
-        localChunks.push(...u16(0)); // mod date
-        localChunks.push(...u32(crc));
-        localChunks.push(...u32(file.data.length)); // compressed size
-        localChunks.push(...u32(file.data.length)); // uncompressed size
-        localChunks.push(...u16(nameBytes.length));
-        localChunks.push(...u16(0)); // extra len
-        localChunks.push(...nameBytes);
-        localChunks.push(...file.data);
-    }
-
-    const centralStart = localChunks.length;
-    for (let i = 0; i < normalized.length; i++) {
-        const file = normalized[i];
-        const nameBytes = enc.encode(file.path);
-        const crc = crc32(file.data);
-
-        centralChunks.push(...u32(0x02014b50));
-        centralChunks.push(...u16(20)); // version made by
-        centralChunks.push(...u16(20)); // version needed
-        centralChunks.push(...u16(0)); // flags
-        centralChunks.push(...u16(0)); // method
-        centralChunks.push(...u16(0)); // mod time
-        centralChunks.push(...u16(0)); // mod date
-        centralChunks.push(...u32(crc));
-        centralChunks.push(...u32(file.data.length));
-        centralChunks.push(...u32(file.data.length));
-        centralChunks.push(...u16(nameBytes.length));
-        centralChunks.push(...u16(0)); // extra len
-        centralChunks.push(...u16(0)); // comment len
-        centralChunks.push(...u16(0)); // disk number
-        centralChunks.push(...u16(0)); // internal attrs
-        centralChunks.push(...u32(0)); // external attrs
-        centralChunks.push(...u32(offsets[i]));
-        centralChunks.push(...nameBytes);
-    }
-
-    const centralSize = centralChunks.length;
-    const eocd: number[] = [];
-    eocd.push(...u32(0x06054b50));
-    eocd.push(...u16(0)); // disk
-    eocd.push(...u16(0)); // disk with central dir
-    eocd.push(...u16(normalized.length));
-    eocd.push(...u16(normalized.length));
-    eocd.push(...u32(centralSize));
-    eocd.push(...u32(centralStart));
-    eocd.push(...u16(0)); // comment len
-
-    return new Uint8Array([...localChunks, ...centralChunks, ...eocd]);
-}
-
-// A tiny valid 1x1 PNG (correct magic bytes so isValidImageMagicBytes passes).
 const PNG_BYTES = new Uint8Array([
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
     0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -919,6 +810,24 @@ describe('parsePptx — grouped shapes', () => {
         // scale 1, dx = 952500/9525 = 100; inner x 0 → 100
         expect(shape.x).toBe(Math.round(952500 / 9525));
         expect(shape.y).toBe(Math.round(952500 / 9525));
+    });
+
+    it('T-16 truncates group nesting past the cap', () => {
+        const shapeIn = (depth: number, id: number): string => {
+            let xml = `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="s${id}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>`
+                + '<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="952500" cy="952500"/></a:xfrm><a:prstGeom prst="rect"/>'
+                + `<a:solidFill><a:srgbClr val="00000${depth}"/></a:solidFill></p:spPr></p:sp>`;
+            for (let level = 0; level < depth; level++) {
+                xml = `<p:grpSp><p:nvGrpSpPr><p:cNvPr id="${id * 10 + level}" name="g"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>`
+                    + `<p:grpSpPr/>${xml}</p:grpSp>`;
+            }
+            return xml;
+        };
+        const zip = buildSinglePptx(shapeIn(3, 31) + shapeIn(4, 41));
+        const fills = parsePptx(zip, { ...DEFAULT_PARSER_LIMITS, maxNestingDepth: 3 }).slides[0].elements
+            .filter((e): e is PptxShapeElement => e.type === 'shape')
+            .map(e => e.fillColor);
+        expect(fills).toEqual(['#000003']);
     });
 });
 

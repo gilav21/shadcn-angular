@@ -80,7 +80,7 @@ export class MenubarItemComponent {
   onClick(): void {
     if (!this.disabled()) {
       this.selected.emit();
-      this.menu?.close();
+      this.menu?.closeAfterActivation();
     }
   }
 }

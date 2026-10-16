@@ -5,31 +5,38 @@
  *   npx tsx scripts/test-pixel-perfect.ts <pdf-path> [output-path]
  *
  * Example:
- *   npx tsx scripts/test-pixel-perfect.ts demo/public/DW2-3-Viruses-www.underwar.co.il.pdf D:/tmp/pixel-perfect.html
+ *   npm run pdf:pixel-perfect -- demo/public/examples/invoice.pdf D:/tmp/pixel-perfect.html
  *
  * Then open the output HTML in your browser and compare side-by-side
  * with the pdf2htmlEX output at localhost:8888.
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { renderPixelPerfectPaged, toStandaloneHtml, setFallbackFontData } from '../packages/components/lib/parsers/pdf-pixel-perfect';
 
-// Load fallback font for missing glyph coverage
-const fallbackPaths = [
-    resolve(dirname(new URL(import.meta.url).pathname), '..', 'packages', 'components', 'lib', 'fonts', 'NotoSans-Regular.ttf'),
-    resolve(process.cwd(), 'packages', 'components', 'lib', 'fonts', 'NotoSans-Regular.ttf'),
-];
-for (const fp of fallbackPaths) {
-    const cleanPath = fp.replace(/^\/([A-Z]:)/, '$1'); // Fix Windows drive letter
-    if (existsSync(cleanPath)) {
-        const data = readFileSync(cleanPath);
-        setFallbackFontData(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
-        console.log('Fallback font loaded:', cleanPath);
-        break;
+/** Where the fallback font for missing glyph coverage may live, most specific first. */
+export function fontCandidates(repoRoot: string): string[] {
+    return [
+        resolve(repoRoot, 'packages', 'components', 'lib', 'parsers', 'fonts', 'NotoSans-Regular.ttf'),
+        resolve(process.cwd(), 'packages', 'components', 'lib', 'parsers', 'fonts', 'NotoSans-Regular.ttf'),
+    ];
+}
+
+function loadFallbackFont(): void {
+    const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+    for (const fontPath of fontCandidates(repoRoot)) {
+        if (existsSync(fontPath)) {
+            const data = readFileSync(fontPath);
+            setFallbackFontData(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
+            console.log('Fallback font loaded:', fontPath);
+            return;
+        }
     }
 }
 
 async function main(): Promise<void> {
+    loadFallbackFont();
     const pdfPath = process.argv[2];
     if (!pdfPath) {
         console.error('Usage: npx tsx scripts/test-pixel-perfect.ts <pdf-path> [output-path]');
@@ -56,7 +63,13 @@ async function main(): Promise<void> {
     console.log('Open it in your browser to compare with the pdf2htmlEX output.');
 }
 
-main().catch(err => {
-    console.error('Error:', err.message);
-    process.exit(1);
-});
+// Case-insensitive: Windows may hand argv[1] a lower-case drive letter, and a
+// mismatch here would make the script exit 0 without doing anything.
+const invokedDirectly = process.argv[1] !== undefined
+    && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase();
+if (invokedDirectly) {
+    main().catch(err => {
+        console.error('Error:', err.message);
+        process.exit(1);
+    });
+}

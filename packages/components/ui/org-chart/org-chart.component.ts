@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { OrgNode, OrgNodePosition, OrgLayoutDirection, OrgLineType } from '../../lib/chart.types';
-import { getChartColor } from '../../lib/chart.utils';
+import { getChartColor, extent } from '../../lib/chart.utils';
 import { readableForeground } from '../../lib/color';
 
 @Component({
@@ -280,14 +280,14 @@ export class OrgChartComponent {
   svgWidth = computed(() => {
     const nodes = this.flatNodes();
     if (nodes.length === 0) return 400;
-    const maxX = Math.max(...nodes.map(n => n.x + n.width));
+    const maxX = extent(nodes.map(n => n.x + n.width))?.[1] ?? 0;
     return maxX + 20;
   });
 
   svgHeight = computed(() => {
     const nodes = this.flatNodes();
     if (nodes.length === 0) return 300;
-    const maxY = Math.max(...nodes.map(n => n.y + n.height));
+    const maxY = extent(nodes.map(n => n.y + n.height))?.[1] ?? 0;
     return maxY + 20;
   });
 

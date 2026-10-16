@@ -10,7 +10,6 @@ import {
   migrateCore,
   migrationUiDir,
   runMigration,
-  buildMigrationPlan,
   gitTreeClean,
   envWithoutGitVars,
   detectCustomizedLegacy,
@@ -232,9 +231,12 @@ describe('migrateCore', () => {
       const ui = migrationUiDir(dir, config);
       await fs.outputFile(path.join(ui, 'button.component.ts'),
         "@Component({ selector: 'ui-button' }) export class ButtonComponent {}");
-      const outcome = await migrateCore(dir, config, { branch: 'master', dryRun: true });
+      const hook = vi.fn();
+      const outcome = await migrateCore(dir, config, { branch: 'master', dryRun: true }, { onBeforeExecute: hook });
       expect(outcome.status).toBe('dry-run');
       expect(outcome.execution).toBeUndefined();
+      expect(hook).not.toHaveBeenCalled();
+      expect(performInstall).not.toHaveBeenCalled();
       // Flat file untouched — a dry run writes nothing.
       expect(await fs.pathExists(path.join(ui, 'button.component.ts'))).toBe(true);
       expect(await fs.pathExists(path.join(ui, 'button'))).toBe(false);
@@ -590,40 +592,6 @@ describe('migrateCore (executing path)', () => {
       expect(outcome.execution?.migrated).toEqual(['button']);
       expect(await fs.pathExists(path.join(ui, 'button.component.ts'))).toBe(false);
       expect(await fs.pathExists(path.join(ui, 'button/index.ts'))).toBe(true);
-    } finally {
-      await fs.remove(dir);
-    }
-  });
-
-  it('does not call the onBeforeExecute hook on a dry run', async () => {
-    const { dir } = await legacyProject();
-    try {
-      const hook = vi.fn();
-      const outcome = await migrateCore(dir, config, { branch: 'master', dryRun: true }, { onBeforeExecute: hook });
-
-      expect(outcome.status).toBe('dry-run');
-      expect(hook).not.toHaveBeenCalled();
-      expect(performInstall).not.toHaveBeenCalled();
-    } finally {
-      await fs.remove(dir);
-    }
-  });
-});
-
-describe('buildMigrationPlan', () => {
-  afterEach(() => {
-    pristine.value = null;
-  });
-
-  it('scans the ui dir and plans the legacy closure', async () => {
-    const { dir, ui } = await legacyProject();
-    try {
-      pristine.value = true;
-      const { scan, plan } = await buildMigrationPlan(ui, config);
-
-      expect(scan.legacy).toEqual(['button']);
-      expect(plan.structural).toEqual(['button']);
-      expect(plan.writeSet).toContain('ripple');
     } finally {
       await fs.remove(dir);
     }

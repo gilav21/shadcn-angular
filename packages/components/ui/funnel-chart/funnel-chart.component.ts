@@ -12,7 +12,7 @@ import {
 import { cn } from '../../lib/utils';
 import { observeChartWidth } from '../../lib/chart-responsive';
 import { ChartDataPoint, ChartClickEvent, ChartDirection } from '../../lib/chart.types';
-import { getChartColor, formatChartValue, formatPercentage, getChartSummary } from '../../lib/chart.utils';
+import { getChartColor, formatChartValue, formatPercentage, getChartSummary, extent } from '../../lib/chart.utils';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
 
 type PercentageMode = 'first' | 'previous';
@@ -136,7 +136,7 @@ export class FunnelChartComponent {
 
     private readonly maxValue = computed(() => {
         const values = this.data().map(d => d.value);
-        return values.length ? Math.max(...values) : 1;
+        return extent(values)?.[1] ?? 1;
     });
 
     private percentFor(index: number): number {

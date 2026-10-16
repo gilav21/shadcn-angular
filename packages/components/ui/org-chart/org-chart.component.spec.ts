@@ -24,6 +24,14 @@ describe('OrgChartComponent', () => {
         fixture.detectChanges();
     });
 
+    it('names the chart by its title, and by its member count', () => {
+        const label = (): string | null => fixture.nativeElement.querySelector('[role="group"]')?.getAttribute('aria-label') ?? null;
+        expect(label()).toBe('Organization chart with 3 members');
+        fixture.componentRef.setInput('title', 'Leadership');
+        fixture.detectChanges();
+        expect(label()).toBe('Leadership: Organization chart with 3 members');
+    });
+
     it('should return initials for a name', () => {
         expect(component.getInitials('John Doe')).toBe('JD');
     });

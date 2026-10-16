@@ -8,11 +8,12 @@ import {
     AfterViewInit,
     ElementRef,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { cn } from '../../../lib/utils';
+import { focusFirstTabbable, trapTabKey } from '../../../lib/a11y';
 import { createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../../lib/i18n/common.locales';
 import { DIALOG } from '../dialog.component';
-import { OverlayStackService } from '../../../lib/overlay-stack.service';
 import { DialogHeaderComponent } from './dialog-header.component';
 import { DialogTitleComponent } from './dialog-title.component';
 import { DialogDescriptionComponent } from './dialog-description.component';
@@ -31,8 +32,8 @@ import { DialogDescriptionComponent } from './dialog-description.component';
 })
 export class DialogContentComponent implements AfterViewInit {
     readonly dialog = inject(DIALOG, { optional: true });
-    private readonly layers = inject(OverlayStackService);
     private readonly el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
     /**
      * Extra classes merged onto the centred panel (not the backdrop). Overrides
      * the default `max-w-[calc(100vw-2rem)] sm:max-w-lg` sizing when you pass a
@@ -66,21 +67,13 @@ export class DialogContentComponent implements AfterViewInit {
     private previousActiveElement?: Element | null;
 
     constructor() {
-        effect((onCleanup) => {
+        effect(() => {
             if (this.dialog?.open()) {
-                this.previousActiveElement = document.activeElement;
-                document.body.style.overflow = 'hidden';
+                this.previousActiveElement = this.document.activeElement;
                 setTimeout(() => this.focusFirstElement(), 0);
-            } else {
-                document.body.style.overflow = '';
-                if (this.previousActiveElement instanceof HTMLElement) {
-                    this.previousActiveElement.focus();
-                }
+            } else if (this.previousActiveElement instanceof HTMLElement) {
+                this.previousActiveElement.focus();
             }
-
-            onCleanup(() => {
-                document.body.style.overflow = '';
-            });
         });
     }
 
@@ -94,14 +87,7 @@ export class DialogContentComponent implements AfterViewInit {
         const content = this.el.nativeElement.querySelector('[data-slot="dialog-content"]');
         if (content) {
             this.contentEl = content;
-            const focusable = content.querySelector(
-                'button:not([disabled]), [href]:not([tabindex="-1"]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])'
-            ) as HTMLElement;
-            if (focusable) {
-                focusable.focus();
-            } else {
-                content.focus();
-            }
+            focusFirstTabbable(content);
         }
     }
 
@@ -116,7 +102,7 @@ export class DialogContentComponent implements AfterViewInit {
 
     /**
      * Closes the owning `ui-dialog`. Bound to the built-in corner close button
-     * and reused by the Escape branch of {@link onKeydown}; a no-op when this
+     * and reused by the overlay stack on Escape; a no-op when this
      * content is used outside a `ui-dialog`.
      */
     close(): void {
@@ -124,38 +110,11 @@ export class DialogContentComponent implements AfterViewInit {
     }
 
     /**
-     * Panel key handler: Escape closes, Tab/Shift+Tab wrap focus so it stays
+     * Panel key handler: Tab/Shift+Tab wrap focus so it stays
      * trapped inside the panel. The panel renders in normal stacking context at
      * `z-50`, not the native top layer, so it can be covered by higher-z UI.
      */
     onKeydown(event: KeyboardEvent): void {
-        if (event.key === 'Escape') {
-            // One Escape, one layer -- the innermost. An overlay opened after
-            // this dialog (a popover inside it, a nested dialog) owns the key.
-            if (this.layers.hasOverlayAbove(this.dialog)) return;
-            event.preventDefault();
-            this.close();
-            return;
-        }
-
-        if (event.key === 'Tab' && this.contentEl) {
-            const focusableElements = this.contentEl.querySelectorAll(
-                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-            );
-            if (focusableElements.length === 0) return;
-
-            const firstElement = focusableElements[0] as HTMLElement;
-            const lastElement = Array.from(focusableElements).at(-1) as HTMLElement;
-
-            if (event.shiftKey) {
-                if (document.activeElement === firstElement) {
-                    event.preventDefault();
-                    lastElement?.focus();
-                }
-            } else if (document.activeElement === lastElement) {
-                    event.preventDefault();
-                    firstElement?.focus();
-                }
-        }
+        if (this.contentEl) trapTabKey(event, this.contentEl);
     }
 }

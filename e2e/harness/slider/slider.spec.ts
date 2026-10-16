@@ -1,17 +1,16 @@
 import { test, expect } from '@playwright/test';
 
-test('slider updates value via keyboard arrows', async ({ page }) => {
+test('slider starts at its defaultValue and arrow keys step from it', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByTestId('value')).toHaveText('0');
+    const range = page.getByRole('slider', { name: 'Volume' });
+    await expect(range).toHaveValue('40');
 
-    // Slider exposes its thumb as role=slider; focus it and press arrows.
-    const thumb = page.getByRole('slider').first();
-    await thumb.focus();
+    await range.focus();
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
 
-    // Default step=1, so 3 presses -> 3.
-    await expect(page.getByTestId('value')).toHaveText('3');
+    await expect(page.getByTestId('value')).toHaveText('43');
+    await expect(range).toHaveValue('43');
 });

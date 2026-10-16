@@ -34,3 +34,16 @@ export function resolveSonarToken() {
   console.error('  - bash:     SONAR_TOKEN=<token> npm run sonar');
   process.exit(1);
 }
+
+/**
+ * Host-side SonarQube URL for helper scripts that call the web API.
+ * `SONAR_HOST_URL` is deliberately ignored: it is the scanner container's view
+ * (host.docker.internal) and only `sonar.mjs` may read it; from the host that
+ * name does not resolve.
+ *
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {string}
+ */
+export function resolveSonarHost(env = process.env) {
+  return (env.SONAR_HOST_URL_LOCAL ?? 'http://localhost:9000').replace(/\/$/, '');
+}

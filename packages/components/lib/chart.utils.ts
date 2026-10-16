@@ -109,6 +109,11 @@ export const easingFunctions = {
     easeOutQuart: (t: number): number => 1 - Math.pow(1 - t, 4),
 } as const;
 
+/**
+ * Tweens `start` → `end`. `onUpdate` only ever receives finite values and the
+ * last one is always `end`: a duration that is not a finite positive number has
+ * nothing to tween over, so the first frame reports `end` and completes.
+ */
 export function animateValue(
     start: number,
     end: number,
@@ -117,13 +122,14 @@ export function animateValue(
     onUpdate: (value: number) => void,
     onComplete?: () => void
 ): () => void {
+    const hasDuration = Number.isFinite(duration) && duration > 0;
     let startTime: number | null = null;
     let animationId: number;
 
     const animate = (timestamp: number): void => {
         startTime ??= timestamp;
         const elapsed = timestamp - startTime;
-        const progress = Math.min(elapsed / duration, 1);
+        const progress = hasDuration ? Math.min(elapsed / duration, 1) : 1;
         const easedProgress = easingFunctions[easing](progress);
         const currentValue = start + (end - start) * easedProgress;
 
@@ -149,6 +155,22 @@ export function animateValue(
 // Number Formatting
 // =============================================================================
 
+const formatters = new Map<string, Intl.NumberFormat>();
+
+/** One formatter per option set: constructing `Intl.NumberFormat` costs ~40x a `format()` call and runs per label per change-detection pass. */
+function numberFormatter(locale: string, decimals: number, compact: boolean): Intl.NumberFormat {
+    const key = `${locale}|${decimals}|${compact}`;
+    let formatter = formatters.get(key);
+    if (!formatter) {
+        formatter = new Intl.NumberFormat(locale, {
+            ...(compact && { notation: 'compact' as const }),
+            maximumFractionDigits: decimals,
+        });
+        formatters.set(key, formatter);
+    }
+    return formatter;
+}
+
 export function formatChartValue(
     value: number,
     options?: {
@@ -158,17 +180,21 @@ export function formatChartValue(
     }
 ): string {
     const { compact = false, decimals = 1, locale = 'en-US' } = options ?? {};
+    return numberFormatter(locale, decimals, compact && Math.abs(value) >= 1000).format(value);
+}
 
-    if (compact && Math.abs(value) >= 1000) {
-        return new Intl.NumberFormat(locale, {
-            notation: 'compact',
-            maximumFractionDigits: decimals,
-        }).format(value);
-    }
+/** What a tooltip row shows for a series that has no value at the hovered category. */
+export const MISSING_VALUE_LABEL = '—';
 
-    return new Intl.NumberFormat(locale, {
-        maximumFractionDigits: decimals,
-    }).format(value);
+/**
+ * {@link formatChartValue}, or {@link MISSING_VALUE_LABEL} when there is no
+ * finite value to format: a gap in the line must not read as `NaN` or `0`.
+ */
+export function formatChartValueOrGap(
+    value: number | null | undefined,
+    options?: Parameters<typeof formatChartValue>[1],
+): string {
+    return typeof value === 'number' && Number.isFinite(value) ? formatChartValue(value, options) : MISSING_VALUE_LABEL;
 }
 
 export function formatPercentage(value: number, decimals = 1): string {
@@ -182,41 +208,116 @@ export function formatPercentage(value: number, decimals = 1): string {
 export function sumValues(data: { value: number }[]): number {
     return data.reduce((sum, item) => sum + item.value, 0);
 }
-export function getDataRange(data: { value: number }[]): { min: number; max: number } {
-    if (data.length === 0) return { min: 0, max: 0 };
-    const values = data.map(d => d.value);
-    return {
-        min: Math.min(...values),
-        max: Math.max(...values),
-    };
+
+/**
+ * `[min, max]` of the finite values in one pass, or `undefined` when there is
+ * none. Never spreads into `Math.min/max` (V8 throws a RangeError past ~100k
+ * arguments), so it is safe for any length, and reads a one-shot iterable.
+ * `null`, `undefined`, `NaN` and `±Infinity` are skipped.
+ */
+export function extent(values: Iterable<number | null | undefined>): [min: number, max: number] | undefined {
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const value of values) {
+        if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+        if (value < min) min = value;
+        if (value > max) max = value;
+    }
+    return min <= max ? [min, max] : undefined;
 }
 
+/** `{ min, max }` of the finite `value`s, or `{ 0, 0 }` when there is none. */
+export function getDataRange(data: { value: number }[]): { min: number; max: number } {
+    const [min, max] = extent(data.map(d => d.value)) ?? [0, 0];
+    return { min, max };
+}
+
+const DEFAULT_TICK_COUNT = 5;
+const MAX_TICK_COUNT = 50;
+const MIN_ROUNDABLE_STEP = 2 ** -1000;
+
+/**
+ * Floors a requested tick count and clamps it to `[1, 50]`, so neither a
+ * fractional, zero, negative nor astronomically large count can unbound the
+ * tick list. `NaN` falls back to the default of 5.
+ */
+export function clampTickCount(count: number): number {
+    if (Number.isNaN(count)) return DEFAULT_TICK_COUNT;
+    return Math.min(MAX_TICK_COUNT, Math.max(1, Math.floor(count)));
+}
+
+/**
+ * The 1, 2 or 5 × 10ⁿ step nearest above `roughStep`. Built by parsing
+ * `"<m>e<n>"` because `Math.pow(10, n)` carries float error for negative `n`
+ * (e.g. 10⁻⁷), which would leak into every tick.
+ */
+function niceStep(roughStep: number): number {
+    const exponent = Math.floor(Math.log10(roughStep));
+    const residual = roughStep / Number(`1e${exponent}`);
+    if (residual <= 1.5) return Number(`1e${exponent}`);
+    if (residual <= 3) return Number(`2e${exponent}`);
+    if (residual <= 7) return Number(`5e${exponent}`);
+    return Number(`1e${exponent + 1}`);
+}
+
+/** `index · step` rounded to the step's decimal precision, so `2.3` never reads `2.3000000000000003`. */
+function tickAt(index: number, step: number): number {
+    const decimals = Math.max(0, -Math.floor(Math.log10(step)));
+    const raw = index * step;
+    // `toFixed` throws above 100 digits; steps that small are left unrounded.
+    return decimals >= 1 && decimals <= 100 ? Number(raw.toFixed(decimals)) : raw;
+}
+
+/** Index of the last step multiple at or below `min` (float division can be off by one either way). */
+function firstTickIndex(min: number, step: number): number {
+    const index = Math.floor(min / step);
+    if (tickAt(index, step) > min) return index - 1;
+    if (tickAt(index + 1, step) <= min) return index + 1;
+    return index;
+}
+
+/** Index of the first step multiple at or above `max`. */
+function lastTickIndex(max: number, step: number): number {
+    const index = Math.ceil(max / step);
+    if (tickAt(index, step) < max) return index + 1;
+    if (tickAt(index - 1, step) >= max) return index - 1;
+    return index;
+}
+
+/**
+ * Ascending axis ticks at exact multiples of a 1/2/5×10ⁿ step, each rounded to
+ * the step's precision: the first is ≤ `min`, the last ≥ `max`, and there are
+ * at most `2·count + 3` of them. `targetCount` is floored and clamped to
+ * `[1, 50]`; a domain straddling zero treats a count of 1 as 2, because its 0
+ * tick forces two intervals (with one there is no stable nice domain).
+ *
+ * Returns `[]` when either bound is non-finite or `max <= min`, and
+ * `[min, max]` when the step would fall below the float resolution of the
+ * bounds (or below 2⁻¹⁰⁰⁰, so a domain like `[0, 1e-303]` is not ticked), or
+ * the span, the step or an end tick overflows.
+ */
 export function calculateAxisTicks(
     min: number,
     max: number,
-    targetCount = 5
+    targetCount = DEFAULT_TICK_COUNT
 ): number[] {
-    const range = max - min;
-    const roughStep = range / targetCount;
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return [];
+    const count = clampTickCount(targetCount);
+    const intervals = min < 0 && max > 0 ? Math.max(2, count) : count;
+    // An overflowing span makes the step NaN, so the step guard covers it too.
+    const step = niceStep((max - min) / intervals);
+    // Floored well above the subnormal range (2⁻¹⁰²²): subnormals have fewer
+    // significant bits than EPSILON assumes, so steps there cannot be rounded
+    // reliably; 2⁻¹⁰⁰⁰ leaves headroom for the tick products near the floor.
+    const resolution = Math.max(Math.max(Math.abs(min), Math.abs(max)) * Number.EPSILON * 8, MIN_ROUNDABLE_STEP);
+    if (!Number.isFinite(step) || step <= resolution) return [min, max];
 
-    const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
-    const residual = roughStep / magnitude;
-
-    let niceStep: number;
-    if (residual <= 1.5) niceStep = 1 * magnitude;
-    else if (residual <= 3) niceStep = 2 * magnitude;
-    else if (residual <= 7) niceStep = 5 * magnitude;
-    else niceStep = 10 * magnitude;
-
-    const niceMin = Math.floor(min / niceStep) * niceStep;
-    const niceMax = Math.ceil(max / niceStep) * niceStep;
-
-    const ticks: number[] = [];
-    for (let tick = niceMin; tick <= niceMax; tick += niceStep) {
-        ticks.push(tick);
-    }
-
-    return ticks;
+    // No count cap is needed here: the step is at least span / (1.5·intervals),
+    // so the ticks span fewer than 1.5·intervals + 2 steps — within 2·count + 3.
+    const first = firstTickIndex(min, step);
+    const last = lastTickIndex(max, step);
+    if (!Number.isFinite(tickAt(first, step)) || !Number.isFinite(tickAt(last, step))) return [min, max];
+    return Array.from({ length: last - first + 1 }, (_, k) => tickAt(first + k, step));
 }
 
 // =============================================================================

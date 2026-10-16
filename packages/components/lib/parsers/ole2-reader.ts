@@ -1,3 +1,5 @@
+import { DEFAULT_PARSER_LIMITS, type ParserLimits } from './limits';
+
 export interface Ole2DirectoryEntry {
     readonly name: string;
     readonly type: number;
@@ -26,6 +28,15 @@ const OLE2_MAGIC = new Uint8Array([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE
 const END_OF_CHAIN = 0xFFFFFFFE;
 const FREE_SECTOR = 0xFFFFFFFF;
 const MAX_CHAIN_LENGTH = 1_000_000;
+/** The only sector sizes the format defines: 2^9 and 2^12 bytes. */
+const SECTOR_SIZE_POWERS: ReadonlySet<number> = new Set([9, 12]);
+/**
+ * Bytes a parse may copy out of the container, as a multiple of its size. Every
+ * sector belongs to one chain, so a well-formed file is copied about once
+ * (twice with its mini streams); the rest is headroom for repeated reads of
+ * chains that share sectors, which only a malformed file has.
+ */
+const COPY_BUDGET_FACTOR = 4;
 
 function readU16(data: Uint8Array, offset: number): number {
     return data[offset] | (data[offset + 1] << 8);
@@ -51,6 +62,9 @@ function parseOle2Header(data: Uint8Array): Ole2Header {
 
     const sectorSizePower = readU16(data, 30);
     const miniSectorSizePower = readU16(data, 32);
+    if (!SECTOR_SIZE_POWERS.has(sectorSizePower)) {
+        throw new Error('OLE2: unsupported sector size');
+    }
 
     return {
         sectorSize: 1 << sectorSizePower,
@@ -71,7 +85,8 @@ function sectorOffset(sectorIndex: number, sectorSize: number): number {
 
 function buildDifat(data: Uint8Array, header: Ole2Header): Uint32Array {
     const entriesPerSector = header.sectorSize / 4;
-    const totalEntries = header.fatSectors;
+    // The header's count is a claim: the file cannot hold more FAT sectors than sectors.
+    const totalEntries = Math.min(header.fatSectors, Math.floor((data.length - 512) / header.sectorSize));
     const difat = new Uint32Array(totalEntries);
 
     const headerEntries = Math.min(totalEntries, 109);
@@ -138,24 +153,22 @@ function buildFat(data: Uint8Array, header: Ole2Header, difat: Uint32Array): Uin
     return fat;
 }
 
-function readSectorChain(
-    data: Uint8Array,
-    sectorSize: number,
-    fat: Uint32Array,
-    startSector: number,
-): Uint8Array {
+/**
+ * The sectors of the chain starting at `startSector`, at most `maxSectors`
+ * long. A chain cannot hold more sectors than the file does, so a longer one is
+ * a loop and is cut there.
+ */
+function walkChain(fat: Uint32Array, startSector: number, maxSectors: number): number[] {
     const sectors: number[] = [];
     let current = startSector;
-    let chainLength = 0;
-
-    while (current !== END_OF_CHAIN && current !== FREE_SECTOR && current < fat.length) {
-        if (chainLength++ > MAX_CHAIN_LENGTH) {
-            throw new Error('OLE2: sector chain too long');
-        }
+    while (current !== END_OF_CHAIN && current !== FREE_SECTOR && current < fat.length && sectors.length < maxSectors) {
         sectors.push(current);
         current = fat[current];
     }
+    return sectors;
+}
 
+function readSectorChain(data: Uint8Array, sectorSize: number, sectors: ReadonlyArray<number>): Uint8Array {
     const result = new Uint8Array(sectors.length * sectorSize);
     for (let i = 0; i < sectors.length; i++) {
         const offset = sectorOffset(sectors[i], sectorSize);
@@ -166,6 +179,48 @@ function readSectorChain(
     }
 
     return result;
+}
+
+/**
+ * Chain reads for one container. A chain is read once and shared between every
+ * entry that starts on it, and all copies together stay within a multiple of
+ * the container's size — without that, directory entries that point at one long
+ * chain each copy all of it.
+ */
+class SectorChains {
+    private readonly cache = new Map<number, Uint8Array>();
+    private readonly maxSectors: number;
+    private budget: number;
+
+    constructor(
+        private readonly data: Uint8Array,
+        private readonly sectorSize: number,
+        private readonly fat: Uint32Array,
+        limits: ParserLimits,
+    ) {
+        const fileSectors = Math.ceil((data.length - 512) / sectorSize);
+        this.maxSectors = Math.min(fileSectors, Math.ceil(limits.maxOle2StreamBytes / sectorSize));
+        this.budget = COPY_BUDGET_FACTOR * data.length;
+    }
+
+    /** The chain from `startSector`; empty when the copy budget is spent. */
+    read(startSector: number): Uint8Array {
+        const cached = this.cache.get(startSector);
+        if (cached) return cached;
+        const sectors = walkChain(this.fat, startSector, this.maxSectors);
+        const chain = this.spend(sectors.length * this.sectorSize)
+            ? readSectorChain(this.data, this.sectorSize, sectors)
+            : new Uint8Array(0);
+        this.cache.set(startSector, chain);
+        return chain;
+    }
+
+    /** Charges `bytes` against the copy budget; false when they do not fit. */
+    spend(bytes: number): boolean {
+        if (bytes > this.budget) return false;
+        this.budget -= bytes;
+        return true;
+    }
 }
 
 function decodeEntryName(entryData: Uint8Array, nameLen: number): string {
@@ -211,17 +266,12 @@ function parseDirectoryEntries(dirData: Uint8Array): Ole2DirectoryEntry[] {
     return entries;
 }
 
-function buildMiniFat(
-    data: Uint8Array,
-    sectorSize: number,
-    fat: Uint32Array,
-    miniFatStart: number,
-): Uint32Array {
+function buildMiniFat(chains: SectorChains, miniFatStart: number): Uint32Array {
     if (miniFatStart === END_OF_CHAIN || miniFatStart === FREE_SECTOR) {
         return new Uint32Array(0);
     }
 
-    const miniFatData = readSectorChain(data, sectorSize, fat, miniFatStart);
+    const miniFatData = chains.read(miniFatStart);
     const entryCount = Math.floor(miniFatData.length / 4);
     const miniFat = new Uint32Array(entryCount);
 
@@ -268,46 +318,38 @@ function readMiniStreamData(
     return result;
 }
 
-function readRegularStream(
-    data: Uint8Array,
-    sectorSize: number,
-    fat: Uint32Array,
-    startSector: number,
-    size: number,
-): Uint8Array {
-    const chainData = readSectorChain(data, sectorSize, fat, startSector);
+function readRegularStream(chains: SectorChains, startSector: number, size: number): Uint8Array {
+    const chainData = chains.read(startSector);
     return chainData.subarray(0, Math.min(size, chainData.length));
 }
 
 function readStreamBytes(
-    data: Uint8Array,
+    chains: SectorChains,
     header: Ole2Header,
-    fat: Uint32Array,
     miniFat: Uint32Array,
     miniStream: Uint8Array,
     entry: Ole2DirectoryEntry,
 ): Uint8Array {
-    if (entry.size === 0) {
+    const size = entry.size;
+    if (size === 0) {
         return new Uint8Array(0);
     }
 
-    if (entry.size < header.miniStreamCutoff && miniFat.length > 0) {
-        return readMiniStreamData(miniStream, miniFat, header.miniSectorSize, entry.startSector, entry.size);
+    if (size < header.miniStreamCutoff && miniFat.length > 0) {
+        // The copy is sized by what the mini stream can supply, not by the claim.
+        const copied = Math.min(size, miniStream.length);
+        if (!chains.spend(copied)) return new Uint8Array(0);
+        return readMiniStreamData(miniStream, miniFat, header.miniSectorSize, entry.startSector, copied);
     }
 
-    return readRegularStream(data, header.sectorSize, fat, entry.startSector, entry.size);
+    return readRegularStream(chains, entry.startSector, size);
 }
 
-function buildMiniStream(
-    data: Uint8Array,
-    header: Ole2Header,
-    fat: Uint32Array,
-    rootEntry: Ole2DirectoryEntry,
-): Uint8Array {
+function buildMiniStream(chains: SectorChains, rootEntry: Ole2DirectoryEntry): Uint8Array {
     if (rootEntry.size === 0) {
         return new Uint8Array(0);
     }
-    return readRegularStream(data, header.sectorSize, fat, rootEntry.startSector, rootEntry.size);
+    return readRegularStream(chains, rootEntry.startSector, rootEntry.size);
 }
 
 function findRootEntry(entries: ReadonlyArray<Ole2DirectoryEntry>): Ole2DirectoryEntry | undefined {
@@ -315,9 +357,8 @@ function findRootEntry(entries: ReadonlyArray<Ole2DirectoryEntry>): Ole2Director
 }
 
 function buildStreamsMap(
-    data: Uint8Array,
+    chains: SectorChains,
     header: Ole2Header,
-    fat: Uint32Array,
     miniFat: Uint32Array,
     miniStream: Uint8Array,
     entries: ReadonlyArray<Ole2DirectoryEntry>,
@@ -328,26 +369,30 @@ function buildStreamsMap(
         if (entry.type !== 2) {
             continue;
         }
-        const streamData = readStreamBytes(data, header, fat, miniFat, miniStream, entry);
+        const streamData = readStreamBytes(chains, header, miniFat, miniStream, entry);
         streams.set(entry.name, streamData);
     }
 
     return streams;
 }
 
-export function readOle2(data: Uint8Array): Ole2File {
+/**
+ * Reads every stream of an OLE2 container. Input is untrusted; a count or size
+ * the header claims beyond what the file holds is clamped to the file.
+ */
+export function readOle2(data: Uint8Array, limits: ParserLimits = DEFAULT_PARSER_LIMITS): Ole2File {
     const header = parseOle2Header(data);
     const difat = buildDifat(data, header);
     const fat = buildFat(data, header, difat);
+    const chains = new SectorChains(data, header.sectorSize, fat, limits);
 
-    const dirData = readSectorChain(data, header.sectorSize, fat, header.firstDirSector);
-    const entries = parseDirectoryEntries(dirData);
+    const entries = parseDirectoryEntries(chains.read(header.firstDirSector));
 
     const rootEntry = findRootEntry(entries);
-    const miniStream = rootEntry ? buildMiniStream(data, header, fat, rootEntry) : new Uint8Array(0);
-    const miniFat = buildMiniFat(data, header.sectorSize, fat, header.firstMiniFatSector);
+    const miniStream = rootEntry ? buildMiniStream(chains, rootEntry) : new Uint8Array(0);
+    const miniFat = buildMiniFat(chains, header.firstMiniFatSector);
 
-    const streams = buildStreamsMap(data, header, fat, miniFat, miniStream, entries);
+    const streams = buildStreamsMap(chains, header, miniFat, miniStream, entries);
 
     return { streams, entries };
 }

@@ -78,7 +78,7 @@ function dispatchTouch(target: EventTarget, type: string, init: PointerEventInit
 
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        requestAnimationFrame(() => resolve()),
     );
 }
 

@@ -987,15 +987,20 @@ describe('DataTableComponent', () => {
         expect(fallback['background-color']).toContain('color-mix');
     });
 
-    it('should debounce filter changes when filterDebounce is set', async () => {
-        fixture.componentRef.setInput('filterDebounce', 100);
-        fixture.detectChanges();
+    it('should debounce filter changes when filterDebounce is set', () => {
+        vi.useFakeTimers();
+        try {
+            fixture.componentRef.setInput('filterDebounce', 100);
+            fixture.detectChanges();
 
-        component.onFilterChange('test');
-        expect(component.globalFilter()).toBe('');
+            component.onFilterChange('test');
+            expect(component.globalFilter()).toBe('');
 
-        await new Promise(resolve => setTimeout(resolve, 150));
-        expect(component.globalFilter()).toBe('test');
+            vi.advanceTimersByTime(150);
+            expect(component.globalFilter()).toBe('test');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('should not debounce filter when filterDebounce is 0', () => {

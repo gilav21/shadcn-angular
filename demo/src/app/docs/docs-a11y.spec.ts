@@ -18,6 +18,7 @@ import { DocsHeaderComponent } from './docs-header.component';
 import { DocsPageComponent } from './docs-page.component';
 import { RecipesComponent, RECIPES_URL } from './recipes.component';
 import { ThemePlaygroundComponent } from './theme-playground.component';
+import { describe, it, expect } from 'vitest';
 
 const TEST_DOCS_URL = '/demo/public/component-docs.json';
 const TEST_RECIPES_URL = '/demo/public/recipes.json';

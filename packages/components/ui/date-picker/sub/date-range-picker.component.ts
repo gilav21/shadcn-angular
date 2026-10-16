@@ -8,10 +8,12 @@ import {
   forwardRef,
   effect,
   ElementRef,
+  inject,
   ViewChild,
   OnDestroy,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { bindOverlayLayer } from '../../../lib/overlay-stack.service';
 import { cn } from '../../../lib/utils';
 import type { TopLayerHandle } from '../../../lib/top-layer';
 import { CalendarComponent, DateRange, TimeRange } from '../../calendar';
@@ -74,6 +76,8 @@ export class DateRangePickerComponent implements ControlValueAccessor, OnDestroy
   private onChange: (value: DateRange) => void = () => { };
   private onTouched: () => void = () => { };
 
+  private readonly el = inject(ElementRef);
+
   @ViewChild('popupEl') popupEl?: ElementRef<HTMLElement>;
   @ViewChild('triggerEl') triggerEl?: ElementRef<HTMLElement>;
 
@@ -82,6 +86,14 @@ export class DateRangePickerComponent implements ControlValueAccessor, OnDestroy
   private topLayer: TopLayerHandle | null = null;
 
   constructor() {
+    // Non-modal layer: the stack gives Escape to the innermost open layer.
+    bindOverlayLayer(() => this.isOpen(), {
+      modal: false,
+      dismiss: () => {
+        this.triggerEl?.nativeElement.focus();
+        this.isOpen.set(false);
+      },
+    });
     effect(() => {
       if (!this.isOpen()) {
         this.releasePopup();
@@ -178,8 +190,8 @@ export class DateRangePickerComponent implements ControlValueAccessor, OnDestroy
    * survives the close and can be finished on reopen.
    */
   onDocumentClick(event: MouseEvent): void {
-    const target = event.target as HTMLElement;
-    if (!target.closest('[data-slot="date-range-picker"]')) {
+    // This picker's own wrapper, not any picker's: a click inside another picker is outside this one.
+    if (!this.el.nativeElement.contains(event.target)) {
       this.isOpen.set(false);
     }
   }
