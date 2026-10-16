@@ -396,13 +396,23 @@ const WHITE: RGB = { r: 255, g: 255, b: 255 };
  * `color-contrast` failure. Deriving the foreground from the background's
  * luminance keeps the caller's colour and makes the text legible on all of them.
  *
- * Falls back to white when `background` cannot be parsed.
+ * A translucent `background` is judged as it is seen: composited over
+ * `backdrop` (assumed opaque; its own alpha is ignored). The backdrop defaults
+ * to white and falls back to it when unparseable.
+ *
+ * Falls back to white text when `background` cannot be parsed.
  */
-export function readableForeground(background: string): '#000000' | '#ffffff' {
+export function readableForeground(background: string, backdrop = '#ffffff'): '#000000' | '#ffffff' {
     const bg = parseColor(background);
     if (!bg) return '#ffffff';
-    const rgb: RGB = { r: bg.r, g: bg.g, b: bg.b };
-    return contrastRatio(rgb, BLACK) >= contrastRatio(rgb, WHITE) ? '#000000' : '#ffffff';
+    const seen = compositeOver(bg, parseColor(backdrop) ?? WHITE);
+    return contrastRatio(seen, BLACK) >= contrastRatio(seen, WHITE) ? '#000000' : '#ffffff';
+}
+
+/** Unrounded so a near-tie contrast decision is not flipped by 8-bit rounding. */
+function compositeOver(fg: RGBA, backdrop: RGB): RGB {
+    const over = (f: number, b: number): number => f * fg.a + b * (1 - fg.a);
+    return { r: over(fg.r, backdrop.r), g: over(fg.g, backdrop.g), b: over(fg.b, backdrop.b) };
 }
 
 function rotateHue(c: RGBA, deltaDeg: number): RGBA {
