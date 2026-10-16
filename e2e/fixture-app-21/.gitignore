@@ -41,4 +41,9 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
-package-lock.json
+
+# package-lock.json is deliberately tracked: a fresh `npm install` of the
+# unpinned ^21.2.0 tree crashes inside npm ("Cannot read properties of null
+# (reading 'edgesOut')", #loadPeerSet) since @angular/ssr 22.2.3 was published
+# on 2026-10-15. The lock pins the tree resolved on 2026-10-12.
+!package-lock.json
