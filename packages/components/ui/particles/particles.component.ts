@@ -28,6 +28,7 @@ interface Particle {
         '[style.position]': '"absolute"',
         '[style.inset]': '"0"',
         '[style.display]': '"block"',
+        '[class]': 'class()',
         '[attr.data-slot]': '"particles"',
     },
 })
@@ -44,6 +45,8 @@ export class ParticlesComponent implements OnInit, OnDestroy {
      * the existing particles to the new size instead of reseeding them.
      */
     count = input(50);
+    /** Extra classes for the host layer (absolutely positioned over its parent) — e.g. `opacity-60` or a `z-*` to stack it. */
+    readonly class = input('');
     /**
      * Colour of both dots and connecting lines. `'currentColor'` (the default)
      * and any `var(...)` expression are resolved once against the host's

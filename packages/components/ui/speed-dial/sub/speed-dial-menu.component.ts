@@ -119,8 +119,8 @@ export class SpeedDialMenuComponent {
             const directionClasses: Record<string, string> = {
                 up: 'flex flex-col-reverse gap-2',
                 down: 'flex flex-col gap-2',
-                left: 'flex flex-row-reverse gap-2',
-                right: 'flex flex-row gap-2',
+                left: 'flex flex-row-reverse gap-2 max-w-[calc(100vw-2rem)]',
+                right: 'flex flex-row gap-2 max-w-[calc(100vw-2rem)]',
             };
 
             const layoutClass = type === 'linear'
@@ -133,8 +133,8 @@ export class SpeedDialMenuComponent {
             const directionClasses: Record<string, string> = {
                 up: 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex flex-col-reverse gap-2',
                 down: 'absolute top-full left-1/2 -translate-x-1/2 mt-2 flex flex-col gap-2',
-                left: 'absolute right-full top-1/2 -translate-y-1/2 mr-2 flex flex-row-reverse gap-2',
-                right: 'absolute left-full top-1/2 -translate-y-1/2 ml-2 flex flex-row gap-2',
+                left: 'absolute right-full top-1/2 -translate-y-1/2 mr-2 flex flex-row-reverse gap-2 max-w-[calc(100vw-2rem)]',
+                right: 'absolute left-full top-1/2 -translate-y-1/2 ml-2 flex flex-row gap-2 max-w-[calc(100vw-2rem)]',
             };
             return cn(directionClasses[direction] || directionClasses['up'], pointerClass, this.class());
         }

@@ -6,8 +6,10 @@ import {
     computed,
     signal,
     inject,
+    input,
     viewChild,
 } from '@angular/core';
+import { cn } from '../../../lib/utils';
 import { CollapsibleComponent } from '../collapsible.component';
 
 /** What counts as a control the user can already reach and operate on its own. */
@@ -58,11 +60,13 @@ export class CollapsibleTriggerComponent implements AfterViewInit {
     readonly isOpen = computed(() => this.collapsible?.open() ?? false);
     readonly isDisabled = computed(() => this.collapsible?.disabled() ?? false);
 
-    readonly classes = computed(() =>
-        this.ownsFocus()
-            ? 'cursor-pointer select-none outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 rounded-sm'
-            : '',
-    );
+    /** Extra classes merged onto the trigger wrapper, after the built-in focus and cursor styling. */
+    readonly class = input('');
+
+    readonly classes = computed(() => cn(
+        this.ownsFocus() && 'cursor-pointer select-none outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 rounded-sm',
+        this.class(),
+    ));
 
     /**
      * Read after the view is up, not at `ngAfterContentInit`: a projected

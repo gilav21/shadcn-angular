@@ -24,11 +24,16 @@ const meta: Meta<MeteorsComponent> = {
             control: 'color',
             description: 'Meteor color (any CSS color).',
         },
+        class: {
+            control: 'text',
+            description: 'Extra classes for the host layer, e.g. `opacity-60`.',
+        },
     },
     args: {
         count: 20,
         speed: 'medium',
         color: 'white',
+        class: '',
     },
 };
 
@@ -37,7 +42,7 @@ type Story = StoryObj<MeteorsComponent>;
 
 const TEMPLATE = `
     <div class="relative h-96 w-full rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center">
-        <ui-meteors [count]="count" [speed]="speed" [color]="color" />
+        <ui-meteors [count]="count" [speed]="speed" [color]="color" [class]="class" />
         <div class="relative z-10 text-center">
             <h2 class="text-3xl font-bold text-white">Meteor Shower</h2>
             <p class="text-slate-400 mt-2">Animated background effect</p>

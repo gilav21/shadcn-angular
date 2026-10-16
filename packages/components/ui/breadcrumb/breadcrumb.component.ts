@@ -21,6 +21,7 @@ export interface BreadcrumbItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nav
+      [class]="class()"
       [attr.aria-label]="t().breadcrumb"
       [attr.data-slot]="'breadcrumb'"
       [attr.dir]="dir()">
@@ -30,6 +31,8 @@ export interface BreadcrumbItem {
   host: { class: 'contents' },
 })
 export class BreadcrumbComponent {
+  /** Extra classes for the `<nav>` landmark — e.g. `mb-4` for spacing below the trail. */
+  readonly class = input('');
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
   readonly locale = input<LocaleInput<BreadcrumbLocale>>();
   private readonly i18n = createLocaleBindings(this.locale, BREADCRUMB_LOCALES);

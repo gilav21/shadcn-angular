@@ -31,8 +31,10 @@ const meta: Meta<VirtualScrollComponent<ListItem>> = {
         buffer: { control: 'number', description: 'Extra rows rendered above/below the viewport to reduce blank flashes while scrolling.' },
         loading: { control: 'boolean', description: 'Shows the loading template/footer and suppresses scrollEnd emission.' },
         hasMore: { control: 'boolean', description: 'Whether more items can be loaded — gates the scrollEnd emission near the bottom.' },
+        class: { control: 'text', description: 'Extra classes merged onto the scrolling viewport, e.g. `rounded-lg`.' },
     },
     args: {
+        class: '',
         items: generateItems(1000),
         minItemHeight: 60,
         buffer: 5,
@@ -46,7 +48,7 @@ type Story = StoryObj<VirtualScrollComponent<ListItem>>;
 
 const TEMPLATE = `
     <div class="h-[350px] sm:h-[400px] w-full max-w-[500px] border rounded-lg">
-        <ui-virtual-scroll [items]="items" [minItemHeight]="minItemHeight" [buffer]="buffer" [loading]="loading" [hasMore]="hasMore">
+        <ui-virtual-scroll [items]="items" [minItemHeight]="minItemHeight" [buffer]="buffer" [loading]="loading" [hasMore]="hasMore" [class]="class">
             <ng-template uiVirtualItem let-item let-index="index">
                 <div class="flex items-center gap-3 px-4 py-3 border-b hover:bg-muted/50 transition-colors">
                     <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">

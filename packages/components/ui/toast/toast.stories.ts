@@ -11,7 +11,7 @@ import { Component, inject, input } from '@angular/core';
     imports: [ButtonComponent, ToasterComponent],
     template: `
     <div class="flex flex-col gap-4">
-      <ui-toaster [vertical]="vertical()" [horizontal]="horizontal()" />
+      <ui-toaster [vertical]="vertical()" [horizontal]="horizontal()" [class]="class()" />
       <div class="flex gap-2 flex-wrap">
         <ui-button (click)="showDefault()">Default</ui-button>
         <ui-button variant="destructive" (click)="showDestructive()">Destructive</ui-button>
@@ -38,6 +38,7 @@ class ToastStoryWrapperComponent {
 
     vertical = input<'top' | 'center' | 'bottom'>('bottom');
     horizontal = input<'start' | 'center' | 'end'>('end');
+    class = input('');
 
     showDefault() {
         this.toastService.toast({
@@ -118,7 +119,7 @@ class ToastStoryWrapperComponent {
     }
 }
 
-const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: string }> = {
+const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: string; class: string }> = {
     title: 'UI/Toast',
     component: ToastStoryWrapperComponent,
     tags: ['autodocs'],
@@ -138,11 +139,16 @@ const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: st
             control: 'select',
             options: ['start', 'center', 'end'],
             description: 'Horizontal position of toasts',
-        }
+        },
+        class: {
+            control: 'text',
+            description: 'Extra classes merged onto the fixed toast stack, e.g. `bottom-24` to clear a footer bar.',
+        },
     },
     args: {
         vertical: 'bottom',
         horizontal: 'end',
+        class: '',
     },
 };
 
@@ -151,7 +157,7 @@ type Story = StoryObj<ToastStoryWrapperComponent>;
 
 const render: NonNullable<Story['render']> = (args) => ({
     props: args,
-    template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
+    template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [class]="class"></toast-story-wrapper>`,
 });
 
 /** Interactive playground — trigger buttons drive the ToastService; position is wired to the Controls panel. */

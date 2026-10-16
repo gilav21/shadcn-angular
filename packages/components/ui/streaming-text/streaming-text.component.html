@@ -1,4 +1,4 @@
-<span [class]="classes()">{{ displayedText() }}</span>
+<span [class]="classes()" [attr.data-slot]="'streaming-text'">{{ displayedText() }}</span>
 @if (showCursor() && isTyping()) {
     <span class="animate-pulse font-bold ms-0.5">|</span>
 }

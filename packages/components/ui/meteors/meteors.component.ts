@@ -34,6 +34,7 @@ interface Meteor {
         '[style.inset]': '"0"',
         '[style.display]': '"block"',
         '[style.pointerEvents]': '"none"',
+        '[class]': 'class()',
         '[attr.data-slot]': '"meteors"',
     },
 })
@@ -48,6 +49,8 @@ export class MeteorsComponent implements OnInit, OnDestroy {
      * a total. Read once during init — changing it later has no effect.
      */
     count = input(20);
+    /** Extra classes for the host layer (absolutely positioned over its parent) — e.g. `opacity-60` or a `z-*` to stack it. */
+    readonly class = input('');
     /**
      * Velocity multiplier applied at spawn time: `'slow'` = 0.5x,
      * `'medium'` = 1x, `'fast'` = 2x. Only affects meteors created after the

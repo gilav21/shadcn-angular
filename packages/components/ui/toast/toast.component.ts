@@ -7,6 +7,7 @@ import {
   signal,
   Injectable,
 } from '@angular/core';
+import { cn } from '../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -349,7 +350,10 @@ export class ToastComponent {
   protected readonly t = this.i18n.t;
   protected readonly dir = this.i18n.dir;
 
-  readonly classes = computed(() => toastVariants({ variant: this.variant() }));
+  /** Extra classes merged onto the toast box, after the variant styles — so a `bg-*` or `border-*` here wins. */
+  readonly class = input('');
+
+  readonly classes = computed(() => cn(toastVariants({ variant: this.variant() }), this.class()));
 
   readonly role = computed(() =>
     this.variant() === 'destructive' ? 'alert' : 'status'

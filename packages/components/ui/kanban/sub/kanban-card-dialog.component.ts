@@ -37,7 +37,7 @@ const LABEL_PRESETS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#
     ],
     template: `
         <ui-dialog [(open)]="dialogOpen">
-            <ui-dialog-content>
+            <ui-dialog-content [class]="class()">
                 <ui-dialog-header>
                     <ui-dialog-title>{{ mode() === 'add' ? locale().addCard : locale().editCard }}</ui-dialog-title>
                 </ui-dialog-header>
@@ -130,8 +130,8 @@ const LABEL_PRESETS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#
     host: { class: 'contents' },
 })
 export class KanbanCardDialogComponent {
-    /** Accepted for API symmetry with the other kanban parts; the dialog renders its own overlay and does not apply this to any element. */
-    class = input('');
+    /** Extra classes merged onto the dialog panel (`ui-dialog-content`), e.g. a width utility. */
+    readonly class = input('');
     /** Locale dictionary for every string in the dialog. The board passes its resolved locale down automatically. */
     locale = input<KanbanLocale>(KANBAN_LOCALES['en']);
     /** Shows the label chip editor plus its preset colour swatches. */

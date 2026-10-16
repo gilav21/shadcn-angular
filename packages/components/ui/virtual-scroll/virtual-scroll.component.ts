@@ -196,12 +196,16 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     this.isGrid() ? Math.ceil(this.totalItems() / this.gridColumns()) : this.totalItems()
   );
 
+  /** Extra classes merged onto the scrolling viewport, after the built-in sizing — give it a bounded height (`h-96`) or the list has nothing to scroll within. */
+  readonly class = input('');
+
   containerClasses = computed(() => {
-    const base = 'relative h-full w-full contain-strict';
-    const axis = this.orientation();
-    if (axis === 'horizontal') return cn(`overflow-x-auto overflow-y-hidden ${base}`, 'will-change-scroll');
-    if (axis === 'both') return cn(`overflow-auto ${base}`, 'will-change-scroll');
-    return cn(`overflow-y-auto overflow-x-hidden ${base}`, 'will-change-scroll');
+    const overflow: Record<VirtualScrollOrientation, string> = {
+      horizontal: 'overflow-x-auto overflow-y-hidden',
+      both: 'overflow-auto',
+      vertical: 'overflow-y-auto overflow-x-hidden',
+    };
+    return cn(overflow[this.orientation()], 'relative h-full w-full contain-strict', 'will-change-scroll', this.class());
   });
 
   loadingClasses = computed(() =>

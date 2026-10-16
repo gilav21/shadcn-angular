@@ -31,6 +31,9 @@ export class ToasterComponent {
    */
   horizontal = input<'start' | 'center' | 'end'>('end');
 
+  /** Extra classes merged onto the fixed stack, after the placement classes — e.g. `bottom-24` to clear a footer bar. */
+  readonly class = input('');
+
   containerClasses = computed(() => {
     const v = this.vertical();
     const h = this.horizontal();
@@ -50,7 +53,8 @@ export class ToasterComponent {
     return cn(
       'fixed z-[100] flex flex-col gap-2 p-4 w-full max-w-[calc(100vw-2rem)] sm:max-w-[420px]',
       verticalClasses[v],
-      horizontalClasses[h]
+      horizontalClasses[h],
+      this.class(),
     );
   });
 }
