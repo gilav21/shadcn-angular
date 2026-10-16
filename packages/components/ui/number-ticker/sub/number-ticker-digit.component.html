@@ -1,4 +1,4 @@
-<div class="relative inline-block overflow-hidden h-[1em] w-[0.6em] align-top">
+<div [class]="classes()">
   @if (isDigit()) {
     <div data-slot="number-ticker-digit-column" class="flex flex-col will-change-transform">
       <span class="h-[1em] flex items-center justify-center">{{ prevDigit() }}</span>

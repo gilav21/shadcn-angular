@@ -2,7 +2,7 @@
 import {
     Directive,
     ElementRef,
-    Input,
+    input,
     OnDestroy,
     inject,
     AfterViewInit,
@@ -13,19 +13,18 @@ import { InputComponent } from './input';
 
 @Directive({
     selector: '[uiInputMask]',
-    standalone: true
 })
 export class InputMaskDirective implements AfterViewInit, OnDestroy {
     /** The mask pattern, where `9` accepts a digit, `a` a letter and `*` either — for example `(999) 999-9999`. */
-    @Input('uiInputMask') mask: string = '';
+    readonly mask = input('', { alias: 'uiInputMask' });
     /** Placeholder character shown for a slot that has not been filled yet. */
-    @Input() slotChar: string = '_';
+    readonly slotChar = input('_');
     /**
      * Keep the whole mask visible while typing, rather than revealing it as it fills:
      * every unfilled slot shows {@link slotChar} and every literal is kept, so
      * `(000) 000-0000` with `123` typed reads `(123) ___-____`.
      */
-    @Input() showMaskTyped: boolean = false;
+    readonly showMaskTyped = input(false);
 
     private readonly el = inject(ElementRef);
     private readonly renderer = inject(Renderer2);
@@ -141,8 +140,8 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         let rawIndex = 0;
         let maskIndex = 0;
 
-        while (maskIndex < this.mask.length) {
-            const maskChar = this.mask[maskIndex];
+        while (maskIndex < this.mask().length) {
+            const maskChar = this.mask()[maskIndex];
             const matcher = this.definitions[maskChar];
 
             if (!matcher) {
@@ -177,12 +176,12 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
 
     /** Whether unfilled slots render as {@link slotChar} (with the literals after them) instead of ending the value. */
     private fillsEmptySlots(): boolean {
-        return this.showMaskTyped && this.slotChar !== '';
+        return this.showMaskTyped() && this.slotChar() !== '';
     }
 
     private applyMaskChar(matcher: RegExp, rawValue: string, rawIndex: number): { char: string; rawIndex: number; advanceMask: boolean; done: boolean } {
         if (rawIndex >= rawValue.length) {
-            const slotFill = this.fillsEmptySlots() ? this.slotChar : '';
+            const slotFill = this.fillsEmptySlots() ? this.slotChar() : '';
             return { char: slotFill, rawIndex, advanceMask: true, done: true };
         }
 
@@ -255,7 +254,7 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
 
     private getLiterals(): Set<string> {
         const literals = new Set<string>();
-        for (const char of this.mask) {
+        for (const char of this.mask()) {
             if (!this.definitions[char]) {
                 literals.add(char);
             }
