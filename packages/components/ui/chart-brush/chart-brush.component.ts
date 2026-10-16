@@ -21,6 +21,8 @@ export interface BrushSelection {
 
 type BrushMode = 'idle' | 'create' | 'move' | 'resize-start' | 'resize-end';
 
+const WINDOW_UP_EVENTS = ['mouseup', 'touchend', 'touchcancel'] as const;
+
 /**
  * Controlled zoom/pan/brush overlay for dense cartesian charts. Works in
  * pixel space along the x-axis; the host chart maps pixels↔domain via a scale.
@@ -33,10 +35,6 @@ type BrushMode = 'idle' | 'create' | 'move' | 'resize-start' | 'resize-end';
     templateUrl: './chart-brush.component.html',
     host: {
         class: 'block',
-        '(window:mousemove)': 'onWindowMove($event)',
-        '(window:mouseup)': 'onWindowUp()',
-        '(window:touchend)': 'onWindowUp()',
-        '(window:touchcancel)': 'onWindowUp()',
     },
 })
 export class ChartBrushComponent {
@@ -82,10 +80,11 @@ export class ChartBrushComponent {
     private moveOrigin: BrushSelection = { start: 0, end: 0 };
     private createAnchor = 0;
     private readonly _window = inject(DOCUMENT).defaultView;
-    private readonly _onTouchMove = (evt: TouchEvent): void => this.onWindowMove(evt);
+    private readonly _onMove = (evt: MouseEvent | TouchEvent): void => this.onWindowMove(evt);
+    private readonly _onUp = (): void => this.onWindowUp();
 
     constructor() {
-        inject(DestroyRef).onDestroy(() => this.stopTouchTracking());
+        inject(DestroyRef).onDestroy(() => this.stopWindowTracking());
     }
 
     readonly classes = computed(() => cn('block w-full select-none', this.class()));
@@ -126,6 +125,7 @@ export class ChartBrushComponent {
      */
     beginCreate(x: number): void {
         this.mode = 'create';
+        this.startWindowTracking();
         this.createAnchor = this.clamp(x);
         this._internal.set({ start: this.createAnchor, end: this.createAnchor });
     }
@@ -140,6 +140,7 @@ export class ChartBrushComponent {
         const sel = this.current();
         if (!sel) return;
         this.mode = 'move';
+        this.startWindowTracking();
         this.moveAnchor = x;
         this.moveOrigin = { ...sel };
         this._internal.set({ ...sel });
@@ -156,6 +157,7 @@ export class ChartBrushComponent {
         const sel = this.current();
         if (!sel) return;
         this.mode = edge === 'start' ? 'resize-start' : 'resize-end';
+        this.startWindowTracking();
         const seeded = edge === 'start'
             ? { start: this.clamp(x), end: sel.end }
             : { start: sel.start, end: this.clamp(x) };
@@ -203,6 +205,7 @@ export class ChartBrushComponent {
         const sel = this._internal();
         if (sel) this._internal.set(this.normalize(sel));
         this.mode = 'idle';
+        this.stopWindowTracking();
         this.emitNormalized();
     }
 
@@ -215,24 +218,35 @@ export class ChartBrushComponent {
      */
     reset(): void {
         this.mode = 'idle';
+        this.stopWindowTracking();
         this._internal.set(null);
         this.selectionChange.emit(null);
     }
 
     /**
-     * A touch drag listens for `touchmove` on the window itself, non-passive,
-     * and only for the length of the gesture. A host `(window:touchmove)`
-     * binding is registered passive by Chromium, so its `preventDefault()` could
-     * not stop the page scrolling; and a permanent non-passive window listener
-     * would make every touch scroll on the page wait on the main thread.
+     * Window-level pointer listeners exist only while a gesture is in progress.
+     * A host `(window:…)` binding would live as long as the component and mark
+     * its view dirty on every pointer event anywhere on the page, so an idle
+     * brush would cost a change-detection pass per mouse move. `touchmove` is
+     * registered non-passive here, which a host binding cannot do (Chromium
+     * makes those passive), so its `preventDefault()` can stop the page
+     * scrolling mid-drag — and a permanent non-passive listener would make
+     * every touch scroll on the page wait on the main thread.
      */
-    private startTouchTracking(evt: MouseEvent | TouchEvent): void {
-        if (!('touches' in evt)) return;
-        this._window?.addEventListener('touchmove', this._onTouchMove, { passive: false });
+    private startWindowTracking(): void {
+        const win = this._window;
+        if (!win) return;
+        win.addEventListener('mousemove', this._onMove);
+        win.addEventListener('touchmove', this._onMove, { passive: false });
+        for (const type of WINDOW_UP_EVENTS) win.addEventListener(type, this._onUp);
     }
 
-    private stopTouchTracking(): void {
-        this._window?.removeEventListener('touchmove', this._onTouchMove);
+    private stopWindowTracking(): void {
+        const win = this._window;
+        if (!win) return;
+        win.removeEventListener('mousemove', this._onMove);
+        win.removeEventListener('touchmove', this._onMove);
+        for (const type of WINDOW_UP_EVENTS) win.removeEventListener(type, this._onUp);
     }
 
     private localX(evt: MouseEvent | TouchEvent): number {
@@ -248,7 +262,6 @@ export class ChartBrushComponent {
      */
     onCreateDown(evt: MouseEvent | TouchEvent): void {
         evt.preventDefault();
-        this.startTouchTracking(evt);
         this.beginCreate(this.localX(evt));
     }
 
@@ -260,7 +273,6 @@ export class ChartBrushComponent {
     onMoveDown(evt: MouseEvent | TouchEvent): void {
         evt.preventDefault();
         evt.stopPropagation();
-        this.startTouchTracking(evt);
         this.beginMove(this.localX(evt));
     }
 
@@ -272,7 +284,6 @@ export class ChartBrushComponent {
     onResizeDown(evt: MouseEvent | TouchEvent, edge: 'start' | 'end'): void {
         evt.preventDefault();
         evt.stopPropagation();
-        this.startTouchTracking(evt);
         this.beginResize(edge, this.localX(evt));
     }
 
@@ -291,7 +302,6 @@ export class ChartBrushComponent {
 
     /** Window-level `mouseup`/`touchend` handler; finishes any active drag via {@link end}, wherever the pointer was released. */
     onWindowUp(): void {
-        this.stopTouchTracking();
         this.end();
     }
 }
