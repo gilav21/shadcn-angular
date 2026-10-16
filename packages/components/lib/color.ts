@@ -244,6 +244,16 @@ function roundTo(v: number, places: number): number {
 }
 
 export function rgbToHsl(c: RGB): HSL {
+    const exact = rgbToHslExact(c);
+    return { h: Math.round(exact.h), s: Math.round(exact.s), l: Math.round(exact.l) };
+}
+
+/**
+ * {@link rgbToHsl} without rounding (h in degrees, s and l in percent), for
+ * callers that interpolate: rounding to whole degrees first would add up to
+ * half a degree of hue error at each endpoint.
+ */
+export function rgbToHslExact(c: RGB): HSL {
     const r = c.r / 255;
     const g = c.g / 255;
     const b = c.b / 255;
@@ -257,7 +267,7 @@ export function rgbToHsl(c: RGB): HSL {
         s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
         h = hueFromMaxChannel(r, g, b, max, d);
     }
-    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+    return { h: h * 360, s: s * 100, l: l * 100 };
 }
 
 function hueFromMaxChannel(r: number, g: number, b: number, max: number, d: number): number {

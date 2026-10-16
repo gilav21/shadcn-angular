@@ -13,7 +13,7 @@ import { cn } from '../../lib/utils';
 import { observeChartWidth } from '../../lib/chart-responsive';
 import { HeatmapCell, ChartDirection } from '../../lib/chart.types';
 import { formatChartValue, extent } from '../../lib/chart.utils';
-import { sequentialColorScale } from '../../lib/chart-scale';
+import { sequentialColorScale } from '../../lib/chart-color-scale';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
 
 interface PlacedCell {
@@ -79,13 +79,14 @@ export class HeatmapComponent {
      */
     readonly minCellSize = input(18);
     /**
-     * Colour of the lowest value in {@link valueDomain}. Must be an
-     * `hsl(h, s%, l%)` string — {@link sequentialColorScale} parses and
-     * interpolates the H/S/L channels, so hex/rgb/`var(--…)` values will not
-     * interpolate.
+     * Colour of the lowest value in {@link valueDomain}. Any CSS colour
+     * `parseColor` accepts (hex, `rgb()`, `hsl()`, `oklch()`, a basic named
+     * colour) — {@link sequentialColorScale} interpolates its H/S/L channels
+     * along the shorter hue arc. `var(--…)` and other unresolved values cannot
+     * be interpolated: the nearer endpoint is shown instead.
      */
     readonly fromColor = input('hsl(214, 95%, 93%)');
-    /** Colour of the highest value in {@link valueDomain}; same `hsl(...)` requirement as {@link fromColor}. */
+    /** Colour of the highest value in {@link valueDomain}; accepts the same formats as {@link fromColor}. */
     readonly toColor = input('hsl(221, 83%, 40%)');
     /**
      * Print each cell's raw `value` in the middle of the cell. Unlike the
