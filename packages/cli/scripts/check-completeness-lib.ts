@@ -387,6 +387,19 @@ export interface ConventionSource {
 const CLASS_INPUT_DECLARATION = /\bclass\s*=\s*input\b/;
 const CLASS_INPUT_READ = /\bclass\(\)/;
 const HTML_COMMENT = /<!--[\s\S]*?-->/g;
+
+/**
+ * Removing a match can splice its neighbours into a new one (`<!<!-- a -->-- x -->` leaves
+ * `<!-- x -->`), so a single pass is not enough: repeat until no opener is left to find.
+ */
+function stripUntilStable(text: string, pattern: RegExp): string {
+    let current = text;
+    for (let previous = ''; previous !== current; ) {
+        previous = current;
+        current = current.replaceAll(pattern, '');
+    }
+    return current;
+}
 /** An opening tag that is a real element — `ng-content`, `ng-container` and `ng-template` render none. */
 const ELEMENT_TAG = /(?<![\w)\]])<(?!\/|ng-content\b|ng-container\b|ng-template\b)[a-z][\w-]*/i;
 /** The attribute, bound (`[attr.data-slot]`) or plain — not a `[data-slot="…"]` selector that merely mentions it. */
@@ -450,7 +463,7 @@ function componentsIn(source: ConventionSource): ComponentInfo[] {
         return {
             source,
             parent: declaration?.[2] ?? null,
-            template: (decoratorProperty(body, 'template') || source.html || '').replaceAll(HTML_COMMENT, ''),
+            template: stripUntilStable(decoratorProperty(body, 'template') || source.html || '', HTML_COMMENT),
             host: decoratorProperty(body, 'host'),
         };
     });
@@ -490,7 +503,7 @@ function classInputProblem(component: ComponentInfo, lineage: readonly Conventio
 }
 
 /** Source with block and line comments removed, so a JSDoc example is not mistaken for the attribute. */
-const withoutComments = (text: string): string => text.replaceAll(/\/\*[\s\S]*?\*\/|<!--[\s\S]*?-->|^[ \t]*\/\/.*$/gm, '');
+const withoutComments = (text: string): string => stripUntilStable(text, /\/\*[\s\S]*?\*\/|<!--[\s\S]*?-->|^[ \t]*\/\/.*$/gm);
 
 const hasDataSlot = (source: ConventionSource): boolean =>
     DATA_SLOT_ATTRIBUTE.test(withoutComments(source.ts)) || DATA_SLOT_ATTRIBUTE.test(withoutComments(source.html ?? ''));

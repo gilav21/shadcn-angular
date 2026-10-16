@@ -543,6 +543,12 @@ describe('findConventionIssues', () => {
         expect(findConventionIssues([{ ...documented, ts }]).map(i => i.artifact)).toEqual(['data-slot']);
     });
 
+    it('does not take a data-slot inside a comment that only forms once an inner comment is removed', () => {
+        const documented = component('popover/popover.component.ts', { slot: false });
+        const html = '<!<!-- note -->-- <ui-popover-trigger data-slot="popover-trigger"> -->';
+        expect(findConventionIssues([{ ...documented, html }]).map(i => i.artifact)).toEqual(['data-slot']);
+    });
+
     it('takes the slot from the sibling .html when the template is external', () => {
         const external = component('data-table/data-table.component.ts', { slot: false });
         const ts = external.ts.replace(/template: `[^`]*`/, "templateUrl: './x.html'");
