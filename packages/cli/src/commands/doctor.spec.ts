@@ -139,7 +139,7 @@ function makeReport(partial: Partial<DoctorReport>): DoctorReport {
   return {
     missingFiles: [], modified: [], userEdited: [], updateAvailable: [],
     legacy: [], missingNpmDeps: [], libStale: [], libMissing: [], libUserEdited: [],
-    stale: [], ok: false, ...partial,
+    unchecked: [], stale: [], ok: false, ...partial,
   };
 }
 

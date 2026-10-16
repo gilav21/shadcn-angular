@@ -389,6 +389,7 @@ describe('runMigration', () => {
     vi.mocked(detectConflicts).mockResolvedValue({
       toInstall: [], toSkip: [], conflicting: [],
       peerFilesToUpdate: new Set<string>(), contentCache: new Map<string, string>(),
+      unchecked: [],
     });
   });
 
@@ -551,6 +552,7 @@ describe('migrateCore (executing path)', () => {
     vi.mocked(detectConflicts).mockResolvedValue({
       toInstall: [], toSkip: [], conflicting: [],
       peerFilesToUpdate: new Set<string>(), contentCache: new Map<string, string>(),
+      unchecked: [],
     });
     pristine.value = true;
   });

@@ -120,7 +120,7 @@ const doctorReport = (ok: boolean): DoctorReport => ({
   missingFiles: ok ? [] : ['button'],
   modified: [], userEdited: [], updateAvailable: [], legacy: [],
   missingNpmDeps: [], libStale: [], libMissing: [], libUserEdited: [],
-  stale: [], ok,
+  unchecked: [], stale: [], ok,
 });
 
 const fixPlan = (): DoctorFixPlan => ({
@@ -710,7 +710,7 @@ describe('an install that did not complete', () => {
     name: 'button', file: 'button/button.component.ts', reason: 'Could not reach the registry: fetch failed',
   };
 
-  const arrange: Record<string, (extra: Partial<InstallResult>) => void> = {
+  const arrange: Record<string, (extra: Partial<Pick<InstallResult, 'failures' | 'unchecked'>>) => void> = {
     add_component: extra => vi.mocked(performInstall).mockResolvedValue(installResult(emptyMergeReport(), extra)),
     update_component: extra => vi.mocked(performInstall).mockResolvedValue(installResult(emptyMergeReport(), extra)),
     apply_addon: extra => vi.mocked(applyCore).mockResolvedValue(applyResult(emptyMergeReport(), extra)),

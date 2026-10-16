@@ -43,7 +43,7 @@ async function repo(files: Record<string, string>): Promise<string> {
 
 describe('getPackageManager', () => {
     // The first row is the reported bug: `npx` always sets the user agent to npm.
-    it.each([
+    it.each<{ name: string; files: Record<string, string>; agent: string | undefined; cwd: string; expected: string }>([
         { name: 'pnpm lockfile beats the npx user agent', files: { 'pnpm-lock.yaml': '' }, agent: NPX_AGENT, cwd: '', expected: 'pnpm' },
         { name: 'yarn.lock', files: { 'yarn.lock': '' }, agent: NPX_AGENT, cwd: '', expected: 'yarn' },
         { name: 'bun.lock (text, Bun 1.2+)', files: { 'bun.lock': '' }, agent: NPX_AGENT, cwd: '', expected: 'bun' },

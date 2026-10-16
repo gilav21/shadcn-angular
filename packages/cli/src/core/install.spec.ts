@@ -298,6 +298,7 @@ describe('performInstall', () => {
         conflicting: [],
         peerFilesToUpdate: new Set(),
         contentCache: new Map(),
+        unchecked: [],
       },
     });
 
