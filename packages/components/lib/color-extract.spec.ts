@@ -66,6 +66,7 @@ describe('quantizePixels — median-cut', () => {
             { count: 3, algorithm: 'median-cut' },
         );
         expect(palette).toHaveLength(3);
+        rgbClose(palette[0], sky, 0); // most populous first
         rgbClose(nearest(palette, red), red, 0);
         rgbClose(nearest(palette, darkRed), darkRed, 0);
     });

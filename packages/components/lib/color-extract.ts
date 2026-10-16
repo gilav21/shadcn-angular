@@ -185,43 +185,55 @@ function vboxVolume(box: VBox): number {
     return (box.rMax - box.rMin + 1) * (box.gMax - box.gMin + 1) * (box.bMax - box.bMin + 1);
 }
 
+/**
+ * Splits along the longest axis at the median pixel (Heckbert), so both halves
+ * hold about as many pixels. Pixels of one value stay together, so the cut
+ * moves to the nearest change of value; null when the box is a single colour.
+ */
 function splitVBox(box: VBox): [VBox, VBox] | null {
     if (box.pixels.length < 2) return null;
     const axis = vboxLongestAxis(box);
-    const [min, max] = axisRange(box, axis);
-    if (max === min) return null;
-    const midValue = (min + max) / 2;
-    const left: RGBA[] = [];
-    const right: RGBA[] = [];
-    for (const p of box.pixels) {
-        if (p[axis] <= midValue) left.push(p);
-        else right.push(p);
-    }
-    if (left.length === 0 || right.length === 0) return null;
-    return [makeVBox(left), makeVBox(right)];
+    const sorted = [...box.pixels].sort((a, b) => a[axis] - b[axis]);
+    const cut = nearestValueChange(sorted, axis, sorted.length >> 1);
+    if (cut === null) return null;
+    return [makeVBox(sorted.slice(0, cut)), makeVBox(sorted.slice(cut))];
 }
 
-function axisRange(box: VBox, axis: 'r' | 'g' | 'b'): [number, number] {
-    if (axis === 'r') return [box.rMin, box.rMax];
-    if (axis === 'g') return [box.gMin, box.gMax];
-    return [box.bMin, box.bMax];
+/** Index `i` closest to `target` with `sorted[i]` and `sorted[i - 1]` differing on `axis`, or null. */
+function nearestValueChange(sorted: readonly RGBA[], axis: 'r' | 'g' | 'b', target: number): number | null {
+    const changesAt = (i: number): boolean => i >= 1 && i < sorted.length && sorted[i][axis] !== sorted[i - 1][axis];
+    for (let distance = 0; distance < sorted.length; distance++) {
+        if (changesAt(target - distance)) return target - distance;
+        if (changesAt(target + distance)) return target + distance;
+    }
+    return null;
 }
 
 function medianCutPalette(pixels: RGBA[], count: number): RGBA[] {
     if (count <= 1) return [averageColor(pixels)];
-    const boxes: VBox[] = [makeVBox(pixels)];
-    while (boxes.length < count) {
-        boxes.sort((a, b) => vboxVolume(b) * b.pixels.length - vboxVolume(a) * a.pixels.length);
-        const target = boxes.shift();
-        if (!target) break;
+    const splittable: VBox[] = [makeVBox(pixels)];
+    const single: VBox[] = [];
+    while (splittable.length + single.length < count && splittable.length > 0) {
+        splittable.sort((a, b) => vboxVolume(b) * b.pixels.length - vboxVolume(a) * a.pixels.length);
+        const [target] = splittable.splice(0, 1);
         const split = splitVBox(target);
-        if (!split) {
-            boxes.push(target);
-            break;
+        if (split) {
+            splittable.push(...split);
+        } else {
+            // A single flat colour must not stop the boxes that can still split.
+            single.push(target);
         }
-        boxes.push(split[0], split[1]);
     }
-    return boxes.map(b => averageColor(b.pixels));
+    return [...splittable, ...single].sort(byDominance).map(b => averageColor(b.pixels));
+}
+
+/**
+ * Most pixels first, so the palette's first colour is the dominant one; equal
+ * populations fall back to the box's channel minimums so the order never
+ * depends on the order the splits happened in.
+ */
+function byDominance(a: VBox, b: VBox): number {
+    return b.pixels.length - a.pixels.length || a.rMin - b.rMin || a.gMin - b.gMin || a.bMin - b.bMin;
 }
 
 function averageColor(pixels: RGBA[]): RGBA {
