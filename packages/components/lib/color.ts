@@ -91,8 +91,13 @@ function parseHex(input: string): RGBA | null {
     return null;
 }
 
+/**
+ * `scale` is the value 100% stands for. CSS Color 4 `none` is a missing
+ * component, which converts as 0.
+ */
 function parseChannel(s: string, scale: number): number {
     const t = s.trim();
+    if (t === 'none') return 0;
     if (t.endsWith('%')) {
         return (Number.parseFloat(t) / 100) * scale;
     }
@@ -112,14 +117,40 @@ function parseRgbFunc(input: string): RGBA | null {
     return { r: clamp255(r), g: clamp255(g), b: clamp255(b), a: clamp01(a) };
 }
 
+const DEGREES_PER_ANGLE_UNIT: Record<string, number> = {
+    deg: 1,
+    grad: 0.9,
+    rad: 180 / Math.PI,
+    turn: 360,
+};
+
+/**
+ * Chroma that 100% stands for in CSS Color 4's `oklch()`; the other
+ * percentage references are 100 for `hsl()` s/l and 1 for lightness/alpha.
+ */
+const OKLCH_CHROMA_AT_100_PERCENT = 0.4;
+
+/**
+ * A CSS `<hue>` in degrees: a bare number (degrees), a number with a
+ * `deg` / `grad` / `rad` / `turn` unit, or `none`. NaN when it is none of those.
+ */
+function parseHue(token: string): number {
+    if (token === 'none') return 0;
+    // 'grad' is tried before its suffix 'rad'.
+    const unit = Object.keys(DEGREES_PER_ANGLE_UNIT).find(u => token.endsWith(u));
+    const digits = unit ? token.slice(0, -unit.length) : token;
+    if (!/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/.test(digits)) return Number.NaN;
+    return Number(digits) * DEGREES_PER_ANGLE_UNIT[unit ?? 'deg'];
+}
+
 function parseHslFunc(input: string): RGBA | null {
     const m = /^hsla?\(([^)]+)\)$/i.exec(input.trim());
     if (!m) return null;
     const parts = m[1].split(/[\s,/]+/).filter(Boolean);
     if (parts.length < 3) return null;
-    const h = Number.parseFloat(parts[0]);
-    const s = Number.parseFloat(parts[1]);
-    const l = Number.parseFloat(parts[2]);
+    const h = parseHue(parts[0]);
+    const s = parseChannel(parts[1], 100);
+    const l = parseChannel(parts[2], 100);
     const a = parts.length >= 4 ? parseChannel(parts[3], 1) : 1;
     if ([h, s, l, a].some(Number.isNaN)) return null;
     const rgb = hslToRgb({ h, s, l });
@@ -131,10 +162,9 @@ function parseOklchFunc(input: string): RGBA | null {
     if (!m) return null;
     const parts = m[1].split(/[\s,/]+/).filter(Boolean);
     if (parts.length < 3) return null;
-    const lStr = parts[0];
-    const l = lStr.endsWith('%') ? Number.parseFloat(lStr) / 100 : Number.parseFloat(lStr);
-    const c = Number.parseFloat(parts[1]);
-    const h = Number.parseFloat(parts[2]);
+    const l = parseChannel(parts[0], 1);
+    const c = Math.max(0, parseChannel(parts[1], OKLCH_CHROMA_AT_100_PERCENT));
+    const h = parseHue(parts[2]);
     const a = parts.length >= 4 ? parseChannel(parts[3], 1) : 1;
     if ([l, c, h, a].some(Number.isNaN)) return null;
     const rgb = oklchToRgb({ l, c, h });
