@@ -108,7 +108,7 @@ describe('findIssues', () => {
 });
 
 describe('partitionIssues', () => {
-    const allowlist: Allowlist = { story: {}, demo: {}, e2e: { kanban: exempt('legacy backlog') } };
+    const allowlist: Allowlist = { ...emptyAllowlist(), e2e: { kanban: exempt('legacy backlog') } };
 
     it('silences an allowlisted issue and fails an un-allowlisted one', () => {
         const issues = findIssues([
@@ -135,14 +135,14 @@ describe('partitionIssues', () => {
 
 describe('staleExemptions', () => {
     it('flags an exemption whose artifact now exists', () => {
-        const allowlist: Allowlist = { story: {}, demo: {}, e2e: { kanban: exempt('backlog') } };
+        const allowlist: Allowlist = { ...emptyAllowlist(), e2e: { kanban: exempt('backlog') } };
         const issues = findIssues([facts({ name: 'kanban' })]); // now fully covered
         expect(staleExemptions(issues, allowlist))
             .toEqual([{ component: 'kanban', artifact: 'e2e', kind: 'missing' }]);
     });
 
     it('keeps an exemption that is still needed', () => {
-        const allowlist: Allowlist = { story: {}, demo: {}, e2e: { kanban: exempt('backlog') } };
+        const allowlist: Allowlist = { ...emptyAllowlist(), e2e: { kanban: exempt('backlog') } };
         const issues = findIssues([facts({ name: 'kanban', e2eCovered: false })]);
         expect(staleExemptions(issues, allowlist)).toEqual([]);
     });
@@ -190,6 +190,17 @@ describe('seedAllowlist / allowlistSize / parseAllowlist', () => {
         expect(allowlistSize(parsed)).toBe(1);
     });
 
+    it('round-trips the convention sections, keyed by file path', () => {
+        const file = 'dialog/sub/dialog-title.component.ts';
+        const seeded = seedAllowlist(findConventionIssues([component(file, { classInput: 'none', slot: false })]), 'debt');
+        expect(Object.keys(seeded['class-input'])).toEqual([file]);
+        expect(Object.keys(seeded['data-slot'])).toEqual([file]);
+
+        const parsed = parseAllowlist(serializeAllowlist(seeded));
+        expect(parsed).toEqual(seeded);
+        expect(allowlistSize(parsed)).toBe(2);
+    });
+
     it('round-trips an orphan-kind exemption through the committed JSON form', () => {
         const seeded = seedAllowlist(findIssues([facts({ name: 'tour', demoRouted: false })]), 'debt');
         expect(seeded.demo['tour']).toEqual({ reason: 'debt', kind: 'orphan' });
@@ -208,9 +219,8 @@ describe('seedAllowlist / allowlistSize / parseAllowlist', () => {
 // regression ships silenced.
 describe('exemptions are kind-scoped', () => {
     const grandfathered: Allowlist = {
-        story: {},
+        ...emptyAllowlist(),
         demo: { tour: exempt('grandfathered: no demo page', 'missing') },
-        e2e: {},
     };
 
     it('does NOT silence an orphan demo page for a component exempted for a MISSING one', () => {
@@ -459,21 +469,31 @@ function component(file: string, o: FixtureComponent = {}): ConventionSource {
     const template = o.template ?? `<div [class]="classes()"${slot ? ' data-slot="x"' : ''}><ng-content /></div>`;
     const classInput = o.classInput ?? 'applied';
     const extendsClause = o.extendsClass ? ' extends ' + o.extendsClass : '';
-    const body = [
-        classInput === 'none' ? '' : "readonly class = input('');",
-        classInput === 'applied' ? "readonly classes = computed(() => cn('p-2', this.class()));" : '',
-    ].join('\n');
+    // An element-less template has nowhere to carry the slot, so it rides on the host.
+    const hostSlot = slot && (o.hostBinding || o.template !== undefined);
+    const hostEntries = [
+        o.hostBinding ? "'[class]': 'classes()'" : "class: '" + (o.host ?? 'contents') + "'",
+        ...(hostSlot ? ["'[attr.data-slot]': '\"x\"'"] : []),
+    ];
     const ts = [
         '@Component({',
         "  selector: 'ui-x',",
-        o.hostBinding ? "  host: { '[class]': 'classes()', '[attr.data-slot]': '\"x\"' }," : `  host: { class: '${o.host ?? 'contents'}' },`,
+        '  host: { ' + hostEntries.join(', ') + ' },',
         `  template: \`${template}\`,`,
         '})',
         `export class ${name}${extendsClause} {`,
-        body,
+        ...classInputMembers(classInput),
         '}',
     ].join('\n');
     return { path: file, ts, html: null };
+}
+
+function classInputMembers(classInput: NonNullable<FixtureComponent['classInput']>): string[] {
+    if (classInput === 'none') return [];
+    const declaration = "readonly class = input('');";
+    return classInput === 'applied'
+        ? [declaration, "readonly classes = computed(() => cn('p-2', this.class()));"]
+        : [declaration];
 }
 
 describe('findConventionIssues', () => {
@@ -537,6 +557,21 @@ describe('findConventionIssues — zero-box components', () => {
         const issues = findConventionIssues([trigger]);
         expect(issues.map(i => i.artifact)).toEqual(['class-input']);
         expect(issues[0].detail).toContain('zero-box');
+    });
+
+    it('recognises a zero-box component however the host and template are written', () => {
+        const bound = component('tabs/sub/tabs-list.component.ts', {
+            template: '@for (i = 0; i<items.length; i++) { <ng-content /> }',
+            classInput: 'none',
+        });
+        const hostBound = { ...bound, ts: bound.ts.replace("class: 'contents'", "'[class]': '\"contents\"'") };
+        expect(findConventionIssues([hostBound])).toEqual([]);
+    });
+
+    it('does not take a [data-slot] selector mentioned in code for the component\'s own attribute', () => {
+        const queries = component('emoji/emoji.component.ts', { slot: false });
+        const ts = queries.ts + "\nconst panel = root.querySelector('[data-slot=\"emoji-content\"]');";
+        expect(findConventionIssues([{ ...queries, ts }]).map(i => i.artifact)).toEqual(['data-slot']);
     });
 
     it('still needs a class input when the projection-only host is a box of its own', () => {

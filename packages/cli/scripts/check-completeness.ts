@@ -43,6 +43,7 @@ import {
     componentsCoveredByE2e,
     demoModuleFor,
     emptyAllowlist,
+    findConventionIssues,
     findIssues,
     parseAllowlist,
     partitionIssues,
@@ -267,7 +268,8 @@ function reportSummary(issues: readonly Issue[]): void {
     console.log(
         `  missing stories: ${counts.get('story')} | ` +
         `missing/orphan demo routes: ${counts.get('demo')} | ` +
-        `missing e2e coverage: ${counts.get('e2e')}`,
+        `missing e2e coverage: ${counts.get('e2e')} | ` +
+        `class-input: ${counts.get('class-input')} | data-slot: ${counts.get('data-slot')}`,
     );
 }
 
@@ -323,14 +325,16 @@ function main(): void {
     const seed = process.argv.includes('--seed');
 
     const entries = parseRegistrySource(readFileSync(REGISTRY_PATH, 'utf-8')).filter(isComponentEntry);
-    const issues = findIssues(collectFacts(entries));
+    const artifactIssues = findIssues(collectFacts(entries));
+    const issues = [...artifactIssues, ...findConventionIssues(readConventionSources(UI_ROOT))];
 
-    console.log(`Checking ${entries.length} components for story / demo route / e2e coverage...\n`);
+    console.log(`Checking ${entries.length} components for story / demo route / e2e coverage and class / data-slot conventions...\n`);
     console.log('True backlog (ignoring the allowlist):');
     reportSummary(issues);
 
     if (seed) {
-        writeAllowlist(seedAllowlist(issues, SEED_REASON));
+        // Conventions are fixed in source, never grandfathered by a seed.
+        writeAllowlist(seedAllowlist(artifactIssues, SEED_REASON));
         return;
     }
 

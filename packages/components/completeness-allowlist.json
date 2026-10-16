@@ -1,7 +1,9 @@
 {
   "_comment": [
     "Exemptions for the completeness gate (packages/cli/scripts/check-completeness.ts).",
-    "Shape: { \"<artifact>\": { \"<component>\": \"<reason>\" } }, artifact = story | demo | e2e.",
+    "Shape: { \"<artifact>\": { \"<key>\": \"<reason>\" } }, artifact = story | demo | e2e | class-input | data-slot.",
+    "story / demo / e2e are keyed by registry component name; class-input / data-slot are keyed by the",
+    "component file's path relative to packages/components/ui (e.g. \"dialog/sub/dialog-title.component.ts\").",
     "",
     "THIS FILE IS DELIBERATELY EMPTY. It was seeded in July 2026 with 137 grandfathered",
     "entries (6 missing stories, 51 missing/orphan demo routes, 80 components with no e2e",
@@ -14,5 +16,7 @@
   ],
   "story": {},
   "demo": {},
-  "e2e": {}
+  "e2e": {},
+  "class-input": {},
+  "data-slot": {}
 }
