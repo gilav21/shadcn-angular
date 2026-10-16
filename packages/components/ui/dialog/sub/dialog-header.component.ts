@@ -1,7 +1,10 @@
 import {
     Component,
     ChangeDetectionStrategy,
+    computed,
+    input,
 } from '@angular/core';
+import { cn } from '../../../lib/utils';
 
 @Component({
     selector: 'ui-dialog-header',
@@ -9,8 +12,12 @@ import {
     template: `<ng-content />`,
     styleUrl: './dialog-header.component.css',
     host: {
-        class: 'flex flex-col text-center sm:text-left',
+        '[class]': 'classes()',
         '[attr.data-slot]': '"dialog-header"',
     },
 })
-export class DialogHeaderComponent { }
+export class DialogHeaderComponent {
+    /** Extra classes merged onto the element this component renders, after its built-in styling. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('flex flex-col text-center sm:text-left', this.class()));
+}

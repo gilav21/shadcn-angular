@@ -10,9 +10,11 @@ import {
     effect,
     model,
     DestroyRef,
+    computed,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { bindOverlayLayer } from '../../lib/overlay-stack.service';
+import { cn } from '../../lib/utils';
 export type PopoverSide = 'top' | 'right' | 'bottom' | 'left';
 export type PopoverAlign = 'start' | 'center' | 'end';
 
@@ -23,9 +25,14 @@ export const POPOVER = new InjectionToken<PopoverComponent>('POPOVER');
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [{ provide: POPOVER, useExisting: forwardRef(() => PopoverComponent) }],
     template: `<ng-content />`,
-    host: { class: 'relative inline-block' },
+    // Static, not bound: a template `data-slot` (tree-select sets its own on this host) must win.
+    host: { '[class]': 'classes()', 'data-slot': 'popover' },
 })
 export class PopoverComponent implements OnDestroy {
+    /** Extra classes merged onto the element this component renders, after its built-in styling. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('relative inline-block', this.class()));
+
     private readonly el = inject(ElementRef);
     private readonly document = inject(DOCUMENT);
     private readonly destroyRef = inject(DestroyRef);
@@ -152,5 +159,4 @@ export class PopoverComponent implements OnDestroy {
         return this.el.nativeElement.querySelector('[data-slot="popover-trigger"]');
     }
 }
-
 

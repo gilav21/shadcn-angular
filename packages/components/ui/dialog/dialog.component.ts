@@ -14,7 +14,7 @@ export const DIALOG = new InjectionToken<DialogComponent>('DIALOG');
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [{ provide: DIALOG, useExisting: forwardRef(() => DialogComponent) }],
     template: `<ng-content />`,
-    host: { class: 'contents' },
+    host: { class: 'contents', '[attr.data-slot]': '"dialog"' },
 })
 export class DialogComponent {
     /**

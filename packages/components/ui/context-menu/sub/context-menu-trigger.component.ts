@@ -6,9 +6,12 @@ import {
     OnDestroy,
     AfterViewInit,
     ViewChild,
+    computed,
+    input,
 } from '@angular/core';
 import { onLongPress } from '../../../lib/touch';
 import { CONTEXT_MENU } from '../context-menu.component';
+import { cn } from '../../../lib/utils';
 
 @Component({
     selector: 'ui-context-menu-trigger',
@@ -16,7 +19,7 @@ import { CONTEXT_MENU } from '../context-menu.component';
     template: `
     <span
         #triggerSpan
-        class="contents"
+        [class]="classes()"
         (contextmenu)="onContextMenu($event)"
         [attr.data-slot]="'context-menu-trigger'"
     >
@@ -26,6 +29,10 @@ import { CONTEXT_MENU } from '../context-menu.component';
     host: { class: 'contents' },
 })
 export class ContextMenuTriggerComponent implements AfterViewInit, OnDestroy {
+    /** Extra classes merged onto the element this component renders, after its built-in styling. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('contents', this.class()));
+
     private readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
 
     @ViewChild('triggerSpan', { static: true }) private readonly triggerSpan!: ElementRef<HTMLElement>;

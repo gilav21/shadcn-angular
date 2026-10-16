@@ -5,9 +5,12 @@ import {
     InjectionToken,
     forwardRef,
     OnDestroy,
+    computed,
+    input,
 } from '@angular/core';
 import type { ContextMenuSubTriggerComponent } from './context-menu-sub-trigger.component';
 import type { ContextMenuSubContentComponent } from './context-menu-sub-content.component';
+import { cn } from '../../../lib/utils';
 
 export const CONTEXT_MENU_SUB = new InjectionToken<ContextMenuSubComponent>('CONTEXT_MENU_SUB');
 
@@ -17,11 +20,15 @@ export const CONTEXT_MENU_SUB = new InjectionToken<ContextMenuSubComponent>('CON
     providers: [{ provide: CONTEXT_MENU_SUB, useExisting: forwardRef(() => ContextMenuSubComponent) }],
     template: `<ng-content />`,
     host: {
-        class: 'relative block w-full',
+        '[class]': 'classes()',
         '[attr.data-slot]': '"context-menu-sub"',
     },
 })
 export class ContextMenuSubComponent implements OnDestroy {
+    /** Extra classes merged onto the element this component renders, after its built-in styling. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('relative block w-full', this.class()));
+
     isOpen = signal(false);
     private timeoutId: ReturnType<typeof setTimeout> | undefined;
 

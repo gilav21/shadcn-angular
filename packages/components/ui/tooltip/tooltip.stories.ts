@@ -36,8 +36,13 @@ const meta: Meta<TooltipComponent> = {
       control: 'number',
       description: 'Milliseconds of hover before the tooltip opens.',
     },
+    class: {
+      control: 'text',
+      description: 'Extra classes merged onto the host, after `relative inline-block`.',
+    },
   },
   args: {
+    class: '',
     content: '',
     side: 'top',
     delayDuration: 200,
@@ -48,7 +53,7 @@ export default meta;
 type Story = StoryObj<TooltipComponent>;
 
 const TEMPLATE = `
-      <ui-tooltip [content]="content" [side]="side" [delayDuration]="delayDuration">
+      <ui-tooltip [content]="content" [side]="side" [delayDuration]="delayDuration" [class]="class">
         <ui-tooltip-trigger>
           <ui-button variant="outline">Hover me</ui-button>
         </ui-tooltip-trigger>

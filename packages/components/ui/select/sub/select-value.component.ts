@@ -53,9 +53,13 @@ export class SelectValueComponent {
         return stringifyValue(val);
     });
 
+    /** Extra classes merged onto the value text, after the truncating default. */
+    readonly class = input('');
+
     hostClasses = computed(() =>
         cn(
-            'flex-1 truncate ltr:text-left rtl:text-right'
+            'flex-1 truncate ltr:text-left rtl:text-right',
+            this.class(),
         )
     );
 }

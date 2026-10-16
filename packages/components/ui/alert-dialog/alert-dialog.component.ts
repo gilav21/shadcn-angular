@@ -14,7 +14,7 @@ export const ALERT_DIALOG = new InjectionToken<AlertDialogComponent>('ALERT_DIAL
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [{ provide: ALERT_DIALOG, useExisting: forwardRef(() => AlertDialogComponent) }],
     template: `<ng-content />`,
-    host: { class: 'contents' },
+    host: { class: 'contents', '[attr.data-slot]': '"alert-dialog"' },
 })
 export class AlertDialogComponent {
     /**

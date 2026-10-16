@@ -5,8 +5,10 @@ import {
     signal,
     InjectionToken,
     forwardRef,
+    computed,
 } from '@angular/core';
 import { TooltipContentComponent } from './sub/tooltip-content.component';
+import { cn } from '../../lib/utils';
 
 export const TOUCH_AUTO_DISMISS_MS = 2500;
 
@@ -23,9 +25,13 @@ export const TOOLTIP = new InjectionToken<TooltipComponent>('TOOLTIP');
       <ui-tooltip-content>{{ content() }}</ui-tooltip-content>
     }
   `,
-    host: { class: 'relative inline-block' },
+    host: { '[class]': 'classes()', '[attr.data-slot]': '"tooltip"' },
 })
 export class TooltipComponent {
+    /** Extra classes merged onto the element this component renders, after its built-in styling. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('relative inline-block', this.class()));
+
     open = signal(false);
     /**
      * Simple mode: the tooltip text. When set, a `ui-tooltip-content` is

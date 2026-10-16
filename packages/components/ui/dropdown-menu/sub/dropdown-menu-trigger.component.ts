@@ -6,6 +6,7 @@ import {
     inject,
     signal,
     ViewChild,
+    input,
 } from '@angular/core';
 import { DROPDOWN_MENU, DropdownMenuService } from '../dropdown-menu.component';
 import { hasInteractiveContent } from '../../../lib/a11y';
@@ -15,6 +16,7 @@ import { hasInteractiveContent } from '../../../lib/a11y';
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <span
+      [class]="class()"
       #trigger
       [attr.role]="wrapsInteractive() ? null : 'button'"
       [attr.tabindex]="wrapsInteractive() ? null : 0"
@@ -28,6 +30,9 @@ import { hasInteractiveContent } from '../../../lib/a11y';
     host: { class: 'contents' },
 })
 export class DropdownMenuTriggerComponent {
+    /** Extra classes for the element that wraps the projected trigger. */
+    readonly class = input('');
+
     private readonly menu = inject(DROPDOWN_MENU, { optional: true });
     private readonly service = inject(DropdownMenuService);
     private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);

@@ -537,6 +537,12 @@ describe('findConventionIssues', () => {
         expect(findConventionIssues([withoutInput]).map(i => i.artifact)).toEqual(['class-input']);
     });
 
+    it('does not take a data-slot shown in a doc comment for the attribute', () => {
+        const documented = component('popover/popover.component.ts', { slot: false });
+        const ts = '/**\n * Usage: <ui-popover-trigger data-slot="popover-trigger"> ... </ui-popover-trigger>\n */\n' + documented.ts;
+        expect(findConventionIssues([{ ...documented, ts }]).map(i => i.artifact)).toEqual(['data-slot']);
+    });
+
     it('takes the slot from the sibling .html when the template is external', () => {
         const external = component('data-table/data-table.component.ts', { slot: false });
         const ts = external.ts.replace(/template: `[^`]*`/, "templateUrl: './x.html'");
@@ -566,6 +572,14 @@ describe('findConventionIssues — zero-box components', () => {
         });
         const hostBound = { ...bound, ts: bound.ts.replace("class: 'contents'", "'[class]': '\"contents\"'") };
         expect(findConventionIssues([hostBound])).toEqual([]);
+
+        // A hidden, empty placeholder (input-otp-slot) is painted nowhere: no box, so no class input either.
+        const placeholder = component('input-otp/sub/input-otp-slot.component.ts', { template: '', host: 'hidden', classInput: 'none' });
+        expect(findConventionIssues([placeholder])).toEqual([]);
+
+        // `overflow-hidden` / `md:hidden` are other utilities, not a hidden host.
+        const clipped = component('x/x.component.ts', { template: '', host: 'overflow-hidden md:hidden', classInput: 'none' });
+        expect(findConventionIssues([clipped]).map(i => i.artifact)).toEqual(['class-input']);
     });
 
     it('does not take a [data-slot] selector mentioned in code for the component\'s own attribute', () => {

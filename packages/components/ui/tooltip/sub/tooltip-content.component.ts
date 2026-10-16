@@ -33,7 +33,7 @@ export class TooltipContentComponent {
             right: 'left-full top-1/2 -translate-y-1/2 ml-2',
         };
         return cn(
-            'absolute z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground',
+            'absolute z-50 w-max max-w-[calc(100vw-2rem)] break-words overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground',
             sideClasses[side],
             this.class()
         );

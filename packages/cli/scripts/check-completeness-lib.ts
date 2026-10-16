@@ -457,11 +457,12 @@ function componentsIn(source: ConventionSource): ComponentInfo[] {
 }
 
 /**
- * A `display: contents` host whose template renders no element has no box of its
- * own for a `class` to reach — the consumer styles what it projects instead.
+ * A host that is `display: contents` (the consumer styles what it projects) or `hidden` (an
+ * API-parity placeholder such as `ui-input-otp-slot`, never painted) and whose template
+ * renders no element has no box for a `class` to reach.
  */
 function isZeroBox(component: ComponentInfo): boolean {
-    return /\bcontents\b/.test(component.host) && !ELEMENT_TAG.test(component.template);
+    return /(?<![\w:.-])(?:contents|hidden)(?![\w-])/.test(component.host) && !ELEMENT_TAG.test(component.template);
 }
 
 /** Source files on the inheritance chain above `parent` that exist within the scanned set. */
@@ -488,8 +489,11 @@ function classInputProblem(component: ComponentInfo, lineage: readonly Conventio
     return applied ? null : 'class input is declared but not applied to any element';
 }
 
+/** Source with block and line comments removed, so a JSDoc example is not mistaken for the attribute. */
+const withoutComments = (text: string): string => text.replaceAll(/\/\*[\s\S]*?\*\/|<!--[\s\S]*?-->|^[ \t]*\/\/.*$/gm, '');
+
 const hasDataSlot = (source: ConventionSource): boolean =>
-    DATA_SLOT_ATTRIBUTE.test(source.ts) || DATA_SLOT_ATTRIBUTE.test(source.html ?? '');
+    DATA_SLOT_ATTRIBUTE.test(withoutComments(source.ts)) || DATA_SLOT_ATTRIBUTE.test(withoutComments(source.html ?? ''));
 
 /**
  * Per shipped component file, two conventions from `.claude/CLAUDE.md`:

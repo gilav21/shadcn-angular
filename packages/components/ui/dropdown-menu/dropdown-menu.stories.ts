@@ -55,6 +55,10 @@ const meta: Meta<DropdownMenuStoryProps> = {
             options: ['start', 'center', 'end'],
             description: 'Alignment of the dropdown content relative to the trigger (ui-dropdown-menu-content input).',
         },
+        class: {
+            control: 'text',
+            description: 'Extra classes merged onto the `ui-dropdown-menu` host, after `relative inline-block`.',
+        },
         contentClass: {
             control: 'text',
             description: 'Extra classes merged onto the content container (ui-dropdown-menu-content `class` input).',
@@ -73,6 +77,7 @@ const meta: Meta<DropdownMenuStoryProps> = {
         },
     },
     args: {
+        class: '',
         items: [],
         open: false,
         align: 'start',
@@ -87,7 +92,7 @@ export default meta;
 type Story = StoryObj<DropdownMenuStoryProps>;
 
 const TEMPLATE = `
-    <ui-dropdown-menu [items]="items" [(open)]="open">
+    <ui-dropdown-menu [items]="items" [(open)]="open" [class]="class">
         <ui-dropdown-menu-trigger>
             <ui-button variant="outline">Open Menu</ui-button>
         </ui-dropdown-menu-trigger>
