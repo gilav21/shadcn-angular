@@ -366,3 +366,24 @@ the arrow key pointing toward the other list (mirrored in RTL) selects the
 item's lines in turn, and Delete removes the selected one. Both are pinned by
 `field-mapper.component.spec.ts` (portable) and the RTL case by
 `field-mapper.component.browser.spec.ts`. Scoped to that one file.
+
+## `Web:MouseEventWithoutKeyboardEquivalentCheck` — `<ui-context-menu-item (click)>`
+
+`bento-grid.component.html` binds `(click)` on each `<ui-context-menu-item>`.
+The item is a custom element that handles `keydown.enter` and `keydown.space`
+itself (`activateAsClick` in `lib/menu-activation`), re-dispatching them as a
+`click`, so the template's `(click)` already runs on the keyboard. A
+`(keydown.enter)` beside it would fire every action twice, which is why the
+duplicate handlers were removed. The static HTML scan cannot see through the
+custom tag. The item's keyboard path is pinned by
+`context-menu.component.spec.ts`. Scoped to that one file.
+
+## `typescript:S1874` — chip-list `event.keyCode === 229`
+
+`chip-list.component.ts` reads the deprecated `keyCode` on purpose. Safari fires
+the `keydown` that confirms an IME candidate *after* `compositionend`, with
+`isComposing` already `false`; `keyCode === 229` is the only signal left on that
+event, and no non-deprecated property carries it. Without the check, confirming
+a Japanese or Chinese candidate with Enter would also commit the chip. The
+matching ESLint rule is switched off for that file in `eslint.config.mjs`.
+Scoped to that one file.

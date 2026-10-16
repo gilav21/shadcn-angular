@@ -146,8 +146,8 @@ export class ContextMenuContentComponent implements OnDestroy {
     }
 
     private focusBelongsToMenu(): boolean {
-        const active = this.activeElement();
-        return !active || active.closest('[data-context-menu-portal], [data-context-menu-sub-portal]') !== null;
+        // No focused element (`undefined`) is not outside the menu; only a focused element with no menu ancestor (`null`) is.
+        return this.activeElement()?.closest('[data-context-menu-portal], [data-context-menu-sub-portal]') !== null;
     }
 
     /** The panel's arrow-key ring: its own enabled items, sub-menu triggers included, in DOM order. */

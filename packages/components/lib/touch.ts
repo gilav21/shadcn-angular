@@ -302,7 +302,7 @@ export interface ContextGesture {
 function isTouchContextMenu(event: MouseEvent, touchedRecently: boolean): boolean {
     // jsdom before 22 (jest 29's) has no PointerEvent at all.
     const typed = typeof PointerEvent !== 'undefined' && event instanceof PointerEvent;
-    return typed ? (event as PointerEvent).pointerType === 'touch' : touchedRecently;
+    return typed ? event.pointerType === 'touch' : touchedRecently;
 }
 
 /**
