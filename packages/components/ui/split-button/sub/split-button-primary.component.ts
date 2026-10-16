@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     computed,
     inject,
+    input,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 import { ButtonComponent } from '../../button';
@@ -15,6 +16,7 @@ import { SPLIT_BUTTON } from '../split-button.component';
     template: `
     <ui-button
       [class]="classes()"
+      [attr.data-slot]="'split-button-primary'"
       [variant]="splitButton.variant()"
       [size]="splitButton.size()"
       [disabled]="splitButton.disabled()"
@@ -29,7 +31,10 @@ import { SPLIT_BUTTON } from '../split-button.component';
 export class SplitButtonPrimaryComponent {
     readonly splitButton = inject(SPLIT_BUTTON);
 
-    classes = computed(() => cn('rounded-e-none border-e-0'));
+    /** Extra classes merged onto the primary button, after the flattened trailing edge that joins it to the menu half. */
+    readonly class = input('');
+
+    classes = computed(() => cn('rounded-e-none border-e-0', this.class()));
 
     /**
      * Forwards the click to the parent `ui-split-button` as its `primaryClick`

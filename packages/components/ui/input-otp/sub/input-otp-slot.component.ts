@@ -8,7 +8,7 @@ import {
   selector: 'ui-input-otp-slot',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: ``,
-  host: { class: 'hidden' },
+  host: { class: 'hidden', '[attr.data-slot]': '"input-otp-slot"' },
 })
 export class InputOTPSlotComponent {
   /**

@@ -8,10 +8,12 @@ import {
     ElementRef,
     OnDestroy,
     booleanAttribute,
+    computed,
     InjectionToken,
     forwardRef,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { cn } from '../../lib/utils';
 
 export type SpeedDialType = 'linear' | 'circle' | 'semi-circle' | 'quarter-circle';
 export type SpeedDialDirection =
@@ -50,8 +52,7 @@ export const SPEED_DIAL = new InjectionToken<SpeedDialComponent>('SPEED_DIAL');
     providers: [{ provide: SPEED_DIAL, useExisting: forwardRef(() => SpeedDialComponent) }],
     template: `<ng-content />`,
     host: {
-        // Always positioned: the linear and circular menus are absolute and must anchor to the dial, not to some ancestor.
-        class: 'relative inline-flex',
+        '[class]': 'classes()',
         '[attr.data-slot]': '"speed-dial"',
         '[attr.data-state]': 'open() ? "open" : "closed"',
     },
@@ -78,6 +79,12 @@ export class SpeedDialComponent implements OnDestroy {
      * first and last item sit exactly on the arc's end angles.
      */
     type = input<SpeedDialType>('linear');
+
+    /** Extra classes merged onto the dial host, after `relative inline-flex` — e.g. `fixed bottom-6 end-6` to pin it as a floating action button. */
+    readonly class = input('');
+
+    // Always positioned: the linear and circular menus are absolute and must anchor to the dial, not to some ancestor.
+    readonly classes = computed(() => cn('relative inline-flex', this.class()));
     /**
      * Where the menu opens relative to the trigger (default `'up'`). Only the
      * four straight values apply to `'linear'` and `'semi-circle'`, only the four

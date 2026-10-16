@@ -25,7 +25,7 @@ import {
 } from '../../pagination';
 import { IconComponent } from '../../icon';
 import { PaginationState } from '../data-table.types';
-import { isRtl } from '../../../lib/utils';
+import { cn, isRtl } from '../../../lib/utils';
 
 @Component({
   selector: 'ui-data-table-pagination',
@@ -49,6 +49,10 @@ import { isRtl } from '../../../lib/utils';
 })
 export class DataTablePaginationComponent {
   private readonly _el = inject(ElementRef);
+
+  /** Extra classes merged onto the pagination bar, after the wrapping flex row. */
+  readonly class = input('');
+  readonly classes = computed(() => cn('flex flex-wrap items-center justify-between gap-y-2 px-2', this.class()));
 
   /**
    * True when the host's resolved writing direction is RTL. Used only to mirror

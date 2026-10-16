@@ -43,6 +43,7 @@ import {
     componentsCoveredByE2e,
     demoModuleFor,
     emptyAllowlist,
+    findConventionIssues,
     findIssues,
     parseAllowlist,
     partitionIssues,
@@ -53,6 +54,7 @@ import {
     type Allowlist,
     type Artifact,
     type ComponentFacts,
+    type ConventionSource,
     type Issue,
     type StaleExemption,
     type UnbackedAlias,
@@ -78,6 +80,31 @@ function hasStory(name: string): boolean {
         return readdirSync(folder).some(f => f.endsWith('.stories.ts'));
     }
     return existsSync(path.join(UI_ROOT, `${name}.stories.ts`));
+}
+
+/** Shipped component sources: every `.ts` under `ui/` except specs, stories and demo scaffolding. */
+function listShippedSources(dir: string, out: string[]): string[] {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            listShippedSources(full, out);
+        } else if (entry.name.endsWith('.ts') && !/\.(spec|stories)\.ts$|-demo\./.test(entry.name)) {
+            out.push(full);
+        }
+    }
+    return out;
+}
+
+/** Reads every shipped `.ts` under `uiRoot` with its sibling `.html` template, for {@link findConventionIssues}. */
+export function readConventionSources(uiRoot: string): ConventionSource[] {
+    return listShippedSources(uiRoot, []).map(file => {
+        const html = file.replace(/\.ts$/, '.html');
+        return {
+            path: path.relative(uiRoot, file).replaceAll('\\', '/'),
+            ts: readFileSync(file, 'utf-8'),
+            html: existsSync(html) ? readFileSync(html, 'utf-8') : null,
+        };
+    });
 }
 
 /** Maps `<x>-demo.component` → repo-relative demo file path, recursively. */
@@ -241,7 +268,8 @@ function reportSummary(issues: readonly Issue[]): void {
     console.log(
         `  missing stories: ${counts.get('story')} | ` +
         `missing/orphan demo routes: ${counts.get('demo')} | ` +
-        `missing e2e coverage: ${counts.get('e2e')}`,
+        `missing e2e coverage: ${counts.get('e2e')} | ` +
+        `class-input: ${counts.get('class-input')} | data-slot: ${counts.get('data-slot')}`,
     );
 }
 
@@ -297,14 +325,16 @@ function main(): void {
     const seed = process.argv.includes('--seed');
 
     const entries = parseRegistrySource(readFileSync(REGISTRY_PATH, 'utf-8')).filter(isComponentEntry);
-    const issues = findIssues(collectFacts(entries));
+    const artifactIssues = findIssues(collectFacts(entries));
+    const issues = [...artifactIssues, ...findConventionIssues(readConventionSources(UI_ROOT))];
 
-    console.log(`Checking ${entries.length} components for story / demo route / e2e coverage...\n`);
+    console.log(`Checking ${entries.length} components for story / demo route / e2e coverage and class / data-slot conventions...\n`);
     console.log('True backlog (ignoring the allowlist):');
     reportSummary(issues);
 
     if (seed) {
-        writeAllowlist(seedAllowlist(issues, SEED_REASON));
+        // Conventions are fixed in source, never grandfathered by a seed.
+        writeAllowlist(seedAllowlist(artifactIssues, SEED_REASON));
         return;
     }
 

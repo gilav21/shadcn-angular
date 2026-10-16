@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { cn } from '../../../../lib/utils';
 import {
     RichTextImageResizerComponent,
     type RichTextImageResizerLabels,
@@ -30,6 +31,10 @@ export interface ImageUploadErrorEntry {
     host: { class: 'contents' },
 })
 export class RichTextImagesOverlayComponent {
+    /** Extra classes merged onto the full-editor uploading scrim, after its default blurred backdrop. */
+    readonly class = input('');
+    readonly uploadingClasses = computed(() => cn('absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]', this.class()));
+
     /**
      * The currently selected image, forwarded to the resizer. `null` (the
      * default, and what the directive sends while the addon is disabled) hides

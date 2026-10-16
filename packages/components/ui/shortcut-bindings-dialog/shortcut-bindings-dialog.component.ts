@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
+import { cn } from '../../lib/utils';
 import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
 import { SHORTCUT_BINDINGS_DIALOG_LOCALES, type ShortcutBindingsDialogLocale } from './shortcut-bindings-dialog.locales';
 import {
@@ -49,8 +50,12 @@ interface ShortcutDialogGroup {
         AccordionContentComponent,
     ],
     templateUrl: './shortcut-bindings-dialog.component.html',
+    host: { class: 'contents', '[attr.data-slot]': '"shortcut-bindings-dialog"' },
 })
 export class ShortcutBindingsDialogComponent {
+    /** Extra classes merged onto the dialog panel, after the bounded `sm:max-w-4xl` width — e.g. a narrower `sm:max-w-2xl`. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('max-w-[calc(100vw-2rem)] sm:max-w-4xl p-0 overflow-hidden', this.class()));
     /**
      * Two-way visibility of the underlying `ui-dialog`. The catalog is read from the
      * global {@link ShortcutBindingService} on every change-detection pass, so it is

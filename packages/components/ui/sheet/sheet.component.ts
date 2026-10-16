@@ -34,7 +34,7 @@ export const SHEET = new InjectionToken<SheetComponent>('SHEET');
     selector: 'ui-sheet',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
-    host: { class: 'contents' },
+    host: { class: 'contents', '[attr.data-slot]': '"sheet"' },
     providers: [
         { provide: SHEET, useExisting: forwardRef(() => SheetComponent) },
     ],

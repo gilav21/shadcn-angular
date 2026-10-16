@@ -50,7 +50,7 @@ import { FieldErrorComponent } from './field-error.component';
       <ui-field-error [class]="class()">{{ msg }}</ui-field-error>
     }
   `,
-  host: { class: 'contents' },
+  host: { class: 'contents', '[attr.data-slot]': '"field-auto-errors"' },
 })
 export class FieldAutoErrorsComponent {
   /**

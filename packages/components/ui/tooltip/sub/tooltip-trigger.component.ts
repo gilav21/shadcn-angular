@@ -6,6 +6,7 @@ import {
     NgZone,
     ElementRef,
     OnDestroy,
+    input,
 } from '@angular/core';
 import { dismissOnOutsideTouch, isTouchDevice } from '../../../lib/touch';
 import { TooltipComponent, TOUCH_AUTO_DISMISS_MS } from '../tooltip.component';
@@ -15,6 +16,7 @@ import { TooltipComponent, TOUCH_AUTO_DISMISS_MS } from '../tooltip.component';
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <span
+      [class]="class()"
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
       (touchstart)="onTouchStart()"
@@ -28,6 +30,9 @@ import { TooltipComponent, TOUCH_AUTO_DISMISS_MS } from '../tooltip.component';
     host: { class: 'contents' },
 })
 export class TooltipTriggerComponent implements OnDestroy {
+    /** Extra classes for the element that wraps the projected trigger. */
+    readonly class = input('');
+
     private readonly tooltip = inject(TooltipComponent, { optional: true });
     private readonly zone = inject(NgZone);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;

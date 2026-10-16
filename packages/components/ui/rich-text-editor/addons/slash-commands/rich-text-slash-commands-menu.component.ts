@@ -8,6 +8,7 @@ import {
     output,
     viewChild,
 } from '@angular/core';
+import { cn } from '../../../../lib/utils';
 import type { RichTextSlashCommand } from '../..';
 
 /**
@@ -28,10 +29,17 @@ let nextMenuId = 0;
         role: 'listbox',
         '[attr.aria-label]': 'menuAriaLabel()',
         '[attr.data-slot]': "'rich-text-slash-commands-menu'",
-        class: 'block w-72 max-w-[calc(100vw-2rem)] rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95',
+        '[class]': 'classes()',
     },
 })
 export class RichTextSlashCommandsMenuComponent {
+  /** Extra classes merged onto the menu host, after its bordered popover styling. */
+  readonly class = input('');
+  readonly classes = computed(() => cn(
+    'block w-72 max-w-[calc(100vw-2rem)] rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95',
+    this.class(),
+  ));
+
   /**
    * Stable ids so the editable can point `aria-controls` and
    * `aria-activedescendant` here. Focus stays in the editable while the menu is

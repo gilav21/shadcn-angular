@@ -115,13 +115,18 @@ export function revealSelectOption(list: HTMLElement, option: HTMLElement): void
             <ng-content />
         }
     `,
-    host: { class: 'relative inline-block', '[attr.dir]': 'dir()' },
+    // Static, not bound: a consumer-supplied `data-slot` must win.
+    host: { '[class]': 'classes()', '[attr.dir]': 'dir()', 'data-slot': 'select' },
     providers: [
         { provide: SELECT, useExisting: forwardRef(() => SelectComponent) },
         { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => SelectComponent), multi: true }
     ],
 })
 export class SelectComponent<T = string> implements OnDestroy, ControlValueAccessor {
+    /** Extra classes merged onto the element this component renders, after its built-in styling. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('relative inline-block', this.class()));
+
     private readonly el = inject(ElementRef);
     private readonly document = inject(DOCUMENT);
 

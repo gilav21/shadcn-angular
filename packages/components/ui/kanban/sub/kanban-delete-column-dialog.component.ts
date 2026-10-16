@@ -32,7 +32,7 @@ import { type KanbanColumn, type KanbanColumnDeleteEvent } from '../kanban.compo
     ],
     template: `
         <ui-alert-dialog #alertDialog>
-            <ui-alert-dialog-content>
+            <ui-alert-dialog-content [class]="class()">
                 <ui-alert-dialog-header>
                     <ui-alert-dialog-title>{{ locale().deleteColumn }}</ui-alert-dialog-title>
                     <ui-alert-dialog-description>
@@ -74,8 +74,8 @@ import { type KanbanColumn, type KanbanColumnDeleteEvent } from '../kanban.compo
     host: { class: 'contents' },
 })
 export class KanbanDeleteColumnDialogComponent {
-    /** Accepted for API symmetry with the other kanban parts; the dialog renders into the alert-dialog overlay and does not apply these classes to any element. */
-    class = input('');
+    /** Extra classes merged onto the dialog panel (`ui-alert-dialog-content`), e.g. a width utility. */
+    readonly class = input('');
     /**
      * Every column on the board, including the one being deleted. Drives the
      * "move the cards to…" choices (the column being deleted is filtered out).

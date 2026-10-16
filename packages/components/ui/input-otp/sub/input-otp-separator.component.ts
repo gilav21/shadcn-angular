@@ -7,6 +7,6 @@ import {
   selector: 'ui-input-otp-separator',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: ``,
-  host: { class: 'hidden' },
+  host: { class: 'hidden', '[attr.data-slot]': '"input-otp-separator"' },
 })
 export class InputOTPSeparatorComponent { }

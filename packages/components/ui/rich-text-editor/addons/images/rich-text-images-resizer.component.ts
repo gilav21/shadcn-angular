@@ -1,5 +1,6 @@
 import { Component, signal, input, effect, OnDestroy, ChangeDetectionStrategy, output, inject, computed } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { cn } from '../../../../lib/utils';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ImageAlignment, applyImageAlignment } from './rich-text-images.utils';
 
@@ -101,6 +102,9 @@ const MAX_IMAGE_DIMENSION = 10000;
     templateUrl: './rich-text-images-resizer.component.html',
 })
 export class RichTextImageResizerComponent implements OnDestroy {
+    /** Extra classes merged onto the selection frame drawn over the image, after its primary-coloured border. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('absolute border-2 border-primary pointer-events-none transition-none', this.class()));
     private readonly document = inject(DOCUMENT);
     private readonly sanitizer = inject(DomSanitizer);
     /**

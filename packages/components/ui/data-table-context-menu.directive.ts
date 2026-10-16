@@ -41,8 +41,7 @@ export class DataTableContextMenuDirective<T = unknown> {
   headerContextMenu = output<DataTableHeaderContextMenuEvent>();
 
   private readonly tableElement = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private readonly dataTable = inject<DataTableComponent<T> | null>(DataTableComponent as any, { optional: true });
+  private readonly dataTable = inject(DataTableComponent, { optional: true });
 
   constructor() {
     const stop = onContextGesture(this.tableElement, (gesture) => this.open(gesture));

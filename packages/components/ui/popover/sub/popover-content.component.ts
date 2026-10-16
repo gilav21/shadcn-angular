@@ -77,6 +77,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     private portalHost: HTMLElement | null = null;
     private usedPopoverApi = false;
     private wasOpen = false;
+    private destroyed = false;
     public readonly portalReady = signal(false);
 
     /**
@@ -145,7 +146,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     }
 
     private portalAndPosition(attempt: number): void {
-        if (!this.popover?.open()) return;
+        if (this.destroyed || !this.popover?.open()) return;
         const placed = this.placeContent();
         if (!placed && this.strategy() === 'fixed' && attempt < 10) {
             requestAnimationFrame(() => this.portalAndPosition(attempt + 1));
@@ -168,10 +169,10 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
      * adjustment runs and the content is revealed.
      */
     private finalizeFixedPosition(): void {
-        if (!this.popover?.open()) return;
+        if (this.destroyed || !this.popover?.open()) return;
         this.triggerRectSig.set(this.popover.getTriggerRect());
         requestAnimationFrame(() => {
-            if (!this.popover?.open()) return;
+            if (this.destroyed || !this.popover?.open()) return;
             this.triggerRectSig.set(this.popover.getTriggerRect());
             const el = this.contentEl?.nativeElement;
             if (el) this.adjustFixedPosition(el);
@@ -180,6 +181,9 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
+        // Destroying the content does not close the popover, so `open()` is still true when a frame
+        // scheduled at open fires; without this flag that frame portals the detached panel into <body>.
+        this.destroyed = true;
         this.removeContent();
     }
 

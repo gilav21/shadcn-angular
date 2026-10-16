@@ -4,7 +4,10 @@ import {
     forwardRef,
     InjectionToken,
     signal,
+    computed,
+    input,
 } from '@angular/core';
+import { cn } from '../../../lib/utils';
 
 export const DROPDOWN_MENU_SUB = new InjectionToken<DropdownMenuSubComponent>('DROPDOWN_MENU_SUB');
 
@@ -15,9 +18,13 @@ export const DROPDOWN_MENU_SUB = new InjectionToken<DropdownMenuSubComponent>('D
         { provide: DROPDOWN_MENU_SUB, useExisting: forwardRef(() => DropdownMenuSubComponent) },
     ],
     template: `<ng-content />`,
-    host: { class: 'relative block w-full' },
+    host: { '[class]': 'classes()', '[attr.data-slot]': '"dropdown-menu-sub"' },
 })
 export class DropdownMenuSubComponent {
+    /** Extra classes merged onto the element this component renders, after its built-in styling. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('relative block w-full', this.class()));
+
     isOpen = signal(false);
     private timeoutId: ReturnType<typeof setTimeout> | undefined;
 

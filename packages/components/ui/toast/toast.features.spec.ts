@@ -301,6 +301,150 @@ describe('ToastComponent — rendering the new state', () => {
     });
 });
 
+describe('ui-toaster — auto-dismiss pauses while the user is on the stack', () => {
+    @Component({ imports: [ToasterComponent], template: '<ui-toaster />' })
+    class ToasterHostComponent { }
+
+    let service: ToastService;
+    let fixture: ComponentFixture<ToasterHostComponent>;
+    let region: HTMLElement;
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+        TestBed.configureTestingModule({ imports: [ToasterHostComponent] });
+        service = TestBed.inject(ToastService);
+        service.dismissAll();
+        fixture = TestBed.createComponent(ToasterHostComponent);
+        fixture.detectChanges();
+        region = fixture.nativeElement.querySelector('[data-slot="toaster"]');
+    });
+
+    afterEach(() => {
+        service.dismissAll();
+        vi.useRealTimers();
+        TestBed.resetTestingModule();
+    });
+
+    const settle = (ms: number): void => {
+        vi.advanceTimersByTime(ms);
+        fixture.detectChanges();
+    };
+    const enter = (pointerType: string): void => {
+        region.dispatchEvent(new PointerEvent('pointerenter', { pointerType }));
+    };
+    const leave = (pointerType: string): void => {
+        region.dispatchEvent(new PointerEvent('pointerleave', { pointerType }));
+    };
+
+    it.each(['mouse', 'touch'])('freezes the clock under a %s pointer and resumes with the time that was left', pointerType => {
+        service.toast({ title: 'Saved', duration: 5000 });
+        settle(4000);
+
+        enter(pointerType);
+        settle(10_000);
+        expect(service.toasts()).toHaveLength(1);
+
+        leave(pointerType);
+        settle(999);
+        expect(service.toasts()).toHaveLength(1);
+        settle(2);
+        expect(service.toasts()).toHaveLength(0);
+    });
+
+    it('freezes the clock while focus is inside a toast, until focus leaves the stack', () => {
+        service.toast({ title: 'Saved', duration: 5000, action: { label: 'Undo', onClick: () => undefined } });
+        service.toast({ title: 'Other', duration: 60_000 });
+        settle(4000);
+        const [undo, close] = fixture.nativeElement.querySelectorAll('button') as NodeListOf<HTMLButtonElement>;
+
+        undo.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+        settle(10_000);
+        expect(service.toasts()).toHaveLength(2);
+
+        // Tabbing between controls of the same stack is not leaving it.
+        undo.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: close }));
+        settle(10_000);
+        expect(service.toasts()).toHaveLength(2);
+
+        // The pointer passing over and away must not release a pause that focus still holds.
+        enter('mouse');
+        leave('mouse');
+        settle(10_000);
+        expect(service.toasts()).toHaveLength(2);
+
+        close.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: document.body }));
+        settle(1001);
+        expect(service.toasts().map(t => t.title)).toEqual(['Other']);
+    });
+
+    it('leaves a sticky toast alone when paused and resumed', () => {
+        service.toast({ title: 'Pinned', duration: 0 });
+
+        enter('mouse');
+        leave('mouse');
+        settle(100_000);
+
+        expect(service.toasts()).toHaveLength(1);
+    });
+
+    it('starts a toast raised during a pause frozen, and runs it normally once the stack is emptied and left', () => {
+        service.toast({ title: 'First', duration: 5000 });
+        enter('mouse');
+        service.toast({ title: 'Late', duration: 5000 });
+        settle(60_000);
+        expect(service.toasts()).toHaveLength(2);
+
+        // The stack empties while the pointer is "inside" (a removed node fires no pointerleave).
+        service.dismissAll();
+        settle(0);
+        service.toast({ title: 'Next', duration: 5000 });
+        settle(5001);
+        expect(service.toasts()).toHaveLength(0);
+    });
+
+    it('does not freeze the replacement for a toast whose focused action removed it', () => {
+        const id = service.toast({ title: 'Deleted', duration: 5000, action: { label: 'Undo', onClick: () => undefined } });
+        fixture.detectChanges();
+        (fixture.nativeElement.querySelector('button') as HTMLButtonElement).focus();
+        settle(6000);
+        expect(service.toasts()).toHaveLength(1);
+
+        // Firefox and Safari fire no focusout when the focused element is removed (Chromium does);
+        // swallow it so the test exercises the browsers that need the post-render check.
+        const swallow = (event: Event): void => event.stopImmediatePropagation();
+        document.addEventListener('focusout', swallow, true);
+        try {
+            // The Undo handler's shape: remove the toast and raise its replacement in the same tick.
+            service.dismiss(id);
+            service.toast({ title: 'Undone', duration: 5000 });
+            settle(0);
+        } finally {
+            document.removeEventListener('focusout', swallow, true);
+        }
+        settle(5001);
+
+        expect(service.toasts()).toHaveLength(0);
+    });
+
+    it('freezes the displayed countdown while paused', () => {
+        service.toast({
+            title: 'Undo', duration: 5000, showCountdown: true, action: { label: 'Undo', onClick: () => undefined },
+        });
+        const shown = (): string => fixture.nativeElement.querySelector('button')!.textContent!.replaceAll(/\s+/g, '');
+        settle(2000);
+        expect(shown()).toContain('(3s)');
+
+        enter('mouse');
+        settle(5000);
+        expect(shown()).toContain('(3s)');
+
+        leave('mouse');
+        settle(1000);
+        expect(shown()).toContain('(2s)');
+    });
+});
+
 describe('ui-toaster — loading toasts reach the DOM', () => {
     @Component({ imports: [ToasterComponent], template: '<ui-toaster />' })
     class ToasterHostComponent { }

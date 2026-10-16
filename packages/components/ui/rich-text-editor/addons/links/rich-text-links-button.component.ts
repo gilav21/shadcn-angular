@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, DestroyRef, input } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { cn } from '../../../../lib/utils';
 import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
@@ -33,7 +33,7 @@ const LINK_ICON =
         RichTextLinksFormComponent,
     ],
     templateUrl: './rich-text-links-button.component.html',
-    host: { class: 'contents' },
+    host: { class: 'contents', '[attr.data-slot]': '"rte-links-host"' },
 })
 export class RichTextLinksButtonComponent {
     private readonly host = inject(RichTextEditorAddonHost);
@@ -55,6 +55,9 @@ export class RichTextLinksButtonComponent {
         () => this.host.isDisabled() || this.host.readonly(),
     );
 
+    /** Extra classes merged onto the toolbar button, after the built-in icon-button styling. */
+    readonly class = input('');
+
     protected readonly buttonClasses = computed(() => cn(
         'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors',
         'hover:bg-accent hover:text-accent-foreground',
@@ -65,6 +68,7 @@ export class RichTextLinksButtonComponent {
         // state the 44px touch minimum themselves rather than inherit it.
         'pointer-coarse:min-h-11 pointer-coarse:min-w-11',
         this.toolbarView?.compact() ? 'p-1' : 'p-1.5',
+        this.class(),
     ));
 
     protected onOpenChange(next: boolean): void {

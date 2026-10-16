@@ -21,6 +21,7 @@ type ToastType = 'default' | 'success' | 'error' | 'info' | 'warning';
         <ui-button variant="outline" (click)="showToast('info')" (keydown.enter)="showToast('info')">{{ t().buttonInfo }}</ui-button>
         <ui-button variant="outline" (click)="showToast('warning')" (keydown.enter)="showToast('warning')">{{ t().buttonWarning }}</ui-button>
         <ui-button variant="secondary" (click)="runPromise()" (keydown.enter)="runPromise()">{{ t().buttonPromise }}</ui-button>
+        <ui-button variant="outline" (click)="showPausable()" (keydown.enter)="showPausable()">{{ t().buttonPause }}</ui-button>
       </div>
     </section>
   `,
@@ -48,6 +49,22 @@ export class ToastDemoComponent {
       default:
         this.toastService.toast({ title: locale.toastTitle, description: locale.toastDescription });
     }
+  }
+
+  /**
+   * A toast with an action button and a countdown. Hovering the stack, or tabbing
+   * to the action, pauses every auto-dismiss clock (WCAG 2.2.1) and the countdown
+   * freezes; leaving resumes with the time that was left.
+   */
+  showPausable(): void {
+    const locale = this.t();
+    this.toastService.toast({
+      title: locale.toastTitle,
+      description: locale.pauseDescription,
+      duration: 8000,
+      showCountdown: true,
+      action: { label: locale.pauseAction, onClick: () => undefined },
+    });
   }
 
   /**

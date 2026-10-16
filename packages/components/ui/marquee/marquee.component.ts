@@ -55,16 +55,22 @@ export class MarqueeComponent implements AfterViewInit, OnDestroy {
     classes = computed(() => cn('overflow-hidden', this.class()));
 
     private animation?: Animation;
+    private frameId: number | null = null;
 
     ngAfterViewInit(): void {
         if (prefersReducedMotion()) return;
 
         this.ngZone.runOutsideAngular(() => {
-            requestAnimationFrame(() => this.setupAnimation());
+            this.frameId = requestAnimationFrame(() => {
+                this.frameId = null;
+                this.setupAnimation();
+            });
         });
     }
 
     ngOnDestroy(): void {
+        // A frame still pending here would start an infinite animation after this teardown, with nothing left to cancel it.
+        if (this.frameId !== null) cancelAnimationFrame(this.frameId);
         this.animation?.cancel();
     }
 

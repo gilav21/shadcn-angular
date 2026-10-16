@@ -21,7 +21,8 @@
  * then `boldText`, then `alignText` — is a combinatorial pile of components
  * that only ever covers what someone thought of in advance.
  */
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { cn } from '../../../../lib/utils';
 import { NODE_CONTEXT, type NodeContext, type NodeTypeDefinition } from '../node-editor';
 import {
   TEXT_OUTPUT_ALIGNS,
@@ -62,6 +63,9 @@ const ALIGN_CLASS: Readonly<Record<TextOutputAlign, string>> = {
 })
 export class NodeEditorTextOutputComponent {
   private readonly ctx = inject(NODE_CONTEXT) as NodeContext;
+
+  /** Extra classes merged onto the text box, after the graph-driven weight/alignment styling. */
+  readonly class = input('');
 
   private readonly text = this.ctx.input<unknown>('text');
   private readonly color = this.ctx.input<unknown>('color');
@@ -110,15 +114,15 @@ export class NodeEditorTextOutputComponent {
     const align = TEXT_OUTPUT_ALIGNS.includes(style.align as TextOutputAlign)
       ? ALIGN_CLASS[style.align as TextOutputAlign]
       : ALIGN_CLASS.start;
-    return [
+    return cn(
+      'min-h-8 truncate rounded-md border px-2 py-1.5 text-sm',
       weight,
       align,
-      style.italic === true ? 'italic' : '',
-      style.underline === true ? 'underline' : '',
-      style.mono === true ? 'font-mono' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
+      style.italic === true && 'italic',
+      style.underline === true && 'underline',
+      style.mono === true && 'font-mono',
+      this.class(),
+    );
   });
 }
 

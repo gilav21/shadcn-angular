@@ -7,6 +7,6 @@ import {
     selector: 'ui-split-button-menu',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
-    host: { class: 'contents' },
+    host: { class: 'contents', '[attr.data-slot]': '"split-button-menu"' },
 })
 export class SplitButtonMenuComponent { }

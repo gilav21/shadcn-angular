@@ -62,8 +62,10 @@ const meta: Meta<SelectComponent<unknown>> = {
     value: { control: false, description: 'Controlled selected value.' },
     valueAttribute: { control: 'text', description: 'Object key used to extract the value from each option (data-driven mode).' },
     disabledWith: { control: false, description: 'Function marking an option as disabled (data-driven mode).' },
+    class: { control: 'text', description: 'Extra classes merged onto the host, after `relative inline-block` — e.g. `w-[220px]`.' },
   },
   args: {
+    class: 'w-[220px]',
     disabled: false,
     placeholder: 'Select an option',
     ariaLabel: undefined,
@@ -90,6 +92,7 @@ export const Playground: Story = {
       <div class="flex flex-col items-center gap-4 h-[300px] pt-8">
         <ui-select
           [options]="options"
+          [class]="class"
           [disabled]="disabled"
           [placeholder]="placeholder"
           [ariaLabel]="ariaLabel"

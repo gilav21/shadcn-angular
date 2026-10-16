@@ -30,7 +30,7 @@ import { type KanbanColumn, type KanbanColumnDialogMode } from '../kanban.compon
     ],
     template: `
         <ui-dialog [(open)]="dialogOpen">
-            <ui-dialog-content>
+            <ui-dialog-content [class]="class()">
                 <ui-dialog-header>
                     <ui-dialog-title>{{ dialogTitle() }}</ui-dialog-title>
                 </ui-dialog-header>
@@ -65,8 +65,8 @@ import { type KanbanColumn, type KanbanColumnDialogMode } from '../kanban.compon
     host: { class: 'contents' },
 })
 export class KanbanColumnDialogComponent {
-    /** Accepted for API symmetry with the other kanban parts; the form renders inside the dialog overlay and these classes are not applied to any element. */
-    class = input('');
+    /** Extra classes merged onto the dialog panel (`ui-dialog-content`), e.g. a width utility. */
+    readonly class = input('');
     /** Translated strings for the title, field labels, placeholders and the submit button, all of which vary with the mode set by {@link openAddColumn} / {@link openRenameColumn} / {@link openSetWip}. */
     locale = input<KanbanLocale>(KANBAN_LOCALES['en']);
 

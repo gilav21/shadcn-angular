@@ -1,22 +1,18 @@
 import {
   Component,
   ChangeDetectionStrategy,
-  input,
 } from '@angular/core';
 
+/**
+ * Custom-mode content slot. Zero-box (`display: contents`, projection only), so
+ * it has no `class` input: style the element you project instead.
+ */
 @Component({
   selector: 'ui-tree-select-content',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-content />
   `,
-  host: { class: 'contents' },
+  host: { class: 'contents', '[attr.data-slot]': '"tree-select-content"' },
 })
-export class TreeSelectContentComponent {
-  /**
-   * Extra classes for the content slot. The host renders as `contents` and
-   * projects its content verbatim, so style the element you project instead —
-   * this input exists for API symmetry and is not applied to any element.
-   */
-  class = input('');
-}
+export class TreeSelectContentComponent { }

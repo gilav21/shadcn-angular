@@ -1,5 +1,5 @@
 @if (target()) {
-    <div class="absolute border-2 border-primary pointer-events-none transition-none"
+    <div [class]="classes()" [attr.data-slot]="'rte-image-resizer'"
          [style.top.px]="rect().top"
          [style.left.px]="rect().left"
          [style.width.px]="rect().width"

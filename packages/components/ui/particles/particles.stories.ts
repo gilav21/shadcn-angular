@@ -16,8 +16,10 @@ const meta: Meta<ParticlesComponent> = {
         speed: { control: 'number', description: 'Base particle movement speed.' },
         connectDistance: { control: 'number', description: 'Max distance in pixels at which two particles are connected by a line.' },
         mouseInteraction: { control: 'boolean', description: 'Enables particles reacting to the mouse cursor.' },
+        class: { control: 'text', description: 'Extra classes for the host layer, e.g. `opacity-60`.' },
     },
     args: {
+        class: 'absolute inset-0 w-full h-full',
         count: 50,
         color: 'hsl(var(--foreground))',
         speed: 0.5,
@@ -34,7 +36,7 @@ const TEMPLATE = `
         <ui-particles
             [count]="count" [color]="color" [speed]="speed"
             [connectDistance]="connectDistance" [mouseInteraction]="mouseInteraction"
-            class="absolute inset-0 w-full h-full" style="height: 400px;" />
+            [class]="class" style="height: 400px;" />
         <div class="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
             <h2 class="text-3xl font-bold">Particle Network</h2>
             <p class="text-muted-foreground mt-2 text-sm">Move your mouse over the canvas to interact</p>

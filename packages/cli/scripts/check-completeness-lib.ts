@@ -7,10 +7,17 @@
  * vitest without touching the filesystem or git.
  */
 
-/** The three supporting artifacts every component is expected to ship with. */
-export type Artifact = 'story' | 'demo' | 'e2e';
+/**
+ * The two source conventions `findConventionIssues` checks per shipped component
+ * file. They share the allowlist machinery with the artifacts below, keyed by the
+ * file's `packages/components/ui`-relative path instead of a registry name.
+ */
+export type ConventionRule = 'class-input' | 'data-slot';
 
-export const ARTIFACTS: readonly Artifact[] = ['story', 'demo', 'e2e'];
+/** Everything an allowlist section can exempt: the three supporting artifacts, then the two conventions. */
+export type Artifact = 'story' | 'demo' | 'e2e' | ConventionRule;
+
+export const ARTIFACTS: readonly Artifact[] = ['story', 'demo', 'e2e', 'class-input', 'data-slot'];
 
 // ── Demo page aliases ───────────────────────────────────────────────────
 
@@ -188,11 +195,7 @@ export interface Exemption {
 }
 
 /** Committed grandfathering file: artifact → component → exemption. */
-export interface Allowlist {
-    readonly story: Record<string, Exemption>;
-    readonly demo: Record<string, Exemption>;
-    readonly e2e: Record<string, Exemption>;
-}
+export type Allowlist = Readonly<Record<Artifact, Record<string, Exemption>>>;
 
 export interface StaleExemption {
     readonly component: string;
@@ -206,7 +209,7 @@ export interface SpecLike {
 }
 
 export function emptyAllowlist(): Allowlist {
-    return { story: {}, demo: {}, e2e: {} };
+    return { story: {}, demo: {}, e2e: {}, 'class-input': {}, 'data-slot': {} };
 }
 
 /**
@@ -366,7 +369,166 @@ export function parseAllowlist(source: string): Allowlist {
         story: readExemptionMap(raw['story']),
         demo: readExemptionMap(raw['demo']),
         e2e: readExemptionMap(raw['e2e']),
+        'class-input': readExemptionMap(raw['class-input']),
+        'data-slot': readExemptionMap(raw['data-slot']),
     };
+}
+
+/** A shipped `.ts` file under `packages/components/ui`, with its sibling template when it has one. */
+export interface ConventionSource {
+    /** Path relative to `packages/components/ui`, forward slashes. */
+    readonly path: string;
+    readonly ts: string;
+    readonly html: string | null;
+}
+
+// ── Source conventions: `class` input and `data-slot` ───────────────────
+
+const CLASS_INPUT_DECLARATION = /\bclass\s*=\s*input\b/;
+const CLASS_INPUT_READ = /\bclass\(\)/;
+const HTML_COMMENT = /<!--[\s\S]*?-->/g;
+/** An opening tag that is a real element — `ng-content`, `ng-container` and `ng-template` render none. */
+const ELEMENT_TAG = /(?<![\w)\]])<(?!\/|ng-content\b|ng-container\b|ng-template\b)[a-z][\w-]*/i;
+/** The attribute, bound (`[attr.data-slot]`) or plain — not a `[data-slot="…"]` selector that merely mentions it. */
+const DATA_SLOT_ATTRIBUTE = /(?<!\[)data-slot\]?['"]?\s*[=:]/;
+const CLASS_DECLARATION = /^[ \t]*(?:export )?(?:default )?(?:abstract )?class (\w+)(?: extends (\w+))?/m;
+const CLASS_DECLARATIONS = new RegExp(CLASS_DECLARATION.source, 'gm');
+
+/** Index of the quote that closes the string literal opening at `start`. */
+function endOfString(text: string, start: number): number {
+    const quote = text[start];
+    let i = start + 1;
+    while (i < text.length && text[i] !== quote) i += text[i] === '\\' ? 2 : 1;
+    return i;
+}
+
+const isQuote = (ch: string): boolean => ch === "'" || ch === '"' || ch === '`';
+
+/** The text between the bracket at `open` and its partner, skipping string literals. */
+function balancedBody(text: string, open: number): string {
+    const opener = text[open];
+    const closer = opener === '(' ? ')' : '}';
+    let depth = 0;
+    let i = open;
+    while (i < text.length) {
+        const ch = text[i];
+        if (isQuote(ch)) {
+            i = endOfString(text, i);
+        } else if (ch === opener) {
+            depth++;
+        } else if (ch === closer) {
+            depth--;
+            if (depth === 0) return text.slice(open + 1, i);
+        }
+        i++;
+    }
+    return text.slice(open + 1);
+}
+
+/** The literal behind `key:` in a decorator body — an object's inside or a string's content; '' when absent. */
+function decoratorProperty(body: string, key: string): string {
+    const match = new RegExp(String.raw`(?:^|[\s,{])${key}\s*:\s*`).exec(body);
+    if (!match) return '';
+    const start = match.index + match[0].length;
+    if (body[start] === '{') return balancedBody(body, start);
+    if (!isQuote(body[start])) return '';
+    return body.slice(start + 1, endOfString(body, start));
+}
+
+interface ComponentInfo {
+    readonly source: ConventionSource;
+    readonly parent: string | null;
+    readonly template: string;
+    readonly host: string;
+}
+
+function componentsIn(source: ConventionSource): ComponentInfo[] {
+    return [...source.ts.matchAll(/@Component\s*\(/g)].map(decorator => {
+        const open = decorator.index + decorator[0].length - 1;
+        const body = balancedBody(source.ts, open);
+        const declaration = CLASS_DECLARATION.exec(source.ts.slice(open + body.length + 2));
+        return {
+            source,
+            parent: declaration?.[2] ?? null,
+            template: (decoratorProperty(body, 'template') || source.html || '').replaceAll(HTML_COMMENT, ''),
+            host: decoratorProperty(body, 'host'),
+        };
+    });
+}
+
+/**
+ * A host that is `display: contents` (the consumer styles what it projects) or `hidden` (an
+ * API-parity placeholder such as `ui-input-otp-slot`, never painted) and whose template
+ * renders no element has no box for a `class` to reach.
+ */
+function isZeroBox(component: ComponentInfo): boolean {
+    return /(?<![\w:.-])(?:contents|hidden)(?![\w-])/.test(component.host) && !ELEMENT_TAG.test(component.template);
+}
+
+/** Source files on the inheritance chain above `parent` that exist within the scanned set. */
+function ancestorSources(parent: string | null, classes: ReadonlyMap<string, { parent: string | null; source: ConventionSource }>): ConventionSource[] {
+    const chain: ConventionSource[] = [];
+    const seen = new Set<string>();
+    for (let name = parent; name !== null && !seen.has(name); ) {
+        seen.add(name);
+        const declared = classes.get(name);
+        if (!declared) break;
+        chain.push(declared.source);
+        name = declared.parent;
+    }
+    return chain;
+}
+
+function classInputProblem(component: ComponentInfo, lineage: readonly ConventionSource[]): string | null {
+    const declared = lineage.some(file => CLASS_INPUT_DECLARATION.test(file.ts));
+    if (isZeroBox(component)) {
+        return declared ? 'zero-box component (contents host, no element) declares a no-op class input — remove it; style what you project' : null;
+    }
+    if (!declared) return 'renders a box but has no class input — add one and merge it with cn()';
+    const applied = lineage.some(file => CLASS_INPUT_READ.test(file.ts) || CLASS_INPUT_READ.test(file.html ?? ''));
+    return applied ? null : 'class input is declared but not applied to any element';
+}
+
+/** Source with block and line comments removed, so a JSDoc example is not mistaken for the attribute. */
+const withoutComments = (text: string): string => text.replaceAll(/\/\*[\s\S]*?\*\/|<!--[\s\S]*?-->|^[ \t]*\/\/.*$/gm, '');
+
+const hasDataSlot = (source: ConventionSource): boolean =>
+    DATA_SLOT_ATTRIBUTE.test(withoutComments(source.ts)) || DATA_SLOT_ATTRIBUTE.test(withoutComments(source.html ?? ''));
+
+/**
+ * Per shipped component file, two conventions from `.claude/CLAUDE.md`:
+ *
+ *  - **`class-input`** — a component that renders a box must declare a `class`
+ *    input and apply it (read as `class()`; an inherited input counts). A
+ *    zero-box component — `display: contents` host, template with no element —
+ *    has nothing for a class to reach, so declaring one is the defect.
+ *  - **`data-slot`** — the attribute appears in the template or the host.
+ *
+ * Issues are keyed by the file's `ui/`-relative path so the allowlist can exempt
+ * them like any other artifact. Static text scan, no TypeScript program: cheap
+ * enough for the CLI test leg that runs on every push.
+ */
+export function findConventionIssues(sources: readonly ConventionSource[]): Issue[] {
+    const classes = new Map<string, { parent: string | null; source: ConventionSource }>();
+    for (const source of sources) {
+        for (const match of source.ts.matchAll(CLASS_DECLARATIONS)) {
+            classes.set(match[1], { parent: match[2] ?? null, source });
+        }
+    }
+
+    const issues = new Map<string, Issue>();
+    const report = (component: string, artifact: ConventionRule, detail: string): void => {
+        issues.set(`${artifact}\0${component}`, { component, artifact, kind: 'missing', detail });
+    };
+    for (const source of sources) {
+        for (const component of componentsIn(source)) {
+            const lineage = [source, ...ancestorSources(component.parent, classes)];
+            const problem = classInputProblem(component, lineage);
+            if (problem) report(source.path, 'class-input', problem);
+            if (!hasDataSlot(source)) report(source.path, 'data-slot', 'no data-slot attribute in the template or the host');
+        }
+    }
+    return [...issues.values()];
 }
 
 /** The committed JSON form: `missing` stays a bare string, `orphan` carries its kind. */

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { cn } from '../../../../lib/utils';
 import { RichTextEditorAddonHost, RichTextToolbarViewContext } from '../..';
@@ -37,6 +37,9 @@ export class RichTextFileImportButtonComponent {
         () => this.host.isDisabled() || this.host.readonly(),
     );
 
+    /** Extra classes merged onto the toolbar button, after the built-in icon-button styling. */
+    readonly class = input('');
+
     protected readonly buttonClasses = computed(() => cn(
         'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors',
         'hover:bg-accent hover:text-accent-foreground',
@@ -47,12 +50,13 @@ export class RichTextFileImportButtonComponent {
         // state the 44px touch minimum themselves rather than inherit it.
         'pointer-coarse:min-h-11 pointer-coarse:min-w-11',
         this.toolbarView?.compact() ? 'p-1' : 'p-1.5',
+        this.class(),
     ));
 
     protected onFileSelected(event: Event): void {
-        const input = event.target as HTMLInputElement;
-        const file = input.files?.[0];
-        input.value = '';
+        const fileInput = event.target as HTMLInputElement;
+        const file = fileInput.files?.[0];
+        fileInput.value = '';
         if (this.interactionDisabled() || !file) return;
         this.context.onImport(file);
     }

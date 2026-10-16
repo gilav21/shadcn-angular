@@ -47,6 +47,8 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
    * Also selects the empty-state and `aria-label` strings from {@link locale}.
    */
   readonly type = input<'mention' | 'tag'>('mention');
+  /** Extra classes merged onto the floating list, after its bordered popover styling. */
+  readonly class = input('');
   /** Translated strings for the `aria-label` and the "no results" message. Defaults to English. */
   readonly locale = input<RichTextMentionsLocale>(RICH_TEXT_MENTIONS_LOCALES['en']);
 
@@ -117,7 +119,8 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
   readonly containerClasses = computed(() =>
     cn(
       'absolute z-50 w-64 max-w-[calc(100vw-2rem)] rounded-md border bg-popover text-popover-foreground shadow-md',
-      'animate-in fade-in-0 zoom-in-95'
+      'animate-in fade-in-0 zoom-in-95',
+      this.class(),
     )
   );
 

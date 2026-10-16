@@ -157,6 +157,27 @@ export default tseslint.config(
     },
   },
 
+  // --- Shipped-component conventions the CLAUDE.md checklist promises ---
+  // `class` / `data-slot` are enforced by the completeness gate
+  // (packages/cli/scripts/check-completeness.ts); these two are covered by
+  // angular-eslint directly. Query decorators and public `readonly` are
+  // deliberately not required (CLAUDE.md's own template uses `@ContentChild`).
+  {
+    files: ['packages/components/**/*.ts'],
+    ignores: ['**/*.spec.ts', '**/*.stories.ts', '**/*-demo.component.ts'],
+    rules: {
+      '@angular-eslint/prefer-on-push-component-change-detection': 'error',
+      '@angular-eslint/prefer-signals': [
+        'error',
+        {
+          preferInputSignals: true,
+          preferQuerySignals: false,
+          preferReadonlySignalProperties: false,
+        },
+      ],
+    },
+  },
+
   // --- Accepted sonarjs findings on shipped source (file-scoped) ---
   // These suppressions used to live as inline `// eslint-disable sonarjs/*`
   // comments in the source, but that shipped the disables into consumers'

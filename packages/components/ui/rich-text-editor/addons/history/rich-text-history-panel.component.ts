@@ -9,6 +9,7 @@ import {
     signal,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { cn } from '../../../../lib/utils';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { RichTextSanitizerService } from '../../rich-text-sanitizer.service';
 import { RichTextEditorAddonHost } from '../..';
@@ -57,6 +58,10 @@ type HistoryListType = 'popover' | 'dialog';
     host: { class: 'contents' },
 })
 export class RichTextHistoryPanelComponent {
+    /** Extra classes merged onto the corner wrapper that anchors the history button over the editor. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('absolute top-2 z-30 ltr:right-2 rtl:left-2', this.class()));
+
     private readonly host = inject(RichTextEditorAddonHost);
     private readonly contentSanitizer = inject(RichTextSanitizerService);
     private readonly domSanitizer = inject(DomSanitizer);
