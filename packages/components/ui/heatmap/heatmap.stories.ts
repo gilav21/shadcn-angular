@@ -79,6 +79,12 @@ export const CustomColorScale: Story = {
     render,
 };
 
+/** Any CSS colour `parseColor` reads works as an endpoint — here hex, from near-white to brand blue. */
+export const HexEndpoints: Story = {
+    args: { data, width: 460, fromColor: '#eff6ff', toColor: '#1d4ed8' },
+    render,
+};
+
 export const NoLegendOrTooltip: Story = {
     args: { data, width: 460, showLegend: false, showTooltip: false },
     render,
