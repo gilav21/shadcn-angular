@@ -12,7 +12,7 @@ import {
 import { cn } from '../../lib/utils';
 import { observeChartWidth } from '../../lib/chart-responsive';
 import { ChartDataPoint, ChartClickEvent, ChartDirection } from '../../lib/chart.types';
-import { getChartColor, formatChartValue, formatPercentage, getChartSummary, extent } from '../../lib/chart.utils';
+import { getChartColor, formatChartValue, formatPercentage, getChartSummary, extent, positiveOrZero } from '../../lib/chart.utils';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
 
 type PercentageMode = 'first' | 'previous';
@@ -49,7 +49,9 @@ export class FunnelChartComponent {
      * One funnel stage per entry, top to bottom in array order — pass them
      * already sorted from widest to narrowest, since nothing re-sorts them and
      * a rising value simply draws a stage that flares outwards. Each stage's
-     * top edge is `value / max` of the available width and its bottom edge is
+     * top edge is `max(0, value) / largest positive value` of the available
+     * width (zero when no stage is positive: a zero or negative stage is
+     * drawn with no width) and its bottom edge is
      * the *next* stage's width, which is what produces the taper; the last
      * stage repeats its own width, so it renders as a rectangle rather than a
      * point. `name` labels the stage, and the optional `color` overrides the
@@ -134,32 +136,35 @@ export class FunnelChartComponent {
         getChartSummary('Funnel chart', this.data().length, this.title()),
     );
 
-    private readonly maxValue = computed(() => {
-        const values = this.data().map(d => d.value);
-        return extent(values)?.[1] ?? 1;
-    });
+    /** The largest positive value, or 0 when no stage is positive. */
+    private readonly maxValue = computed(() => extent(this.data().map(d => positiveOrZero(d.value)))?.[1] ?? 0);
 
     private percentFor(index: number): number {
         const data = this.data();
         if (index === 0) return 100;
-        const ref = this.percentageMode() === 'first' ? data[0].value : data[index - 1].value;
-        return ref === 0 ? 0 : (data[index].value / ref) * 100;
+        const ref = positiveOrZero((this.percentageMode() === 'first' ? data[0] : data[index - 1]).value);
+        return ref === 0 ? 0 : (positiveOrZero(data[index].value) / ref) * 100;
+    }
+
+    /** A stage's width as a share of the available width: 0 for a non-positive stage or when no stage is positive. */
+    private widthShare(value: number): number {
+        const max = this.maxValue();
+        return max === 0 ? 0 : positiveOrZero(value) / max;
     }
 
     readonly stages = computed((): FunnelStage[] => {
         const data = this.data();
         const n = data.length;
         if (n === 0) return [];
-        const max = this.maxValue();
         const innerW = this.svgWidth() - PAD * 2;
         const centerX = this.svgWidth() / 2;
         const gap = this.gap();
         const stageH = (this.height() - PAD * 2 - gap * (n - 1)) / n;
 
         return data.map((d, i) => {
-            const topWidth = (d.value / max) * innerW;
+            const topWidth = this.widthShare(d.value) * innerW;
             const nextValue = i < n - 1 ? data[i + 1].value : d.value;
-            const bottomWidth = (nextValue / max) * innerW;
+            const bottomWidth = this.widthShare(nextValue) * innerW;
             const yTop = PAD + i * (stageH + gap);
             const yBottom = yTop + stageH;
             const points = [

@@ -120,7 +120,7 @@ function resetMocks(): void {
 function conflicts(partial: Partial<ConflictCheckResult> = {}): ConflictCheckResult {
   return {
     toInstall: [], toSkip: [], conflicting: [],
-    peerFilesToUpdate: new Set<string>(), contentCache: new Map<string, string>(),
+    peerFilesToUpdate: new Set<string>(), contentCache: new Map<string, string>(), unchecked: [],
     ...partial,
   };
 }
@@ -298,6 +298,7 @@ describe('performInstall', () => {
         conflicting: [],
         peerFilesToUpdate: new Set(),
         contentCache: new Map(),
+        unchecked: [],
       },
     });
 
@@ -407,14 +408,14 @@ describe('installSingleLibFile pre-manifest pristine refresh (L5)', () => {
     expect(result.warnings.some(w => w.includes(LIB))).toBe(true);
   });
 
-  it('warns (and installs the component anyway) when a lib file cannot be fetched', async () => {
+  it('records a failure (and still installs the component) when a lib file cannot be fetched', async () => {
     resetMocks();
     asMock(fetchLibContent).mockRejectedValue(new Error('network down'));
 
     const result = await performInstall({ ...base, components: ['input-group'] });
 
     expect(result.installed).toContain('input-group');
-    expect(result.warnings.some(w => w.includes(`Could not install lib file ${LIB}`) && w.includes('network down'))).toBe(true);
+    expect(result.failures).toContainEqual({ stage: 'lib', component: null, file: LIB, message: 'network down' });
     expect(writtenPaths().some(p => p.endsWith(LIB))).toBe(false);
   });
 });
@@ -474,9 +475,9 @@ describe('performInstall peer files', () => {
     expect(writtenPaths().some(p => p.endsWith(PEER_FILE))).toBe(true);
   });
 
-  it('warns when a peer file cannot be fetched, without failing the component', async () => {
+  it('records a peer-file failure and does not report the component installed', async () => {
     // The component's own file resolves from the cache; only the peer file is fetched.
-    const contentCache = new Map([['peer-fixture/peer-fixture.component.ts', '// cached']]);
+    const contentCache = new Map([['component:peer-fixture/peer-fixture.component.ts', '// cached']]);
     asMock(fetchAndTransform).mockRejectedValue(new Error('404'));
 
     const result = await performInstall({
@@ -486,8 +487,8 @@ describe('performInstall peer files', () => {
       }),
     });
 
-    expect(result.installed).toContain(PEER);
-    expect(result.warnings.some(w => w.includes(`Could not update peer file ${PEER_FILE}`) && w.includes('404'))).toBe(true);
+    expect(result.installed).not.toContain(PEER);
+    expect(result.failures).toEqual([{ stage: 'peer', component: PEER, file: PEER_FILE, message: '404' }]);
   });
 });
 
@@ -507,7 +508,7 @@ describe('performInstall npm dependencies', () => {
     expect(installPackages).toHaveBeenCalledWith(['@fixture/dep'], { cwd: '/proj' });
   });
 
-  it('warns instead of throwing when the package manager fails', async () => {
+  it('records a failure instead of throwing when the package manager fails', async () => {
     asMock(installPackages).mockRejectedValue(new Error('EACCES'));
 
     const result = await performInstall({
@@ -516,7 +517,9 @@ describe('performInstall npm dependencies', () => {
     });
 
     expect(result.installed).toContain(PEER);
-    expect(result.warnings.some(w => w.includes('Failed to install npm dependencies') && w.includes('EACCES'))).toBe(true);
+    expect(result.failures).toEqual([
+      { stage: 'npm', component: null, file: null, message: 'Failed to install npm dependencies: EACCES' },
+    ]);
   });
 
   it('does not call the package manager when nothing declares npm dependencies', async () => {
@@ -532,7 +535,7 @@ describe('performInstall npm dependencies', () => {
 describe('performInstall failure paths', () => {
   beforeEach(() => resetMocks());
 
-  it('warns and omits the component when its files cannot be fetched', async () => {
+  it('records a failure per file and omits the component when its files cannot be fetched', async () => {
     asMock(fetchAndTransform).mockRejectedValue(new Error('boom'));
 
     const result = await performInstall({
@@ -541,7 +544,9 @@ describe('performInstall failure paths', () => {
     });
 
     expect(result.installed).toEqual([]);
-    expect(result.warnings.some(w => w.startsWith('Could not add separator/') && w.includes('boom'))).toBe(true);
+    expect(result.failures.map(f => f.file).sort((a, b) => String(a).localeCompare(String(b))))
+      .toEqual([...registry['separator'].files].sort((a, b) => a.localeCompare(b)));
+    expect(result.failures.every(f => f.stage === 'component' && f.component === 'separator' && f.message === 'boom')).toBe(true);
   });
 
   it('keeps a locally-edited file with no baseline and tells the user how to take upstream', async () => {
@@ -559,13 +564,15 @@ describe('performInstall failure paths', () => {
     expect(writtenPaths().some(p => p.includes('separator/'))).toBe(false);
   });
 
-  it('warns when components.lock.json cannot be written', async () => {
+  it('records a failure when components.lock.json cannot be written', async () => {
     asMock(fs.writeJson).mockRejectedValue(new Error('EROFS'));
 
     const result = await performInstall({ ...base, components: ['badge'] });
 
     expect(result.installed).toContain('badge');
-    expect(result.warnings.some(w => w.includes('Could not write components.lock.json') && w.includes('EROFS'))).toBe(true);
+    expect(result.failures).toEqual([
+      { stage: 'lockfile', component: null, file: null, message: 'Could not write components.lock.json: EROFS' },
+    ]);
   });
 });
 
@@ -656,14 +663,14 @@ describe('previewComponentMerges', () => {
   });
 
   it('serves THEIRS from the conflict scan\'s content cache instead of re-fetching', async () => {
-    const cached = conflicts({ contentCache: new Map([['separator/separator.component.ts', '// cached']]) });
+    const cached = conflicts({ contentCache: new Map([['component:separator/separator.component.ts', '// cached']]) });
 
     await previewComponentMerges(['separator'], cached, { ...base, components: ['separator'] });
 
     expect(asMock(fetchAndTransform).mock.calls.some(c => c[0] === 'separator/separator.component.ts')).toBe(false);
   });
 
-  it('omits a file whose fetch fails rather than aborting the preview', async () => {
+  it('reports a file whose fetch fails as an error preview rather than aborting or omitting it', async () => {
     asMock(fetchAndTransform).mockImplementation(async (f: string) => {
       if (f.endsWith('.component.ts')) throw new Error('404');
       return `// ${f}`;
@@ -671,6 +678,9 @@ describe('previewComponentMerges', () => {
 
     const previews = await previewComponentMerges(['separator'], conflicts(), { ...base, components: ['separator'] });
 
-    expect(previews.map(p => p.file)).toEqual(['separator/index.ts']);
+    expect(previews).toEqual([
+      { file: 'separator/index.ts', outcome: 'created' },
+      { file: 'separator/separator.component.ts', outcome: 'error', reason: '404' },
+    ]);
   });
 });

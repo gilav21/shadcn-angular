@@ -300,13 +300,9 @@ describe('TooltipDirective — touch device', () => {
         return fixture.debugElement.query(By.directive(TooltipDirective)).nativeElement;
     }
 
+    /** A finger landing on the host, as a browser dispatches it: bubbling, through the document. */
     function fireTouchStart(): TouchEvent {
-        // Non-bubbling: the directive's own scheduleDismiss adds a document-level
-        // touchstart listener; a bubbling event would immediately reach it and cancel
-        // the just-shown tooltip. Real touches add that listener mid-dispatch (so the
-        // spec skips it for the in-flight event); a non-bubbling synthetic event models
-        // the same end state deterministically.
-        const event = new Event('touchstart', { bubbles: false, cancelable: true }) as TouchEvent;
+        const event = new Event('touchstart', { bubbles: true, cancelable: true }) as TouchEvent;
         buttonEl().dispatchEvent(event);
         return event;
     }
@@ -361,7 +357,7 @@ describe('TooltipDirective — touch device', () => {
     it('dismisses when a touchstart is dispatched elsewhere on the document', () => {
         fireTouchStart();
         expect(tooltipNode()).toBeTruthy();
-        document.dispatchEvent(new Event('touchstart', { bubbles: true }));
+        document.body.dispatchEvent(new Event('touchstart', { bubbles: true }));
         expect(tooltipNode()).toBeNull();
     });
 

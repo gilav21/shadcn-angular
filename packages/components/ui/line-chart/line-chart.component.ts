@@ -73,8 +73,9 @@ export class LineChartComponent implements AfterViewInit {
      * `data[].name`, so every series should carry the same number of points in
      * the same order. Each entry's `color` overrides the palette colour picked
      * from the series index; `id` (falling back to `name`) is the key used by
-     * the legend and {@link toggleSeries}, so give series unique names when they
-     * have no `id`. The y domain is nice-rounded over the *visible* series and
+     * the legend and {@link toggleSeries}, so give series an `id` to toggle
+     * same-named series separately (they are always drawn separately). Two
+     * categories may share a name: points are positioned by index. The y domain is nice-rounded over the *visible* series and
      * always includes 0, so hiding a series via the legend rescales the axis.
      *
      * A missing value (`NaN`, `null`, `undefined` or infinite) is a gap: the

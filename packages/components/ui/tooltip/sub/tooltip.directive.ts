@@ -7,7 +7,7 @@ import {
     OnDestroy,
     Renderer2,
 } from '@angular/core';
-import { isTouchDevice } from '../../../lib/touch';
+import { dismissOnOutsideTouch, isTouchDevice } from '../../../lib/touch';
 import { inheritThemeTokens } from '../../../lib/theme-presets';
 import { TOUCH_AUTO_DISMISS_MS } from '../tooltip.component';
 
@@ -73,8 +73,9 @@ export class TooltipDirective implements OnDestroy {
 
     /**
      * Touch alternative to hover: taps toggle the bubble, which then
-     * auto-dismisses after `TOUCH_AUTO_DISMISS_MS` or on the next touch
-     * anywhere in the document. The host's own click/tap behaviour is left
+     * auto-dismisses after `TOUCH_AUTO_DISMISS_MS` or on the next touch outside
+     * the host (a second tap on the host toggles it off). The touch that showed
+     * it never dismisses it, and the host's own click/tap behaviour is left
      * intact.
      */
     onTouchStart(): void {
@@ -99,13 +100,9 @@ export class TooltipDirective implements OnDestroy {
         }, TOUCH_AUTO_DISMISS_MS);
 
         this.zone.runOutsideAngular(() => {
-            const handler = (): void => {
+            this.removeDismissListener = dismissOnOutsideTouch(this.el.nativeElement, () => {
                 this.zone.run(() => this.dismissTouch());
-            };
-            document.addEventListener('touchstart', handler, { once: true });
-            this.removeDismissListener = () => {
-                document.removeEventListener('touchstart', handler);
-            };
+            });
         });
     }
 

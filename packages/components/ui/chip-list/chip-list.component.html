@@ -14,12 +14,13 @@
   [disabled]="isDisabled()"
   [attr.data-disabled]="isDisabled() || null"
   (click)="focusInput()"
-  (keydown.enter)="focusInput()"
-  (keydown.space)="focusInput()"
+  (keydown.enter)="focusFromContainer($event)"
+  (keydown.space)="focusFromContainer($event)"
   (focusout)="onBlur()"
   tabindex="-1"
 >
-  @for (chip of chips(); track chip; let i = $index) {
+  <!-- track $index: chips are stateless badges, and allowDuplicates lets two chips share the same text, which is not a unique key (NG0955). -->
+  @for (chip of chips(); track $index; let i = $index) {
     <ui-badge
       [variant]="chipColors()[chip] ? 'default' : badgeVariant()"
       [class]="'shrink-0 gap-1' + (isDisabled() ? '' : ' ltr:pr-1 rtl:pl-1')"

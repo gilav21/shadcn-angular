@@ -45,7 +45,7 @@ const HEADER_ITEMS: ContextMenuItem[] = [
 const TABLE_SHELL = (table: string) => `
   <div class="p-4 sm:p-6 space-y-3">
     <p class="text-sm text-muted-foreground">
-      Right-click (or long-press on touch — see the Touch note in the docs) inside the table.
+      Right-click (or long-press on touch) inside the table.
     </p>
     <div class="w-full overflow-x-auto rounded-md border">
       ${table}

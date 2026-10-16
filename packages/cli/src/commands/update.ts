@@ -9,7 +9,8 @@ import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { resolveDependencies } from '../core/resolve.js';
 import {
     detectConflicts, collectBreakingChanges, collectSuggestedAddons, printBreakingChanges,
-    type AddOptions, type ConflictCheckResult,
+    resolveInstallTargets, kindOf, targetDirFor,
+    type AddOptions, type ConflictCheckResult, type InstallTargets,
 } from '../core/plan.js';
 import { performInstall, previewComponentMerges, type InstallResult, type MergePreview } from '../core/install.js';
 import { resolveTestInstall } from '../utils/test-runner.js';
@@ -17,7 +18,7 @@ import { printBreakingUsages } from '../core/breaking-scan.js';
 import { printBindingCodemodReport, rewriteBreakingBindings } from '../core/binding-codemod.js';
 import { scanLayouts } from '../core/layout.js';
 import { readManifest, fileStatus, getComponentRef, type Manifest } from '../core/manifest.js';
-import { reportMergeSummary } from './merge-report.js';
+import { reportMergeSummary, printUnchecked, printFailures, isNonInteractive, exitIfIncomplete } from './merge-report.js';
 import { apply } from './apply.js';
 
 export async function resolveUpdateTargets(
@@ -69,7 +70,7 @@ function onCancel(): never {
  * the file merge `update` already performs, so when we can't ask, we don't.
  */
 export function shouldOfferAddonApply(env: { readonly yes?: boolean; readonly isTTY: boolean }): boolean {
-    return !env.yes && env.isTTY;
+    return !isNonInteractive(env);
 }
 
 const applyLaterHint = (addonName: string): string =>
@@ -83,8 +84,8 @@ const applyLaterHint = (addonName: string): string =>
  * Deliberately calls the *interactive* `apply()` (not the silent, non-prompting
  * `core/apply-core.ts` `applyCore()`): once the user has opted in here, they
  * still get `apply`'s own per-usage target-selection prompt. This only runs on
- * the interactive path (never `--yes`), so `apply`'s internal
- * `process.exit(hadConflicts && options.yes)` guard can't fire.
+ * the interactive path (a terminal and no `--yes`), where `apply` does not
+ * treat written conflict markers as fatal.
  */
 async function promptApplyAddons(addons: readonly string[], options: AddOptions): Promise<void> {
     if (!shouldOfferAddonApply({ yes: options.yes, isTTY: !!process.stdin.isTTY })) {
@@ -219,14 +220,15 @@ function printCustomizedAdvice(buckets: CustomizedBuckets): void {
 }
 
 async function warnCustomized(
-    modified: ComponentName[], cwd: string, targetDir: string, options: AddOptions,
+    modified: ComponentName[], cwd: string, targets: InstallTargets, options: AddOptions,
 ): Promise<void> {
     if (modified.length === 0) return;
     const manifest = await readManifest(cwd);
     const localContent = new Map<string, string>();
     for (const name of modified) {
+        const dir = targetDirFor(targets, kindOf(name));
         for (const file of registry[name].files) {
-            const p = path.join(targetDir, file);
+            const p = path.join(dir, file);
             if (await fs.pathExists(p)) localContent.set(file, await fs.readFile(p, 'utf-8'));
         }
     }
@@ -238,17 +240,18 @@ async function warnCustomized(
 }
 
 async function detectUpdates(
-    universe: Set<ComponentName>, targetDir: string, options: AddOptions, config: Config,
+    universe: Set<ComponentName>, targets: InstallTargets, options: AddOptions, config: Config,
 ): Promise<ConflictCheckResult> {
     const spinner = ora('Checking for updates...').start();
     const conflicts = await detectConflicts(
-        universe, targetDir, options, config.aliases.utils, getPrefix(config),
+        universe, targets, options, config.aliases.utils, getPrefix(config),
     );
     spinner.stop();
     return conflicts;
 }
 
 const PREVIEW_LABELS: Readonly<Partial<Record<MergePreview['outcome'], string>>> = {
+    // `error` is printed with its reason; see printMergePreview.
     'merged-clean': 'would merge cleanly',
     'merged-conflict': 'WOULD CONFLICT (<<<<<<< markers)',
     'fellback-kept': 'would keep your file (no baseline)',
@@ -263,6 +266,10 @@ function printMergePreview(previews: MergePreview[]): void {
     if (previews.length === 0) return;
     console.log(chalk.bold('\nDry-run merge preview (files):'));
     for (const p of previews) {
+        if (p.outcome === 'error') {
+            console.log(chalk.red(`  could not preview: ${p.file} (${p.reason ?? 'unknown error'})`));
+            continue;
+        }
         const label = PREVIEW_LABELS[p.outcome] ?? p.outcome;
         const color = p.outcome === 'merged-conflict' ? chalk.red : chalk.dim;
         console.log(color(`  ${label}: ${p.file}`));
@@ -289,6 +296,7 @@ async function applyUpdates(
     });
     console.log(chalk.green(`\nUpdated ${result.installed.length} component(s).`));
     for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
+    printFailures(result.failures);
     return result;
 }
 
@@ -319,7 +327,8 @@ export async function update(names: string[], options: AddOptions): Promise<void
     options.overwrite ??= config.update?.overwrite;
     const tests = await resolveTestInstall(config, options, cwd);
 
-    const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
+    const installTargets = resolveInstallTargets(cwd, config);
+    const targetDir = installTargets.uiDir;
     const scan = await scanLayouts(targetDir, getPrefix(config));
     const targets = await resolveTargetsOrExit(names, cwd, config);
 
@@ -336,16 +345,19 @@ export async function update(names: string[], options: AddOptions): Promise<void
     abortIfNewDepsWithoutConsent(newlyRequired, options);
 
     const universe = new Set<ComponentName>([...alreadyInstalled, ...(options.yes ? newlyRequired : [])]);
-    const conflicts = await detectUpdates(universe, targetDir, options, config);
+    const conflicts = await detectUpdates(universe, installTargets, options, config);
 
+    printUnchecked(conflicts.unchecked);
     if (conflicts.toInstall.length === 0 && conflicts.conflicting.length === 0) {
-        console.log(chalk.green('Everything is up to date.'));
+        // Components that could not be checked are not "up to date".
+        if (conflicts.unchecked.length === 0) console.log(chalk.green('Everything is up to date.'));
+        exitIfIncomplete({ unchecked: conflicts.unchecked });
         return;
     }
 
     const touched = [...conflicts.conflicting, ...conflicts.toInstall];
     printUpdatePlan(conflicts.conflicting, conflicts.toInstall);
-    await warnCustomized(conflicts.conflicting, cwd, targetDir, options);
+    await warnCustomized(conflicts.conflicting, cwd, installTargets, options);
     await reportBreaking(touched, cwd, config, options);
 
     if (options.dryRun) {
@@ -353,6 +365,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
             conflicts.conflicting, conflicts, { components: [...universe], cwd, config, options },
         ));
         console.log(chalk.dim('\n[Dry Run] No changes written.'));
+        exitIfIncomplete({ unchecked: conflicts.unchecked });
         return;
     }
 
@@ -365,7 +378,8 @@ export async function update(names: string[], options: AddOptions): Promise<void
     );
     await promptApplyAddons(uninstalledAddons, options);
 
-    // In non-interactive runs (CI / --yes) a written conflict must fail the
-    // command so a pipeline notices the unresolved markers.
-    if (hadConflicts && options.yes) process.exit(1);
+    // After everything is reported (incl. the addon offer): a failure, a component
+    // that could not be checked, or markers nobody can resolve (unattended)
+    // must fail the command so a pipeline notices.
+    exitIfIncomplete({ unchecked: result.unchecked, failures: result.failures, hadConflicts }, options);
 }

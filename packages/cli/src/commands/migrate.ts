@@ -9,6 +9,7 @@ import {
     type MigrationPlan,
 } from '../core/migrate-core.js';
 import { type AddOptions } from '../core/plan.js';
+import { printUnchecked, printFailures } from './merge-report.js';
 
 export { closureWritten } from '../core/migrate-core.js';
 
@@ -51,6 +52,8 @@ function printReport(execution: MigrationExecution, plan: MigrationPlan): void {
         for (const n of editedRefreshed) console.log(chalk.yellow('  • ') + n);
     }
     for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
+    printUnchecked(result.unchecked);
+    printFailures(result.failures);
     console.log(chalk.cyan('\nAll set. Next: review with `git diff`, then `ng build` to confirm.'));
 }
 

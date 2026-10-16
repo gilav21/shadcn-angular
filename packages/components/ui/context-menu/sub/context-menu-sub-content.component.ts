@@ -178,9 +178,8 @@ export class ContextMenuSubContentComponent implements OnDestroy {
      * Moves focus to the first enabled entry of the open flyout — called by
      * {@link ContextMenuSubComponent.focusContent} one tick after the sub opens
      * from the keyboard. A no-op while the portal is unmounted. Only elements
-     * matching `[role="menuitem"]:not([data-disabled])` qualify, which today
-     * means nested `<ui-context-menu-sub-trigger>`s; plain
-     * `<ui-context-menu-item>`s carry no such role and are skipped.
+     * matching `[role="menuitem"]:not([data-disabled])` qualify: plain
+     * `<ui-context-menu-item>`s and nested `<ui-context-menu-sub-trigger>`s.
      */
     focusFirst(): void {
         if (!this.portalHost) return;
@@ -191,7 +190,9 @@ export class ContextMenuSubContentComponent implements OnDestroy {
     /**
      * Keyboard handling for the open flyout. ArrowDown/ArrowUp walk the
      * enabled entries with wrap-around ({@link focusNextItem} /
-     * {@link focusPrevItem}); the closing key is direction-aware — ArrowLeft in
+     * {@link focusPrevItem}); Home and End jump to the ends; Tab closes the
+     * whole menu, returning focus to where it was before it opened; the
+     * closing key is direction-aware — ArrowLeft in
      * LTR, ArrowRight in RTL — and Escape always closes; all three close the
      * flyout and return focus to its trigger. Every key event is stopped from
      * propagating, so the document-level Escape listener on the root menu never
@@ -201,31 +202,27 @@ export class ContextMenuSubContentComponent implements OnDestroy {
      */
     onKeydown(event: KeyboardEvent): void {
         event.stopPropagation();
-        const rtl = this.contextMenu?.isRtl() ?? false;
+        if (event.ctrlKey || event.altKey || event.metaKey) return;
+        const closeKey = this.contextMenu?.isRtl() ? 'ArrowRight' : 'ArrowLeft';
+        const item = event.target as HTMLElement;
+        const actions: Record<string, () => void> = {
+            [closeKey]: () => this.closeToTrigger(),
+            Escape: () => this.closeToTrigger(),
+            ArrowDown: () => this.focusNextItem(item),
+            ArrowUp: () => this.focusPrevItem(item),
+            Home: () => this.focusEdgeItem(item, 'first'),
+            End: () => this.focusEdgeItem(item, 'last'),
+            Tab: () => this.contextMenu?.close(),
+        };
 
-        if (event.key === 'ArrowLeft') {
-            if (!rtl) {
-                event.preventDefault();
-                this.sub.leave();
-                this.sub.focusTrigger();
-            }
-        } else if (event.key === 'ArrowRight') {
-            if (rtl) {
-                event.preventDefault();
-                this.sub.leave();
-                this.sub.focusTrigger();
-            }
-        } else if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            this.focusNextItem(event.target as HTMLElement);
-        } else if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            this.focusPrevItem(event.target as HTMLElement);
-        } else if (event.key === 'Escape') {
-            event.preventDefault();
-            this.sub.leave();
-            this.sub.focusTrigger();
-        }
+        if (!Object.hasOwn(actions, event.key)) return;
+        event.preventDefault();
+        actions[event.key]();
+    }
+
+    private closeToTrigger(): void {
+        this.sub.leave();
+        this.sub.focusTrigger();
     }
 
     /**
@@ -256,5 +253,12 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         const index = items.indexOf(currentItem);
         const prevIndex = (index - 1 + items.length) % items.length;
         items[prevIndex]?.focus();
+    }
+
+    /** Home / End: focuses the first or last enabled entry of the flyout `currentItem` is in. */
+    private focusEdgeItem(currentItem: HTMLElement, edge: 'first' | 'last'): void {
+        const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
+        const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
+        (edge === 'first' ? items[0] : items.at(-1))?.focus();
     }
 }

@@ -1,7 +1,7 @@
 <button
   type="button"
   [class]="classes()"
-  [disabled]="group?.disabled() || disabled()"
+  [disabled]="group?.isDisabled() || disabled()"
   [attr.aria-pressed]="isSelected()"
   [attr.data-state]="isSelected() ? 'on' : 'off'"
   [attr.aria-label]="ariaLabel()"

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { PdfBuilder } from '../pdf-test-fixtures';
 import { parsePdfReadable } from './pdf-readable';
+import { PDF_POLICY, assertInertMarkup } from '../inert-markup-fixtures';
+import { FRAGMENT_LINK_URI, pdfName } from '../pdf-hostile-fixtures';
 
 describe('parsePdfReadable', () => {
     describe('input validation', () => {
@@ -108,6 +110,27 @@ describe('parsePdfReadable', () => {
         });
     });
 
+    describe('font names', () => {
+        it('keeps a font name made of character references from writing a further style declaration', async () => {
+            // `&#39&#59` has no semicolons: the browser still decodes it to `';`.
+            const hostile = 'Evil&#39&#59background:url(//t.invalid/x)';
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .addFont('F2', pdfName(hostile))
+                .setContent(
+                    'BT /F1 12 Tf 100 700 Td (Body text of the page runs here and on) Tj '
+                    + '0 -14 Td (and carries on with more body text) Tj '
+                    + '0 -14 Td /F2 12 Tf (Hostile run) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+
+            expect(assertInertMarkup(result.html, PDF_POLICY)).toEqual([]);
+            const run = Array.from(new DOMParser().parseFromString(`<body>${result.html}`, 'text/html').querySelectorAll<HTMLElement>('span'))
+                .find((span) => span.textContent?.startsWith('Hostile run'));
+            expect(run?.style.fontFamily).toContain('Evil&#39&#59background');
+        });
+    });
+
     describe('links', () => {
         it('wraps text covered by a URI link annotation in an anchor', async () => {
             const pdf = new PdfBuilder()
@@ -116,8 +139,28 @@ describe('parsePdfReadable', () => {
                 .addLinkAnnotation(0, [95, 695, 200, 715], 'https://example.com')
                 .build();
             const result = await parsePdfReadable(pdf);
-            expect(result.html).toContain('<a href="https://example.com"');
+            expect(result.html).toContain('<a href="https://example.com/"');
             expect(result.html).toContain('Visit site</');
+        });
+
+        it('renders a javascript: link as unlinked text and keeps an https link', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 100 700 Td (Unsafe link) Tj '
+                    + '0 -40 Td (Safe link) Tj '
+                    + '0 -40 Td (Anchor link) Tj ET')
+                .addLinkAnnotation(0, [95, 695, 200, 715], 'javascript:alert(3)')
+                .addLinkAnnotation(0, [95, 655, 200, 675], 'https://example.com/ok')
+                .addLinkAnnotation(0, [95, 615, 200, 635], FRAGMENT_LINK_URI)
+                .build();
+            const result = await parsePdfReadable(pdf);
+
+            const doc = new DOMParser().parseFromString(`<body>${result.html}`, 'text/html');
+            const anchors = Array.from(doc.querySelectorAll('a'));
+            expect(anchors.map((a) => [a.getAttribute('href'), a.textContent])).toEqual([['https://example.com/ok', 'Safe link'], [FRAGMENT_LINK_URI, 'Anchor link']]);
+            expect(result.text).toContain('Unsafe link');
+            expect(assertInertMarkup(result.html, PDF_POLICY)).toEqual([]);
         });
     });
 

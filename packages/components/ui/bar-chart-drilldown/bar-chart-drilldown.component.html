@@ -1,4 +1,4 @@
-<div [class]="containerClasses()">
+<div [class]="containerClasses()" [attr.data-slot]="'bar-chart-drilldown'">
   @if (isDrilledDown() && showBreadcrumb()) {
     <div class="flex items-center gap-2 mb-4">
       <button
@@ -39,8 +39,9 @@
             [attr.x2]="chartArea().right"
             [attr.y2]="getTickPosition(tick)"
             stroke="currentColor"
-            stroke-opacity="0.2"
-            stroke-dasharray="4 4"
+            [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 1 : 0.2"
+            [attr.stroke-dasharray]="tick === 0 && valueDomain()[0] < 0 ? null : '4 4'"
+            [class.text-muted-foreground]="tick === 0 && valueDomain()[0] < 0"
           />
         }
       </g>
@@ -103,9 +104,9 @@
           @if (showValues()) {
             <text
               [attr.x]="bar.x + bar.width / 2"
-              [attr.y]="bar.y - 6"
+              [attr.y]="bar.labelPosition.y"
               text-anchor="middle"
-              class="text-xs font-medium fill-foreground pointer-events-none"
+              class="text-xs font-medium fill-foreground pointer-events-none stroke-background stroke-2 [paint-order:stroke]"
             >
               {{ formatValue(bar.value) }}
             </text>
@@ -117,7 +118,7 @@
 
   @if (hoveredBar() && showTooltip()) {
     <div
-      class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none"
+      class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none max-w-[calc(100vw-2rem)] break-words"
       [style.left.px]="tooltipPosition().x"
       [style.top.px]="tooltipPosition().y"
     >

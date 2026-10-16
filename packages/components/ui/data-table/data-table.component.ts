@@ -22,7 +22,7 @@ import {
 import { CommonModule, DOCUMENT } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { cn, isRtl, stringifyValue } from "../../lib/utils";
-import { onPointerDrag, onLongPress } from "../../lib/touch";
+import { onPointerDrag, onLongPress, onDoubleTap } from "../../lib/touch";
 import type { ThemeName } from "../../lib/theme-presets";
 import { createLocaleBindings, interpolate, provideComponentLocale, type LocaleInput } from "../../lib/i18n";
 import { DATA_TABLE_LOCALES, type DataTableLocale } from "./data-table.locales";
@@ -5982,6 +5982,28 @@ export class DataTableComponent<T>
   }
 
   private readonly _resizingColumn = signal<CellStyleColumn | null>(null);
+
+  private readonly resizeHandles = viewChildren<ElementRef<HTMLElement>>("resizeHandle");
+
+  /**
+   * A double-tap on a resize handle auto-fits its column, like a double-click:
+   * the touchstart there is cancelled to start the drag, so no `dblclick` is ever
+   * synthesised for a finger. Registered per handle rather than on the container,
+   * because `onDoubleTap` cancels the second `touchend` of whatever it listens
+   * on and must not swallow the second click of a double-tap on a cell.
+   */
+  private readonly registerResizeDoubleTap = effect((onCleanup) => {
+    const stops = this.resizeHandles().map((handle) =>
+      onDoubleTap(handle.nativeElement, () => {
+        const key = handle.nativeElement.closest<HTMLElement>("[data-column-id]")?.dataset["columnId"];
+        if (!key) return;
+        // This touchend also ends the press that began a resize; without this it would report the auto-fit's width a second time.
+        this._resizingColumn.set(null);
+        this.autoSizeColumn(key);
+      }),
+    );
+    onCleanup(() => stops.forEach((stop) => stop()));
+  });
   private resizeStartX = 0;
   private resizeStartWidth = 0;
   private resizeOldWidth = "auto";
@@ -6081,18 +6103,20 @@ export class DataTableComponent<T>
 
   private onResizeEnd(): void {
     const resizing = this._resizingColumn();
-    if (resizing) {
-      const key = String(resizing.accessorKey);
-      const newWidth = this.columnWidths()[key] ?? this.resizeOldWidth;
+    if (!resizing) return;
 
-      this.columnResize.emit({
-        columnKey: key,
-        oldWidth: this.resizeOldWidth,
-        newWidth,
-      });
+    const key = String(resizing.accessorKey);
+    const newWidth = this.columnWidths()[key] ?? this.resizeOldWidth;
+    this._resizingColumn.set(null);
 
-      this._resizingColumn.set(null);
-    }
+    // Only a press that changed the width is a resize. The presses of a double-click or
+    // double-tap are not, and would otherwise report a no-op around the auto-fit's own event.
+    if (newWidth === this.resizeOldWidth) return;
+    this.columnResize.emit({
+      columnKey: key,
+      oldWidth: this.resizeOldWidth,
+      newWidth,
+    });
   }
 
   /**

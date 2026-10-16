@@ -157,13 +157,17 @@ export function finiteOrZero(value: number | undefined): number {
     return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
-/** Compute cumulative stacking bands per series and category. */
+/**
+ * Compute cumulative stacking bands per series and category. Bands accumulate
+ * the signed values; `'percent'` scales a category so its absolute values add
+ * up to 100 (`100 · v / Σ|v|`), keeping every band inside `[-100, 100]`.
+ */
 export function stackSeries(series: ChartSeries[], mode: StackingMode = 'absolute'): StackBand[][] {
     const result: StackBand[][] = series.map(() => []);
     const categoryCount = series[0]?.data.length ?? 0;
 
     for (let c = 0; c < categoryCount; c++) {
-        const total = series.reduce((sum, s) => sum + finiteOrZero(s.data[c]?.value), 0);
+        const total = series.reduce((sum, s) => sum + Math.abs(finiteOrZero(s.data[c]?.value)), 0);
         const factor = mode === 'percent' && total !== 0 ? 100 / total : 1;
         let cumulative = 0;
         for (let s = 0; s < series.length; s++) {

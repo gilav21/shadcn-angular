@@ -3,6 +3,7 @@
   [attr.data-slot]="'toggle-group'"
   [attr.data-variant]="variant()"
   [attr.data-size]="size()"
+  (focusout)="onFocusOut($event)"
 >
   @if (isDataDriven()) {
     @for (item of items(); track item.value) {

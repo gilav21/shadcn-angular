@@ -4815,6 +4815,28 @@ describe('DataTableComponent - Column resize drag', () => {
         expect(component.isResizingColumn(idCol)).toBe(false);
     });
 
+    // UC-14. A press that never moved resized nothing, so it reports nothing: one
+    // double-click or double-tap auto-fit must reach the consumer once, not as the
+    // auto-fit plus a no-op `columnResize` for every press of the gesture.
+    it('reports a resize only for a press that changed the width', () => {
+        const resizeSpy = vi.fn();
+        component.columnResize.subscribe(resizeSpy);
+        const idCol = component.enhancedColumns().find((c) => c.accessorKey === 'id')!;
+        const touchStart = { touches: [{ clientX: 100 }], preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as TouchEvent;
+
+        component.onResizeStart(new MouseEvent('mousedown', { clientX: 100 }), idCol);
+        document.dispatchEvent(new MouseEvent('mouseup'));
+        component.onResizeTouchStart(touchStart, idCol);
+        document.dispatchEvent(new TouchEvent('touchend'));
+        expect(resizeSpy).not.toHaveBeenCalled();
+
+        component.onResizeStart(new MouseEvent('mousedown', { clientX: 100 }), idCol);
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 130 }));
+        document.dispatchEvent(new MouseEvent('mouseup'));
+        expect(resizeSpy).toHaveBeenCalledTimes(1);
+        expect(resizeSpy).toHaveBeenCalledWith({ columnKey: 'id', oldWidth: '100px', newWidth: '130px' });
+    });
+
     it('clamps the column width to its minWidth', () => {
         const idCol = component.enhancedColumns().find((c) => c.accessorKey === 'id')!;
         component.onResizeStart(new MouseEvent('mousedown', { clientX: 100 }), idCol);

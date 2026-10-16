@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { afterEach, describe, it, expect } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import {
     ContextMenuComponent,
     ContextMenuTriggerComponent,
@@ -138,5 +139,124 @@ describe('ContextMenu direction (real browser)', () => {
                 expect(shortcut.left - label.right).toBeGreaterThan(8);
             }
         }
+    });
+});
+
+@Component({
+    template: `
+        <div [attr.dir]="dir()">
+            <input data-testid="outside" aria-label="Outside field" />
+            <div data-testid="blank" style="position: fixed; right: 0; bottom: 0; width: 24px; height: 24px"></div>
+            <ui-context-menu>
+                <ui-context-menu-trigger>
+                    <button type="button" data-testid="target">Target</button>
+                </ui-context-menu-trigger>
+                <ui-context-menu-content>
+                    <ui-context-menu-item>Cut</ui-context-menu-item>
+                    <ui-context-menu-item>Copy</ui-context-menu-item>
+                    <ui-context-menu-item [disabled]="true">Paste</ui-context-menu-item>
+                    <ui-context-menu-sub>
+                        <ui-context-menu-sub-trigger>Share</ui-context-menu-sub-trigger>
+                        <ui-context-menu-sub-content>
+                            <ui-context-menu-item>Email</ui-context-menu-item>
+                            <ui-context-menu-item>Link</ui-context-menu-item>
+                        </ui-context-menu-sub-content>
+                    </ui-context-menu-sub>
+                </ui-context-menu-content>
+            </ui-context-menu>
+        </div>
+    `,
+    imports: [
+        ContextMenuComponent,
+        ContextMenuTriggerComponent,
+        ContextMenuContentComponent,
+        ContextMenuItemComponent,
+        ContextMenuSubComponent,
+        ContextMenuSubTriggerComponent,
+        ContextMenuSubContentComponent,
+    ],
+})
+class KeyboardHost {
+    readonly dir = signal<'ltr' | 'rtl'>('ltr');
+}
+
+const settle = (ms = 100): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+function targetButton(): HTMLButtonElement {
+    return document.querySelector<HTMLButtonElement>('[data-testid="target"]')!;
+}
+
+function focusedLabel(): string {
+    return (document.activeElement?.textContent ?? '').trim();
+}
+
+function pressOnFocused(key: string): void {
+    document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+}
+
+/** A context menu opened the way the keyboard context-menu key opens one: on the focused target. */
+async function openFromTarget<T>(host: new () => T, prepare?: (instance: T) => void) {
+    await TestBed.configureTestingModule({ imports: [host] }).compileComponents();
+    const fixture = TestBed.createComponent(host);
+    prepare?.(fixture.componentInstance);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const open = async (): Promise<void> => {
+        targetButton().focus();
+        targetButton().dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 120, clientY: 120 }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await settle();
+    };
+    await open();
+    return { fixture, open };
+}
+
+// The ring, the focus return and the flyout keys run in jsdom too (context-menu.component.spec.ts); what only a
+// real browser decides is kept here: the inline-end arrow of a right-to-left menu, which needs resolved
+// direction, and a real mouse click, which moves focus to <body> before the menu closes.
+describe('ContextMenu keyboard (real browser)', () => {
+    afterEach(() => {
+        document.querySelectorAll('[data-context-menu-portal], [data-context-menu-sub-portal]').forEach(el => el.remove());
+    });
+
+    it('opens the flyout with the left arrow and closes it with the right arrow in a right-to-left menu', async () => {
+        await openFromTarget(KeyboardHost, host => host.dir.set('rtl'));
+
+        pressOnFocused('End');
+        expect(focusedLabel()).toBe('Share');
+        pressOnFocused('ArrowRight');
+        await settle();
+        expect(focusedLabel()).toBe('Share');
+
+        pressOnFocused('ArrowLeft');
+        await settle();
+        expect(focusedLabel()).toBe('Email');
+        pressOnFocused('ArrowDown');
+        expect(focusedLabel()).toBe('Link');
+
+        pressOnFocused('ArrowRight');
+        await settle();
+        expect(focusedLabel()).toBe('Share');
+    });
+});
+
+describe('ContextMenu focus return (real browser)', () => {
+    afterEach(() => {
+        document.querySelectorAll('[data-context-menu-portal], [data-context-menu-sub-portal]').forEach(el => el.remove());
+    });
+
+    // A real click on empty page moves focus to <body> before the menu closes: the menu's own focus is lost, not moved on.
+    it('hands focus back to the target when a real mouse click on empty page closes the menu', async () => {
+        const { fixture } = await openFromTarget(KeyboardHost);
+        expect(document.activeElement).not.toBe(targetButton());
+
+        await userEvent.click(document.querySelector<HTMLElement>('[data-testid="blank"]')!);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await settle();
+
+        expect(document.querySelector('[data-slot="context-menu-content"]')).toBeNull();
+        expect(document.activeElement).toBe(targetButton());
     });
 });

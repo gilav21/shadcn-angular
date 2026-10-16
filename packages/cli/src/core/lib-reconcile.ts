@@ -62,7 +62,7 @@ export function isPristineLib(file: string, local: string): boolean {
  * (e.g. an `i18n.token.ts` a user customized via `set-locale`) is `userEdited`
  * and protected.
  */
-async function classifyLibFile(
+export async function classifyLibFile(
     file: string, libDir: string, manifest: Manifest, options: FetchOptions,
 ): Promise<LibDriftStatus> {
     const target = resolveInside(libDir, file);

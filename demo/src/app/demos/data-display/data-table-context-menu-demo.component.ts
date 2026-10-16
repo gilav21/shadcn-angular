@@ -34,7 +34,7 @@ const INITIAL_ROWS: PaymentRow[] = [
 
 const COLUMN_KEYS: readonly ColumnKey[] = ['customer', 'email', 'status', 'amount'];
 
-/** Touch fallback trigger: the directive itself is right-click only. */
+/** A visible row-actions button: the same menu a right-click or a long-press opens. */
 @Component({
   selector: 'app-dtcm-actions-cell',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,11 +57,6 @@ export class DtcmActionsCellComponent {
       <section class="space-y-4">
         <h2 id="data-table-context-menu" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
         <p class="text-muted-foreground">{{ t().description }}</p>
-
-        <div class="rounded-md border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
-          <p class="font-medium">{{ t().touchTitle }}</p>
-          <p class="text-muted-foreground mt-1">{{ t().touchHint }}</p>
-        </div>
       </section>
 
       <section class="space-y-4">

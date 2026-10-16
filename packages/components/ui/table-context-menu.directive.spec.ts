@@ -92,6 +92,23 @@ function query(fixture: ComponentFixture<TableContextMenuHost>, testId: string):
   return el as HTMLElement;
 }
 
+/** A finger held on `target` for the long-press duration (fake timers must be installed). */
+function holdFinger(target: HTMLElement, x: number, y: number): Event {
+  const event = new Event('touchstart', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'touches', { value: [{ clientX: x, clientY: y }] });
+  target.dispatchEvent(event);
+  vi.advanceTimersByTime(500);
+  return event;
+}
+
+/** The contextmenu Android raises after the hold, a moment later. */
+function androidEcho(target: HTMLElement, x: number, y: number): MouseEvent {
+  vi.advanceTimersByTime(100);
+  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y });
+  target.dispatchEvent(event);
+  return event;
+}
+
 describe('TableContextMenuDirective', () => {
   let fixture: ComponentFixture<TableContextMenuHost>;
   let host: TableContextMenuHost;
@@ -123,8 +140,48 @@ describe('TableContextMenuDirective', () => {
     expect((rowEvent.row as AliceRow).id).toBe(1);
     expect((rowEvent.row as AliceRow).name).toBe('Alice');
     expect(cellEvent.column).toBe('0');
-    expect(cellEvent.event.clientX).toBe(10);
-    expect(cellEvent.event.clientY).toBe(20);
+    expect((cellEvent.event as MouseEvent).clientX).toBe(10);
+    expect((cellEvent.event as MouseEvent).clientY).toBe(20);
+  });
+
+  it('opens the menu at the finger and emits what a right-click emits on a long-press of the same cell', () => {
+    vi.useFakeTimers();
+    try {
+      const showSpy = vi.spyOn(ContextMenuComponent.prototype, 'show');
+      const cell = query(fixture, 'td-named');
+      fireContextMenu(cell, 42, 84);
+
+      // A second, later gesture: within the same instant it would be taken for the right-click's own echo.
+      vi.advanceTimersByTime(1000);
+
+      const touch = holdFinger(cell, 42, 84);
+      androidEcho(cell, 42, 84);
+
+      expect(host.rowEvents).toHaveLength(2);
+      expect(host.cellEvents).toHaveLength(2);
+      expect({ ...host.rowEvents[1], event: undefined }).toEqual({ ...host.rowEvents[0], event: undefined });
+      expect({ ...host.cellEvents[1], event: undefined }).toEqual({ ...host.cellEvents[0], event: undefined });
+      expect(host.cellEvents[1].event).toBe(touch);
+      expect(showSpy).toHaveBeenCalledTimes(2);
+      expect(showSpy).toHaveBeenLastCalledWith(42, 84, { id: 1, name: 'Alice' });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does nothing on a long-press when contextMenuDisabled is true', () => {
+    vi.useFakeTimers();
+    try {
+      host.disabled.set(true);
+      fixture.detectChanges();
+
+      holdFinger(query(fixture, 'td-named'), 1, 2);
+
+      expect(host.rowEvents).toHaveLength(0);
+      expect(host.cellEvents).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('reads the explicit data-column attribute when present', () => {

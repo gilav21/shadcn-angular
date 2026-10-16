@@ -303,6 +303,33 @@ describe('TreeComponent - expandAllCollapsed Batching', () => {
     });
 });
 
+// A tree that cancelled every key swallowed Tab (keyboard users could not leave it) and the
+// keys that open a context menu (F10, Shift+F10, the context-menu key).
+describe('TreeComponent leaves unhandled keys to the browser', () => {
+    it.each([
+        { key: 'F10', init: { shiftKey: true }, prevented: false },
+        { key: 'ContextMenu', init: {}, prevented: false },
+        { key: 'Tab', init: {}, prevented: false },
+        { key: 'ArrowDown', init: { ctrlKey: true }, prevented: false },
+        { key: 'ArrowDown', init: { altKey: true }, prevented: false },
+        { key: 'ArrowDown', init: { metaKey: true }, prevented: false },
+        { key: 'ArrowDown', init: {}, prevented: true },
+        { key: ' ', init: {}, prevented: true },
+        { key: '*', init: {}, prevented: true },
+    ])('$key $init is prevented: $prevented', async ({ key, init, prevented }) => {
+        await TestBed.configureTestingModule({ imports: [TreeTestHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TreeTestHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const tree = fixture.debugElement.query(By.css('[role="tree"]')).nativeElement as HTMLElement;
+
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+        tree.dispatchEvent(event);
+
+        expect(event.defaultPrevented).toBe(prevented);
+    });
+});
+
 describe('TreeComponent - initialExpandDepth', () => {
     let fixture: ComponentFixture<DataDrivenTreeTestHostComponent>;
     let component: DataDrivenTreeTestHostComponent;

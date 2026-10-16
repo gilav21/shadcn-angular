@@ -577,6 +577,7 @@
       "context-menu/sub/context-menu-trigger.directive.ts"
     ],
     "libFiles": [
+      "menu-activation.ts",
       "overlay-stack.service.ts",
       "theme-presets.ts",
       "touch.ts"
@@ -1359,6 +1360,7 @@
     ],
     "libFiles": [
       "a11y.ts",
+      "menu-activation.ts",
       "overlay-stack.service.ts",
       "touch.ts"
     ],
@@ -1517,6 +1519,7 @@
       "parsers/image-validator.ts",
       "parsers/inflate.ts",
       "parsers/limits.ts",
+      "parsers/markup-safety.ts",
       "parsers/ole2-reader.ts",
       "parsers/pdf-parser.ts",
       "parsers/pdf-pixel-perfect.ts",
@@ -1640,9 +1643,16 @@
       "input-otp/index.ts",
       "input-otp/input-otp.component.css",
       "input-otp/input-otp.component.ts",
+      "input-otp/input-otp.locales.ts",
       "input-otp/sub/input-otp-group.component.ts",
       "input-otp/sub/input-otp-separator.component.ts",
       "input-otp/sub/input-otp-slot.component.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
     ],
     "testFiles": [
       "input-otp/input-otp.component.spec.ts"
@@ -1717,6 +1727,7 @@
       "menubar/sub/menubar-trigger.component.ts"
     ],
     "libFiles": [
+      "menu-activation.ts",
       "overlay-stack.service.ts",
       "touch.ts"
     ],
@@ -3101,6 +3112,7 @@
     ],
     "libFiles": [
       "chart-responsive.ts",
+      "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
       "observers.ts"
@@ -3127,6 +3139,7 @@
     ],
     "libFiles": [
       "chart-responsive.ts",
+      "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
       "observers.ts"
@@ -3153,6 +3166,7 @@
     ],
     "libFiles": [
       "chart-responsive.ts",
+      "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
       "observers.ts"
@@ -3179,6 +3193,7 @@
     ],
     "libFiles": [
       "chart-responsive.ts",
+      "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
       "observers.ts"
@@ -3206,6 +3221,7 @@
     ],
     "libFiles": [
       "chart-responsive.ts",
+      "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
       "i18n/i18n.token.ts",
@@ -3967,6 +3983,9 @@
     "files": [
       "context-menu-attach.directive.ts"
     ],
+    "libFiles": [
+      "touch.ts"
+    ],
     "dependencies": [
       "context-menu"
     ],
@@ -3987,6 +4006,9 @@
     ],
     "files": [
       "tree-context-menu.directive.ts"
+    ],
+    "libFiles": [
+      "touch.ts"
     ],
     "dependencies": [
       "context-menu"
@@ -4012,6 +4034,9 @@
     "files": [
       "table-context-menu.directive.ts"
     ],
+    "libFiles": [
+      "touch.ts"
+    ],
     "dependencies": [
       "context-menu"
     ],
@@ -4032,6 +4057,9 @@
     ],
     "files": [
       "data-table-context-menu.directive.ts"
+    ],
+    "libFiles": [
+      "touch.ts"
     ],
     "dependencies": [
       "context-menu",
@@ -5654,6 +5682,7 @@
       "parsers/image-validator.ts",
       "parsers/inflate.ts",
       "parsers/limits.ts",
+      "parsers/markup-safety.ts",
       "parsers/pdf-parser.ts",
       "parsers/pdf-pixel-perfect.ts",
       "parsers/pdf-readable/pdf-readable.ts",

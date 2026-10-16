@@ -12,7 +12,7 @@ import {
     signal,
     type ComponentRef,
 } from '@angular/core';
-import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost} from '../..';
+import { addonSetting, type RichTextAddonSetting, type RichTextAddonState, RichTextEditorAddonHost, RichTextSanitizerService } from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 import {
     RICH_TEXT_FILE_IMPORT_LOCALES,
@@ -85,6 +85,7 @@ const MAX_PDF_FONT_STYLES = 12;
 })
 export class RichTextFileImportDirective {
     private readonly host = inject(RichTextEditorAddonHost);
+    private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly injector = inject(Injector);
     private readonly vcr = inject(ViewContainerRef);
 
@@ -108,7 +109,7 @@ export class RichTextFileImportDirective {
 
     /** Emits the `File` when an import begins. */
     readonly fileImportStart = output<File>();
-    /** Emits the inserted HTML when an import completes. */
+    /** Emits the sanitized HTML that was inserted when an import completes — the same markup the editor now holds. */
     readonly fileImportComplete = output<string>();
     /** Emits an error message when an import fails. */
     readonly fileImportError = output<string>();
@@ -312,13 +313,16 @@ export class RichTextFileImportDirective {
     }
 
     private insertImported(html: string): void {
-        if (!html.trim()) {
+        // Sanitized once here so the emitted string is exactly what lands in the
+        // editor; `insertHtmlAtCaret` sanitizes again, which is idempotent.
+        const safe = this.sanitizer.sanitize(html);
+        if (!safe.trim()) {
             this.reportError(this.i18n.t().importFailed);
             return;
         }
         this.host.restoreSelection();
-        this.host.insertHtmlAtCaret(html);
-        this.fileImportComplete.emit(html);
+        this.host.insertHtmlAtCaret(safe);
+        this.fileImportComplete.emit(safe);
     }
 
     private reportError(message: string): void {

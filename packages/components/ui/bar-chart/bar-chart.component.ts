@@ -24,9 +24,11 @@ import {
   formatChartValue,
   getChartSummary,
   getPointAriaLabel,
-  calculateAxisTicks,
-  getDataRange,
 } from '../../lib/chart.utils';
+import { linearScale, zeroBasedDomain } from '../../lib/chart-scale';
+
+/** Room, in px, a horizontal bar's value label needs between the bar end and the plot edge. */
+const LABEL_ROOM = 32;
 
 @Component({
   selector: 'ui-bar-chart',
@@ -46,8 +48,11 @@ export class BarChartComponent implements AfterViewInit {
    * when {@link isRtl} resolves true). `name` is the category label under the
    * axis, `value` the bar length, and the optional `color` overrides the
    * palette colour that would otherwise be picked from the entry's index.
-   * Values are assumed non-negative: the scale is anchored at 0 and only the
-   * maximum is derived from the data, so negative values fall outside the plot.
+   * Bars grow from a zero baseline: a positive value rises (or extends toward
+   * the end edge), a negative one falls (or extends toward the start edge,
+   * mirrored in RTL), and the axis covers both signs. An all-zero dataset draws
+   * zero-length bars on the baseline. Entries sharing a `name` are separate
+   * bars, one per array position.
    */
   data = input.required<ChartDataPoint[]>();
   /**
@@ -156,42 +161,56 @@ export class BarChartComponent implements AfterViewInit {
     };
   });
 
+  /**
+   * The value-axis domain: the nice bounds of the data and zero, so bars of
+   * either sign and an all-zero dataset all fit. Both ends are axis ticks.
+   */
+  readonly valueDomain = computed(() => zeroBasedDomain(this.data().map(d => d.value), 5));
+
   dataRange = computed(() => {
-    const range = getDataRange(this.data());
-    return { min: 0, max: range.max * 1.1 };
+    const [min, max] = this.valueDomain();
+    return { min, max };
   });
 
-  axisTicks = computed(() => {
-    const range = this.dataRange();
-    return calculateAxisTicks(range.min, range.max, 5);
+  private readonly valueScale = computed(() => {
+    const area = this.chartArea();
+    let range: [number, number] = [area.left, area.right];
+    if (this.isVertical()) range = [area.bottom, area.top];
+    else if (this.isRtl()) range = [area.right, area.left];
+    return linearScale(this.valueDomain(), range);
   });
+
+  axisTicks = computed(() => this.valueScale().ticks(5));
 
   bars = computed((): BarRect[] => {
     const data = this.data();
     if (data.length === 0) return [];
 
     const area = this.chartArea();
-    const range = this.dataRange();
     const gap = this.barGap();
     const isVert = this.isVertical();
     const barSize = this.computeBarSize(isVert, area, gap, data.length);
+    const scale = this.valueScale();
+    const zero = scale.scale(0);
 
     return data.map((point, index) => {
-      const normalizedValue = (point.value - range.min) / (range.max - range.min);
-      const barLength = normalizedValue * (isVert ? area.height : area.width);
+      const end = scale.scale(point.value);
+      const start = Math.min(zero, end);
+      const length = Math.abs(end - zero);
       const color = getChartColor(index, point.color);
-      const pos = this.computeBarPosition(isVert, area, gap, barSize, barLength, index);
+      const pos = this.computeBarPosition(isVert, area, gap, barSize, { start, length, value: point.value }, index);
 
       return {
         index,
         data: point,
         x: pos.x,
         y: pos.y,
-        width: Math.max(0, pos.width),
-        height: Math.max(0, pos.height),
+        width: pos.width,
+        height: pos.height,
         color,
         value: point.value,
         labelPosition: { x: pos.labelX, y: pos.labelY },
+        labelAnchor: pos.labelAnchor,
       };
     });
   });
@@ -206,29 +225,61 @@ export class BarChartComponent implements AfterViewInit {
     return (availableSpace - (count - 1) * gap) / count;
   }
 
+  /** Whether a bar's free end (the one away from the zero baseline) faces right: positive in LTR, negative in RTL. */
+  private growsRight(value: number): boolean {
+    return (value >= 0) !== this.isRtl();
+  }
+
   private computeBarPosition(
     isVert: boolean,
     area: { left: number; right: number; top: number; bottom: number },
     gap: number,
     barSize: number,
-    barLength: number,
+    span: { start: number; length: number; value: number },
     index: number
-  ): { x: number; y: number; width: number; height: number; labelX: number; labelY: number } {
+  ): { x: number; y: number; width: number; height: number; labelX: number; labelY: number; labelAnchor: BarRect['labelAnchor'] } {
+    const offset = index * (barSize + gap);
     if (isVert) {
-      const x = this.isRtl()
-        ? area.right - index * (barSize + gap) - barSize
-        : area.left + index * (barSize + gap);
-      const y = area.bottom - barLength;
-      return { x, y, width: barSize, height: barLength, labelX: x + barSize / 2, labelY: y - 6 };
+      const x = this.isRtl() ? area.right - offset - barSize : area.left + offset;
+      return {
+        x, y: span.start, width: barSize, height: span.length,
+        labelX: x + barSize / 2, labelY: this.verticalLabelY(area, span), labelAnchor: 'middle',
+      };
     }
-    if (this.isRtl()) {
-      const x = area.right - barLength;
-      const y = area.top + index * (barSize + gap);
-      return { x, y, width: barLength, height: barSize, labelX: x - 6, labelY: y + barSize / 2 };
-    }
-    const x = area.left;
-    const y = area.top + index * (barSize + gap);
-    return { x, y, width: barLength, height: barSize, labelX: x + barLength + 6, labelY: y + barSize / 2 };
+    const y = area.top + offset;
+    const label = this.horizontalLabel(area, span);
+    return { x: span.start, y, width: span.length, height: barSize, labelX: label.x, labelY: y + barSize / 2, labelAnchor: label.anchor };
+  }
+
+  /**
+   * Baseline of a column's value label: above a positive column, below a
+   * negative one. A negative column that reaches the axis labels at the bottom
+   * of the plot has no room under it, so its label moves inside the bar end.
+   */
+  private verticalLabelY(area: { bottom: number }, span: { start: number; length: number; value: number }): number {
+    if (span.value >= 0) return span.start - 6;
+    const below = span.start + span.length + 14;
+    return below <= area.bottom + 2 ? below : span.start + span.length - 6;
+  }
+
+  /**
+   * Position and anchor of a horizontal bar's value label: just past its free
+   * end, or inside the bar when less than {@link LABEL_ROOM} px remain between
+   * that end and the plot edge (a bar reaching the edge would otherwise print
+   * over the category labels or outside the chart). The room is a few
+   * characters wide, so a short bar whose free end still has that much space
+   * before the edge keeps its label outside.
+   */
+  private horizontalLabel(
+    area: { left: number; right: number },
+    span: { start: number; length: number; value: number },
+  ): { x: number; anchor: 'start' | 'end' } {
+    const growsRight = this.growsRight(span.value);
+    const freeEnd = growsRight ? span.start + span.length : span.start;
+    const room = growsRight ? area.right - freeEnd : freeEnd - area.left;
+    const outside = room >= LABEL_ROOM;
+    const x = growsRight === outside ? freeEnd + 6 : freeEnd - 6;
+    return { x, anchor: growsRight === outside ? 'start' : 'end' };
   }
 
   hoveredBar = computed(() => {
@@ -251,18 +302,7 @@ export class BarChartComponent implements AfterViewInit {
    * bars.
    */
   getTickPosition(tick: number): number {
-    const range = this.dataRange();
-    const area = this.chartArea();
-    const normalized = (tick - range.min) / (range.max - range.min);
-
-    if (this.isVertical()) {
-      return area.bottom - normalized * area.height;
-    } else {
-      if (this.isRtl()) {
-        return area.right - normalized * area.width;
-      }
-      return area.left + normalized * area.width;
-    }
+    return this.valueScale().scale(tick);
   }
 
   /**
@@ -306,6 +346,6 @@ export class BarChartComponent implements AfterViewInit {
 
   /** Like {@link formatValue} but drops decimals, keeping the value-axis tick labels short enough for the fixed axis gutter. */
   formatAxisValue(value: number): string {
-    return formatChartValue(value, { compact: true, decimals: 0 });
+    return formatChartValue(value, { compact: true, decimals: Number.isInteger(value) ? 0 : 6 });
   }
 }

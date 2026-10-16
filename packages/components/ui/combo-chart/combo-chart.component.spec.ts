@@ -183,13 +183,13 @@ describe('ComboChartComponent', () => {
             { name: 'Rework', data: [{ name: 'A', value: 20 }, { name: 'B', value: 72 }, { name: 'C', value: 9 }, { name: 'D', value: 3 }] },
         ]);
         fixture.detectChanges();
-        expect(component.primaryMax()).toBe(72);
+        expect(component.primaryDomain()).toEqual([0, 80]);
     });
 
-    it('falls back to a primary max of 1 when the bar data is empty', () => {
+    it('keeps a usable primary axis when the bar data is empty', () => {
         fixture.componentRef.setInput('barSeries', [{ name: 'Empty', data: [] }]);
         fixture.detectChanges();
-        expect(component.primaryMax()).toBe(1);
+        expect(component.primaryDomain()).toEqual([-1, 1]);
         expect(component.categories()).toEqual([]);
     });
 
@@ -222,7 +222,7 @@ describe('ComboChartComponent', () => {
         const cumulative = component.cumulativePercents();
         expect(cumulative.at(-1)).toBeCloseTo(100, 5);
         expect(cumulative[0]).toBeCloseTo(50, 5);
-        expect(component.secondaryMax()).toBe(100);
+        expect(component.secondaryDomain()).toEqual([0, 100]);
         const cumulativeLine = fixture.nativeElement.querySelector(
             'path[data-slot="combo-line"]',
         );
@@ -254,11 +254,11 @@ describe('ComboChartComponent', () => {
         expect(
             fixture.nativeElement.querySelectorAll('path[data-slot="combo-line"]'),
         ).toHaveLength(1);
-        expect(component.secondaryMax()).toBe(40);
+        expect(component.secondaryDomain()).toEqual([0, 40]);
     });
 
-    it('uses a secondary max of 100 when there are no line values', () => {
-        expect(component.secondaryMax()).toBe(100);
+    it('uses a secondary domain of 0 to 100 when there are no line values', () => {
+        expect(component.secondaryDomain()).toEqual([0, 100]);
         expect(component.lines()).toEqual([]);
     });
 
@@ -385,4 +385,85 @@ describe('ComboChartComponent', () => {
         ).toBeNull();
         expect(fixture.nativeElement.querySelector('ui-chart-legend')).toBeNull();
     });
+});
+
+describe('ComboChartComponent negative values', () => {
+    const CLASSES: Record<string, { bars: number[]; line: number[] }> = {
+        'mixed-sign': { bars: [50, -30, 15, -5], line: [-40, 35, -20, 10] },
+        'all-negative': { bars: [-50, -30, -15], line: [-4, -35, -20] },
+        'all-positive': { bars: [50, 30, 15], line: [40, 35, 20] },
+    };
+
+    function pathYs(d: string): number[] {
+        const numbers = (d.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi) ?? []).map(Number);
+        return numbers.filter((_, i) => i % 2 === 1);
+    }
+
+    function build(bars: number[], line: number[]): ComboChartComponent {
+        const instance = TestBed.createComponent(ComboChartComponent);
+        const names = bars.map((_, i) => `C${i}`);
+        instance.componentRef.setInput('barSeries', [{ name: 'Bars', data: bars.map((value, i) => ({ name: names[i], value })) }]);
+        instance.componentRef.setInput('lineSeries', [{ name: 'Line', data: line.map((value, i) => ({ name: names[i], value })) }]);
+        instance.detectChanges();
+        return instance.componentInstance;
+    }
+
+    beforeEach(() => {
+        vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it.each(Object.keys(CLASSES))('should keep the %s cumulative line inside the plot', className => {
+        const { bars, line } = CLASSES[className];
+        const instance = TestBed.createComponent(ComboChartComponent);
+        const names = bars.map((_, i) => `C${i}`);
+        instance.componentRef.setInput('barSeries', [{ name: 'Bars', data: bars.map((value, i) => ({ name: names[i], value })) }]);
+        instance.componentRef.setInput('lineSeries', [{ name: 'Line', data: line.map((value, i) => ({ name: names[i], value })) }]);
+        instance.componentRef.setInput('showCumulative', true);
+        instance.detectChanges();
+        const component = instance.componentInstance;
+        const ys = component.primaryTicks().map(t => t.y);
+
+        expect(component.lines()).toHaveLength(2);
+        for (const l of component.lines()) {
+            for (const y of pathYs(l.path)) {
+                expect(y).toBeGreaterThanOrEqual(Math.min(...ys) - 0.5);
+                expect(y).toBeLessThanOrEqual(Math.max(...ys) + 0.5);
+            }
+        }
+    });
+
+    for (const [className, { bars, line }] of Object.entries(CLASSES)) {
+        it(`should keep ${className} bars and line inside the plot, with bars rising from the zero gridline`, () => {
+            const component = build(bars, line);
+            const ys = component.primaryTicks().map(t => t.y);
+            const [top, bottom] = [Math.min(...ys), Math.max(...ys)];
+            const zeroY = component.primaryTicks().find(t => t.value === 0)?.y as number;
+
+            expect(zeroY).toBeDefined();
+            component.bars().forEach((bar, i) => {
+                expect(bar.y).toBeGreaterThanOrEqual(top - 0.5);
+                expect(bar.y + bar.height).toBeLessThanOrEqual(bottom + 0.5);
+                // The bar's edge nearer the zero gridline sits on it.
+                const nearEdge = bars[i] >= 0 ? bar.y + bar.height : bar.y;
+                expect(nearEdge).toBeCloseTo(zeroY, 4);
+            });
+            for (const l of component.lines()) {
+                for (const y of pathYs(l.path)) {
+                    expect(y).toBeGreaterThanOrEqual(top - 0.5);
+                    expect(y).toBeLessThanOrEqual(bottom + 0.5);
+                }
+            }
+        });
+
+        it(`should give the ${className} secondary axis a domain that contains zero and every line value`, () => {
+            const [lo, hi] = build(bars, line).secondaryDomain();
+
+            expect(lo).toBeLessThanOrEqual(Math.min(0, ...line));
+            expect(hi).toBeGreaterThanOrEqual(Math.max(0, ...line));
+        });
+    }
 });

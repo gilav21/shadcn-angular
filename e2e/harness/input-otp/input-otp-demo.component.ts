@@ -6,9 +6,9 @@ import {
 } from '@/components/ui/input-otp';
 
 /**
- * Note: `ui-input-otp` uses a `model()` named `value`, not ngModel /
- * ControlValueAccessor. Bind with `[(value)]` (or `[value]` +
- * `(valueChange)`) — `[ngModel]` would no-op.
+ * `ui-input-otp` is a `ControlValueAccessor` as well as a `model()` named
+ * `value`: bind with `[(value)]`, `[value]` + `(valueChange)`, `formControlName`
+ * or `[(ngModel)]`. This harness uses the plain `[value]` binding.
  */
 @Component({
     selector: 'app-input-otp-demo',

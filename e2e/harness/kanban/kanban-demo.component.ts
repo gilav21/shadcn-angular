@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import {
     KanbanComponent,
     KanbanColumnHeaderComponent,
@@ -8,6 +8,8 @@ import {
     KanbanColumnDialogComponent,
     KanbanDeleteColumnDialogComponent,
     KanbanColumnComponent,
+    type KanbanCard,
+    type KanbanColumn,
 } from '@/components/ui/kanban';
 
 /**
@@ -30,7 +32,16 @@ import {
                 <ui-kanban-delete-column-dialog data-testid="kanban-delete-column-dialog"></ui-kanban-delete-column-dialog>
                 <ui-kanban-column data-testid="kanban-column"></ui-kanban-column>
             </ui-kanban>
+            <ui-kanban data-testid="board" [columns]="columns" [cards]="cards()" (cardsChange)="cards.set($event)" />
         </main>
     `,
 })
-export class KanbanDemoComponent {}
+export class KanbanDemoComponent {
+    readonly columns: KanbanColumn[] = [
+        { id: 'todo', title: 'To Do', order: 0 },
+        { id: 'done', title: 'Done', order: 1 },
+    ];
+    readonly cards = signal<KanbanCard[]>([
+        { id: 'c1', columnId: 'todo', title: 'Ship the release', order: 0 },
+    ]);
+}

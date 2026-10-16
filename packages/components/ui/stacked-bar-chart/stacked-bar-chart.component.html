@@ -1,4 +1,4 @@
-<div [class]="containerClasses()">
+<div [class]="containerClasses()" [attr.data-slot]="'stacked-bar-chart'">
   <svg
     [attr.viewBox]="'0 0 ' + svgWidth() + ' ' + svgHeight()"
     [attr.width]="'100%'"
@@ -18,8 +18,9 @@
             [attr.x2]="chartArea().right"
             [attr.y2]="getTickPosition(tick)"
             stroke="currentColor"
-            stroke-opacity="0.2"
-            stroke-dasharray="4 4"
+            [attr.stroke-opacity]="tick === 0 && valueDomain()[0] < 0 ? 1 : 0.2"
+            [attr.stroke-dasharray]="tick === 0 && valueDomain()[0] < 0 ? null : '4 4'"
+            [class.text-muted-foreground]="tick === 0 && valueDomain()[0] < 0"
           />
         }
       </g>
@@ -98,7 +99,7 @@
 
   @if (showLegend()) {
     <div class="flex flex-wrap gap-4 mt-4 justify-center">
-      @for (s of series(); track s.id ?? s.name) {
+      @for (s of series(); track $index) {
         <div class="flex items-center gap-2 text-sm">
           <span
             class="w-3 h-3 rounded-sm"
@@ -112,7 +113,7 @@
 
   @if (hoveredSegment()) {
     <div
-      class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none"
+      class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none max-w-[calc(100vw-2rem)] break-words"
       [style.left.px]="tooltipPosition().x"
       [style.top.px]="tooltipPosition().y"
     >

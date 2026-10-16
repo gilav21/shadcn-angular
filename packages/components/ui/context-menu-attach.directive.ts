@@ -1,28 +1,33 @@
 import {
+  DestroyRef,
   Directive,
-  HostListener,
+  ElementRef,
+  inject,
   input,
   output,
 } from '@angular/core';
+import { onContextGesture, type ContextGesture } from '../lib/touch';
 import { ContextMenuComponent } from './context-menu';
 
 export interface ContextMenuEvent<T> {
-  event: MouseEvent;
+  /** The `contextmenu` event of a right-click or the keyboard key, or the `touchstart` that began a long-press. */
+  event: MouseEvent | TouchEvent;
   item: T;
   index?: number;
 }
 
 /**
- * Attach a context menu to any element with data. Right-clicking the host
- * element opens the provided {@link ContextMenuComponent} at the cursor position
- * and emits {@link ContextMenuEvent} with the bound data.
+ * Attach a context menu to any element with data. Right-clicking, pressing the
+ * context-menu key on, or long-pressing the host element opens the provided
+ * {@link ContextMenuComponent} at the pointer or finger and emits
+ * {@link ContextMenuEvent} with the bound data.
  */
 @Directive({
   selector: '[uiContextMenuAttach]',
   standalone: true,
 })
 export class ContextMenuAttachDirective<T> {
-  /** The menu to open when the host is right-clicked. */
+  /** The menu to open when the host is right-clicked or long-pressed. */
   uiContextMenuAttach = input.required<ContextMenuComponent>();
   /** Value handed back with the event, so a handler knows what was clicked. */
   contextMenuData = input.required<T>();
@@ -32,23 +37,20 @@ export class ContextMenuAttachDirective<T> {
   /** Emits the bound data and the originating event when the menu opens. */
   contextMenuTriggered = output<ContextMenuEvent<T>>();
 
-  @HostListener('contextmenu', ['$event'])
-  onContextMenu(event: MouseEvent): void {
-    if (this.disabled()) {
-      return;
-    }
+  constructor() {
+    const stop = onContextGesture(inject<ElementRef<HTMLElement>>(ElementRef).nativeElement, (gesture) => this.open(gesture));
+    inject(DestroyRef).onDestroy(stop);
+  }
 
-    event.preventDefault();
-    event.stopPropagation();
+  /** Whether the gesture was taken: a disabled host leaves it to the browser. */
+  private open(gesture: ContextGesture): boolean {
+    if (this.disabled()) return false;
 
     const contextMenu = this.uiContextMenuAttach();
-    if (!contextMenu) return;
+    if (!contextMenu) return true;
 
-    this.contextMenuTriggered.emit({
-      event,
-      item: this.contextMenuData(),
-    });
-
-    contextMenu.show(event.clientX, event.clientY);
+    this.contextMenuTriggered.emit({ event: gesture.source, item: this.contextMenuData() });
+    contextMenu.show(gesture.clientX, gesture.clientY);
+    return true;
   }
 }

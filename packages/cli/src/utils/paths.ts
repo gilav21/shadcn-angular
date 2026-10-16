@@ -71,11 +71,14 @@ export function getLocalRegistryJson(): string | null {
     return fs.existsSync(localPath) ? localPath : null;
 }
 
+/** The message prefix of every refusal from {@link resolveProjectPath} / {@link resolveInside}. */
+export const PATH_GUARD = 'Path must stay inside the project directory';
+
 export function resolveProjectPath(cwd: string, inputPath: string): string {
     const resolved = path.resolve(cwd, inputPath);
     const relative = path.relative(cwd, resolved);
     if (relative.startsWith('..') || path.isAbsolute(relative)) {
-        throw new Error(`Path must stay inside the project directory: ${inputPath}`);
+        throw new Error(`${PATH_GUARD}: ${inputPath}`);
     }
     return resolved;
 }
@@ -90,7 +93,7 @@ export function resolveProjectPath(cwd: string, inputPath: string): string {
 export function resolveInside(base: string, inputPath: string): string {
     const resolved = resolveProjectPath(base, inputPath);
     if (resolved === path.resolve(base)) {
-        throw new Error(`Path must stay inside the project directory: ${inputPath}`);
+        throw new Error(`${PATH_GUARD}: ${inputPath}`);
     }
     return resolved;
 }

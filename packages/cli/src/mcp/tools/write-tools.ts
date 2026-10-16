@@ -29,6 +29,15 @@ import { applyInitDefaults, type InitDefaults } from '../../commands/init.js';
 import { isValidHex } from '../../utils/color.js';
 import { collectDoctorReport, buildFixPlan, doctorFixCore, refreshLibCore } from '../../commands/doctor.js';
 
+/**
+ * An install that did not fully complete: a file/lib/npm/lockfile step failed or
+ * a component could not be checked. Written conflict markers are NOT included —
+ * `hadConflicts` is the documented signal for those, and the call did what it was asked.
+ */
+function isIncomplete(result: { readonly failures: readonly unknown[]; readonly unchecked: readonly unknown[] }): boolean {
+    return result.failures.length > 0 || result.unchecked.length > 0;
+}
+
 function validateNames(names: string[]): string[] {
     return names.filter(n => !isComponentName(n));
 }
@@ -140,7 +149,7 @@ function registerInitTool(server: ToolHost, cwd: string): void {
 function registerAddTool(server: ToolHost, cwd: string): void {
     server.registerTool('add_component', {
         title: 'Add components',
-        description: 'Install one or more components (writes files, resolves deps, installs npm packages). Conflicts are NOT overwritten unless listed in `overwrite`. Run get_install_plan first.',
+        description: 'Install one or more components (writes files, resolves deps, installs npm packages). Conflicts are NOT overwritten unless listed in `overwrite`. Returns isError with `failures[]` (files, lib files, npm, lockfile) and/or `unchecked[]` (registry unreachable) when the install did not fully complete. Run get_install_plan first.',
         inputSchema: {
             names: z.array(z.string()).min(1),
             overwrite: z.array(z.string()).optional().describe('Component names whose conflicting local files may be overwritten.'),
@@ -176,14 +185,14 @@ function registerAddTool(server: ToolHost, cwd: string): void {
             cwd, config, options, path: args.path,
             includeTests: tests.includeTests, testRunner: tests.runner,
         });
-        return json({ ...result, warnings: [...preset.warnings, ...result.warnings] });
+        return json({ ...result, warnings: [...preset.warnings, ...result.warnings] }, { isError: isIncomplete(result) });
     });
 }
 
 function registerUpdateTool(server: ToolHost, cwd: string): void {
     server.registerTool('update_component', {
         title: 'Update components',
-        description: 'Update components from the registry. By default 3-way MERGES upstream changes into your local edits (conflicts are written as <<<<<<< markers and reported in mergeReport.mergedConflicted); pass overwrite:true to replace your edits whole-file instead. Files with local edits but no recorded merge baseline are KEPT unchanged and listed in mergeReport.fellBack — re-run with overwrite:true to take upstream for those. Mirrors the `update` CLI command.',
+        description: 'Update components from the registry. By default 3-way MERGES upstream changes into your local edits (conflicts are written as <<<<<<< markers and reported in mergeReport.mergedConflicted); pass overwrite:true to replace your edits whole-file instead. Files with local edits but no recorded merge baseline are KEPT unchanged and listed in mergeReport.fellBack — re-run with overwrite:true to take upstream for those. Returns isError with `failures[]` / `unchecked[]` when the update did not fully complete (a component with a failed file keeps its old lockfile ref). Mirrors the `update` CLI command.',
         inputSchema: {
             names: z.array(z.string()).min(1),
             overwrite: z.boolean().optional().describe('Replace local edits whole-file instead of 3-way merging.'),
@@ -226,7 +235,7 @@ function registerUpdateTool(server: ToolHost, cwd: string): void {
             breakingChanges,
             staleSelectors,
             bindingRewrites: { applied: Boolean(fix), ...bindingRewrites },
-        });
+        }, { isError: isIncomplete(result) });
     });
 }
 
@@ -426,7 +435,7 @@ function registerDoctorTool(server: ToolHost, cwd: string): void {
 function registerApplyAddonTool(server: ToolHost, cwd: string): void {
     server.registerTool('apply_addon', {
         title: 'Apply an addon',
-        description: 'Install an addon (and its base if missing) and wire it into your app non-interactively: adds the directive import + the attribute on the base component\'s usage. Target by component class name(s), or omit to wire every app-code usage. Returns per-target wiring counts and a paste snippet for anything it could not auto-wire. If the base had local edits it is 3-way merged; check hadConflicts / mergeReport.mergedConflicted for files written with <<<<<<< conflict markers before reporting success.',
+        description: 'Install an addon (and its base if missing) and wire it into your app non-interactively: adds the directive import + the attribute on the base component\'s usage. Target by component class name(s), or omit to wire every app-code usage. Returns per-target wiring counts and a paste snippet for anything it could not auto-wire. If the base had local edits it is 3-way merged; check hadConflicts / mergeReport.mergedConflicted for files written with <<<<<<< conflict markers before reporting success. Returns isError with `failures[]` / `unchecked[]` (and wires nothing) when the install of the addon or its base did not complete.',
         inputSchema: {
             addon: z.string().describe('Addon key, e.g. "data-table/context-menu".'),
             components: z.array(z.string()).optional().describe('Component class name(s) to wire into (e.g. ["UsersTableComponent"]). Omit to scan all app-code usages.'),
@@ -454,7 +463,10 @@ function registerApplyAddonTool(server: ToolHost, cwd: string): void {
                 all: args.all, class: args.class, id: args.id, dryRun: args.dryRun,
             };
             const result = await applyCore(args.addon, args.components ?? [], options, cwd, config);
-            return json({ ...result, hadConflicts: hasUnresolvedConflicts(result.mergeReport) });
+            return json(
+                { ...result, hadConflicts: hasUnresolvedConflicts(result.mergeReport) },
+                { isError: isIncomplete(result) },
+            );
         } catch (error) {
             if (error instanceof ApplyError) return err(error.message);
             return err(error instanceof Error ? error.message : String(error));

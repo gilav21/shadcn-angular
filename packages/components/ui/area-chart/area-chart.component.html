@@ -40,7 +40,7 @@
       >{{ g.value }}</text>
     }
 
-    @for (c of categoryTicks(); track c.name) {
+    @for (c of categoryTicks(); track $index) {
       <text
         [attr.x]="c.x"
         [attr.y]="height() - 10"
@@ -49,7 +49,7 @@
       >{{ c.name }}</text>
     }
 
-    @for (ap of areaPaths(); track ap.key) {
+    @for (ap of areaPaths(); track $index) {
       <path
         [attr.data-slot]="'area-series'"
         [attr.d]="ap.area"

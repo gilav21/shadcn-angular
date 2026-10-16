@@ -139,6 +139,22 @@ export async function getConfig(cwd: string): Promise<Config | null> {
     }
 }
 
+/**
+ * The `registry` a project pins in components.json, or `undefined` when there
+ * is none. Reads quietly: no validation and no printing, because the caller is
+ * a hook that runs before the command and the command reports an invalid file
+ * itself (via {@link getConfig}) — doing both would print the error twice.
+ */
+export async function readConfiguredRegistry(cwd: string): Promise<string | undefined> {
+    try {
+        const data: unknown = await fs.readJson(path.join(cwd, 'components.json'));
+        const registry = (data as { registry?: unknown } | null)?.registry;
+        return typeof registry === 'string' && registry !== '' ? registry : undefined;
+    } catch {
+        return undefined;
+    }
+}
+
 export async function writeConfig(cwd: string, config: Config): Promise<void> {
     const configPath = path.join(cwd, 'components.json');
     await fs.writeJson(configPath, config, { spaces: 2 });

@@ -6,7 +6,10 @@ import {
   computed,
   inject,
   booleanAttribute,
+  DestroyRef,
+  ElementRef,
 } from '@angular/core';
+import { activateAsClick, blockDisabledActivation } from '../../../lib/menu-activation';
 import { cn } from '../../../lib/utils';
 import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.component';
 
@@ -15,13 +18,16 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
+      #row
       [class]="classes()"
       [attr.data-slot]="'menubar-item'"
       [attr.data-disabled]="disabled() || null"
+      [attr.aria-disabled]="disabled() || null"
       role="menuitem"
       tabindex="-1"
       (click)="onClick()"
-      (keydown.enter)="onClick()"
+      (keydown.enter)="activate($event, row)"
+      (keydown.space)="activate($event, row)"
     >
       <ng-content />
       @if (shortcut()) {
@@ -37,8 +43,10 @@ export class MenubarItemComponent {
   class = input('');
   /**
    * Greys the item to 50% opacity, sets `pointer-events-none` so clicks pass
-   * through, suppresses {@link selected}, and — via the `data-disabled`
-   * attribute — removes the item from the menu's arrow-key ring entirely
+   * through, exposes `aria-disabled="true"`, suppresses {@link selected} and
+   * keeps a click made any other way (assistive technology, a programmatic
+   * `.click()`) from reaching a `(click)` bound on the item, and — via the
+   * `data-disabled` attribute — removes the item from the menu's arrow-key ring entirely
    * (see `MenubarContentComponent.getFocusableItems`). The item is not
    * reachable with Tab either: every menu item carries `tabindex="-1"` per the
    * WAI-ARIA menu pattern, so Tab leaves the menu rather than walking it.
@@ -56,11 +64,17 @@ export class MenubarItemComponent {
   shortcut = input('');
 
   /**
-   * Fires when the item is activated by click or Enter, just before the menu is
-   * closed. Never fires while {@link disabled}.
+   * Fires when the item is activated by click, Enter or Space, just before the
+   * menu is closed. Never fires while {@link disabled}.
    */
   selected = output<void>();
   readonly menu = inject(MENUBAR_MENU, { optional: true }) as MenubarMenuComponent | null;
+
+  constructor() {
+    // The host is `display: contents`, so a click anywhere on the row passes through it.
+    const unblock = blockDisabledActivation(inject<ElementRef<HTMLElement>>(ElementRef).nativeElement, () => this.disabled());
+    inject(DestroyRef).onDestroy(unblock);
+  }
 
   classes = computed(() => cn(
     'relative flex cursor-pointer select-none items-center rounded-sm text-sm outline-none',
@@ -72,15 +86,24 @@ export class MenubarItemComponent {
   ));
 
   /**
-   * Activation handler for both click and Enter: emits {@link selected} and then
-   * closes the owning menu, which also tears down any open submenu. Does nothing
-   * when {@link disabled}. Items used outside a `ui-menubar-menu` still emit but
-   * have no menu to close.
+   * Activation handler for click, Enter and Space alike (the keys dispatch a
+   * click on the row): emits {@link selected} and then closes the owning menu,
+   * which also tears down any open submenu. The click goes on to bubble to the
+   * `<ui-menubar-item>` host, so a `(click)` you bind there runs too, once.
+   * While {@link disabled} it does nothing: the host's capture-phase guard has
+   * already kept the click from every listener, `(click)` included, however it
+   * was made. Items used outside a `ui-menubar-menu` still emit but have no
+   * menu to close.
    */
   onClick(): void {
     if (!this.disabled()) {
       this.selected.emit();
       this.menu?.closeAfterActivation();
     }
+  }
+
+  /** Enter or Space on the row: one click, and the page behind the menu does not scroll. Nothing happens while {@link disabled}. */
+  activate(event: Event, row: HTMLElement): void {
+    activateAsClick(event, row, this.disabled());
   }
 }

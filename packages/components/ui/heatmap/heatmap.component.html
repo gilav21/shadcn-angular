@@ -17,7 +17,7 @@
       <text [attr.x]="0" [attr.y]="r.y + 3" class="fill-muted-foreground text-[10px]">{{ r.row }}</text>
     }
 
-    @for (pc of placedCells(); track pc.cell.row + '-' + pc.cell.col) {
+    @for (pc of placedCells(); track $index) {
       <rect
         [attr.data-slot]="'heatmap-cell'"
         [attr.x]="pc.x"
@@ -49,7 +49,7 @@
   @if (showLegend()) {
     <div class="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
       <span>Low</span>
-      @for (stop of legendStops(); track stop.value) {
+      @for (stop of legendStops(); track $index) {
         <span class="inline-block size-3 rounded-[2px]" [style.background]="stop.color"></span>
       }
       <span>High</span>

@@ -12,8 +12,11 @@ import {
     inject,
     ElementRef,
     ViewChild,
+    effect,
+    viewChild,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { onContextGesture, type ContextGesture } from '../../../lib/touch';
 import { BadgeComponent } from '../../badge';
 import { SeparatorComponent } from '../../separator';
 import { ScrollAreaComponent } from '../../scroll-area';
@@ -44,9 +47,8 @@ export const KANBAN_COLUMN = new InjectionToken<KanbanColumnComponent>('KANBAN_C
             @if (hasCustomHeader()) {
                 <ng-content select="ui-kanban-column-header" />
             } @else {
-                <div class="flex items-center justify-between p-3"
-                     data-slot="kanban-column-header"
-                     (contextmenu)="onHeaderContextMenu($event)">
+                <div #defaultHeader class="flex items-center justify-between p-3"
+                     data-slot="kanban-column-header">
                     <div class="flex items-center gap-2">
                         <h3 class="text-sm font-semibold">{{ title() }}</h3>
                         <ui-badge
@@ -140,6 +142,15 @@ export class KanbanColumnComponent implements AfterContentInit {
 
     @ViewChild('cardContainer') cardContainerRef?: ElementRef<HTMLElement>;
 
+    private readonly defaultHeader = viewChild<ElementRef<HTMLElement>>('defaultHeader');
+
+    constructor() {
+        effect((onCleanup) => {
+            const header = this.defaultHeader()?.nativeElement;
+            if (header) onCleanup(onContextGesture(header, (gesture) => this.openHeaderMenu(gesture)));
+        });
+    }
+
     /** Extra classes merged onto the column shell, after the fixed track width (`w-[260px] sm:w-[300px]`) and the over-limit / drag-over border states so they can be overridden. */
     class = input('');
     /** Links this column to the board: cards are pulled by matching `KanbanCard.columnId`, and drops are reported against it. Without it the column renders permanently empty. */
@@ -217,12 +228,16 @@ export class KanbanColumnComponent implements AfterContentInit {
         this.kanban?.onAddCard(this.columnId());
     }
 
-    /** Opens the board's column menu at the pointer, stopping propagation so the board's own "Add column" menu does not also open. Silently does nothing if {@link columnId} matches no entry in the board's `columns`. Right-click only — no long-press fallback. */
-    onHeaderContextMenu(event: MouseEvent): void {
-        event.preventDefault();
-        event.stopPropagation();
+    /**
+     * Opens the board's column menu at the pointer or finger - a right-click, the
+     * context-menu key or a long-press on the default header - and claims the
+     * gesture, so the board's own "Add column" menu does not also open. Silently
+     * shows nothing if {@link columnId} matches no entry in the board's `columns`.
+     */
+    private openHeaderMenu(gesture: ContextGesture): boolean {
         const col = this.kanban?.columns().find(c => c.id === this.columnId());
-        if (col) this.kanban?.showColumnContextMenu(event.clientX, event.clientY, col);
+        if (col) this.kanban?.showColumnContextMenu(gesture.clientX, gesture.clientY, col);
+        return true;
     }
 
     /** Marks the column as a drop target, but only while the board reports a card being dragged — so files and outside content dragged over the board are left to the page. Enter/leave are ref-counted, because moving between child cards fires `dragleave` on the column. */

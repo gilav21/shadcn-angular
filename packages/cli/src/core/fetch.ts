@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import path from 'node:path';
 import { applyPrefixTransforms, DEFAULT_PREFIX } from '../utils/prefix.js';
+import { fetchText, type FetchedText } from '../utils/http.js';
 import {
     getRegistryBaseUrl,
     getLibRegistryBaseUrl,
@@ -23,6 +24,12 @@ export function normalizeContent(str: string): string {
     return str.replaceAll('\r\n', '\n').trim();
 }
 
+/** `Failed to fetch from <url>: 404 Not Found` — the URL and the status, in every mode. */
+function httpFailure(url: string, response: FetchedText): Error {
+    const status = `${response.status} ${response.statusText}`.trim();
+    return new Error(`Failed to fetch from ${url}: ${status}`);
+}
+
 export async function fetchComponentContent(
     file: string, options: FetchOptions, kind: SourceKind = 'component',
 ): Promise<string> {
@@ -37,25 +44,16 @@ export async function fetchComponentContent(
         ? getBlockRegistryBaseUrl(options.branch, options.registry)
         : getRegistryBaseUrl(options.branch, options.registry);
     const url = `${baseUrl}/${file}`;
-    let response: Response;
-    try {
-        response = await fetch(url);
-    } catch (error) {
-        // fetch() rejects on a transport failure (offline, DNS, ECONNREFUSED) —
-        // that is not a missing file, so don't report it as one.
-        if (localDir) {
-            const message = error instanceof Error ? error.message : String(error);
-            throw new Error(`Could not reach the registry (${url}): ${message}`);
-        }
-        throw error;
-    }
+    // A transport failure or timeout rejects with a NetworkError that names the
+    // URL; it is not a missing file, so it is never reported as one.
+    const response = await fetchText(url);
     if (!response.ok) {
         if (localDir) {
             throw new Error(`File not found locally or remotely: ${file}`);
         }
-        throw new Error(`Failed to fetch from ${url}: ${response.statusText}`);
+        throw httpFailure(url, response);
     }
-    return await response.text();
+    return response.text;
 }
 
 export async function fetchLibContent(file: string, options: FetchOptions): Promise<string> {
@@ -67,11 +65,11 @@ export async function fetchLibContent(file: string, options: FetchOptions): Prom
         }
     }
     const url = `${getLibRegistryBaseUrl(options.branch, options.registry)}/${file}`;
-    const response = await fetch(url);
+    const response = await fetchText(url);
     if (!response.ok) {
-        throw new Error(`Failed to fetch library file from ${url}: ${response.statusText}`);
+        throw httpFailure(url, response);
     }
-    return response.text();
+    return response.text;
 }
 
 /**

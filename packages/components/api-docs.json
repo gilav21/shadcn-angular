@@ -396,7 +396,7 @@
         {
           "name": "series",
           "type": "ChartSeries[]",
-          "description": "One filled area per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. Array order is paint order — and when {@link stacked} is on, stack order: the first series sits at the bottom. The y domain always starts at 0 and is nice-rounded over the *visible* series, so negative values fall outside the plot. A missing value (`NaN`, `null`, `undefined` or infinite) is a gap in an overlapping area and counts as 0 in a stacked one.",
+          "description": "One filled area per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series an `id` to toggle same-named series separately (they are always drawn separately). Two categories may share a name: points are positioned by index. Array order is paint order — and when {@link stacked} is on, stack order: the first series sits at the bottom. The y domain is nice-rounded over zero and the *visible* series, so negative values are drawn below a visible zero line and an overlapping area fills to that line. In a stacked area, positives and negatives accumulate in array order; `'percent'` mode scales a category by its absolute total (`|v| / Σ|v|`). A missing value (`NaN`, `null`, `undefined` or infinite) is a gap in an overlapping area and counts as 0 in a stacked one.",
           "required": true
         },
         {
@@ -785,7 +785,7 @@
         {
           "name": "data",
           "type": "DrilldownDataPoint[]",
-          "description": "The top-level series: one column per entry, drawn in array order (mirrored in RTL). `name` labels the category axis, `value` is the column height, and the optional `color` overrides the palette colour picked from the index. An entry whose `drilldown` holds the `id` of an entry in {@link drilldownSeries} becomes clickable and navigates into that series — a `drilldown` id with no matching series is inert (see {@link hasDrilldown}). Values are assumed non-negative: the scale is anchored at 0.",
+          "description": "The top-level series: one column per entry, drawn in array order (mirrored in RTL). `name` labels the category axis, `value` is the column height, and the optional `color` overrides the palette colour picked from the index. An entry whose `drilldown` holds the `id` of an entry in {@link drilldownSeries} becomes clickable and navigates into that series — a `drilldown` id with no matching series is inert (see {@link hasDrilldown}). Columns grow from a zero baseline: a negative value hangs below it and the axis covers both signs; an all-zero series draws zero-height columns. Entries sharing a `name` are separate columns, one per array position.",
           "required": true
         },
         {
@@ -895,7 +895,7 @@
         {
           "name": "data",
           "type": "ChartDataPoint[]",
-          "description": "One bar per entry, drawn in array order (left-to-right, or right-to-left when {@link isRtl} resolves true). `name` is the category label under the axis, `value` the bar length, and the optional `color` overrides the palette colour that would otherwise be picked from the entry's index. Values are assumed non-negative: the scale is anchored at 0 and only the maximum is derived from the data, so negative values fall outside the plot.",
+          "description": "One bar per entry, drawn in array order (left-to-right, or right-to-left when {@link isRtl} resolves true). `name` is the category label under the axis, `value` the bar length, and the optional `color` overrides the palette colour that would otherwise be picked from the entry's index. Bars grow from a zero baseline: a positive value rises (or extends toward the end edge), a negative one falls (or extends toward the start edge, mirrored in RTL), and the axis covers both signs. An all-zero dataset draws zero-length bars on the baseline. Entries sharing a `name` are separate bars, one per array position.",
           "required": true
         },
         {
@@ -1025,7 +1025,7 @@
         {
           "name": "frames",
           "type": "ChartDataPoint[][]",
-          "description": "The whole race: one entry per time step, each holding that step's `{ name, value, color? }` points. Only the frame at {@link currentFrameIndex} is drawn — it is sorted by `value` descending and cut to {@link maxBars}, so array order within a frame is irrelevant and bars re-order as values change. Names are the identity across frames: a point keeps its palette colour (assigned on first sight, or from its own `color`) and its `track` identity for the CSS transition, so reusing the same names between frames is what makes bars slide instead of pop. The value axis is rescaled per frame to 110% of that frame's largest value, so lengths are relative within a frame, not across the race.",
+          "description": "The whole race: one entry per time step, each holding that step's `{ name, value, color? }` points. Only the frame at {@link currentFrameIndex} is drawn — it is sorted by `value` descending and cut to {@link maxBars}, so array order within a frame is irrelevant and bars re-order as values change. Names are the identity across frames: a point keeps its palette colour (assigned on first sight, or from its own `color`) and its `track` identity for the CSS transition, so reusing the same names between frames is what makes bars slide instead of pop; two entries with one name in a frame are one bar, the last winning. The value axis is rescaled per frame to 110% of that frame's largest (and lowest) value, so lengths are relative within a frame, not across the race. Bars grow from the zero baseline: negative values extend toward the start edge.",
           "required": true
         },
         {
@@ -3298,7 +3298,7 @@
         {
           "name": "data",
           "type": "RangeDataPoint[]",
-          "description": "One floating column per entry, drawn in array order (right-to-left when {@link isRtl} resolves true). Each {@link RangeDataPoint} spans `low` to `high` rather than starting at zero — temperature bands, min/max ranges, confidence intervals — so the value axis is derived from both ends and need not include 0 (see {@link dataRange}). `name` is the category label under the axis and the optional `color` overrides the palette colour picked from the entry's index. A `low` above its `high` inverts the bar's height; it is clamped to 1px rather than flipped, so pass the ends the right way round.",
+          "description": "One floating column per entry, drawn in array order (right-to-left when {@link isRtl} resolves true). Each {@link RangeDataPoint} spans `low` to `high` rather than starting at zero — temperature bands, min/max ranges, confidence intervals — so the value axis is derived from both ends and need not include 0 (see {@link dataRange}). `name` is the category label under the axis and the optional `color` overrides the palette colour picked from the entry's index. The two ends may come in either order (the column spans `min(low, high)` to `max(low, high)`), and a zero-span range is drawn as a 1px line at its value. Entries sharing a `name` are separate columns, one per array position.",
           "required": true
         },
         {
@@ -3369,7 +3369,7 @@
         {
           "name": "barSeries",
           "type": "ChartSeries[]",
-          "description": "The bar half of the chart, read against the **primary** (left) axis, which is anchored at 0 and auto-scaled to the largest value across all bar series — so negative values fall outside the plot. The **first** series is privileged: its `data[].name`s define the category axis ({@link categories}) and its values feed {@link cumulativePercents}. Further series are grouped side by side inside each category band and are indexed positionally, so every series must list its values in the same category order; a missing slot is drawn as 0.",
+          "description": "The bar half of the chart, read against the **primary** (left) axis, which is nice-rounded over zero and every bar value: bars rise from the zero gridline and negative bars fall below it. The **first** series is privileged: its `data[].name`s define the category axis ({@link categories}) and its values feed {@link cumulativePercents}. Further series are grouped side by side inside each category band and are indexed positionally, so every series must list its values in the same category order; a missing slot is drawn as 0.",
           "required": true
         },
         {
@@ -3405,7 +3405,7 @@
         {
           "name": "showCumulative",
           "type": "boolean",
-          "description": "Prepend a Pareto-style running-total line, computed from {@link barSeries}[0] only and expressed as a percentage of that series' total. Turning it on pins the secondary axis to a fixed 0–100 range, which also rescales any {@link lineSeries} drawn alongside it.",
+          "description": "Prepend a Pareto-style running-total line, computed from {@link barSeries}[0] only and expressed as a percentage of that series' total. Turning it on gives the secondary axis the 0–100 range (wider only if a {@link lineSeries} value or a negative bar pushes the percentages outside it), which also rescales any {@link lineSeries} drawn alongside it. A Pareto chart is defined on non-negative counts; with negative bars the percentages are still plotted, but they are not a meaningful share.",
           "default": "false"
         },
         {
@@ -3999,7 +3999,7 @@
       "file": "packages/components/ui/context-menu-attach.directive.ts",
       "kind": "directive",
       "selector": "[uiContextMenuAttach]",
-      "description": "Attach a context menu to any element with data. Right-clicking the host element opens the provided {@link ContextMenuComponent} at the cursor position and emits {@link ContextMenuEvent} with the bound data.",
+      "description": "Attach a context menu to any element with data. Right-clicking, pressing the context-menu key on, or long-pressing the host element opens the provided {@link ContextMenuComponent} at the pointer or finger and emits {@link ContextMenuEvent} with the bound data.",
       "projectsContent": false,
       "inputs": [
         {
@@ -4017,7 +4017,7 @@
         {
           "name": "uiContextMenuAttach",
           "type": "ContextMenuComponent",
-          "description": "The menu to open when the host is right-clicked.",
+          "description": "The menu to open when the host is right-clicked or long-pressed.",
           "required": true
         }
       ],
@@ -4083,7 +4083,7 @@
         {
           "name": "disabled",
           "type": "boolean",
-          "description": "Greys the item to 50% and sets `pointer-events: none`, so neither hover nor a click reaches it and {@link onClick} never runs. Note it emits no `aria-disabled`/`data-disabled` attribute and the item carries no `role=\"menuitem\"`, so a disabled item is invisible to assistive tech — and no item participates in the sub-menu arrow-key ring, which only walks `[role=\"menuitem\"]:not([data-disabled])`.",
+          "description": "Greys the item to 50% and sets `pointer-events: none`. It is exposed as `aria-disabled=\"true\"` and `data-disabled`, drops out of the menu's arrow-key ring, and no activation reaches it by any route: a click from assistive technology or a programmatic `.click()` is stopped before your own `(click)` sees it, and Enter and Space do nothing.",
           "default": "false"
         },
         {
@@ -4406,7 +4406,7 @@
       "file": "packages/components/ui/data-table-context-menu.directive.ts",
       "kind": "directive",
       "selector": "ui-data-table[uiDataTableContextMenu]",
-      "description": "Attach a context menu to a `<ui-data-table>` element. Right-clicking a row opens the provided {@link ContextMenuComponent} and emits {@link TableRowContextMenuEvent}. Right-clicking a header (when `contextMenuRowsOnly` is false) emits {@link DataTableHeaderContextMenuEvent}.",
+      "description": "Attach a context menu to a `<ui-data-table>` element. Right-clicking or long-pressing a row opens the provided {@link ContextMenuComponent} and emits {@link TableRowContextMenuEvent}. Right-clicking a header (when `contextMenuRowsOnly` is false) emits {@link DataTableHeaderContextMenuEvent}.",
       "projectsContent": false,
       "inputs": [
         {
@@ -4502,7 +4502,7 @@
       "file": "packages/components/ui/data-table/addons/context-menu/context-menu.directive.ts",
       "kind": "directive",
       "selector": "[uiDtContextMenu]",
-      "description": "Opt-in context-menu addon for `<ui-data-table>`. Attaches via DI to the `DataTableAddonHost` the base provides, contributes the ⋮ row/header buttons through the host's generic slot registries, and renders menus itself (imperative `ContextMenuComponent`) — the base ships no context-menu code or dependency. Reachable by mouse (`contextmenu`), touch (long-press), and the ⋮ buttons.",
+      "description": "Opt-in context-menu addon for `<ui-data-table>`. Attaches via DI to the `DataTableAddonHost` the base provides, contributes the ⋮ row/header buttons through the host's generic slot registries, and renders menus itself (imperative `ContextMenuComponent`) — the base ships no context-menu code or dependency. Reachable by mouse (`contextmenu`), keyboard (the context-menu key), touch (long-press), and the ⋮ buttons. A long-press that the browser also reports as a `contextmenu` (Android) opens the menu, and emits, once.",
       "projectsContent": false,
       "inputs": [
         {
@@ -7369,7 +7369,7 @@
         {
           "name": "data",
           "type": "ChartDataPoint[]",
-          "description": "One funnel stage per entry, top to bottom in array order — pass them already sorted from widest to narrowest, since nothing re-sorts them and a rising value simply draws a stage that flares outwards. Each stage's top edge is `value / max` of the available width and its bottom edge is the *next* stage's width, which is what produces the taper; the last stage repeats its own width, so it renders as a rectangle rather than a point. `name` labels the stage, and the optional `color` overrides the palette colour picked from the entry's index. Percentages are derived separately — see {@link percentageMode}.",
+          "description": "One funnel stage per entry, top to bottom in array order — pass them already sorted from widest to narrowest, since nothing re-sorts them and a rising value simply draws a stage that flares outwards. Each stage's top edge is `max(0, value) / largest positive value` of the available width (zero when no stage is positive: a zero or negative stage is drawn with no width) and its bottom edge is the *next* stage's width, which is what produces the taper; the last stage repeats its own width, so it renders as a rectangle rather than a point. `name` labels the stage, and the optional `color` overrides the palette colour picked from the entry's index. Percentages are derived separately — see {@link percentageMode}.",
           "required": true
         },
         {
@@ -7565,7 +7565,7 @@
         {
           "name": "data",
           "type": "HeatmapCell[]",
-          "description": "Flat list of `{ row, col, value }` cells — not a 2-D array. The axes are derived from the data itself: {@link rows} and {@link cols} are the distinct `row`/`col` strings in **first-appearance order**, never sorted, so the array order is what controls the grid layout. A `(row, col)` pair that is absent simply leaves a blank gap — cells are not back-filled. `value` is mapped onto the {@link fromColor}→{@link toColor} ramp across the data's own min/max (see {@link valueDomain}), so the colours are relative to this chart, not to any absolute scale.",
+          "description": "Flat list of `{ row, col, value }` cells — not a 2-D array. The axes are derived from the data itself: {@link rows} and {@link cols} are the distinct `row`/`col` strings in **first-appearance order**, never sorted, so the array order is what controls the grid layout. A `(row, col)` pair that is absent simply leaves a blank gap — cells are not back-filled, and a `(row, col)` pair listed twice is drawn twice at the same spot, the later entry on top. Negative values are fine; equal values draw one flat colour. `value` is mapped onto the {@link fromColor}→{@link toColor} ramp across the data's own min/max (see {@link valueDomain}), so the colours are relative to this chart, not to any absolute scale.",
           "required": true
         },
         {
@@ -8899,13 +8899,13 @@
       "file": "packages/components/ui/input-otp/input-otp.component.ts",
       "kind": "component",
       "selector": "ui-input-otp",
-      "description": "",
+      "description": "One-time-code field: a row of slots drawn over a single visually hidden text input that does all the real editing. The row is pinned `dir=\"ltr\"`, like `ui-time-picker`: a code is a digit or Latin run, which the bidi algorithm lays out left to right in every script, so in an RTL page it still reads `123456` from left to right and the Left/Right arrows move the highlight left/right on screen.",
       "projectsContent": false,
       "inputs": [
         {
           "name": "ariaLabel",
           "type": "string | undefined",
-          "description": "`aria-label` for the visually hidden input that actually receives typing — without it or {@link ariaLabelledby} the field is unnamed."
+          "description": "`aria-label` for the visually hidden input that actually receives typing. Falls back to the locale's `label` unless {@link ariaLabelledby} names the field instead."
         },
         {
           "name": "ariaLabelledby",
@@ -8917,6 +8917,17 @@
           "type": "string",
           "description": "Extra classes merged onto the row that holds the slots, not onto an individual slot.",
           "default": "''"
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "description": "Disables the field: the hidden input becomes unfocusable and the row dims. A reactive-forms `disable()` disables it too — see {@link isDisabled}.",
+          "default": "false"
+        },
+        {
+          "name": "locale",
+          "type": "LocaleInput<InputOtpLocale>",
+          "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set."
         },
         {
           "name": "maxLength",
@@ -8933,7 +8944,7 @@
         {
           "name": "value",
           "type": "string",
-          "description": "Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed.",
+          "description": "Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed. A write from a form (`formControlName`, `ngModel`) lands here too and is rendered as-is, without sanitising.",
           "default": "''"
         }
       ],
@@ -8941,7 +8952,7 @@
         {
           "name": "value",
           "type": "string",
-          "description": "Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed.",
+          "description": "Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed. A write from a form (`formControlName`, `ngModel`) lands here too and is rendered as-is, without sanitising.",
           "default": "''"
         }
       ],
@@ -9570,7 +9581,7 @@
         {
           "name": "series",
           "type": "ChartSeries[]",
-          "description": "One poly-line per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series unique names when they have no `id`. The y domain is nice-rounded over the *visible* series and always includes 0, so hiding a series via the legend rescales the axis. A missing value (`NaN`, `null`, `undefined` or infinite) is a gap: the line breaks there and no marker is drawn for it.",
+          "description": "One poly-line per series. Points are matched across series **by position**, not by name: the x axis categories are taken from the *first* series' `data[].name`, so every series should carry the same number of points in the same order. Each entry's `color` overrides the palette colour picked from the series index; `id` (falling back to `name`) is the key used by the legend and {@link toggleSeries}, so give series an `id` to toggle same-named series separately (they are always drawn separately). Two categories may share a name: points are positioned by index. The y domain is nice-rounded over the *visible* series and always includes 0, so hiding a series via the legend rescales the axis. A missing value (`NaN`, `null`, `undefined` or infinite) is a gap: the line breaks there and no marker is drawn for it.",
           "required": true
         },
         {
@@ -9784,7 +9795,7 @@
         {
           "name": "disabled",
           "type": "unknown",
-          "description": "Greys the item to 50% opacity, sets `pointer-events-none` so clicks pass through, suppresses {@link selected}, and — via the `data-disabled` attribute — removes the item from the menu's arrow-key ring entirely (see `MenubarContentComponent.getFocusableItems`). The item is not reachable with Tab either: every menu item carries `tabindex=\"-1\"` per the WAI-ARIA menu pattern, so Tab leaves the menu rather than walking it.",
+          "description": "Greys the item to 50% opacity, sets `pointer-events-none` so clicks pass through, exposes `aria-disabled=\"true\"`, suppresses {@link selected} and keeps a click made any other way (assistive technology, a programmatic `.click()`) from reaching a `(click)` bound on the item, and — via the `data-disabled` attribute — removes the item from the menu's arrow-key ring entirely (see `MenubarContentComponent.getFocusableItems`). The item is not reachable with Tab either: every menu item carries `tabindex=\"-1\"` per the WAI-ARIA menu pattern, so Tab leaves the menu rather than walking it.",
           "default": "false, { transform: booleanAttribute }"
         },
         {
@@ -9804,7 +9815,7 @@
         {
           "name": "selected",
           "type": "void",
-          "description": "Fires when the item is activated by click or Enter, just before the menu is closed. Never fires while {@link disabled}."
+          "description": "Fires when the item is activated by click, Enter or Space, just before the menu is closed. Never fires while {@link disabled}."
         }
       ],
       "methods": []
@@ -10980,7 +10991,7 @@
         {
           "name": "data",
           "type": "DrilldownDataPoint[]",
-          "description": "The top-level slices, laid out clockwise in array order from 12 o'clock. Each `value` is a weight — the slice angle is `value / sum(values)` — and the optional `color` overrides the palette colour picked from the index. A point whose `drilldown` holds the `id` of an entry in {@link drilldownSeries} becomes navigable: clicking it swaps the chart to that series. A `drilldown` id with no matching series is inert, and gets no chevron in the legend.",
+          "description": "The top-level slices, laid out clockwise in array order from 12 o'clock. Each `value` is a weight — the wedge angle is `value / sum(positive values)` — and the optional `color` overrides the palette colour picked from the index. A zero, negative or non-finite value gets no wedge and no share but is still listed in the legend; with no positive value the empty ring (`data-slot=\"pie-empty\"`) is drawn instead. A point whose `drilldown` holds the `id` of an entry in {@link drilldownSeries} becomes navigable: clicking it swaps the chart to that series. A `drilldown` id with no matching series is inert, and gets no chevron in the legend.",
           "required": true
         },
         {
@@ -11084,7 +11095,7 @@
         {
           "name": "data",
           "type": "ChartDataPoint[]",
-          "description": "One slice per entry, laid out clockwise in array order starting at 12 o'clock. `name` labels the slice in the legend and tooltip, `value` is a share of the total (each slice's angle is `value / sum(values)`, so the values are weights, not angles), and the optional `color` overrides the palette colour otherwise picked from the entry's index. Values are assumed non-negative; a total of `0` renders no slices at all.",
+          "description": "One slice per entry, laid out clockwise in array order starting at 12 o'clock. `name` labels the slice in the legend and tooltip, `value` is a share of the positive total (each wedge's angle is `value / sum(positive values)`, so the values are weights, not angles), and the optional `color` overrides the palette colour otherwise picked from the entry's index. A zero, negative or non-finite value gets no wedge and no share, but the legend still lists it with its raw value; a dataset with no positive value draws the empty ring (`data-slot=\"pie-empty\"`) instead of wedges.",
           "required": true
         },
         {
@@ -11335,7 +11346,7 @@
         {
           "name": "series",
           "type": "ChartSeries[]",
-          "description": "One filled polygon per series, coloured by its index in this array unless the series carries its own `color`. Every series must repeat the same `data[].name` values in the same order: the axis ring comes from the **first** series alone (see {@link axes}) and each later series' points are matched to axes positionally, so a shorter or re-ordered series is plotted against the wrong spokes. Series with an `id` use it as their legend/visibility key, otherwise `name` is the key — give duplicate names distinct `id`s or toggling one hides both. All series share one radial scale (see {@link maxValue}).",
+          "description": "One filled polygon per series, coloured by its index in this array unless the series carries its own `color`. Every series must repeat the same `data[].name` values in the same order: the axis ring comes from the **first** series alone (see {@link axes}) and each later series' points are matched to axes positionally, so a shorter or re-ordered series is plotted against the wrong spokes. Series with an `id` use it as their legend/visibility key, otherwise `name` is the key — give duplicate names distinct `id`s or toggling one hides both. All series share one radial scale: the centre is {@link minValue} (zero, or the lowest value when any is negative) and the outer ring is {@link maxValue}; a value beyond either end is clamped onto it, so a vertex always lies on its own axis.",
           "required": true
         },
         {
@@ -12302,7 +12313,7 @@
         {
           "name": "fileImportComplete",
           "type": "string",
-          "description": "Emits the inserted HTML when an import completes."
+          "description": "Emits the sanitized HTML that was inserted when an import completes — the same markup the editor now holds."
         },
         {
           "name": "fileImportError",
@@ -15803,7 +15814,7 @@
         {
           "name": "dir",
           "type": "ChartDirection",
-          "description": "Layout direction. `'auto'` (default) resolves from the host element's inherited DOM direction after view init; `'ltr'`/`'rtl'` force it. RTL mirrors the category order and moves the value-axis gutter to the right-hand edge; segments always stack upward. See {@link isRtl}.",
+          "description": "Layout direction. `'auto'` (default) resolves from the host element's inherited DOM direction after view init; `'ltr'`/`'rtl'` force it. RTL mirrors the category order and moves the value-axis gutter to the right-hand edge; positive segments always stack upward. See {@link isRtl}.",
           "default": "'auto'"
         },
         {
@@ -15815,7 +15826,7 @@
         {
           "name": "series",
           "type": "ChartSeries[]",
-          "description": "One stack layer per series, stacked bottom-to-top in array order, and one legend swatch per series. Each series' `data` is matched to {@link categories} **by index, not by `name`** — `data[i]` is the segment in category `i`, and a missing or short entry contributes 0. The optional `color` overrides the palette colour picked from the series index; `id` (or `name` as fallback) is the legend's track key, so keep it unique.",
+          "description": "One stack layer per series, stacked bottom-to-top in array order, and one legend swatch per series. Each series' `data` is matched to {@link categories} **by index, not by `name`** — `data[i]` is the segment in category `i`, and a missing or short entry contributes 0. The optional `color` overrides the palette colour picked from the series index; `id` (or `name` as fallback) is the legend's track key — give series an `id` to toggle same-named series separately. Stacks diverge from zero: positive segments stack upward in array order and negative ones downward, so a stack can extend on both sides of the baseline. In `'percent'` mode a segment's share is `|v| / Σ|v|` of its category, sign kept.",
           "required": true
         },
         {
@@ -16241,7 +16252,7 @@
       "file": "packages/components/ui/table-context-menu.directive.ts",
       "kind": "directive",
       "selector": "table[uiTableContextMenu], [uiTable]",
-      "description": "Attach a context menu to a `<table>` or `[uiTable]` element. Right-clicking a table row or cell opens the provided {@link ContextMenuComponent} and emits {@link TableRowContextMenuEvent} / {@link TableCellContextMenuEvent}.",
+      "description": "Attach a context menu to a `<table>` or `[uiTable]` element. Right-clicking or long-pressing a table row or cell opens the provided {@link ContextMenuComponent} and emits {@link TableRowContextMenuEvent} / {@link TableCellContextMenuEvent}.",
       "projectsContent": false,
       "inputs": [
         {
@@ -16259,7 +16270,7 @@
         {
           "name": "uiTableContextMenu",
           "type": "ContextMenuComponent | null",
-          "description": "The menu to open when a row or cell is right-clicked.",
+          "description": "The menu to open when a row or cell is right-clicked or long-pressed.",
           "default": "null"
         }
       ],
@@ -16267,12 +16278,12 @@
         {
           "name": "cellContextMenu",
           "type": "TableCellContextMenuEvent<T>",
-          "description": "Emits the cell that was right-clicked."
+          "description": "Emits the cell that was right-clicked or long-pressed."
         },
         {
           "name": "rowContextMenu",
           "type": "TableRowContextMenuEvent<T>",
-          "description": "Emits the row that was right-clicked."
+          "description": "Emits the row that was right-clicked or long-pressed."
         }
       ],
       "methods": []
@@ -17136,12 +17147,12 @@
         {
           "name": "defaultValue",
           "type": "string | string[] | undefined",
-          "description": "Initially pressed value(s), read once in `ngOnInit` — a bare string is wrapped into an array. Later changes are ignored."
+          "description": "Initially pressed value(s), read once in `ngOnInit` — a bare string is wrapped into an array. Later changes are ignored. A value written by a form afterwards — `null` included, which clears — replaces it."
         },
         {
           "name": "disabled",
           "type": "boolean",
-          "description": "Disables every item in the group; an item may also disable itself independently.",
+          "description": "Disables every item in the group; an item may also disable itself independently. A reactive-forms `disable()` disables it too — see {@link isDisabled}.",
           "default": "false"
         },
         {
@@ -17165,7 +17176,7 @@
         {
           "name": "value",
           "type": "string | string[] | undefined",
-          "description": "The selection, as a two-way `model()`, in the shape this component has always emitted: the single selected value (`''` when cleared) in `single` mode, the full array in `multiple` mode. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside is normalised into {@link selection} and stays silent; only a user toggle emits. It starts `undefined` rather than empty so that \"nobody has written this yet\" is distinguishable from \"written empty\" — otherwise the sync effect, which runs after `ngOnInit`, would clobber the {@link defaultValue} seed. Read {@link selection} for the current selection; this member is the published surface."
+          "description": "The selection, as a two-way `model()`, in the shape this component has always emitted: the single selected value (`''` when cleared) in `single` mode, the full array in `multiple` mode. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside is normalised into {@link selection} and stays silent; only a user toggle emits. It starts `undefined` rather than empty so that \"nobody has written this yet\" is distinguishable from \"written empty\" — otherwise the sync effect, which runs after `ngOnInit`, would clobber the {@link defaultValue} seed. Read {@link selection} for the current selection; this member is the published surface. A write from a form (`formControlName`, `ngModel`) lands in {@link selection} through {@link writeValue} and leaves this member at its pre-write value, so read {@link selection} — or the DOM — for what is rendered. Because this member keeps its pre-write value, a later user toggle that lands on that same string does not re-emit `valueChange` (the form still receives it)."
         },
         {
           "name": "variant",
@@ -17178,7 +17189,7 @@
         {
           "name": "value",
           "type": "string | string[] | undefined",
-          "description": "The selection, as a two-way `model()`, in the shape this component has always emitted: the single selected value (`''` when cleared) in `single` mode, the full array in `multiple` mode. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside is normalised into {@link selection} and stays silent; only a user toggle emits. It starts `undefined` rather than empty so that \"nobody has written this yet\" is distinguishable from \"written empty\" — otherwise the sync effect, which runs after `ngOnInit`, would clobber the {@link defaultValue} seed. Read {@link selection} for the current selection; this member is the published surface."
+          "description": "The selection, as a two-way `model()`, in the shape this component has always emitted: the single selected value (`''` when cleared) in `single` mode, the full array in `multiple` mode. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside is normalised into {@link selection} and stays silent; only a user toggle emits. It starts `undefined` rather than empty so that \"nobody has written this yet\" is distinguishable from \"written empty\" — otherwise the sync effect, which runs after `ngOnInit`, would clobber the {@link defaultValue} seed. Read {@link selection} for the current selection; this member is the published surface. A write from a form (`formControlName`, `ngModel`) lands in {@link selection} through {@link writeValue} and leaves this member at its pre-write value, so read {@link selection} — or the DOM — for what is rendered. Because this member keeps its pre-write value, a later user toggle that lands on that same string does not re-emit `valueChange` (the form still receives it)."
         }
       ],
       "methods": []
@@ -17535,7 +17546,7 @@
       "file": "packages/components/ui/tree-context-menu.directive.ts",
       "kind": "directive",
       "selector": "ui-tree[uiTreeContextMenu]",
-      "description": "Attach a context menu to a `<ui-tree>` element. Right-clicking a tree item opens the provided {@link ContextMenuComponent} at the cursor position and emits {@link TreeContextMenuEvent} with the node data extracted from the DOM: `{ key, label, expanded, selected, element }`, where `key` is the item's `value` (its `data-key`), `label` its own `<ui-tree-label>` text, and `expanded` / `selected` its current state.",
+      "description": "Attach a context menu to a `<ui-tree>` element. Right-clicking, pressing the context-menu key on, or long-pressing a tree item opens the provided {@link ContextMenuComponent} at the cursor position and emits {@link TreeContextMenuEvent} with the node data extracted from the DOM: `{ key, label, expanded, selected, element }`, where `key` is the item's `value` (its `data-key`), `label` its own `<ui-tree-label>` text, and `expanded` / `selected` its current state.",
       "projectsContent": false,
       "inputs": [
         {
@@ -17547,7 +17558,7 @@
         {
           "name": "uiTreeContextMenu",
           "type": "ContextMenuComponent",
-          "description": "The menu to open when a node is right-clicked.",
+          "description": "The menu to open when a node is right-clicked or long-pressed.",
           "required": true
         }
       ],
@@ -17555,7 +17566,7 @@
         {
           "name": "nodeContextMenu",
           "type": "TreeContextMenuEvent<T>",
-          "description": "Emits the node that was right-clicked."
+          "description": "Emits the node that was right-clicked or long-pressed."
         }
       ],
       "methods": []
@@ -18051,7 +18062,7 @@
         {
           "name": "data",
           "type": "WaterfallBar[]",
-          "description": "The bridge, in left-to-right order — order is the story here, since each bar is stacked on the running total left by the one before it. A bar with `type` omitted or `'relative'` is a delta: it spans from the running total to `running + value`, so a negative `value` draws downward. A bar with `type: 'total'` is a checkpoint: it is drawn from the zero baseline up to `value` and *resets* the running total to that value, so its `value` must be the subtotal you want (it is not computed for you — an inconsistent number silently breaks the bridge). `name` labels the category axis and is the band key, so names must be unique; the optional `color` overrides {@link positiveColor} / {@link negativeColor} / {@link totalColor} for that bar alone.",
+          "description": "The bridge, in left-to-right order — order is the story here, since each bar is stacked on the running total left by the one before it. A bar with `type` omitted or `'relative'` is a delta: it spans from the running total to `running + value`, so a negative `value` draws downward. A bar with `type: 'total'` is a checkpoint: it is drawn from the zero baseline up to `value` and *resets* the running total to that value, so its `value` must be the subtotal you want (it is not computed for you — an inconsistent number silently breaks the bridge). `name` labels the category axis; bars are positioned by array index, so two bars may share a name and each is drawn at its own position; the optional `color` overrides {@link positiveColor} / {@link negativeColor} / {@link totalColor} for that bar alone.",
           "required": true
         },
         {

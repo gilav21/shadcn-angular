@@ -3,9 +3,12 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    DestroyRef,
+    ElementRef,
     inject,
     input,
 } from '@angular/core';
+import { activateAsClick, blockDisabledActivation } from '../../../lib/menu-activation';
 import { cn } from '../../../lib/utils';
 import { DROPDOWN_MENU } from '../dropdown-menu.component';
 
@@ -23,11 +26,12 @@ import { DROPDOWN_MENU } from '../dropdown-menu.component';
         '[class]': 'classes()',
         '[attr.data-slot]': '"dropdown-item"',
         '[attr.data-disabled]': 'disabled() || null',
+        '[attr.aria-disabled]': 'disabled() || null',
         '[attr.role]': '"menuitem"',
         '[attr.tabindex]': '"-1"',
         '(click)': 'onClick()',
-        '(keydown.enter)': 'onClick()',
-        '(keydown.space)': 'onKeydownSpace($event)',
+        '(keydown.enter)': 'activate($event)',
+        '(keydown.space)': 'activate($event)',
     },
 })
 export class DropdownMenuItemComponent {
@@ -46,6 +50,12 @@ export class DropdownMenuItemComponent {
     shortcut = input('');
 
     private readonly menu = inject(DROPDOWN_MENU, { optional: true });
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+
+    constructor() {
+        const unblock = blockDisabledActivation(this.host, () => this.disabled());
+        inject(DestroyRef).onDestroy(unblock);
+    }
 
     classes = computed(() =>
         cn(
@@ -63,9 +73,11 @@ export class DropdownMenuItemComponent {
     inset = input(false, { transform: booleanAttribute });
 
     /**
-     * Closes the menu on activation (click or Enter). It does not invoke
-     * anything itself — bind your own `(click)` for the action; that handler
-     * still fires while {@link disabled}, since only the close is guarded here.
+     * Closes the menu on activation (click, Enter or Space). It does not invoke
+     * anything itself — bind your own `(click)` for the action. Enter and Space
+     * dispatch a real click on the item, so that handler runs for the keyboard
+     * exactly as for a pointer, once; a {@link disabled} item stops the click
+     * before any listener sees it, whichever way it was made.
      */
     onClick(): void {
         if (!this.disabled()) {
@@ -74,11 +86,10 @@ export class DropdownMenuItemComponent {
     }
 
     /**
-     * Space activation, with the default suppressed so the page behind the menu
-     * does not scroll.
+     * Enter or Space on the item: one click, the page behind the menu does not
+     * scroll. Nothing happens while {@link disabled}.
      */
-    onKeydownSpace(event: Event): void {
-        event.preventDefault();
-        this.onClick();
+    activate(event: Event): void {
+        activateAsClick(event, this.host, this.disabled());
     }
 }

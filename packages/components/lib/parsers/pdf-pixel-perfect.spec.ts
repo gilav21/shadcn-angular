@@ -4,6 +4,7 @@ import {
     NumericStateManager, ColorStateManager, TransformMatrixManager, AllStateManager,
 } from './pdf-pixel-perfect';
 import { buildTtf, type TtfBuilderGlyph } from './ttf-builder';
+import { SAFE_LINK_URI, hostilePdf } from './pdf-hostile-fixtures';
 
 // ── Test PDF Builder ──────────────────────────────────────────────────
 
@@ -2131,5 +2132,16 @@ describe('document-controlled values', () => {
         const hrefs = Array.from(mount(result).querySelectorAll('a[href]'), a => a.getAttribute('href'));
 
         expect(hrefs).toEqual(['https://example.com/spec', 'mailto:team@example.com']);
+    });
+
+    it('renders the shared hostile PDF (tag-breaking font name, javascript: link) with no handler attribute and only the safe link', async () => {
+        const root = mount(await renderPixelPerfectPaged(hostilePdf(), { zoom: 1 }));
+
+        const handlers = Array.from(root.querySelectorAll('*'))
+            .flatMap((element) => Array.from(element.attributes, (a) => a.name))
+            .filter((name) => name.startsWith('on'));
+        expect(handlers).toEqual([]);
+        expect(root.querySelector('img,script,iframe')).toBeNull();
+        expect(Array.from(root.querySelectorAll('a[href]'), (a) => a.getAttribute('href'))).toEqual([SAFE_LINK_URI]);
     });
 });

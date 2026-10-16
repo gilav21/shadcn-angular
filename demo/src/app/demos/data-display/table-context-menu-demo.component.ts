@@ -73,7 +73,6 @@ const STATUS_VARIANTS: Record<InvoiceStatus, 'default' | 'secondary' | 'destruct
 
       <div class="rounded-lg border bg-muted/40 p-4 space-y-2 text-sm">
         <p>{{ t().rightClickHint }}</p>
-        <p class="text-muted-foreground">{{ t().touchHint }}</p>
         <p class="text-muted-foreground">{{ t().headerNote }}</p>
       </div>
 
@@ -215,7 +214,7 @@ export class TableContextMenuDemoComponent {
     this.lastCell.set(event.column);
   }
 
-  /** Touch fallback: the directive has no long-press, so a visible trigger opens the same menu. */
+  /** The row's visible actions button opens the same menu as a right-click or a long-press. */
   openRowMenu(event: MouseEvent, index: number, menu: ContextMenuComponent): void {
     this.targetIndex.set(index);
     const invoice = this.invoices()[index];

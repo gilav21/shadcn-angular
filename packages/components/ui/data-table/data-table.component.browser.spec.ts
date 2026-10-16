@@ -429,3 +429,101 @@ describe('DataTableComponent touch targets (browser)', () => {
         expect(touch.reachable).toBe(true);
     });
 });
+
+interface ResizeRow {
+    id: string;
+    notes: string;
+}
+
+/** A table whose last column holds long text, so its auto-fit width is far from the declared 120px. */
+function renderResizableTable(resized: (event: unknown) => void): { host: HTMLElement; handle: HTMLElement; headerWidth: () => number } {
+    // A test renders two tables (mouse, then touch) and compares them: each needs a fresh test module.
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ imports: [DataTableComponent] });
+    const fixture = TestBed.createComponent(DataTableComponent<ResizeRow>);
+    fixture.componentRef.setInput('data', [
+        { id: 'ORD-1001', notes: 'Customer asked for a revised delivery window in the second week of March' },
+        { id: 'ORD-1002', notes: 'Short' },
+    ]);
+    fixture.componentRef.setInput('columns', [
+        { accessorKey: 'id', header: 'ID', width: '120px' },
+        { accessorKey: 'notes', header: 'Notes', width: '120px' },
+    ] as ColumnDef<ResizeRow>[]);
+    fixture.componentRef.setInput('enableColumnResize', true);
+    fixture.componentInstance.columnResize.subscribe(resized);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    document.body.appendChild(host);
+    const handle = host.querySelector<HTMLElement>('[data-column-id="notes"] [role="separator"]')!;
+    const headerWidth = (): number => host.querySelector<HTMLElement>('[data-slot="table-head"][data-column-id="notes"]')!.getBoundingClientRect().width;
+    return { host, handle, headerWidth };
+}
+
+function fingerEvent(type: string, points: Array<{ clientX: number; clientY: number }>, changed = points): Event {
+    const event = new Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'touches', { value: type === 'touchend' ? [] : points });
+    Object.defineProperty(event, 'changedTouches', { value: changed });
+    return event;
+}
+
+async function tapOn(target: HTMLElement): Promise<void> {
+    const rect = target.getBoundingClientRect();
+    const point = { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+    target.dispatchEvent(fingerEvent('touchstart', [point]));
+    target.dispatchEvent(fingerEvent('touchend', [point]));
+    await new Promise(resolve => setTimeout(resolve, 100));
+}
+
+describe('DataTableComponent column auto-fit by touch (browser)', () => {
+    afterEach(() => {
+        document.querySelectorAll('ui-data-table').forEach(el => el.remove());
+    });
+
+    // UC-13, UC-14. The same gesture a double-click is, for a finger: the column
+    // fits its content, the rendered header cell grows to the same width, and the
+    // consumer is told once.
+    it('double-tapping a resize handle fits the column exactly like a double-click', async () => {
+        const mouseResized: unknown[] = [];
+        const mouse = renderResizableTable(e => mouseResized.push(e));
+        const initial = mouse.headerWidth();
+        await userEvent.dblClick(mouse.handle);
+        const fitted = mouse.headerWidth();
+        mouse.host.remove();
+
+        const touchResized: unknown[] = [];
+        const touch = renderResizableTable(e => touchResized.push(e));
+        await tapOn(touch.handle);
+        await tapOn(touch.handle);
+
+        expect(fitted).toBeGreaterThan(initial + 100);
+        expect(touch.headerWidth()).toBe(fitted);
+        expect(mouseResized).toHaveLength(1);
+        expect(touchResized).toHaveLength(1);
+    });
+
+    it('two taps half a second apart are not a double-tap', async () => {
+        const { handle, headerWidth } = renderResizableTable(() => undefined);
+        const initial = headerWidth();
+
+        await tapOn(handle);
+        await new Promise(resolve => setTimeout(resolve, 400));
+        await tapOn(handle);
+
+        expect(headerWidth()).toBe(initial);
+    });
+
+    it('a resize drag is never counted as a tap', async () => {
+        const { handle, headerWidth } = renderResizableTable(() => undefined);
+        const initial = headerWidth();
+        const rect = handle.getBoundingClientRect();
+        const start = { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+        const dragged = { clientX: start.clientX + 40, clientY: start.clientY };
+
+        handle.dispatchEvent(fingerEvent('touchstart', [start]));
+        handle.dispatchEvent(fingerEvent('touchmove', [dragged]));
+        handle.dispatchEvent(fingerEvent('touchend', [dragged]));
+        await tapOn(handle);
+
+        expect(headerWidth()).toBe(initial + 40);
+    });
+});

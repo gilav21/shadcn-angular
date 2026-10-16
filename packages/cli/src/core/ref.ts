@@ -1,5 +1,6 @@
 import { execa } from 'execa';
 import { fetchAndTransform, transformSource, type FetchOptions, type SourceKind } from './fetch.js';
+import { fetchText } from '../utils/http.js';
 import { getLocalComponentsDir, getRepoSlug, validateBranch } from '../utils/paths.js';
 import { DEFAULT_PREFIX } from '../utils/prefix.js';
 
@@ -51,9 +52,9 @@ async function resolveRemoteSha(branch: string): Promise<string | null> {
     const { owner, repo } = getRepoSlug();
     const url = `https://api.github.com/repos/${owner}/${repo}/commits/${branch}`;
     try {
-        const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
+        const res = await fetchText(url, { headers: { Accept: 'application/vnd.github+json' } });
         if (!res.ok) return null;
-        const data = await res.json() as { sha?: unknown };
+        const data = JSON.parse(res.text) as { sha?: unknown };
         return typeof data.sha === 'string' ? data.sha : null;
     } catch {
         return null;

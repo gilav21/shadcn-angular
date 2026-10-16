@@ -37,7 +37,7 @@
       }
     }
 
-    @for (bar of bars(); track bar.name; let i = $index) {
+    @for (bar of bars(); track $index; let i = $index) {
       <rect
         [attr.data-slot]="'waterfall-bar'"
         [attr.x]="bar.x"

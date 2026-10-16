@@ -1,9 +1,6 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
-  ElementRef,
-  OnDestroy,
   computed,
   inject,
   signal,
@@ -25,7 +22,7 @@ import {
   TreeContextMenuEvent,
   TreeNode,
 } from '../../../../../packages/components/ui';
-import { onLongPress } from '../../../../../packages/components/lib/touch';
+import { pointOf } from '../../../../../packages/components/lib/touch';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { TREE_CONTEXT_MENU_DEMO_LOCALES } from './tree-context-menu-demo.locales';
 
@@ -101,7 +98,6 @@ const INITIAL_TREE: TreeNode[] = [
       <section class="space-y-4">
         <h2 id="tree-context-menu" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
         <p class="text-muted-foreground">{{ t().description }}</p>
-        <p class="text-sm rounded-md border border-dashed p-3 text-muted-foreground">{{ t().touchHint }}</p>
       </section>
 
       <section class="space-y-4">
@@ -119,7 +115,7 @@ const INITIAL_TREE: TreeNode[] = [
         </div>
 
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start">
-          <div #treeHost class="w-full lg:w-80 rounded-md border p-4">
+          <div class="w-full lg:w-80 rounded-md border p-4">
             <ui-tree
               [data]="nodes()"
               [initialExpandDepth]="2"
@@ -224,13 +220,12 @@ const INITIAL_TREE: TreeNode[] = [
     </div>
   `,
 })
-export class TreeContextMenuDemoComponent implements AfterViewInit, OnDestroy {
+export class TreeContextMenuDemoComponent {
   private readonly localeId = inject(UI_LOCALE_ID);
   readonly t = computed(
     () => TREE_CONTEXT_MENU_DEMO_LOCALES[this.localeId()] ?? TREE_CONTEXT_MENU_DEMO_LOCALES['en'],
   );
 
-  private readonly treeHost = viewChild.required<ElementRef<HTMLElement>>('treeHost');
   private readonly menu = viewChild.required(ContextMenuComponent);
 
   readonly nodes = signal<TreeNode[]>(structuredClone(INITIAL_TREE));
@@ -242,15 +237,6 @@ export class TreeContextMenuDemoComponent implements AfterViewInit, OnDestroy {
   readonly renameValue = signal('');
 
   private nextId = 0;
-  private cleanupLongPress: (() => void) | null = null;
-
-  ngAfterViewInit(): void {
-    this.cleanupLongPress = onLongPress(this.treeHost().nativeElement, (event) => this.onLongPress(event));
-  }
-
-  ngOnDestroy(): void {
-    this.cleanupLongPress?.();
-  }
 
   isFolder(node: TreeNode): boolean {
     return Array.isArray(node.children);
@@ -278,8 +264,8 @@ export class TreeContextMenuDemoComponent implements AfterViewInit, OnDestroy {
       key: hit.key,
       expanded: hit.expanded,
       selected: hit.selected,
-      x: Math.round(event.event.clientX),
-      y: Math.round(event.event.clientY),
+      x: Math.round(pointOf(event.event).x),
+      y: Math.round(pointOf(event.event).y),
     });
   }
 
@@ -346,31 +332,6 @@ export class TreeContextMenuDemoComponent implements AfterViewInit, OnDestroy {
     this.pushLog(this.t().actionDelete, node.label);
     this.target.set(null);
     this.renaming.set(null);
-  }
-
-  /**
-   * Touch fallback — the directive itself is right-click only, so a 500 ms
-   * long-press is wired here with `onLongPress()` from `lib/touch`.
-   */
-  private onLongPress(event: TouchEvent): void {
-    if (this.disabled()) return;
-    const touch = event.touches[0];
-    const origin = event.target as HTMLElement | null;
-    const item = origin?.closest('[data-slot="tree-item"]');
-    if (!touch || !item) return;
-
-    const label = item.querySelector('[data-slot="tree-label"]')?.textContent ?? '';
-    const node = this.resolveNode(label);
-    this.target.set(node);
-    this.lastEvent.set({
-      label: node?.label ?? this.normalize(label),
-      key: undefined,
-      expanded: (item as HTMLElement).dataset['expanded'] === 'true',
-      selected: (item as HTMLElement).dataset['selected'] === 'true',
-      x: Math.round(touch.clientX),
-      y: Math.round(touch.clientY),
-    });
-    this.menu().show(touch.clientX, touch.clientY, node);
   }
 
   private addChild(child: TreeNode, action: string): void {

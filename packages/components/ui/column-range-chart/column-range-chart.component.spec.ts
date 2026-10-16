@@ -66,14 +66,14 @@ describe('ColumnRangeChartComponent', () => {
         expect(component.chartAriaLabel()).toContain('Temperatures');
     });
 
-    it('should place each bar between its low and high on the padded value axis', () => {
-        // Axis [-7.3, 20.3] (range plus 10% each side) over the 235px plot from y=30 to y=265.
+    it('should place each bar between its low and high on the nice value axis', () => {
+        // Axis [-5, 20] (the nice bounds of the data, no padding) over the 235px plot from y=30 to y=265.
         const jan = component.bars()[0];
-        expect(jan.highY).toBeCloseTo(265 - (17.3 / 27.6) * 235, 6);
-        expect(jan.lowY).toBeCloseTo(265 - (2.3 / 27.6) * 235, 6);
+        expect(jan.highY).toBeCloseTo(265 - (15 / 25) * 235, 6);
+        expect(jan.lowY).toBeCloseTo(265, 6);
         expect(jan.y).toBe(jan.highY);
         expect(jan.height).toBeCloseTo(jan.lowY - jan.highY, 6);
-        expect(jan.height).toBeCloseTo((15 / 27.6) * 235, 6);
+        expect(jan.height).toBeCloseTo((15 / 25) * 235, 6);
     });
 
     it('should clamp bar height to a minimum of 1 for a zero-width range', () => {
@@ -173,14 +173,8 @@ describe('ColumnRangeChartComponent', () => {
         expect(label).toContain('°C');
     });
 
-    it('should compute correct dataRange min and max from data', () => {
-        const range = component.dataRange();
-        const rawMin = -5;
-        const rawMax = 18;
-        const padding = (rawMax - rawMin) * 0.1;
-
-        expect(range.min).toBeCloseTo(rawMin - padding, 5);
-        expect(range.max).toBeCloseTo(rawMax + padding, 5);
+    it('should end the dataRange on the nice bounds of the lows and highs', () => {
+        expect(component.dataRange()).toEqual({ min: -5, max: 20 });
     });
 
     it('should fall back to a default dataRange for empty data', () => {
@@ -196,9 +190,8 @@ describe('ColumnRangeChartComponent', () => {
         expect(component.bars()).toEqual([]);
     });
 
-    it('should compute axis ticks spanning the data range', () => {
-        // [-7.3, 20.3] / 5 ticks -> a nice step of 5, widened outwards to whole steps.
-        expect(component.axisTicks()).toEqual([-10, -5, 0, 5, 10, 15, 20, 25]);
+    it('should compute axis ticks that start and end on the data range', () => {
+        expect(component.axisTicks()).toEqual([-5, 0, 5, 10, 15, 20]);
     });
 
     it('should position the bottom tick near the chart bottom', () => {
@@ -218,7 +211,7 @@ describe('ColumnRangeChartComponent', () => {
         const texts = (): string[] =>
             Array.from(fixture.nativeElement.querySelectorAll('svg text') as NodeListOf<SVGTextElement>)
                 .map(t => t.textContent?.trim() ?? '');
-        const axisAndCategories = ['-10', '-5', '0', '5', '10', '15', '20', '25', 'Jan', 'Feb', 'Mar'];
+        const axisAndCategories = ['-5', '0', '5', '10', '15', '20', 'Jan', 'Feb', 'Mar'];
         expect(texts()).toEqual([...axisAndCategories, '10', '-5', '12', '-3', '18', '2']);
 
         fixture.componentRef.setInput('showRangeLabels', false);
@@ -280,4 +273,93 @@ describe('ColumnRangeChartComponent', () => {
             expect(tickLabel).toBeTruthy();
         });
     });
+});
+
+describe('ColumnRangeChartComponent range ordering', () => {
+    const CLASSES: Record<string, [number, number][]> = {
+        ascending: [[9, 21], [12, 15.5], [-4, 6]],
+        descending: [[21, 9], [15.5, 12], [6, -4]],
+        'zero-span': [[7, 7], [-3, -3], [0, 0]],
+        negative: [[-50, -10], [-30, -0.5]],
+        mixed: [[4, 4], [-8, 12], [20, -15]],
+        'all-zero': [[0, 0], [0, 0], [0, 0]],
+    };
+
+    let host: HTMLElement;
+
+    function build(ranges: [number, number][]): ColumnRangeChartComponent {
+        const fixture = TestBed.createComponent(ColumnRangeChartComponent);
+        host = fixture.nativeElement;
+        fixture.componentRef.setInput(
+            'data',
+            ranges.map(([low, high], i) => ({ name: `P${i}`, low, high })),
+        );
+        fixture.detectChanges();
+        return fixture.componentInstance;
+    }
+
+    beforeEach(() => {
+        (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
+    });
+
+    afterEach(() => {
+        (globalThis as unknown as { ResizeObserver?: unknown }).ResizeObserver = originalResizeObserver;
+    });
+
+    for (const [className, ranges] of Object.entries(CLASSES)) {
+        it(`should draw ${className} ranges between their values inside the plot`, () => {
+            const component = build(ranges);
+            const area = component.chartArea();
+
+            component.bars().forEach((bar, i) => {
+                const [low, high] = ranges[i];
+                const top = component.getTickPosition(Math.max(low, high));
+                const bottom = component.getTickPosition(Math.min(low, high));
+                if (low === high) {
+                    // A zero-span range is a 1px line centred on its value.
+                    expect(bar.height).toBe(1);
+                    expect(bar.y + bar.height / 2).toBeCloseTo(top, 4);
+                } else {
+                    expect(bar.y).toBeCloseTo(top, 4);
+                    expect(bar.y + bar.height).toBeCloseTo(bottom, 4);
+                }
+                expect(bar.y).toBeGreaterThanOrEqual(area.top - 0.5);
+                expect(bar.y + bar.height).toBeLessThanOrEqual(area.bottom + 0.5);
+            });
+        });
+
+        it(`should label ${className} ranges with the larger end on top and the smaller below`, () => {
+            const component = build(ranges);
+            const labels = Array.from(host.querySelectorAll('g[role="button"] text')).map(t => t.textContent?.trim());
+
+            expect(labels).toEqual(
+                ranges.flatMap(([low, high]) => [component.formatValue(Math.max(low, high)), component.formatValue(Math.min(low, high))]),
+            );
+            expect(component.getBarAriaLabel(component.bars()[0])).toBe(
+                `P0: ${Math.min(...ranges[0])} to ${Math.max(...ranges[0])}`,
+            );
+        });
+
+        it(`should keep the ${className} low labels off the category labels`, () => {
+            const component = build(ranges);
+
+            for (const bar of component.bars()) {
+                const below = bar.lowY + 14;
+                // Under the column while it fits above the category labels, else just inside its bottom end.
+                expect(component.lowLabelY(bar)).toBeCloseTo(below <= component.chartArea().bottom + 2 ? below : bar.lowY - 6, 6);
+            }
+        });
+
+        it(`should keep every ${className} tick inside the plot`, () => {
+            const component = build(ranges);
+            const area = component.chartArea();
+
+            expect(component.axisTicks().length).toBeGreaterThanOrEqual(2);
+            for (const tick of component.axisTicks()) {
+                const pos = component.getTickPosition(tick);
+                expect(pos).toBeGreaterThanOrEqual(area.top - 0.001);
+                expect(pos).toBeLessThanOrEqual(area.bottom + 0.001);
+            }
+        });
+    }
 });

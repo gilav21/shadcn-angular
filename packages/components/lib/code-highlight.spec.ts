@@ -11,7 +11,17 @@ import {
     stripCodeHighlighting,
     tokenClassFor,
     tokenizeLine,
+    type CodeToken,
+    type LanguagePattern,
 } from './code-highlight';
+import codeHighlightSource from './code-highlight.ts?raw';
+import coverageScript from '../../../scripts/coverage.mjs?raw';
+import registryJson from '../registry.json?raw';
+import dataTableCss from '../ui/data-table/data-table.component.css?raw';
+import resultHtml from '../ui/result/result.component.html?raw';
+import e2eWorkflow from '../../../.github/workflows/e2e.yml?raw';
+import codeBlockStories from '../ui/code-block/code-block.stories.ts?raw';
+import codeBlockSpec from '../ui/code-block/code-block.component.spec.ts?raw';
 
 const root = (html: string): HTMLElement => {
     const el = document.createElement('div');
@@ -449,5 +459,178 @@ describe('highlightCodeElementKeepingCaret', () => {
         expect(highlightCodeElementKeepingCaret(code, 'klingon', document.getSelection())).toBe(false);
         expect(code.innerHTML).toBe('const a = 1;');
         code.closest('div')?.remove();
+    });
+});
+
+/**
+ * The tokenizer as it was before it became linear: every step re-slices the
+ * line and re-runs every pattern on the slice. Kept verbatim as the oracle the
+ * linear tokenizer must agree with token for token.
+ */
+function referenceTokenizeLine(line: string, patterns: LanguagePattern): CodeToken[] {
+    if (!line) return [];
+    const tokens: CodeToken[] = [];
+    let cursor = 0;
+
+    while (cursor < line.length) {
+        const remaining = line.slice(cursor);
+        const best = referenceFindBestMatch(remaining, patterns);
+
+        if (best?.index === 0) {
+            tokens.push({ type: best.type, text: best.text });
+            cursor += best.text.length;
+        } else if (best) {
+            tokens.push({ type: 'text', text: remaining.slice(0, best.index) });
+            cursor += best.index;
+        } else {
+            tokens.push({ type: 'text', text: remaining });
+            cursor += remaining.length;
+        }
+    }
+
+    return tokens;
+}
+
+function referenceFindBestMatch(
+    remaining: string,
+    patterns: LanguagePattern,
+): { type: string; text: string; index: number } | null {
+    let best: { type: string; text: string; index: number } | null = null;
+    for (const pattern of patterns) {
+        const match = pattern.regex.exec(remaining);
+        if (match && (best === null || match.index < best.index)) {
+            best = { type: pattern.type, text: match[0], index: match.index };
+        }
+    }
+    return best;
+}
+
+/** Real code from this repository, one string per file, so the corpus is code people wrote. */
+const REPO_SOURCES: readonly string[] = [
+    codeHighlightSource,
+    coverageScript,
+    registryJson.split('\n').slice(0, 2000).join('\n'),
+    dataTableCss,
+    resultHtml,
+    e2eWorkflow,
+    codeBlockStories,
+    codeBlockSpec,
+];
+
+/** Snippets for the languages the repository has no files in (XML, Python, Java, C#, SQL, Bash). */
+const SNIPPETS: readonly string[] = [
+    '<?xml version="1.0" encoding="UTF-8"?>\n<!-- icon -->\n<svg xmlns="http://www.w3.org/2000/svg" width="24"><path d="M1 1&amp;2"/><![CDATA[a < b]]></svg>',
+    '@decorator(1)\ndef greet(name: str) -> None:\n    """doc"""  # comment\n    return f"hi {name}" if name else None\nclass A(B): pass',
+    'package a.b;\n@Override\npublic final class A<T> extends B implements C {\n  private static final String S = "x\\"y"; // c\n  int f(int a) { return a >> 2; }\n}',
+    'using System;\n[Serializable]\npublic record P(string Name) { public async Task<int> RunAsync() => await Task.FromResult(42); }',
+    "-- comment\nSELECT u.id, COUNT(*) AS n FROM users u LEFT JOIN orders o ON o.uid = u.id WHERE u.name = 'It''s' AND \"Col\" > 3.5 /* c */ GROUP BY u.id;\nselect `x` from t where a in (1, 2) /* open",
+    '#!/bin/bash\n# build\nset -e\necho "building $PROJECT" && npm run build\ngit commit -m \'msg\' $@\ncd "$HOME/dir"; ls -la | grep foo',
+];
+
+/**
+ * Lines where a token ends or a text run stops right before a word character.
+ * The old tokenizer matched against `line.slice(cursor)`, which has no character
+ * before it, so `\b` read differently there (`5$foo(` has a boundary before the
+ * `$` in the line, none at the start of the slice). These pin that behaviour.
+ */
+const BOUNDARY_LINES: readonly string[] = [
+    '5$foo(1)', 'x=5$v$v(', "'a'$v(", '1<a$b(', '12ab(3)', 'a1(2)', '"s"b(', '3.5foo(', '<a$b=1>', 'x@d 5@d', '5$v$v(  <a&amp;}',
+];
+
+const CORPUS_LINES: readonly string[] = [...REPO_SOURCES, ...SNIPPETS].flatMap((source) => source.split('\n')).concat(BOUNDARY_LINES);
+
+/** mulberry32: a small seeded generator, so a failing line is reproducible. */
+function seededRandom(seed: number): () => number {
+    let state = seed;
+    return () => {
+        state = (state + 0x6d2b79f5) | 0;
+        let t = Math.imul(state ^ (state >>> 15), 1 | state);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+const FUZZ_ALPHABET = [
+    'const', ' ', ' ', 'let', '"a\\"b"', "'x'", '// c', '#', '12', '3.5', 'foo(', '<a', '</b>', 'x=', '@d', '$v', '--', '/*', '*/',
+    '{', '}', ':', ';', '`t`', "''", '\\', '"', "'", 'SELECT', 'null', '&amp;', '<!--', '-->', '[CDATA[', 'ab_c', '.', '(', ')',
+];
+
+function fuzzLines(count: number): string[] {
+    const random = seededRandom(20261003);
+    return Array.from({ length: count }, () => {
+        const length = Math.floor(random() * 25);
+        let line = '';
+        for (let i = 0; i < length; i++) line += FUZZ_ALPHABET[Math.floor(random() * FUZZ_ALPHABET.length)];
+        return line.slice(0, 120);
+    });
+}
+
+describe('tokenizeLine equals the reference', () => {
+    it('on real code in every language and on seeded random lines, and the tokens concatenate to the line', () => {
+        const languages = Object.entries(LANGUAGE_PATTERNS);
+        expect(languages).toHaveLength(12);
+        // Positive controls: the corpus really holds code and the fuzz really varies.
+        expect(CORPUS_LINES.length).toBeGreaterThan(3000);
+        const fuzz = fuzzLines(5000);
+        expect(new Set(fuzz).size).toBeGreaterThan(4000);
+
+        for (const [language, patterns] of languages) {
+            for (const line of [...CORPUS_LINES, ...fuzz]) {
+                const tokens = tokenizeLine(line, patterns);
+                if (tokens.map((t) => t.text).join('') !== line || JSON.stringify(tokens) !== JSON.stringify(referenceTokenizeLine(line, patterns))) {
+                    expect.fail(`${language}: tokens differ from the reference for line ${JSON.stringify(line)}`);
+                }
+            }
+        }
+    });
+});
+
+describe('tokenizeLine with caller-supplied patterns', () => {
+    const covers = (tokens: CodeToken[], line: string): boolean => tokens.map((t) => t.text).join('') === line;
+
+    it('terminates on a pattern that can match the empty string, and still covers the line', () => {
+        const line = 'abxxcxd';
+        const tokens = tokenizeLine(line, [{ type: 'x', regex: /x*/ }]);
+
+        expect(tokens).toEqual([
+            { type: 'text', text: 'ab' }, { type: 'x', text: 'xx' },
+            { type: 'text', text: 'c' }, { type: 'x', text: 'x' }, { type: 'text', text: 'd' },
+        ]);
+        expect(covers(tokens, line)).toBe(true);
+        // Matches only the empty string anywhere in this line (it has no q): the whole line is plain text.
+        expect(tokenizeLine(line, [{ type: 'e', regex: /q*/ }])).toEqual([{ type: 'text', text: line }]);
+    });
+
+    it('treats a pattern that already carries the g or y flag like any other, call after call', () => {
+        const line = 'abcbd';
+        const expected = [
+            { type: 'text', text: 'a' }, { type: 'b', text: 'b' }, { type: 'text', text: 'c' },
+            { type: 'b', text: 'b' }, { type: 'text', text: 'd' },
+        ];
+        for (const regex of [/b/g, /b/y]) {
+            const patterns = [{ type: 'b', regex }];
+            expect(tokenizeLine(line, patterns)).toEqual(expected);
+            expect(tokenizeLine(line, patterns)).toEqual(expected);
+            expect(regex.lastIndex).toBe(0);
+        }
+    });
+});
+
+describe('tokenizeLine on a very long line', () => {
+    it('tokenizes a 300 KB minified line in under 300 ms and agrees with the reference on its first 20 KB', () => {
+        const unit = 'var a=function(b,c){return b+c*2},d="s\\"t",e=[1,2,3],f=\'x\';if(a)for(;;){g(7)}';
+        const line = unit.repeat(Math.ceil(300_000 / unit.length));
+        const patterns = LANGUAGE_PATTERNS['typescript'];
+
+        const started = performance.now();
+        const tokens = tokenizeLine(line, patterns);
+        const elapsed = performance.now() - started;
+
+        expect(line.length).toBeGreaterThanOrEqual(300_000);
+        expect(tokens.map((t) => t.text).join('')).toBe(line);
+        expect(elapsed).toBeLessThan(300);
+
+        const head = line.slice(0, 20_000);
+        expect(tokenizeLine(head, patterns)).toEqual(referenceTokenizeLine(head, patterns));
     });
 });

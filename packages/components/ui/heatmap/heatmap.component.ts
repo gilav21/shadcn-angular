@@ -48,7 +48,9 @@ export class HeatmapComponent {
      * derived from the data itself: {@link rows} and {@link cols} are the
      * distinct `row`/`col` strings in **first-appearance order**, never sorted,
      * so the array order is what controls the grid layout. A `(row, col)` pair
-     * that is absent simply leaves a blank gap — cells are not back-filled.
+     * that is absent simply leaves a blank gap — cells are not back-filled, and
+     * a `(row, col)` pair listed twice is drawn twice at the same spot, the
+     * later entry on top. Negative values are fine; equal values draw one flat colour.
      * `value` is mapped onto the {@link fromColor}→{@link toColor} ramp across
      * the data's own min/max (see {@link valueDomain}), so the colours are
      * relative to this chart, not to any absolute scale.

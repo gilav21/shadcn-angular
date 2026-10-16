@@ -66,6 +66,10 @@ export interface ChartsDemoLocale extends LocaleMeta {
   barVerticalDescription: string;
   barVerticalXLabel: string;
   barVerticalYLabel: string;
+  // Bar Chart with negative values
+  negativeBarHeading: string;
+  negativeBarDescription: string;
+  negativeBarData: ChartDataPoint[];
   // Bar Chart Horizontal
   barHorizontalHeading: string;
   barHorizontalDescription: string;
@@ -151,6 +155,14 @@ export interface ChartsDemoLocale extends LocaleMeta {
   rangeDialogPayload: RangeChartData;
 }
 
+/** Quarterly profit and loss, in thousands: losses are negative values. Language-neutral, so every locale shares it. */
+const PROFIT_AND_LOSS: ChartDataPoint[] = [
+  { name: 'Q1', value: 120 },
+  { name: 'Q2', value: -45 },
+  { name: 'Q3', value: 30 },
+  { name: 'Q4', value: -10 },
+];
+
 export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
   en: {
     code: 'en',
@@ -191,6 +203,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     barVerticalDescription: 'Column chart showing monthly revenue data.',
     barVerticalXLabel: 'Month',
     barVerticalYLabel: 'Revenue ($)',
+    negativeBarHeading: 'Bar Chart (Profit and Loss)',
+    negativeBarDescription: 'Bars grow from a zero baseline: gains rise and losses fall below it.',
+    negativeBarData: PROFIT_AND_LOSS,
     barHorizontalHeading: 'Bar Chart (Horizontal)',
     barHorizontalDescription: 'Horizontal bars for comparing categorical data.',
     barDrilldownHeading: 'Column Chart with Drilldown',
@@ -364,6 +379,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     barVerticalDescription: 'גרף עמודות המציג נתוני הכנסות חודשיות.',
     barVerticalXLabel: 'חודש',
     barVerticalYLabel: 'הכנסה (₪)',
+    negativeBarHeading: 'גרף עמודות (רווח והפסד)',
+    negativeBarDescription: 'העמודות גדלות מקו אפס: רווחים עולים והפסדים יורדים מתחתיו.',
+    negativeBarData: PROFIT_AND_LOSS,
     barHorizontalHeading: 'גרף עמודות (אופקי)',
     barHorizontalDescription: 'עמודות אופקיות להשוואת נתונים קטגוריים.',
     barDrilldownHeading: 'גרף עמודות עם פירוט',
@@ -531,6 +549,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     barVerticalDescription: 'مخطط أعمدة يُظهر بيانات الإيرادات الشهرية.',
     barVerticalXLabel: 'الشهر',
     barVerticalYLabel: 'الإيرادات ($)',
+    negativeBarHeading: 'مخطط أعمدة (أرباح وخسائر)',
+    negativeBarDescription: 'تنمو الأعمدة من خط الصفر: ترتفع الأرباح وتنخفض الخسائر تحته.',
+    negativeBarData: PROFIT_AND_LOSS,
     barHorizontalHeading: 'مخطط أعمدة (أفقي)',
     barHorizontalDescription: 'أعمدة أفقية لمقارنة البيانات الفئوية.',
     barDrilldownHeading: 'مخطط أعمدة مع التعمق',
@@ -698,6 +719,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     barVerticalDescription: 'Säulendiagramm mit monatlichen Umsatzdaten.',
     barVerticalXLabel: 'Monat',
     barVerticalYLabel: 'Umsatz (€)',
+    negativeBarHeading: 'Säulendiagramm (Gewinn und Verlust)',
+    negativeBarDescription: 'Die Säulen wachsen von der Nulllinie: Gewinne steigen, Verluste fallen darunter.',
+    negativeBarData: PROFIT_AND_LOSS,
     barHorizontalHeading: 'Balkendiagramm (horizontal)',
     barHorizontalDescription: 'Horizontale Balken zum Vergleich kategorialer Daten.',
     barDrilldownHeading: 'Säulendiagramm mit Drilldown',
@@ -865,6 +889,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     barVerticalDescription: 'Graphique à colonnes montrant les données de revenus mensuels.',
     barVerticalXLabel: 'Mois',
     barVerticalYLabel: 'Revenus (€)',
+    negativeBarHeading: 'Graphique à colonnes (profits et pertes)',
+    negativeBarDescription: 'Les colonnes partent de la ligne zéro : les gains montent, les pertes descendent.',
+    negativeBarData: PROFIT_AND_LOSS,
     barHorizontalHeading: 'Graphique à barres (horizontal)',
     barHorizontalDescription: 'Barres horizontales pour comparer des données catégorielles.',
     barDrilldownHeading: 'Graphique à colonnes avec exploration',
@@ -1032,6 +1059,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     barVerticalDescription: 'Gráfico de columnas con datos de ingresos mensuales.',
     barVerticalXLabel: 'Mes',
     barVerticalYLabel: 'Ingresos (€)',
+    negativeBarHeading: 'Gráfico de columnas (ganancias y pérdidas)',
+    negativeBarDescription: 'Las columnas crecen desde la línea cero: las ganancias suben y las pérdidas bajan.',
+    negativeBarData: PROFIT_AND_LOSS,
     barHorizontalHeading: 'Gráfico de barras (horizontal)',
     barHorizontalDescription: 'Barras horizontales para comparar datos categóricos.',
     barDrilldownHeading: 'Gráfico de columnas con desglose',
@@ -1199,6 +1229,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     barVerticalDescription: '月次収益データを示す縦棒グラフ。',
     barVerticalXLabel: '月',
     barVerticalYLabel: '収益（¥）',
+    negativeBarHeading: '棒グラフ（損益）',
+    negativeBarDescription: '棒はゼロ線から伸びます。利益は上へ、損失は下へ。',
+    negativeBarData: PROFIT_AND_LOSS,
     barHorizontalHeading: '棒グラフ（横）',
     barHorizontalDescription: 'カテゴリデータ比較用の横棒グラフ。',
     barDrilldownHeading: 'ドリルダウン付き縦棒グラフ',
@@ -1366,6 +1399,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     barVerticalDescription: '显示每月收入数据的柱形图。',
     barVerticalXLabel: '月份',
     barVerticalYLabel: '收入（¥）',
+    negativeBarHeading: '柱形图（盈亏）',
+    negativeBarDescription: '柱从零线起算：盈利向上，亏损向下。',
+    negativeBarData: PROFIT_AND_LOSS,
     barHorizontalHeading: '条形图（水平）',
     barHorizontalDescription: '用于比较分类数据的水平条形图。',
     barDrilldownHeading: '带钻取的柱形图',
@@ -1533,6 +1569,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     barVerticalDescription: 'Столбчатая диаграмма с ежемесячными данными о выручке.',
     barVerticalXLabel: 'Месяц',
     barVerticalYLabel: 'Выручка (₽)',
+    negativeBarHeading: 'Столбчатая диаграмма (прибыль и убыток)',
+    negativeBarDescription: 'Столбцы растут от нулевой линии: прибыль вверх, убыток вниз.',
+    negativeBarData: PROFIT_AND_LOSS,
     barHorizontalHeading: 'Столбчатая диаграмма (горизонтальная)',
     barHorizontalDescription: 'Горизонтальные полосы для сравнения категориальных данных.',
     barDrilldownHeading: 'Столбчатая диаграмма с детализацией',
@@ -1700,6 +1739,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     barVerticalDescription: 'Gráfico de colunas com dados de receita mensal.',
     barVerticalXLabel: 'Mês',
     barVerticalYLabel: 'Receita (R$)',
+    negativeBarHeading: 'Gráfico de colunas (lucros e perdas)',
+    negativeBarDescription: 'As colunas crescem a partir da linha zero: ganhos sobem e perdas descem.',
+    negativeBarData: PROFIT_AND_LOSS,
     barHorizontalHeading: 'Gráfico de barras (horizontal)',
     barHorizontalDescription: 'Barras horizontais para comparar dados categóricos.',
     barDrilldownHeading: 'Gráfico de colunas com drill-down',

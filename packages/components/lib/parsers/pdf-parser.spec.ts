@@ -11,6 +11,8 @@ import {
     type PdfObject,
 } from './pdf-parser';
 import { PdfBuilder } from './pdf-test-fixtures';
+import { PDF_POLICY, TAG_BREAKOUT, assertInertMarkup } from './inert-markup-fixtures';
+import { FRAGMENT_LINK_URI, HOSTILE_PDF_TEXT, SAFE_LINK_URI, hostilePdf, pdfName } from './pdf-hostile-fixtures';
 
 function toBuffer(bytes: number[]): ArrayBuffer {
     return new Uint8Array(bytes).buffer;
@@ -1577,7 +1579,7 @@ describe('parsePdf - link annotations', () => {
             .obj(6, '/Type /Annot /Subtype /Link /Rect [95 695 200 715] /A << /S /URI /URI (https://example.com) >>')
             .build();
         const result = await parsePdfPaged(pdf);
-        expect(result.pages[0].html).toContain('href="https://example.com"');
+        expect(result.pages[0].html).toContain('href="https://example.com/"');
         expect(result.pages[0].html).toContain('Click here');
     });
 });
@@ -2874,5 +2876,62 @@ describe('parsePdf - damaged file recovery', () => {
         const result = await parsePdf(breakStartxref(pdf));
 
         expect(result.text).toContain('ScannedObjStm');
+    });
+});
+
+describe('parsePdf / parsePdfPaged — hostile font names and link targets', () => {
+    function parsed(html: string): Document {
+        return new DOMParser().parseFromString(`<body>${html}`, 'text/html');
+    }
+
+    it('a hostile BaseFont cannot leave the style attribute, the run keeps its font-family, and links keep only safe targets', async () => {
+        const html = (await parsePdfPaged(hostilePdf())).pages.map((page) => page.html).join('');
+        expect(assertInertMarkup(html, PDF_POLICY)).toEqual([]);
+
+        const doc = parsed(html);
+        const hostile = Array.from(doc.querySelectorAll<HTMLElement>('span')).find((s) => s.textContent === HOSTILE_PDF_TEXT);
+        expect(hostile?.style.fontFamily).toContain('onerror=alert(1)');
+
+        const anchors = Array.from(doc.querySelectorAll('a'));
+        expect(anchors.map((a) => [a.getAttribute('href'), a.textContent])).toEqual([[SAFE_LINK_URI, 'Safe link'], [FRAGMENT_LINK_URI, 'Anchor link']]);
+        expect(doc.body.textContent).toContain('Unsafe link');
+    });
+
+    it('the flat parsePdf output is inert too, and so is a hostile font that is the only font (no span emitted)', async () => {
+        expect(assertInertMarkup((await parsePdf(hostilePdf())).html, PDF_POLICY)).toEqual([]);
+
+        const onlyHostile = new PdfBuilder()
+            .addFont('F2', pdfName(TAG_BREAKOUT))
+            .setContent('BT /F2 12 Tf 100 700 Td (Only the hostile font) Tj ET')
+            .build();
+        const paged = await parsePdfPaged(onlyHostile);
+        expect(assertInertMarkup(paged.pages[0].html, PDF_POLICY)).toEqual([]);
+        expect(paged.pages[0].html).toContain('Only the hostile font');
+    });
+
+    it('leaves the output of a benign PDF byte-identical: styled runs, a heading and a safe link', async () => {
+        const benign = new PdfBuilder()
+            .addFont('F1', 'Helvetica')
+            .addFont('F2', 'Times-Roman')
+            .addFont('F3', 'Helvetica-Bold')
+            .setContent(
+                'BT /F1 12 Tf 100 700 Td (Body text of the page runs on and on) Tj '
+                + '0 -16 Td (and continues on a second line of body copy) Tj '
+                + '0 -20 Td /F2 12 Tf (Times serif run) Tj /F3 12 Tf ( bold run) Tj '
+                + '0 -30 Td /F1 24 Tf (Large Heading) Tj '
+                + '0 -30 Td /F1 12 Tf (Visit our site) Tj ET')
+            .addLinkAnnotation(0, [95, 595, 200, 615], 'https://example.com/page')
+            .build();
+
+        const pages = (await parsePdfPaged(benign)).pages.map((page) => page.html);
+
+        // Captured from the unmodified tree before the sinks were hardened. The
+        // link target carries a path, so URL normalisation leaves it as written.
+        expect(pages).toEqual([
+            '<p style="text-align:justify;margin-top:4pt;margin-bottom:8pt;line-height:1.33">Body text of the page runs on and on and continues on a second line of body copy</p>\n'
+            + '<p style="margin-bottom:18pt"><strong><span style="font-family: \'Times New Roman\'">Times serif run bold run</span></strong></p>\n'
+            + '<h1><span style="font-size: 24pt">Large Heading</span></h1>\n'
+            + '<p style="margin-top:18pt"><a href="https://example.com/page" target="_blank" rel="noopener noreferrer" style="color:#1a0dab;text-decoration:underline">Visit our site</a></p>',
+        ]);
     });
 });

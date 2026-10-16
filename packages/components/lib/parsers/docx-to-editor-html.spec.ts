@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { renderDocxForEditor } from './docx-to-editor-html';
+import { parseDocx } from './docx-parser';
+import { buildStoredZip } from './zip-test-fixtures';
+import { BREAKOUT, DECLARATION, DOCX_POLICY, UNSAFE_URLS, assertInertMarkup } from './inert-markup-fixtures';
+import { HOSTILE_LINK_TEXT, hostileDocx } from './docx-hostile-fixtures';
 import type {
     DocxParseResult,
     DocxParagraph,
@@ -91,7 +95,7 @@ describe('renderDocxForEditor — paragraphs and runs', () => {
         })])]));
         expect(html).toContain('color:#FF0000');
         expect(html).toContain('font-size:14pt');
-        expect(html).toContain('font-family:Arial');
+        expect(html).toContain("font-family:'Arial'");
         expect(html).toContain('background-color:#FFFF00');
         expect(html).toContain('letter-spacing:2pt');
         expect(html).toContain('font-variant:small-caps');
@@ -246,19 +250,26 @@ describe('renderDocxForEditor — lists', () => {
 });
 
 describe('renderDocxForEditor — images', () => {
-    it('renders an image with width/height/alt and escaped src', () => {
+    it('renders an image with width/height/alt', () => {
         const img: DocxImage = {
             type: 'image',
-            dataUrl: 'data:image/png;base64,AAA"BBB',
+            dataUrl: 'data:image/png;base64,AAAA',
             width: 100,
             height: 50,
             altText: 'My <pic>',
         };
         const html = renderDocxForEditor(result([img]));
-        expect(html).toContain('<img src="data:image/png;base64,AAA&quot;BBB"');
+        expect(html).toContain('<img src="data:image/png;base64,AAAA"');
         expect(html).toContain('width="100"');
         expect(html).toContain('height="50"');
         expect(html).toContain('alt="My &lt;pic&gt;"');
+    });
+
+    it('drops an image whose source is not a base64 image data URL', () => {
+        for (const dataUrl of ['data:image/png;base64,AAA"BBB', 'javascript:alert(1)', 'https://tracker.invalid/p.png']) {
+            const img: DocxImage = { type: 'image', dataUrl, width: 1, height: 1, altText: 'x' };
+            expect(renderDocxForEditor(result([img]))).toBe('');
+        }
     });
 
     it('omits zero width/height and falls back alt to "image"', () => {
@@ -305,7 +316,7 @@ describe('renderDocxForEditor — tables', () => {
             rows: [row([cell([run('c')], {
                 cellStyle: {
                     backgroundColor: '#ABCDEF',
-                    verticalAlign: 'center',
+                    verticalAlign: 'middle',
                     width: 2500,
                     widthUnit: 'pct',
                     paddings: { top: 2, bottom: 2, left: 4, right: 4 },
@@ -315,7 +326,7 @@ describe('renderDocxForEditor — tables', () => {
         const html = renderDocxForEditor(result([table]));
         expect(html).toContain('width:100.0%');
         expect(html).toContain('background-color:#ABCDEF');
-        expect(html).toContain('vertical-align:center');
+        expect(html).toContain('vertical-align:middle');
         expect(html).toContain('width:50.0%');
         expect(html).toContain('padding-top:2pt');
         expect(html).toContain('padding-left:4pt');
@@ -365,5 +376,91 @@ describe('renderDocxForEditor — tables', () => {
         expect(html).toContain('<p>inner</p></td>');
         const tableOpenCount = (html.match(/<table/g) ?? []).length;
         expect(tableOpenCount).toBe(2);
+    });
+});
+
+describe('parseDocx + renderDocxForEditor — hostile and valid attribute values', () => {
+    const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+
+    it('a document carrying a breakout or declaration payload in every slot renders inert', () => {
+        for (const payload of [BREAKOUT, DECLARATION]) {
+            const html = renderDocxForEditor(parseDocx(hostileDocx(payload)));
+            expect(assertInertMarkup(html, DOCX_POLICY)).toEqual([]);
+            expect(html).toContain('hostile run');
+            expect(html).toContain(HOSTILE_LINK_TEXT);
+        }
+    });
+
+    it('keeps the meaning of valid colours, shading, alignment, vertical alignment, fonts and theme tints', () => {
+        const theme = '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:themeElements><a:clrScheme name="x">'
+            + '<a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1></a:clrScheme></a:themeElements></a:theme>';
+        const body = '<w:p><w:pPr><w:jc w:val="both"/><w:shd w:fill="FFFF00"/>'
+            + '<w:pBdr><w:top w:val="single" w:sz="8" w:color="111111"/></w:pBdr></w:pPr>'
+            + '<w:r><w:rPr><w:color w:val="FF0000"/><w:highlight w:val="yellow"/>'
+            + '<w:rFonts w:ascii="Times New Roman"/></w:rPr><w:t>valid</w:t></w:r>'
+            + '<w:r><w:rPr><w:color w:val="auto"/></w:rPr><w:t>auto</w:t></w:r>'
+            + '<w:r><w:rPr><w:color w:themeColor="dk1" w:themeTint="80"/><w:shd w:fill="00FF00"/></w:rPr><w:t>themed</w:t></w:r></w:p>'
+            + '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>centred</w:t></w:r></w:p>'
+            + '<w:tbl><w:tr><w:tc><w:tcPr><w:shd w:fill="DDDDDD"/><w:vAlign w:val="center"/></w:tcPr>'
+            + '<w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>';
+        const html = renderDocxForEditor(parseDocx(buildStoredZip([
+            { path: 'word/document.xml', content: `<?xml version="1.0"?><w:document ${W}><w:body>${body}</w:body></w:document>` },
+            { path: 'word/theme/theme1.xml', content: theme },
+        ])));
+
+        const doc = new DOMParser().parseFromString(`<body>${html}`, 'text/html');
+        const spanOf = (text: string): HTMLElement | undefined =>
+            Array.from(doc.querySelectorAll<HTMLElement>('span')).find(s => s.textContent === text);
+        const [justified, centred] = Array.from(doc.querySelectorAll<HTMLElement>('p'));
+        expect(justified.style.textAlign).toBe('justify');
+        expect(justified.style.backgroundColor).toBe('rgb(255, 255, 0)');
+        expect(justified.style.borderTop).toContain('solid');
+        expect(centred.style.textAlign).toBe('center');
+
+        const valid = spanOf('valid')!;
+        expect(valid.style.color).toBe('rgb(255, 0, 0)');
+        expect(valid.style.backgroundColor).toBe('rgb(255, 255, 0)');
+        expect(valid.style.fontFamily).toContain('Times New Roman');
+        expect(spanOf('auto')).toBeUndefined();
+        const themed = spanOf('themed')!;
+        expect(themed.style.color).toBe('rgb(128, 128, 128)');
+        expect(themed.style.backgroundColor).toBe('rgb(0, 255, 0)');
+
+        const cellStyle = doc.querySelector<HTMLElement>('td')!.style;
+        expect(cellStyle.verticalAlign).toBe('middle');
+        expect(cellStyle.backgroundColor).toBe('rgb(221, 221, 221)');
+    });
+
+    it('a hand-built model with hostile values in every slot renders inert, without relying on the parser', () => {
+        for (const payload of [BREAKOUT, DECLARATION]) {
+            const hostileBorder = { style: 'single', color: payload, size: 1 };
+            const hostileCell = cell([run('cell', { color: payload })], {
+                cellStyle: { backgroundColor: payload, verticalAlign: payload, borders: { top: hostileBorder } },
+            });
+            const html = renderDocxForEditor(result([
+                para([
+                    run('styled', { color: payload, highlight: payload, backgroundColor: payload, fontFamily: payload }),
+                    run('linked', {}, { href: payload }),
+                ], { alignment: payload, shading: payload, borders: { left: hostileBorder } }),
+                { type: 'table', rows: [row([hostileCell])] },
+            ]));
+
+            expect(assertInertMarkup(html, DOCX_POLICY)).toEqual([]);
+            expect(html).toContain('styled');
+        }
+    });
+
+    it('renders unsafe link schemes as unlinked text and keeps safe schemes and bookmarks as links', () => {
+        const link = (href: string): string => renderDocxForEditor(result([para([run('go', {}, { href })])]));
+
+        for (const unsafe of [...UNSAFE_URLS, '\tjavascript:alert(1)']) expect(link(unsafe)).toBe('<p>go</p>');
+        for (const safe of ['https://example.com/', 'http://example.com/', 'mailto:a@example.com', '#bookmark-sec1']) {
+            expect(link(safe)).toBe(`<p><a href="${safe}" target="_blank" rel="noopener noreferrer">go</a></p>`);
+        }
+
+        const bookmark = `#bookmark-${BREAKOUT}`;
+        const anchor = new DOMParser().parseFromString(`<body>${link(bookmark)}`, 'text/html').querySelector('a')!;
+        expect(anchor.getAttribute('href')).toBe(bookmark);
+        expect(anchor.attributes).toHaveLength(3);
     });
 });

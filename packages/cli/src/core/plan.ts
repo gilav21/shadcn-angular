@@ -1,9 +1,11 @@
 import fs from 'fs-extra';
 import path from 'node:path';
 import chalk from 'chalk';
-import { fetchAndTransform, normalizeContent, type FetchOptions } from './fetch.js';
+import { fetchAndTransform, normalizeContent, type FetchOptions, type SourceKind } from './fetch.js';
 import { DEFAULT_PREFIX } from '../utils/prefix.js';
-import { registry, type BreakingChange, type ComponentDefinition, type ComponentName } from '../registry/index.js';
+import { getBlocksAlias, type Config } from '../utils/config.js';
+import { aliasToProjectPath, resolveProjectPath } from '../utils/paths.js';
+import { registry, type BreakingChange, type ComponentName } from '../registry/index.js';
 
 export interface AddOptions extends FetchOptions {
     yes?: boolean;
@@ -33,70 +35,144 @@ export interface ConflictCheckResult {
     conflicting: ComponentName[];
     peerFilesToUpdate: Set<string>;
     contentCache: Map<string, string>;
+    /** Components whose upstream could not be fetched: in none of the buckets above, never written. */
+    unchecked: UncheckedComponent[];
 }
+
+/**
+ * Where each kind of registry entry installs. Built once by
+ * {@link resolveInstallTargets} and passed to everything that reads or writes
+ * component files, so "which directory is this component judged in" is decided
+ * in exactly one place (I2).
+ */
+export interface InstallTargets {
+    readonly uiDir: string;
+    readonly blocksDir: string;
+}
+
+/** The ui and blocks directories for a project; `path` / `blocksPath` override the aliases. */
+export function resolveInstallTargets(
+    cwd: string, config: Config, overrides: { readonly path?: string; readonly blocksPath?: string } = {},
+): InstallTargets {
+    return {
+        uiDir: resolveProjectPath(cwd, overrides.path ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui')),
+        blocksDir: resolveProjectPath(cwd, overrides.blocksPath ?? aliasToProjectPath(getBlocksAlias(config))),
+    };
+}
+
+/** The source kind a registry entry is fetched as (and so which directory it lives in). */
+export function kindOf(name: ComponentName): SourceKind {
+    return registry[name].type === 'block' ? 'block' : 'component';
+}
+
+export function targetDirFor(targets: InstallTargets, kind: SourceKind): string {
+    return kind === 'block' ? targets.blocksDir : targets.uiDir;
+}
+
+/** Cache key for a fetched file: a component and a block may declare the same relative path. */
+export function contentKey(kind: SourceKind, file: string): string {
+    return `${kind}:${file}`;
+}
+
+/** A component whose upstream could not be fetched, so no verdict can be given for it (I3). */
+export interface UncheckedComponent {
+    readonly name: ComponentName;
+    readonly file: string;
+    readonly reason: string;
+}
+
+/** What one conflict scan accumulates while it walks the components. */
+export interface ScanState {
+    readonly contentCache: Map<string, string>;
+    readonly peerFilesToUpdate: Set<string>;
+    readonly unchecked: UncheckedComponent[];
+}
+
+/**
+ * One file's verdict. `unchecked` means the upstream could not be fetched —
+ * which says nothing about whether the local file differs, so it is never
+ * folded into `changed`.
+ */
+export type FileCheck =
+    | { readonly status: 'identical' | 'changed' | 'missing' }
+    | { readonly status: 'unchecked'; readonly reason: string };
 
 export async function checkFileConflict(
     file: string,
     targetDir: string,
+    kind: SourceKind,
     options: AddOptions,
     utilsAlias: string,
     contentCache: Map<string, string>,
     prefix: string = DEFAULT_PREFIX,
-): Promise<'identical' | 'changed' | 'missing'> {
+): Promise<FileCheck> {
     const targetPath = path.join(targetDir, file);
-    if (!await fs.pathExists(targetPath)) return 'missing';
+    if (!await fs.pathExists(targetPath)) return { status: 'missing' };
 
     const localContent = await fs.readFile(targetPath, 'utf-8');
     try {
-        const remoteContent = await fetchAndTransform(file, options, utilsAlias, prefix);
-        contentCache.set(file, remoteContent);
-        return normalizeContent(localContent) === normalizeContent(remoteContent)
-            ? 'identical'
-            : 'changed';
-    } catch {
-        return 'changed';
+        const remoteContent = await fetchAndTransform(file, options, utilsAlias, prefix, kind);
+        contentCache.set(contentKey(kind, file), remoteContent);
+        const same = normalizeContent(localContent) === normalizeContent(remoteContent);
+        return { status: same ? 'identical' : 'changed' };
+    } catch (err: unknown) {
+        return { status: 'unchecked', reason: err instanceof Error ? err.message : String(err) };
     }
 }
 
+/** Queue the peer files that need installing; returns the first peer that could not be checked. */
 async function checkPeerFiles(
-    component: ComponentDefinition,
+    name: ComponentName,
     targetDir: string,
+    kind: SourceKind,
     options: AddOptions,
     utilsAlias: string,
-    contentCache: Map<string, string>,
-    peerFilesToUpdate: Set<string>,
+    scan: ScanState,
     prefix: string,
-): Promise<void> {
-    if (!component.peerFiles) return;
-    for (const file of component.peerFiles) {
-        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache, prefix);
-        // Install a peer file that's MISSING (a new component version references
-        // it but it was never installed) as well as one that's CHANGED. Only an
-        // identical, already-present peer file is left alone.
-        if (status === 'missing' || status === 'changed') peerFilesToUpdate.add(file);
+): Promise<UncheckedComponent | undefined> {
+    let unchecked: UncheckedComponent | undefined;
+    const needed: string[] = [];
+    for (const file of registry[name].peerFiles ?? []) {
+        const check = await checkFileConflict(file, targetDir, kind, options, utilsAlias, scan.contentCache, prefix);
+        if (check.status === 'unchecked') {
+            unchecked ??= { name, file, reason: check.reason };
+        } else if (check.status === 'missing' || check.status === 'changed') {
+            // Install a peer file that's MISSING (a new component version references
+            // it but it was never installed) as well as one that's CHANGED. Only an
+            // identical, already-present peer file is left alone.
+            needed.push(file);
+        }
     }
+    // An unchecked component is not written, so it must not leave its peers queued.
+    if (!unchecked) for (const file of needed) scan.peerFilesToUpdate.add(file);
+    return unchecked;
 }
 
 export async function classifyComponent(
     name: ComponentName,
-    targetDir: string,
+    targets: InstallTargets,
     options: AddOptions,
     utilsAlias: string,
-    contentCache: Map<string, string>,
-    peerFilesToUpdate: Set<string>,
+    scan: ScanState,
     prefix: string = DEFAULT_PREFIX,
-): Promise<'install' | 'skip' | 'conflict'> {
-    const component = registry[name];
+): Promise<'install' | 'skip' | 'conflict' | 'unchecked'> {
+    const kind = kindOf(name);
+    const targetDir = targetDirFor(targets, kind);
     let ownFilesChanged = false;
     let isFullyPresent = true;
+    let unchecked: UncheckedComponent | undefined;
 
-    for (const file of component.files) {
-        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache, prefix);
-        if (status === 'missing') isFullyPresent = false;
-        if (status === 'changed') ownFilesChanged = true;
+    for (const file of registry[name].files) {
+        const check = await checkFileConflict(file, targetDir, kind, options, utilsAlias, scan.contentCache, prefix);
+        if (check.status === 'missing') isFullyPresent = false;
+        if (check.status === 'changed') ownFilesChanged = true;
+        if (check.status === 'unchecked') unchecked ??= { name, file, reason: check.reason };
     }
-
-    await checkPeerFiles(component, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, prefix);
+    unchecked ??= await checkPeerFiles(name, targetDir, kind, options, utilsAlias, scan, prefix);
+    if (unchecked) {
+        scan.unchecked.push(unchecked);
+        return 'unchecked';
+    }
 
     if (options.overwrite) return isFullyPresent ? 'conflict' : 'install';
     if (isFullyPresent && !ownFilesChanged) return 'skip';
@@ -124,7 +200,7 @@ class ConcurrencyLimiter {
 
 export async function detectConflicts(
     allComponents: Set<ComponentName>,
-    targetDir: string,
+    targets: InstallTargets,
     options: AddOptions,
     utilsAlias: string,
     prefix: string = DEFAULT_PREFIX,
@@ -132,17 +208,17 @@ export async function detectConflicts(
     const toInstall: ComponentName[] = [];
     const toSkip: string[] = [];
     const conflicting: ComponentName[] = [];
-    const peerFilesToUpdate = new Set<string>();
-    const contentCache = new Map<string, string>();
+    const scan: ScanState = {
+        contentCache: new Map<string, string>(), peerFilesToUpdate: new Set<string>(), unchecked: [],
+    };
+    const { contentCache, peerFilesToUpdate } = scan;
     const limiter = new ConcurrencyLimiter(8);
 
     const results = await Promise.all(
         [...allComponents].map(name =>
             limiter.run(async () => ({
                 name,
-                result: await classifyComponent(
-                    name, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, prefix,
-                ),
+                result: await classifyComponent(name, targets, options, utilsAlias, scan, prefix),
             })),
         ),
     );
@@ -150,10 +226,12 @@ export async function detectConflicts(
     for (const { name, result } of results) {
         if (result === 'skip') toSkip.push(name);
         else if (result === 'conflict') conflicting.push(name);
-        else toInstall.push(name);
+        else if (result === 'install') toInstall.push(name);
     }
 
-    return { toInstall, toSkip, conflicting, peerFilesToUpdate, contentCache };
+    // Scans run concurrently, so completion order is arbitrary; name order keeps reports stable.
+    const unchecked = [...scan.unchecked].sort((a, b) => a.name.localeCompare(b.name));
+    return { toInstall, toSkip, conflicting, peerFilesToUpdate, contentCache, unchecked };
 }
 
 export interface ComponentBreaking {
@@ -295,6 +373,8 @@ export interface InstallPlan {
     toSkip: string[];
     conflicting: string[];
     peerFilesToUpdate: string[];
+    /** Components whose upstream could not be fetched; no verdict was possible for them. */
+    unchecked: UncheckedComponent[];
     npmDependencies: string[];
     /** Breaking-change notes for components in the plan, surfaced before any file is written. */
     breakingChanges: ComponentBreaking[];
@@ -319,6 +399,7 @@ export function summarizePlan(
         toSkip: result.toSkip,
         conflicting: result.conflicting,
         peerFilesToUpdate: [...result.peerFilesToUpdate],
+        unchecked: result.unchecked,
         npmDependencies: [...npm],
         breakingChanges,
         suggestedAddons: collectSuggestedAddons(breakingChanges),

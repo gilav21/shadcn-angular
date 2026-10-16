@@ -14,6 +14,7 @@ import type {
     DocxTableCellStyle,
     DocxTableStyle,
 } from './docx-parser';
+import { cssColor, cssFontFamily, escapeAttribute, imageDataUrl, safeLinkHref } from './markup-safety';
 
 /**
  * Renders a DocxParseResult into inline-styled HTML suitable for
@@ -117,6 +118,13 @@ function renderListItem(
 
 // --- Paragraph rendering ---
 
+/**
+ * The parser only ever produces these keywords; a model built by hand may hold
+ * anything, and a keyword is written into a declaration unquoted.
+ */
+const TEXT_ALIGNS: ReadonlySet<string> = new Set(['left', 'right', 'center', 'justify']);
+const VERTICAL_ALIGNS: ReadonlySet<string> = new Set(['top', 'middle', 'bottom']);
+
 function renderParagraph(p: DocxParagraph): string {
     const pageBreak = p.runs.some(r => r.breakType === 'page');
     let prefix = '';
@@ -132,19 +140,19 @@ function renderParagraph(p: DocxParagraph): string {
         const level = Math.min(Number(headingMatch[1]), 6);
         const tag = `h${level}`;
         const styleAttr = buildParagraphStyle(p);
-        const styleStr = styleAttr ? ` style="${styleAttr}"` : '';
+        const styleStr = styleAttr ? ` style="${escapeAttribute(styleAttr)}"` : '';
         return `${prefix}<${tag}${dirAttr}${styleStr}>${content}</${tag}>`;
     }
 
     const styleAttr = buildParagraphStyle(p);
-    const styleStr = styleAttr ? ` style="${styleAttr}"` : '';
+    const styleStr = styleAttr ? ` style="${escapeAttribute(styleAttr)}"` : '';
     return `${prefix}<p${dirAttr}${styleStr}>${content}</p>`;
 }
 
 function buildParagraphStyle(p: DocxParagraph): string {
     const styles: string[] = [];
 
-    if (p.alignment) {
+    if (p.alignment && TEXT_ALIGNS.has(p.alignment)) {
         styles.push(`text-align:${p.alignment}`);
     }
     if (p.spacingBefore != null) {
@@ -172,8 +180,9 @@ function buildParagraphStyle(p: DocxParagraph): string {
             styles.push(`line-height:${p.lineSpacing.toFixed(2)}`);
         }
     }
-    if (p.shading) {
-        styles.push(`background-color:${p.shading}`);
+    const shading = cssColor(p.shading);
+    if (shading) {
+        styles.push(`background-color:${shading}`);
     }
     if (p.borders) {
         appendParagraphBorders(styles, p.borders);
@@ -195,7 +204,8 @@ function appendParagraphBorders(styles: string[], borders: DocxParagraphBorders)
 function formatBorder(b: DocxBorder | DocxTableBorder): string {
     const widthPt = Math.max(b.size, 0.5);
     const style = mapBorderStyle(b.style);
-    return `${widthPt}pt ${style} ${b.color}`;
+    const color = cssColor(b.color);
+    return color ? `${widthPt}pt ${style} ${color}` : `${widthPt}pt ${style}`;
 }
 
 const DASHED_BORDER_STYLES = new Set(['dashed', 'dashDotStroked', 'dashSmallGap']);
@@ -254,7 +264,7 @@ function applyRunFormatting(html: string, style: DocxRunStyle): string {
     const spanStyle = buildRunSpanStyle(style);
     const dirAttr = style.rtl ? ' dir="rtl"' : '';
     if (spanStyle || dirAttr) {
-        const styleAttr = spanStyle ? ` style="${spanStyle}"` : '';
+        const styleAttr = spanStyle ? ` style="${escapeAttribute(spanStyle)}"` : '';
         result = `<span${dirAttr}${styleAttr}>${result}</span>`;
     }
 
@@ -264,11 +274,14 @@ function applyRunFormatting(html: string, style: DocxRunStyle): string {
 function buildRunSpanStyle(style: DocxRunStyle): string {
     const parts: string[] = [];
 
-    if (style.color) parts.push(`color:${style.color}`);
+    const color = cssColor(style.color);
+    if (color) parts.push(`color:${color}`);
     if (style.fontSize) parts.push(`font-size:${style.fontSize}pt`);
-    if (style.fontFamily) parts.push(`font-family:${escapeAttr(style.fontFamily)}`);
-    if (style.highlight) parts.push(`background-color:${style.highlight}`);
-    if (style.backgroundColor) parts.push(`background-color:${style.backgroundColor}`);
+    if (style.fontFamily) parts.push(`font-family:${cssFontFamily(style.fontFamily)}`);
+    const highlight = cssColor(style.highlight);
+    if (highlight) parts.push(`background-color:${highlight}`);
+    const background = cssColor(style.backgroundColor);
+    if (background) parts.push(`background-color:${background}`);
     if (style.charSpacing) parts.push(`letter-spacing:${formatPt(style.charSpacing)}pt`);
     if (style.smallCaps) parts.push('font-variant:small-caps');
     if (style.caps) parts.push('text-transform:uppercase');
@@ -283,19 +296,20 @@ function applyTrackChanges(html: string, run: DocxRun): string {
 }
 
 function applyHyperlink(html: string, run: DocxRun): string {
-    if (run.href) {
-        return `<a href="${escapeAttr(run.href)}" target="_blank" rel="noopener noreferrer">${html}</a>`;
-    }
-    return html;
+    const href = run.href ? safeLinkHref(run.href) : undefined;
+    if (href === undefined) return html;
+    return `<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">${html}</a>`;
 }
 
 // --- Image rendering ---
 
 function renderImage(img: DocxImage): string {
+    const src = imageDataUrl(img.dataUrl);
+    if (src === undefined) return '';
     const widthAttr = img.width > 0 ? ` width="${img.width}"` : '';
     const heightAttr = img.height > 0 ? ` height="${img.height}"` : '';
-    const alt = escapeAttr(img.altText || 'image');
-    return `<img src="${escapeAttr(img.dataUrl)}"${widthAttr}${heightAttr} alt="${alt}">`;
+    const alt = escapeAttribute(img.altText || 'image');
+    return `<img src="${escapeAttribute(src)}"${widthAttr}${heightAttr} alt="${alt}">`;
 }
 
 // --- Table rendering ---
@@ -322,7 +336,7 @@ function splitTableRows(rows: readonly DocxTableRow[]): { headerRows: DocxTableR
 
 function renderTable(table: DocxTable): string {
     const tableStyle = buildTableStyle(table.tableStyle);
-    const styleStr = tableStyle ? ` style="${tableStyle}"` : '';
+    const styleStr = tableStyle ? ` style="${escapeAttribute(tableStyle)}"` : '';
     const borderFallbacks = buildBorderFallbacks(table);
     const { headerRows, bodyRows } = splitTableRows(table.rows);
     const totalRows = table.rows.length;
@@ -398,7 +412,7 @@ function renderTableCell(
     if (cell.rowSpan > 1) attrs.push(`rowspan="${cell.rowSpan}"`);
 
     const cellStyle = buildCellStyle(cell.cellStyle, fallbacks, rowIndex, colIndex, totalRows, totalCols);
-    if (cellStyle) attrs.push(`style="${cellStyle}"`);
+    if (cellStyle) attrs.push(`style="${escapeAttribute(cellStyle)}"`);
 
     const attrStr = attrs.length > 0 ? ` ${attrs.join(' ')}` : '';
     const content = renderCellContent(cell.elements);
@@ -412,8 +426,9 @@ function buildCellStyle(
 ): string {
     const parts: string[] = [];
 
-    if (style?.backgroundColor) parts.push(`background-color:${style.backgroundColor}`);
-    if (style?.verticalAlign) parts.push(`vertical-align:${style.verticalAlign}`);
+    const background = cssColor(style?.backgroundColor);
+    if (background) parts.push(`background-color:${background}`);
+    if (style?.verticalAlign && VERTICAL_ALIGNS.has(style.verticalAlign)) parts.push(`vertical-align:${style.verticalAlign}`);
     if (style?.width) {
         const unit = style.widthUnit === 'pct' ? '%' : 'pt';
         const value = unit === '%' ? (style.width / 50).toFixed(1) : twipsToPt(style.width);
@@ -483,12 +498,4 @@ function escapeHtml(text: string): string {
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll('\t', '\u2003');
-}
-
-function escapeAttr(value: string): string {
-    return value
-        .replaceAll('&', '&amp;')
-        .replaceAll('"', '&quot;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;');
 }

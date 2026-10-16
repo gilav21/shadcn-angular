@@ -343,3 +343,72 @@ describe('ChipListComponent — touched on a real blur', () => {
         blurFixture.destroy();
     });
 });
+
+describe('ChipListComponent — IME composition and duplicate chips', () => {
+    const setup = (): ComponentFixture<ChipListComponent> => {
+        const fixture = TestBed.createComponent(ChipListComponent);
+        fixture.componentRef.setInput('separatorKeys', [',']);
+        fixture.detectChanges();
+        return fixture;
+    };
+    const field = (fixture: ComponentFixture<ChipListComponent>): HTMLInputElement =>
+        fixture.nativeElement.querySelector('input');
+    const draft = (fixture: ComponentFixture<ChipListComponent>, text: string): void => {
+        field(fixture).value = text;
+        field(fixture).dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+    };
+    const press = (fixture: ComponentFixture<ChipListComponent>, init: KeyboardEventInit): void => {
+        field(fixture).dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init }));
+        fixture.detectChanges();
+    };
+
+    it('does not commit a chip while an IME composition is active', () => {
+        const fixture = setup();
+        const chips = fixture.componentInstance.chips;
+        draft(fixture, '中');
+
+        press(fixture, { key: 'Enter', isComposing: true });
+        expect(chips()).toEqual([]);
+        expect(fixture.componentInstance.inputValue()).toBe('中');
+
+        press(fixture, { key: 'Enter', isComposing: false, keyCode: 229 });
+        expect(chips()).toEqual([]);
+
+        press(fixture, { key: ',', isComposing: true });
+        expect(chips()).toEqual([]);
+
+        press(fixture, { key: 'Enter' });
+        expect(chips()).toEqual(['中']);
+    });
+
+    it('renders and removes duplicate chips without a duplicate-key error', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        const fixture = setup();
+        fixture.componentRef.setInput('allowDuplicates', true);
+        fixture.componentInstance.writeValue(['a', 'b', 'a']);
+        fixture.detectChanges();
+        const chipTexts = (): (string | undefined)[] =>
+            Array.from(fixture.nativeElement.querySelectorAll('ui-badge') as NodeListOf<HTMLElement>)
+                .map(chip => chip.textContent?.trim());
+        const removeChip = (index: number): void => {
+            (fixture.nativeElement.querySelectorAll('[data-slot="chip-remove"]')[index] as HTMLElement).click();
+            fixture.detectChanges();
+        };
+        expect(chipTexts()).toEqual(['a', 'b', 'a']);
+
+        // Angular checks track keys only while it reconciles an already-rendered list: removing the
+        // middle chip leaves two equal ones, which is where a text key collides (NG0955)
+        removeChip(1);
+        expect(chipTexts()).toEqual(['a', 'a']);
+
+        removeChip(1);
+        expect(fixture.componentInstance.chips()).toEqual(['a']);
+        expect(chipTexts()).toEqual(['a']);
+        const logged = [...warn.mock.calls, ...error.mock.calls].flat().map(String);
+        expect(logged.filter(line => line.includes('NG0955'))).toEqual([]);
+        warn.mockRestore();
+        error.mockRestore();
+    });
+});

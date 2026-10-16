@@ -16,6 +16,8 @@ vi.mock('./fetch.js', () => ({
 }));
 
 const opts = { branch: 'master' } as const;
+const targets = { uiDir: '/proj/ui', blocksDir: '/proj/blocks' };
+const scanState = (peerFilesToUpdate = new Set<string>()) => ({ contentCache: new Map<string, string>(), peerFilesToUpdate, unchecked: [] });
 
 describe('classifyComponent', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -23,7 +25,7 @@ describe('classifyComponent', () => {
   it('returns "install" when files are missing', async () => {
     (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(false);
     const result = await classifyComponent(
-      'badge', '/proj/ui', opts, '@/lib', new Map(), new Set(),
+      'badge', targets, opts, '@/lib', scanState(),
     );
     expect(result).toBe('install');
   });
@@ -32,7 +34,7 @@ describe('classifyComponent', () => {
     (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);
     (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('REMOTE');
     const result = await classifyComponent(
-      'badge', '/proj/ui', opts, '@/lib', new Map(), new Set(),
+      'badge', targets, opts, '@/lib', scanState(),
     );
     expect(result).toBe('skip');
   });
@@ -41,7 +43,7 @@ describe('classifyComponent', () => {
     (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);
     (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('LOCAL EDIT');
     const result = await classifyComponent(
-      'badge', '/proj/ui', opts, '@/lib', new Map(), new Set(),
+      'badge', targets, opts, '@/lib', scanState(),
     );
     expect(result).toBe('conflict');
   });
@@ -61,7 +63,7 @@ describe('classifyComponent', () => {
       (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(false);
       const peerSet = new Set<string>();
       await classifyComponent(
-        'data-table', '/proj/ui', opts, '@/lib', new Map(), peerSet,
+        'data-table', targets, opts, '@/lib', scanState(peerSet),
       );
       // Before the fix, "missing" peer files were skipped (only "changed" queued),
       // so peer directives never installed and the build broke. All declared peer
@@ -88,7 +90,7 @@ describe('classifyComponent', () => {
       );
       const peerSet = new Set<string>();
       const verdict = await classifyComponent(
-        'data-table', '/proj/ui', opts, '@/lib', new Map(), peerSet,
+        'data-table', targets, opts, '@/lib', scanState(peerSet),
       );
       expect(verdict).toBe('skip');
       expect([...peerSet]).toEqual(['alpha.directive.ts']);
@@ -141,7 +143,7 @@ describe('collectSuggestedAddons', () => {
 describe('summarizePlan', () => {
   it('flattens sets and collects npm deps', () => {
     const plan = summarizePlan(
-      { toInstall: ['badge'], toSkip: [], conflicting: [], peerFilesToUpdate: new Set(['p.ts']), contentCache: new Map() },
+      { toInstall: ['badge'], toSkip: [], conflicting: [], peerFilesToUpdate: new Set(['p.ts']), contentCache: new Map(), unchecked: [] },
       new Set(['badge']),
     );
     expect(plan.toInstall).toEqual(['badge']);
@@ -149,9 +151,19 @@ describe('summarizePlan', () => {
     expect(Array.isArray(plan.npmDependencies)).toBe(true);
   });
 
+  it('carries the components it could not check through to the plan (get_install_plan)', () => {
+    const unchecked = [{ name: 'badge' as const, file: 'badge/badge.component.ts', reason: 'fetch failed' }];
+    const plan = summarizePlan(
+      { toInstall: [], toSkip: [], conflicting: [], peerFilesToUpdate: new Set(), contentCache: new Map(), unchecked },
+      new Set(['badge']),
+    );
+    expect(plan.unchecked).toEqual(unchecked);
+    expect(plan.toInstall).toEqual([]);
+  });
+
   it('surfaces suggestedAddons for a plan whose breaking changes recommend one (C12)', () => {
     const plan = summarizePlan(
-      { toInstall: ['data-table'], toSkip: [], conflicting: [], peerFilesToUpdate: new Set(), contentCache: new Map() },
+      { toInstall: ['data-table'], toSkip: [], conflicting: [], peerFilesToUpdate: new Set(), contentCache: new Map(), unchecked: [] },
       new Set(['data-table']),
     );
     expect(plan.suggestedAddons).toEqual(['data-table/context-menu', 'data-table/export', 'data-table/pivot']);
@@ -159,7 +171,7 @@ describe('summarizePlan', () => {
 
   it('reports an empty suggestedAddons list when nothing recommends an addon (C12)', () => {
     const plan = summarizePlan(
-      { toInstall: ['badge'], toSkip: [], conflicting: [], peerFilesToUpdate: new Set(), contentCache: new Map() },
+      { toInstall: ['badge'], toSkip: [], conflicting: [], peerFilesToUpdate: new Set(), contentCache: new Map(), unchecked: [] },
       new Set(['badge']),
     );
     expect(plan.suggestedAddons).toEqual([]);

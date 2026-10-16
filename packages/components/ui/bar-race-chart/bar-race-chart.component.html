@@ -1,4 +1,4 @@
-<div [class]="containerClasses()" [attr.dir]="localeDir()">
+<div [class]="containerClasses()" [attr.dir]="localeDir()" [attr.data-slot]="'bar-race-chart'">
   <div class="flex items-center justify-between mb-4">
     <div class="text-2xl font-bold text-foreground">
       {{ currentFrameLabel() }}
@@ -61,7 +61,7 @@
         <text
             [attr.x]="isRtl() ? chartArea().right + 12 : chartArea().left - 12"
             [attr.y]="bar.animatedY + barHeight() / 2"
-            [attr.text-anchor]="'end'"
+            [attr.text-anchor]="isRtl() ? 'start' : 'end'"
             dominant-baseline="middle"
             class="text-sm fill-foreground font-medium transition-all ease-out"
             [style.transition-duration.ms]="animationDuration()"
@@ -69,11 +69,11 @@
             {{ bar.name }}
           </text>
           <text
-            [attr.x]="isRtl() ? bar.x - 12 : chartArea().left + bar.animatedWidth + 12"
+            [attr.x]="bar.labelX"
             [attr.y]="bar.animatedY + barHeight() / 2"
-            [attr.text-anchor]="'start'"
+            [attr.text-anchor]="bar.labelAnchor"
             dominant-baseline="middle"
-            class="text-sm fill-muted-foreground transition-all ease-out"
+            class="text-sm fill-muted-foreground stroke-background stroke-2 [paint-order:stroke] transition-all ease-out"
             [style.transition-duration.ms]="animationDuration()"
           >
             {{ formatValue(bar.value) }}

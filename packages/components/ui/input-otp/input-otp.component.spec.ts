@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { InputOTPComponent } from './input-otp.component';
@@ -63,86 +64,20 @@ describe('InputOTPComponent', () => {
         expect(slots[3].nativeElement.textContent.trim()).toBe('');
     });
 
-    it('should navigation with arrows', () => {
+    it('focuses the hidden input when a slot is clicked, and highlights no slot once it blurs', () => {
         host.otpValue.set('12');
         fixture.detectChanges();
-        otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
+        const hiddenInput: HTMLInputElement = fixture.nativeElement.querySelector('input');
+        const slots: HTMLElement[] = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="input-otp-slot"]'));
 
-        // Focus (sets index to length = 2)
-        otpComponent.onFocus();
+        slots[4].click();
         fixture.detectChanges();
-        expect(otpComponent.focusedIndex()).toBe(2);
+        expect(document.activeElement).toBe(hiddenInput);
+        expect(slots.map(slot => slot.hasAttribute('data-active'))).toEqual([false, false, true, false, false, false]);
 
-        const container = fixture.debugElement.query(By.css('[data-slot="input-otp"]'));
-
-        // Left arrow -> 1
-        container.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+        hiddenInput.dispatchEvent(new Event('blur'));
         fixture.detectChanges();
-        expect(otpComponent.focusedIndex()).toBe(1);
-
-        // Left arrow -> 0
-        container.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-        fixture.detectChanges();
-        expect(otpComponent.focusedIndex()).toBe(0);
-
-        // Right arrow -> 1
-        container.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-        fixture.detectChanges();
-        expect(otpComponent.focusedIndex()).toBe(1);
-    });
-
-    it('should handle backspace', () => {
-        host.otpValue.set('123');
-        fixture.detectChanges();
-        otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
-
-        const container = fixture.debugElement.query(By.css('[data-slot="input-otp"]'));
-        container.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
-        fixture.detectChanges();
-
-        expect(host.otpValue()).toBe('12');
-    });
-
-    it('should focus hidden input and set focused index when a slot is clicked', () => {
-        host.otpValue.set('12');
-        fixture.detectChanges();
-        otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
-
-        const focusSpy = vi.spyOn(otpComponent.hiddenInput.nativeElement, 'focus');
-
-        const slots = fixture.debugElement.queryAll(By.css('[data-slot="input-otp-slot"]'));
-        slots[4].nativeElement.click();
-        fixture.detectChanges();
-
-        expect(focusSpy).toHaveBeenCalledTimes(1);
-        // Clamped to current value length (2)
-        expect(otpComponent.focusedIndex()).toBe(2);
-    });
-
-    it('should focus a slot within the value range without clamping', () => {
-        host.otpValue.set('1234');
-        fixture.detectChanges();
-        otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
-        vi.spyOn(otpComponent.hiddenInput.nativeElement, 'focus');
-
-        otpComponent.focusSlot(1);
-        fixture.detectChanges();
-
-        expect(otpComponent.focusedIndex()).toBe(1);
-    });
-
-    it('should reset focused index to -1 on blur', () => {
-        fixture.detectChanges();
-        otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
-
-        otpComponent.onFocus();
-        expect(otpComponent.focusedIndex()).toBe(0);
-
-        const hiddenInput = fixture.debugElement.query(By.css('input'));
-        hiddenInput.nativeElement.dispatchEvent(new Event('blur'));
-        fixture.detectChanges();
-
-        expect(otpComponent.focusedIndex()).toBe(-1);
+        expect(slots.some(slot => slot.hasAttribute('data-active'))).toBe(false);
     });
 
     it('should expose a public focus() method that focuses the hidden input', () => {
@@ -153,49 +88,6 @@ describe('InputOTPComponent', () => {
         otpComponent.focus();
 
         expect(focusSpy).toHaveBeenCalledTimes(1);
-    });
-
-    it('should move focus right but not past the value length', () => {
-        host.otpValue.set('123');
-        fixture.detectChanges();
-        otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
-
-        otpComponent.focusedIndex.set(0);
-        const container = fixture.debugElement.query(By.css('[data-slot="input-otp"]'));
-
-        for (let i = 0; i < 5; i++) {
-            container.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-        }
-        fixture.detectChanges();
-
-        // Capped at value length (3)
-        expect(otpComponent.focusedIndex()).toBe(3);
-    });
-
-    it('should ignore keys other than arrows and backspace', () => {
-        host.otpValue.set('12');
-        fixture.detectChanges();
-        otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
-        otpComponent.focusedIndex.set(1);
-
-        const container = fixture.debugElement.query(By.css('[data-slot="input-otp"]'));
-        container.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
-        fixture.detectChanges();
-
-        expect(otpComponent.focusedIndex()).toBe(1);
-        expect(host.otpValue()).toBe('12');
-    });
-
-    it('should not change value on Backspace when the value is empty', () => {
-        host.otpValue.set('');
-        fixture.detectChanges();
-        otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
-
-        const container = fixture.debugElement.query(By.css('[data-slot="input-otp"]'));
-        container.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
-        fixture.detectChanges();
-
-        expect(host.otpValue()).toBe('');
     });
 
     it('should sanitize, upper-case and clamp input to maxLength', () => {
@@ -210,12 +102,24 @@ describe('InputOTPComponent', () => {
         expect(hiddenInput.nativeElement.value).toBe('A1B2C3');
     });
 
+    it('leaves an open IME composition alone and commits it at compositionend', () => {
+        fixture.detectChanges();
+        const hiddenInput: HTMLInputElement = fixture.nativeElement.querySelector('input');
+
+        hiddenInput.value = 'a1';
+        hiddenInput.dispatchEvent(new InputEvent('input', { inputType: 'insertCompositionText', data: 'a1', isComposing: true }));
+        fixture.detectChanges();
+        expect(host.otpValue()).toBe('');
+
+        hiddenInput.dispatchEvent(new CompositionEvent('compositionend', { data: 'a1' }));
+        fixture.detectChanges();
+        expect(host.otpValue()).toBe('A1');
+    });
+
     it('should render a caret in the focused empty slot and separator dots', () => {
         host.otpValue.set('1');
         fixture.detectChanges();
-        otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
-
-        otpComponent.onFocus();
+        fixture.nativeElement.querySelector('input').dispatchEvent(new Event('focus'));
         fixture.detectChanges();
 
         const caret = fixture.debugElement.query(By.css('.animate-caret-blink'));
@@ -272,9 +176,8 @@ class TwoWayOtpHost {
  * `model()`, so these pass unchanged — they exist to pin the behaviour every
  * converted control must reproduce.
  *
- * T-3 / T-4 are deliberately absent: `input-otp` is not a
- * `ControlValueAccessor` (verified in the spec's §3.4.b inventory), so it has
- * no `formControlName` or `writeValue` behaviour to assert.
+ * T-3 / T-4 (the `writeValue` behaviour) live in the forms suite below, now
+ * that `input-otp` is a `ControlValueAccessor`.
  */
 describe('InputOTPComponent — signal-forms readiness', () => {
     const hidden = (fixture: ComponentFixture<unknown>): HTMLInputElement =>
@@ -332,5 +235,146 @@ describe('InputOTPComponent — signal-forms readiness', () => {
         fixture.detectChanges();
 
         expect(fixture.componentInstance.emissions).toEqual([]);
+    });
+});
+
+@Component({
+    template: `
+      <ui-input-otp
+        [formControl]="control"
+        [maxLength]="4"
+      />
+    `,
+    imports: [InputOTPComponent, ReactiveFormsModule],
+})
+class FormOtpHost {
+    readonly control = new FormControl<string | null>('AB12');
+}
+
+@Component({
+    template: `<ui-input-otp [maxLength]="4" [(ngModel)]="code" />`,
+    imports: [InputOTPComponent, FormsModule],
+})
+class NgModelOtpHost {
+    code = '42';
+}
+
+describe('InputOTPComponent forms', () => {
+    const setup = (): { fixture: ComponentFixture<FormOtpHost>; host: FormOtpHost; formEmissions: unknown[] } => {
+        const fixture = TestBed.createComponent(FormOtpHost);
+        const host = fixture.componentInstance;
+        const formEmissions: unknown[] = [];
+        host.control.valueChanges.subscribe(v => formEmissions.push(v));
+        fixture.detectChanges();
+        return { fixture, host, formEmissions };
+    };
+    const hidden = (fixture: ComponentFixture<unknown>): HTMLInputElement => fixture.nativeElement.querySelector('input');
+    const slotText = (fixture: ComponentFixture<unknown>): string[] =>
+        Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('[data-slot="input-otp-slot"]'))
+            .map(slot => slot.textContent?.trim() ?? '');
+
+    it('works with formControlName: renders, reports each edit once, never echoes a write, touched on blur', () => {
+        const { fixture, host, formEmissions } = setup();
+        expect(slotText(fixture)).toEqual(['A', 'B', '1', '2']);
+
+        hidden(fixture).value = 'AB19';
+        hidden(fixture).dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        expect(host.control.value).toBe('AB19');
+        expect(formEmissions).toEqual(['AB19']);
+
+        // emitEvent:false silences the write itself, so any valueChanges emission below is an echo
+        host.control.setValue('9Z', { emitEvent: false });
+        fixture.detectChanges();
+        expect(slotText(fixture)).toEqual(['9', 'Z', '', '']);
+        expect(formEmissions).toEqual(['AB19']);
+
+        host.control.setValue(null, { emitEvent: false });
+        fixture.detectChanges();
+        expect(slotText(fixture)).toEqual(['', '', '', '']);
+        expect(hidden(fixture).value).toBe('');
+        expect(formEmissions).toEqual(['AB19']);
+
+        expect(host.control.touched).toBe(false);
+        hidden(fixture).dispatchEvent(new Event('blur'));
+        expect(host.control.touched).toBe(true);
+    });
+
+    it('disabled input and form.disable() make the field unfocusable and inert', () => {
+        const { fixture, host } = setup();
+        const slots = (): HTMLElement[] => Array.from(fixture.nativeElement.querySelectorAll('[data-slot="input-otp-slot"]'));
+
+        host.control.disable();
+        fixture.detectChanges();
+        expect(hidden(fixture).disabled).toBe(true);
+        slots()[1].click();
+        expect(document.activeElement).not.toBe(hidden(fixture));
+        expect(slots().some(slot => slot.hasAttribute('data-active'))).toBe(false);
+
+        host.control.enable();
+        fixture.detectChanges();
+        expect(hidden(fixture).disabled).toBe(false);
+        slots()[1].click();
+        expect(document.activeElement).toBe(hidden(fixture));
+    });
+
+    it('drops the highlight when the field is disabled while focused', () => {
+        const { fixture, host } = setup();
+        hidden(fixture).dispatchEvent(new Event('focus'));
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-active]')).not.toBeNull();
+
+        host.control.disable();
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('[data-active]')).toBeNull();
+    });
+
+    it('works with ngModel', async () => {
+        const fixture = TestBed.createComponent(NgModelOtpHost);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(slotText(fixture)).toEqual(['4', '2', '', '']);
+
+        hidden(fixture).value = '4271';
+        hidden(fixture).dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        expect(fixture.componentInstance.code).toBe('4271');
+    });
+
+    it('is disabled by the disabled input alone', () => {
+        const fixture = TestBed.createComponent(InputOTPComponent);
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+        fixture.nativeElement.querySelector('[data-slot="input-otp-slot"]').click();
+
+        expect(input.disabled).toBe(true);
+        expect(document.activeElement).not.toBe(input);
+    });
+});
+
+describe('InputOTPComponent accessible name', () => {
+    const label = async (
+        providerLocale: string,
+        inputs: Record<string, string> = {},
+    ): Promise<string | null> => {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        TestBed.configureTestingModule({ providers: [provideUiLocale(providerLocale)] });
+        const fixture = TestBed.createComponent(InputOTPComponent);
+        for (const [name, value] of Object.entries(inputs)) fixture.componentRef.setInput(name, value);
+        fixture.detectChanges();
+        return fixture.nativeElement.querySelector('input').getAttribute('aria-label');
+    };
+
+    it('names the field from the locale unless the consumer labels it', async () => {
+        expect(await label('en')).toBe('One-time code');
+        TestBed.resetTestingModule();
+        expect(await label('he')).toBe('קוד חד-פעמי');
+        TestBed.resetTestingModule();
+        expect(await label('en', { ariaLabel: 'PIN' })).toBe('PIN');
+        TestBed.resetTestingModule();
+        expect(await label('en', { ariaLabelledby: 'heading' })).toBeNull();
     });
 });

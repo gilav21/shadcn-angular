@@ -70,6 +70,20 @@ editor — the addon extractions for images, links, tables, mentions, emoji,
 colours, typography, slash-commands, history, file-import, AI and outline —
 shipped in an earlier release and is unchanged here.
 
+### ⌨️ Keyboard and touch parity for menus, tooltips and tables
+
+An action reachable by mouse is now reachable by keyboard and by touch, and runs the same handler once.
+
+- **Menu items click themselves on Enter and Space.** `ui-dropdown-menu-item`, `ui-context-menu-item` and `ui-menubar-item` dispatch one real click, so your `(click)` (or a data-driven item's `click`) runs for the keyboard exactly as for a pointer. **Delete any `(keydown.enter)` / `(keydown.space)` you bound beside `(click)` to work around this: it now runs the action twice.** A disabled item stops the click before your listener sees it, however it was made, and says `aria-disabled="true"`.
+- **Context menus are keyboard menus.** Items are `role="menuitem"`; opening focuses the first enabled item; arrows wrap, Home/End jump, Tab closes; closing hands focus back to where it was.
+- **Long-press opens every right-click menu**, once, on iOS and Android: `uiContextMenuAttach`, `uiTableContextMenu`, `uiDataTableContextMenu`, `uiTreeContextMenu`, the data-table `context-menu` addon (which no longer emits `rowMenuOpen` twice on Android), and the kanban card, column-header and board menus (so a card's *Move to* is reachable on iOS). Remove any hand-written long-press fallback you added for these directives: it would open the menu twice.
+- **⚠️ Payload type.** The `event` of `ContextMenuEvent`, `TableRowContextMenuEvent` / `TableCellContextMenuEvent`, `DataTableHeaderContextMenuEvent` and `TreeContextMenuEvent` is now `MouseEvent | TouchEvent` (a long-press has no mouse event; the `touchstart` is passed). `pointOf(event)` from `lib/touch.ts` reads the point of either.
+- **Tooltips on touch.** A tap-shown tooltip no longer closes in the instant it opens, and `ui-tooltip-trigger` no longer cancels the tap, so a button wrapped in a trigger works on a phone.
+- **`ui-tree` no longer swallows keys it does not handle.** It cancelled every keydown, which trapped Tab and stopped F10 / Shift+F10 / the context-menu key from opening a menu on a focused node; it now cancels only the keys it uses, and none pressed with Ctrl, Alt or Meta.
+- **A long-press no longer closes its own menu.** Browsers that raise a click when the finger lifts (iOS; Chromium's touch emulation) used to close the menu the hold had just opened; the one release click on the held element is now swallowed.
+- **Data table.** Double-tapping a column resize handle auto-fits it like a double-click, and a press that did not move no longer emits `columnResize`.
+- **New lib helpers** in `lib/touch.ts`: `onContextGesture`, `dismissOnOutsideTouch`, `pointOf`; and `lib/menu-activation.ts`.
+
 ### ✨ New — `ui-rich-text-view`
 
 A read-only renderer for what the editor produced — same sanitizer, same

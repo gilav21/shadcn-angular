@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BarChartComponent } from './bar-chart.component';
-import { ChartDataPoint } from '../../lib/chart.types';
+import { BarRect, ChartDataPoint } from '../../lib/chart.types';
 import {
     describe,
     it,
@@ -265,14 +265,15 @@ describe('BarChartComponent', () => {
         const ticks = component.axisTicks();
         expect(ticks.length).toBeGreaterThan(1);
         expect(ticks[0]).toBe(0);
-        expect(ticks[ticks.length - 1]).toBeGreaterThanOrEqual(30);
+        // The axis ends on the data maximum's nice bound, not on max * 1.1.
+        expect(ticks[ticks.length - 1]).toBe(30);
     });
 
     it('should position a tick along the vertical axis', () => {
         const area = component.chartArea();
         const bottomPos = component.getTickPosition(0);
         expect(bottomPos).toBeCloseTo(area.bottom);
-        const topPos = component.getTickPosition(component.dataRange().max);
+        const topPos = component.getTickPosition(component.axisTicks().at(-1) as number);
         expect(topPos).toBeCloseTo(area.top);
     });
 
@@ -283,7 +284,7 @@ describe('BarChartComponent', () => {
         const area = component.chartArea();
         expect(component.getTickPosition(0)).toBeCloseTo(area.left);
         expect(
-            component.getTickPosition(component.dataRange().max)
+            component.getTickPosition(component.axisTicks().at(-1) as number)
         ).toBeCloseTo(area.right);
     });
 
@@ -329,7 +330,7 @@ describe('BarChartComponent', () => {
             const area = component.chartArea();
             expect(component.getTickPosition(0)).toBeCloseTo(area.right);
             expect(
-                component.getTickPosition(component.dataRange().max)
+                component.getTickPosition(component.axisTicks().at(-1) as number)
             ).toBeCloseTo(area.left);
         });
     });
@@ -340,5 +341,128 @@ describe('BarChartComponent', () => {
         ]);
         fixture.detectChanges();
         expect(component.bars()[0].color).toBe('#ff0000');
+    });
+});
+
+describe('BarChartComponent zero baseline', () => {
+    const CLASSES: Record<string, number[]> = {
+        'all-positive': [1.97, 2.2, 2.4, 2.69],
+        'all-negative': [-50, -10, -0.5],
+        'mixed-sign': [-30, 45.5, -0.01, 12],
+        'all-zero': [0, 0, 0],
+        'single-negative': [-42],
+    };
+
+    function build(values: number[], orientation: 'vertical' | 'horizontal', dir: 'ltr' | 'rtl'): BarChartComponent {
+        const fixture = TestBed.createComponent(BarChartComponent);
+        fixture.componentRef.setInput('data', values.map((value, i) => ({ name: `C${i}`, value })));
+        fixture.componentRef.setInput('orientation', orientation);
+        fixture.componentRef.setInput('dir', dir);
+        fixture.detectChanges();
+        return fixture.componentInstance;
+    }
+
+    /** `[start, end]` of the bar along the value axis, in pixels. */
+    function span(bar: { x: number; y: number; width: number; height: number }, vertical: boolean): [number, number] {
+        return vertical ? [bar.y, bar.y + bar.height] : [bar.x, bar.x + bar.width];
+    }
+
+    beforeEach(() => {
+        (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
+    });
+
+    afterEach(() => {
+        (globalThis as unknown as { ResizeObserver?: unknown }).ResizeObserver = originalResizeObserver;
+    });
+
+    for (const [className, values] of Object.entries(CLASSES)) {
+        for (const orientation of ['vertical', 'horizontal'] as const) {
+            for (const dir of ['ltr', 'rtl'] as const) {
+                it(`should grow ${className} bars from the zero gridline (${orientation}, ${dir})`, () => {
+                    const component = build(values, orientation, dir);
+                    const zero = component.getTickPosition(0);
+                    const perUnit = component.getTickPosition(1) - zero;
+                    const bars = component.bars();
+
+                    expect(bars).toHaveLength(values.length);
+                    for (const bar of bars) {
+                        const [a, b] = span(bar, orientation === 'vertical');
+                        const [from, to] = [bar.value * perUnit + zero, zero].sort((p, q) => p - q);
+                        expect(Math.min(a, b)).toBeCloseTo(from, 4);
+                        expect(Math.max(a, b)).toBeCloseTo(to, 4);
+                    }
+                });
+            }
+        }
+    }
+
+    it.each(['all-negative', 'mixed-sign', 'all-positive'])('should keep %s vertical value labels clear of the axis labels', className => {
+        const component = build(CLASSES[className], 'vertical', 'ltr');
+        const area = component.chartArea();
+
+        for (const bar of component.bars()) {
+            const end = bar.y + bar.height;
+            if (bar.value >= 0) {
+                expect(bar.labelPosition.y).toBeCloseTo(bar.y - 6, 6);
+            } else if (end + 14 <= area.bottom + 2) {
+                expect(bar.labelPosition.y).toBeCloseTo(end + 14, 6);
+            } else {
+                // No room under the bar before the category labels (16px under the plot): inside the bar end.
+                expect(bar.labelPosition.y).toBeCloseTo(end - 6, 6);
+            }
+        }
+    });
+
+    /** A label sits 6px past the bar's free end, or 6px inside it when under 32px remain before the plot edge. */
+    function expectHorizontalLabel(
+        bar: BarRect,
+        area: { left: number; right: number },
+        dir: 'ltr' | 'rtl',
+    ): void {
+        // The free end is the one away from the zero baseline: right for positive in LTR and negative in RTL.
+        const growsRight = (bar.value >= 0) !== (dir === 'rtl');
+        const freeEnd = growsRight ? bar.x + bar.width : bar.x;
+        const room = growsRight ? area.right - freeEnd : freeEnd - area.left;
+        const outside = room >= 32;
+        const towardRight = growsRight === outside;
+        expect(bar.labelAnchor).toBe(towardRight ? 'start' : 'end');
+        expect(bar.labelPosition.x).toBeCloseTo(towardRight ? freeEnd + 6 : freeEnd - 6, 6);
+    }
+
+    it.each(['all-negative', 'mixed-sign', 'all-positive'])('should leave room for %s horizontal value labels on the side they face', className => {
+        for (const dir of ['ltr', 'rtl'] as const) {
+            const component = build(CLASSES[className], 'horizontal', dir);
+            for (const bar of component.bars()) expectHorizontalLabel(bar, component.chartArea(), dir);
+        }
+    });
+
+    it('should label every tick of an all-zero chart distinctly', () => {
+        const component = build(CLASSES['all-zero'], 'vertical', 'ltr');
+        const labels = component.axisTicks().map(t => component.formatAxisValue(t));
+
+        // Ticks at -1, -0.5, 0, 0.5, 1 must not all collapse to whole numbers.
+        expect(new Set(labels).size).toBe(labels.length);
+    });
+
+    it('should draw at least two value ticks, all inside the plot, when every value is zero', () => {
+        const component = build(CLASSES['all-zero'], 'vertical', 'ltr');
+        const area = component.chartArea();
+        const ticks = component.axisTicks();
+
+        expect(ticks.length).toBeGreaterThanOrEqual(2);
+        for (const tick of ticks) {
+            const pos = component.getTickPosition(tick);
+            expect(pos).toBeGreaterThanOrEqual(area.top - 0.001);
+            expect(pos).toBeLessThanOrEqual(area.bottom + 0.001);
+        }
+    });
+
+    it('should end the first and last tick of positive data on the plot edges', () => {
+        const component = build(CLASSES['all-positive'], 'vertical', 'ltr');
+        const area = component.chartArea();
+        const ticks = component.axisTicks();
+
+        expect(component.getTickPosition(ticks[0])).toBeCloseTo(area.bottom, 4);
+        expect(component.getTickPosition(ticks.at(-1) as number)).toBeCloseTo(area.top, 4);
     });
 });
