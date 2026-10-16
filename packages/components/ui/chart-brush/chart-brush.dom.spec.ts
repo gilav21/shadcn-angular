@@ -231,6 +231,68 @@ describe('ChartBrushComponent window listeners', () => {
         moveWindowPointer(20);
         await fixture.whenStable();
         expect(fixture.componentInstance.checks).toBe(afterReset);
+
+        const touchStart = new Event('touchstart', { bubbles: true, cancelable: true });
+        Object.defineProperty(touchStart, 'touches', { value: [{ clientX: 60, clientY: 10 }] });
+        track.dispatchEvent(touchStart);
+        window.dispatchEvent(new Event('touchend'));
+        await fixture.whenStable();
+        const afterTouch = fixture.componentInstance.checks;
+
+        moveWindowPointer(20);
+        await fixture.whenStable();
+        expect(fixture.componentInstance.checks).toBe(afterTouch);
+    });
+
+    /** Records which pointer listeners are currently attached to `window`. */
+    function watchWindowListeners(): { live: () => string[]; restore: () => void } {
+        const POINTER_TYPES = new Set(['mousemove', 'mouseup', 'touchmove', 'touchend', 'touchcancel']);
+        const attached = new Map<EventListenerOrEventListenerObject, Set<string>>();
+        const originalAdd = window.addEventListener;
+        const originalRemove = window.removeEventListener;
+        window.addEventListener = function (this: Window, type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void {
+            if (POINTER_TYPES.has(type)) attached.set(listener, (attached.get(listener) ?? new Set()).add(type));
+            originalAdd.call(this, type, listener, options);
+        } as typeof window.addEventListener;
+        window.removeEventListener = function (this: Window, type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void {
+            attached.get(listener)?.delete(type);
+            originalRemove.call(this, type, listener, options);
+        } as typeof window.removeEventListener;
+        return {
+            live: () => [...attached.values()].flatMap(types => [...types]).sort((a, b) => a.localeCompare(b)),
+            restore: () => {
+                window.addEventListener = originalAdd;
+                window.removeEventListener = originalRemove;
+            },
+        };
+    }
+
+    it('holds window pointer listeners only while a gesture is in progress', () => {
+        const watch = watchWindowListeners();
+        try {
+            const press = (fixture: ComponentFixture<ChartBrushComponent>): void => {
+                const track = fixture.nativeElement.querySelector('svg rect') as SVGRectElement;
+                track.dispatchEvent(new MouseEvent('mousedown', { clientX: 30, clientY: 10, bubbles: true, cancelable: true }));
+            };
+            const fixture = TestBed.createComponent(ChartBrushComponent);
+            fixture.detectChanges();
+            expect(watch.live()).toEqual([]);
+
+            press(fixture);
+            expect(watch.live()).toEqual(['mousemove', 'mouseup', 'touchcancel', 'touchend', 'touchmove']);
+            window.dispatchEvent(new MouseEvent('mouseup'));
+            expect(watch.live()).toEqual([]);
+
+            press(fixture);
+            fixture.componentInstance.reset();
+            expect(watch.live()).toEqual([]);
+
+            press(fixture);
+            fixture.destroy();
+            expect(watch.live()).toEqual([]);
+        } finally {
+            watch.restore();
+        }
     });
 
     it('leaves no window listener behind when destroyed mid-drag', () => {
