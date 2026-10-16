@@ -192,7 +192,7 @@ export class ToastService {
   resume(): void {
     if (!this.paused) return;
     this.paused = false;
-    for (const [id, lifetime] of [...this.lifetimes]) {
+    for (const [id, lifetime] of this.lifetimes) {
       this.arm(id, lifetime.remaining, lifetime.showCountdown);
     }
   }
