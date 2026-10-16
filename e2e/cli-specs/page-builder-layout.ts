@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { CliSpec } from './_types.js';
 import { npmInstall, buildClean } from './_build.js';
+import { realHistoricalBlob } from './_git.js';
 
 /**
  * B7 regression — a layout refactor that relocated page-builder's types to
@@ -60,10 +61,11 @@ const spec: CliSpec = async ({ runCli, fixtureApp }) => {
 
     const pbDir = path.join(fixtureApp, 'src/components/ui/page-builder');
     // Simulate the pre-refactor layout: a stale, incompatible types duplicate
-    // plus a dead orphan sub-component the new layout moved into sub/.
+    // plus a dead orphan sub-component the new layout moved into sub/ — a
+    // real published version, since reinstall prunes only files that are provably ours.
     fs.writeFileSync(path.join(pbDir, 'page-builder.types.ts'), STALE_TYPES);
     const orphan = path.join(pbDir, 'property-editor.component.ts');
-    fs.writeFileSync(orphan, 'export const STALE = 1;\n');
+    fs.writeFileSync(orphan, realHistoricalBlob('page-builder/property-editor.component.ts'));
 
     const pagesDir = path.join(fixtureApp, 'src/app/test-pages');
     fs.mkdirSync(pagesDir, { recursive: true });
