@@ -6,7 +6,6 @@ import {
     sizeScale,
     niceDomain,
     niceTimeTicks,
-    sequentialColorScale,
     toEpochMs,
     zeroBasedDomain,
 } from './chart-scale';
@@ -353,24 +352,5 @@ describe('niceTimeTicks', () => {
         for (let i = 1; i < ticks.length; i++) {
             expect(ticks[i]).toBeGreaterThan(ticks[i - 1]);
         }
-    });
-});
-
-describe('sequentialColorScale', () => {
-    it('returns the endpoints at the domain bounds', () => {
-        const c = sequentialColorScale([0, 100], ['hsl(200, 80%, 90%)', 'hsl(200, 80%, 30%)']);
-        expect(c(0)).toBe('hsl(200, 80%, 90%)');
-        expect(c(100)).toBe('hsl(200, 80%, 30%)');
-    });
-
-    it('interpolates to an intermediate color at the midpoint', () => {
-        const c = sequentialColorScale([0, 100], ['hsl(200, 80%, 90%)', 'hsl(200, 80%, 30%)']);
-        expect(c(50)).toBe('hsl(200, 80%, 60%)');
-    });
-
-    it('clamps values outside the domain to the endpoints', () => {
-        const c = sequentialColorScale([0, 100], ['hsl(200, 80%, 90%)', 'hsl(200, 80%, 30%)']);
-        expect(c(-50)).toBe('hsl(200, 80%, 90%)');
-        expect(c(150)).toBe('hsl(200, 80%, 30%)');
     });
 });

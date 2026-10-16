@@ -29,7 +29,7 @@ function rgbClose(a: RGBA, b: RGBA, tolerance: number): void {
 describe('quantizePixels — median-cut', () => {
     it('returns 1 color for a single-color image', () => {
         const palette = quantizePixels(mix(200, 50, 50, 100), { count: 3, algorithm: 'median-cut' });
-        expect(palette.length).toBeGreaterThanOrEqual(1);
+        expect(palette).toHaveLength(1);
         rgbClose(palette[0], { r: 200, g: 50, b: 50, a: 1 }, 5);
     });
 
@@ -55,6 +55,46 @@ describe('quantizePixels — median-cut', () => {
         rgbClose(nearest(palette, { r: 255, g: 0, b: 0, a: 1 }), { r: 255, g: 0, b: 0, a: 1 }, 5);
         rgbClose(nearest(palette, { r: 0, g: 255, b: 0, a: 1 }), { r: 0, g: 255, b: 0, a: 1 }, 5);
         rgbClose(nearest(palette, { r: 0, g: 0, b: 255, a: 1 }), { r: 0, g: 0, b: 255, a: 1 }, 5);
+    });
+
+    it('keeps splitting the other boxes when the most populous one is a single flat colour', () => {
+        const sky = { r: 30, g: 60, b: 90, a: 1 };
+        const red = { r: 200, g: 20, b: 20, a: 1 };
+        const darkRed = { r: 210, g: 20, b: 20, a: 1 };
+        const palette = quantizePixels(
+            [...mix(sky.r, sky.g, sky.b, 1000), ...mix(red.r, red.g, red.b, 1), ...mix(darkRed.r, darkRed.g, darkRed.b, 1)],
+            { count: 3, algorithm: 'median-cut' },
+        );
+        expect(palette).toHaveLength(3);
+        rgbClose(nearest(palette, red), red, 0);
+        rgbClose(nearest(palette, darkRed), darkRed, 0);
+    });
+
+    it('returns each distinct colour once when the image has fewer than `count`', () => {
+        const fiveDistinct = [10, 60, 110, 160, 210].flatMap(v => mix(v, 255 - v, 40, 20));
+        const all = quantizePixels(fiveDistinct, { count: 8, algorithm: 'median-cut' });
+        expect(new Set(all.map(c => `${c.r},${c.g},${c.b}`)).size).toBe(5);
+        expect(all).toHaveLength(5);
+    });
+
+    it('still returns the rare colour when it is 1% of the pixels', () => {
+        const lopsided = [...mix(255, 0, 0, 99), ...mix(0, 0, 255, 1)];
+        expect(quantizePixels(lopsided, { count: 2, algorithm: 'median-cut' })).toHaveLength(2);
+    });
+
+    it('splits each box at the median pixel, not the midpoint of its range', () => {
+        // Distinct values, not the spec's tie-heavy 20..22 spread: with ties the
+        // nearest-colour read-back cannot tell a median split from a midpoint one,
+        // while here the two halves are exactly 50 px under the median and 98/2
+        // under the midpoint.
+        const spread = Array.from({ length: 98 }, (_, i) => ({ r: 20 + i, g: 0, b: 0, a: 1 }));
+        const outliers = [{ r: 250, g: 0, b: 0, a: 1 }, { r: 251, g: 0, b: 0, a: 1 }];
+        const palette = quantizePixels([...spread, ...outliers], { count: 2, algorithm: 'median-cut' })
+            .map(c => c.r)
+            .sort((a, b) => a - b);
+        // Channel means of the two halves: 20..69 -> 44.5, and 70..117 plus both outliers -> 99.78.
+        expect(Math.abs(palette[0] - 44.5)).toBeLessThanOrEqual(1);
+        expect(Math.abs(palette[1] - 99.78)).toBeLessThanOrEqual(1);
     });
 
     it('returns empty array for empty input', () => {

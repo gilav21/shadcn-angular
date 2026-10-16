@@ -1,3 +1,4 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ChartBrushComponent, BrushSelection } from './chart-brush.component';
@@ -176,5 +177,74 @@ describe('ChartBrushComponent guard clauses', () => {
         component.pointerMoveTo(120);
         expect(calls).toBe(0);
         expect(component.current()).toBeNull();
+    });
+});
+
+describe('ChartBrushComponent window listeners', () => {
+    @Component({
+        imports: [ChartBrushComponent],
+        template: `<ui-chart-brush [width]="400" [height]="100" />{{ probe() }}`,
+    })
+    class HostComponent {
+        checks = 0;
+        /** Constant text, so a re-evaluation never trips the dev-mode changed-after-checked guard. */
+        probe(): string {
+            this.checks++;
+            return '';
+        }
+    }
+
+    function moveWindowPointer(moves: number): void {
+        for (let i = 0; i < moves; i++) {
+            window.dispatchEvent(new MouseEvent('mousemove', { clientX: i * 5, clientY: 10 }));
+        }
+        window.dispatchEvent(new MouseEvent('mouseup', { clientX: 0, clientY: 10 }));
+        window.dispatchEvent(new Event('touchend'));
+        window.dispatchEvent(new Event('touchcancel'));
+    }
+
+    it('adds no change detection to window pointer events while no gesture is in progress', async () => {
+        const fixture = TestBed.createComponent(HostComponent);
+        await fixture.whenStable();
+        const idleChecks = fixture.componentInstance.checks;
+
+        moveWindowPointer(20);
+        await fixture.whenStable();
+        expect(fixture.componentInstance.checks).toBe(idleChecks);
+
+        const track = fixture.nativeElement.querySelector('svg rect') as SVGRectElement;
+        track.dispatchEvent(new MouseEvent('mousedown', { clientX: 10, clientY: 10, bubbles: true, cancelable: true }));
+        window.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 10 }));
+        window.dispatchEvent(new MouseEvent('mouseup', { clientX: 200, clientY: 10 }));
+        await fixture.whenStable();
+        const afterGesture = fixture.componentInstance.checks;
+
+        moveWindowPointer(20);
+        await fixture.whenStable();
+        expect(fixture.componentInstance.checks).toBe(afterGesture);
+
+        track.dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 10, bubbles: true, cancelable: true }));
+        (fixture.debugElement.children[0].componentInstance as ChartBrushComponent).reset();
+        await fixture.whenStable();
+        const afterReset = fixture.componentInstance.checks;
+
+        moveWindowPointer(20);
+        await fixture.whenStable();
+        expect(fixture.componentInstance.checks).toBe(afterReset);
+    });
+
+    it('leaves no window listener behind when destroyed mid-drag', () => {
+        const fixture = TestBed.createComponent(ChartBrushComponent);
+        fixture.detectChanges();
+        const brush = fixture.componentInstance;
+        const track = fixture.nativeElement.querySelector('svg rect') as SVGRectElement;
+        track.dispatchEvent(new MouseEvent('mousedown', { clientX: 20, clientY: 10, bubbles: true, cancelable: true }));
+        const grabbed = brush.current();
+        expect(grabbed).not.toBeNull();
+
+        fixture.destroy();
+        moveWindowPointer(10);
+
+        expect(brush.current()).toEqual(grabbed);
     });
 });
