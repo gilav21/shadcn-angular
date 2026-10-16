@@ -22,6 +22,9 @@ export interface ToastDemoLocale extends LocaleMeta {
   promiseLoading: string;
   promiseSuccess: string;
   promiseError: string;
+  buttonPause: string;
+  pauseDescription: string;
+  pauseAction: string;
 }
 
 export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
@@ -48,6 +51,9 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     promiseLoading: 'Saving…',
     promiseSuccess: 'Saved',
     promiseError: 'Could not save',
+    buttonPause: 'Toast with action',
+    pauseDescription: 'Hover it or Tab to it — the timer pauses.',
+    pauseAction: 'Undo',
   },
   he: {
     code: 'he',
@@ -73,6 +79,9 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     promiseLoading: 'שומר…',
     promiseSuccess: 'נשמר',
     promiseError: 'השמירה נכשלה',
+    buttonPause: 'הודעה עם פעולה',
+    pauseDescription: 'רחפו מעליה או הגיעו אליה עם Tab — הטיימר נעצר.',
+    pauseAction: 'ביטול',
   },
   ar: {
     code: 'ar',
@@ -98,6 +107,9 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     promiseLoading: 'جارٍ الحفظ…',
     promiseSuccess: 'تم الحفظ',
     promiseError: 'تعذّر الحفظ',
+    buttonPause: 'إشعار مع إجراء',
+    pauseDescription: 'مرّر المؤشر فوقه أو انتقل إليه بمفتاح Tab — يتوقف المؤقت.',
+    pauseAction: 'تراجع',
   },
   de: {
     code: 'de',
@@ -122,6 +134,9 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     promiseLoading: 'Wird gespeichert…',
     promiseSuccess: 'Gespeichert',
     promiseError: 'Speichern fehlgeschlagen',
+    buttonPause: 'Toast mit Aktion',
+    pauseDescription: 'Mit der Maus oder per Tab darauf gehen — der Timer pausiert.',
+    pauseAction: 'Rückgängig',
   },
   fr: {
     code: 'fr',
@@ -146,6 +161,9 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     promiseLoading: 'Enregistrement…',
     promiseSuccess: 'Enregistré',
     promiseError: 'Échec de l’enregistrement',
+    buttonPause: 'Toast avec action',
+    pauseDescription: 'Survolez-le ou atteignez-le avec Tab — le minuteur se met en pause.',
+    pauseAction: 'Annuler',
   },
   es: {
     code: 'es',
@@ -170,6 +188,9 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     promiseLoading: 'Guardando…',
     promiseSuccess: 'Guardado',
     promiseError: 'No se pudo guardar',
+    buttonPause: 'Toast con acción',
+    pauseDescription: 'Pasa el ratón o llega con Tab: el temporizador se pausa.',
+    pauseAction: 'Deshacer',
   },
   ja: {
     code: 'ja',
@@ -194,6 +215,9 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     promiseLoading: '保存中…',
     promiseSuccess: '保存しました',
     promiseError: '保存できませんでした',
+    buttonPause: 'アクション付きトースト',
+    pauseDescription: 'ホバーするか Tab で移動すると、タイマーが一時停止します。',
+    pauseAction: '元に戻す',
   },
   zh: {
     code: 'zh',
@@ -218,6 +242,9 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     promiseLoading: '正在保存…',
     promiseSuccess: '已保存',
     promiseError: '保存失败',
+    buttonPause: '带操作的提示',
+    pauseDescription: '悬停或用 Tab 键聚焦时，计时器会暂停。',
+    pauseAction: '撤销',
   },
   ru: {
     code: 'ru',
@@ -242,6 +269,9 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     promiseLoading: 'Сохранение…',
     promiseSuccess: 'Сохранено',
     promiseError: 'Не удалось сохранить',
+    buttonPause: 'Уведомление с действием',
+    pauseDescription: 'Наведите курсор или перейдите Tab — таймер приостанавливается.',
+    pauseAction: 'Отменить',
   },
   pt: {
     code: 'pt',
@@ -266,5 +296,8 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     promiseLoading: 'A guardar…',
     promiseSuccess: 'Guardado',
     promiseError: 'Não foi possível guardar',
+    buttonPause: 'Toast com ação',
+    pauseDescription: 'Passe o rato ou use Tab — o temporizador fica em pausa.',
+    pauseAction: 'Desfazer',
   },
 };

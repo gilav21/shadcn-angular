@@ -388,6 +388,45 @@ describe('ui-toaster — auto-dismiss pauses while the user is on the stack', ()
         expect(service.toasts()).toHaveLength(1);
     });
 
+    it('starts a toast raised during a pause frozen, and runs it normally once the stack is emptied and left', () => {
+        service.toast({ title: 'First', duration: 5000 });
+        enter('mouse');
+        service.toast({ title: 'Late', duration: 5000 });
+        settle(60_000);
+        expect(service.toasts()).toHaveLength(2);
+
+        // The stack empties while the pointer is "inside" (a removed node fires no pointerleave).
+        service.dismissAll();
+        settle(0);
+        service.toast({ title: 'Next', duration: 5000 });
+        settle(5001);
+        expect(service.toasts()).toHaveLength(0);
+    });
+
+    it('does not freeze the replacement for a toast whose focused action removed it', () => {
+        const id = service.toast({ title: 'Deleted', duration: 5000, action: { label: 'Undo', onClick: () => undefined } });
+        fixture.detectChanges();
+        (fixture.nativeElement.querySelector('button') as HTMLButtonElement).focus();
+        settle(6000);
+        expect(service.toasts()).toHaveLength(1);
+
+        // Firefox and Safari fire no focusout when the focused element is removed (Chromium does);
+        // swallow it so the test exercises the browsers that need the post-render check.
+        const swallow = (event: Event): void => event.stopImmediatePropagation();
+        document.addEventListener('focusout', swallow, true);
+        try {
+            // The Undo handler's shape: remove the toast and raise its replacement in the same tick.
+            service.dismiss(id);
+            service.toast({ title: 'Undone', duration: 5000 });
+            settle(0);
+        } finally {
+            document.removeEventListener('focusout', swallow, true);
+        }
+        settle(5001);
+
+        expect(service.toasts()).toHaveLength(0);
+    });
+
     it('freezes the displayed countdown while paused', () => {
         service.toast({
             title: 'Undo', duration: 5000, showCountdown: true, action: { label: 'Undo', onClick: () => undefined },

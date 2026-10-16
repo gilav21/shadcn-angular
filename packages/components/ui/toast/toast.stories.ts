@@ -18,6 +18,7 @@ import { Component, inject, input } from '@angular/core';
         <ui-button variant="outline" (click)="showSuccess()">Success</ui-button>
         <ui-button variant="secondary" (click)="showWithAction()">With Action</ui-button>
         <ui-button variant="ghost" (click)="showCountdown()">With Countdown</ui-button>
+        <ui-button variant="outline" (click)="showPausable()">Pauses on hover / focus</ui-button>
       </div>
       <div class="flex gap-2 flex-wrap">
         <ui-button variant="outline" (click)="showInfo()">Info</ui-button>
@@ -107,6 +108,17 @@ class ToastStoryWrapperComponent {
         const id = this.toastService.toast({ title: 'Step 1 of 3', duration: 0 });
         setTimeout(() => this.toastService.update(id, { title: 'Step 2 of 3' }), 1200);
         setTimeout(() => this.toastService.update(id, { title: 'Done', variant: 'success', duration: 3000 }), 2400);
+    }
+
+    /** Hover the stack or Tab to the action: the countdown freezes and resumes with the time left (WCAG 2.2.1). */
+    showPausable() {
+        this.toastService.toast({
+            title: 'Pauses while you read it',
+            description: 'Hover this toast, or Tab to its action — the timer stops until you leave.',
+            duration: 8000,
+            showCountdown: true,
+            action: { label: 'Undo', onClick: () => { /* undo handler */ } },
+        });
     }
 
     showCountdown() {
