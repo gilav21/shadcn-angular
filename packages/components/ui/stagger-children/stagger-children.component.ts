@@ -48,6 +48,7 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
     classes = computed(() => cn('block', this.class()));
 
     private observer: IntersectionObserver | null = null;
+    private frameId: number | null = null;
     private animations: Animation[] = [];
 
     ngAfterViewInit(): void {
@@ -58,7 +59,8 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
         this.hideChildren();
 
         this.ngZone.runOutsideAngular(() => {
-            requestAnimationFrame(() => {
+            this.frameId = requestAnimationFrame(() => {
+                this.frameId = null;
                 this.observer = createIntersectionObserver(
                     (entries) => {
                         if (entries[0].isIntersecting) {
@@ -74,6 +76,8 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
+        // A frame still pending here would create an observer after this teardown, with nothing left to disconnect it.
+        if (this.frameId !== null) cancelAnimationFrame(this.frameId);
         this.observer?.disconnect();
         this.animations.forEach(a => a.cancel());
     }
