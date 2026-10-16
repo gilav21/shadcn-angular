@@ -265,7 +265,7 @@ function columnMinWidthPx(col: CellStyleColumn): number {
     { provide: DataTableAddonHost, useExisting: forwardRef(() => DataTableComponent) },
   ],
   host: {
-    class: "block h-full w-full",
+    '[class]': 'hostClasses()',
     '[attr.dir]': 'dir()',
     '[attr.data-ui-theme]': 'theme()',
   },
@@ -304,6 +304,10 @@ export class DataTableComponent<T>
    * accepts. Unset, the table follows the app's global tokens.
    */
   readonly theme = input<ThemeName>();
+
+  /** Extra classes merged onto the host, after `block h-full w-full` — e.g. `h-[400px]` to give the table a fixed height. */
+  readonly class = input('');
+  readonly hostClasses = computed(() => cn('block h-full w-full', this.class()));
 
   /** Hides the whole toolbar row (global filter, advanced filter, columns menu) when false. */
   readonly showToolbar = input(true);

@@ -1,4 +1,4 @@
-<div class="h-full flex flex-col bg-background">
+<div [class]="classes()" [attr.data-slot]="'property-editor'">
     <div class="flex-1 overflow-y-auto">
         @if (item()) {
             <div class="p-6 space-y-8">

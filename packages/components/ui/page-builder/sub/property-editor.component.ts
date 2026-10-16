@@ -1,11 +1,13 @@
 import {
     Component,
     ChangeDetectionStrategy,
+    computed,
     input,
     output
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { cn } from '../../../lib/utils';
 import { DashboardItem } from '../../bento-grid';
 import { ComponentMeta } from '../../../lib/page-builder.types';
 import { SwitchComponent } from '../../switch';
@@ -36,6 +38,10 @@ import { IconComponent } from '../../icon';
     templateUrl: './property-editor.component.html',
 })
 export class PropertyEditorComponent {
+    /** Extra classes merged onto the editor panel, after the full-height column default. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('h-full flex flex-col bg-background', this.class()));
+
     /** The widget being edited. `undefined` renders the empty state; the editor never mutates it, it only emits {@link itemChange}. */
     item = input<DashboardItem | undefined>(undefined);
     /** Describes which inputs to offer and with what control. Supply it from the builder's resolver so types come from the live instance; without it only the geometry fields are editable. */

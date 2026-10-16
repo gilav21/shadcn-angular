@@ -71,6 +71,9 @@ export interface NodeTypePicked {
   host: { class: 'contents' },
 })
 export class NodeEditorPaletteComponent {
+  /** Extra classes merged onto the palette's dialog panel — e.g. a width utility. */
+  readonly class = input('');
+
   /** Every node type the graph may contain — the editor's `definitions`. */
   readonly definitions = input<readonly NodeTypeDefinition[]>([]);
 

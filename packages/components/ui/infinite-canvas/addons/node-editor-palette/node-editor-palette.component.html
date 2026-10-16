@@ -1,6 +1,7 @@
 @let text = t();
 
 <ui-command-dialog
+  [class]="class()"
   [(open)]="open"
   [shortcut]="shortcut()"
   [shortcutEnabled]="shortcut() !== ''"
