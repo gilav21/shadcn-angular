@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { InputMaskDirective } from './input-mask.directive';
 import { describe, it, expect, beforeEach } from 'vitest';
 
@@ -26,6 +26,35 @@ class ShowMaskTypedTestHostComponent {}
     imports: [InputMaskDirective]
 })
 class AlphaNumericMaskTestHostComponent {}
+
+@Component({
+    template: `<input [uiInputMask]="mask()" />`,
+    imports: [InputMaskDirective]
+})
+class BoundMaskTestHostComponent {
+    readonly mask = signal('(999) 999-9999');
+}
+
+describe('InputMaskDirective with a bound mask', () => {
+    it('should apply a mask bound as an input, and a mask changed at runtime on the next keystroke', async () => {
+        await TestBed.configureTestingModule({ imports: [BoundMaskTestHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(BoundMaskTestHostComponent);
+        fixture.detectChanges();
+        const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+        const type = (text: string): void => {
+            input.value = text;
+            input.dispatchEvent(new Event('input'));
+        };
+
+        type('5551234567');
+        expect(input.value).toBe('(555) 123-4567');
+
+        fixture.componentInstance.mask.set('99-99');
+        fixture.detectChanges();
+        type('1234');
+        expect(input.value).toBe('12-34');
+    });
+});
 
 describe('InputMaskDirective', () => {
     let fixture: ComponentFixture<TestHostComponent>;

@@ -369,6 +369,18 @@ export function parseAllowlist(source: string): Allowlist {
     };
 }
 
+/** A shipped `.ts` file under `packages/components/ui`, with its sibling template when it has one. */
+export interface ConventionSource {
+    /** Path relative to `packages/components/ui`, forward slashes. */
+    readonly path: string;
+    readonly ts: string;
+    readonly html: string | null;
+}
+
+export function findConventionIssues(_sources: readonly ConventionSource[]): Issue[] {
+    return [];
+}
+
 /** The committed JSON form: `missing` stays a bare string, `orphan` carries its kind. */
 export function serializeAllowlist(allowlist: Allowlist): string {
     const out: Record<string, Record<string, string | Exemption>> = {};

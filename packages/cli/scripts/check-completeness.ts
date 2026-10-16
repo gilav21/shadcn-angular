@@ -53,6 +53,7 @@ import {
     type Allowlist,
     type Artifact,
     type ComponentFacts,
+    type ConventionSource,
     type Issue,
     type StaleExemption,
     type UnbackedAlias,
@@ -78,6 +79,31 @@ function hasStory(name: string): boolean {
         return readdirSync(folder).some(f => f.endsWith('.stories.ts'));
     }
     return existsSync(path.join(UI_ROOT, `${name}.stories.ts`));
+}
+
+/** Shipped component sources: every `.ts` under `ui/` except specs, stories and demo scaffolding. */
+function listShippedSources(dir: string, out: string[]): string[] {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            listShippedSources(full, out);
+        } else if (entry.name.endsWith('.ts') && !/\.(spec|stories)\.ts$|-demo\./.test(entry.name)) {
+            out.push(full);
+        }
+    }
+    return out;
+}
+
+/** Reads every shipped `.ts` under `uiRoot` with its sibling `.html` template, for {@link findConventionIssues}. */
+export function readConventionSources(uiRoot: string): ConventionSource[] {
+    return listShippedSources(uiRoot, []).map(file => {
+        const html = file.replace(/\.ts$/, '.html');
+        return {
+            path: path.relative(uiRoot, file).replaceAll('\\', '/'),
+            ts: readFileSync(file, 'utf-8'),
+            html: existsSync(html) ? readFileSync(html, 'utf-8') : null,
+        };
+    });
 }
 
 /** Maps `<x>-demo.component` → repo-relative demo file path, recursively. */
