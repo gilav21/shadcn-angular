@@ -1,5 +1,5 @@
 <ui-dialog [open]="true" (openChange)="onOpenChange($event)">
-  <ui-dialog-content class="max-w-[calc(100vw-2rem)] sm:max-w-md" [attr.dir]="dir()">
+  <ui-dialog-content [class]="classes()" [attr.dir]="dir()">
     <ui-dialog-header>
       <ui-dialog-title>
         @if (context().mode === 'edit') {

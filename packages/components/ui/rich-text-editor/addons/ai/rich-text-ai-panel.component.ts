@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import { cn } from '../../../../lib/utils';
 import { ButtonComponent } from '../../../button';
 import { RICH_TEXT_AI_CONTEXT } from './rich-text-ai.context';
 
@@ -22,6 +23,11 @@ import { RICH_TEXT_AI_CONTEXT } from './rich-text-ai.context';
 export class RichTextAiPanelComponent {
     protected readonly ctx = inject(RICH_TEXT_AI_CONTEXT);
     protected readonly customPrompt = signal('');
+
+    /** Extra classes merged onto the panel, after its bounded `w-72` popover styling. */
+    readonly class = input('');
+    readonly classes = computed(() =>
+        cn('fixed z-[9999] w-72 max-w-[calc(100vw-2rem)] rounded-lg border bg-popover p-2 shadow-xl', this.class()));
 
     constructor() {
         effect(() => {

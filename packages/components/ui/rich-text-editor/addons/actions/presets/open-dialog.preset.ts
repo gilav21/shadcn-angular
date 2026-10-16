@@ -1,9 +1,10 @@
 import {
-    ChangeDetectionStrategy, Component, DestroyRef, InjectionToken, Injector, input, output, type Type,
+    ChangeDetectionStrategy, Component, DestroyRef, InjectionToken, Injector, computed, input, output, type Type,
 } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 import { ButtonComponent } from '../../../../button';
 import { inheritThemeTokens } from '../../../../../lib/theme-presets';
+import { cn } from '../../../../../lib/utils';
 import { directionOf, mountTopLayer, type MountedOverlay } from './preset-overlay.utils';
 import type { ActionParams, RichTextActionDefinition, RichTextActionField } from '../rich-text-actions.types';
 import type { RichTextActionEvent, RichTextActionHandler } from '../actions-runtime';
@@ -56,7 +57,7 @@ export function openDialogAction(o: OpenDialogPresetOptions = {}): RichTextActio
                 (click)="dismiss.emit()"
             ></button>
             <div
-                class="relative max-w-[calc(100vw-2rem)] sm:max-w-md rounded-lg border bg-background p-4 shadow-xl"
+                [class]="classes()"
                 role="dialog" aria-modal="true" [attr.dir]="dir()"
             >
                 @if (title()) {
@@ -79,6 +80,10 @@ export function openDialogAction(o: OpenDialogPresetOptions = {}): RichTextActio
     host: { '[attr.data-slot]': "'preset-dialog'" },
 })
 export class PresetDialogComponent {
+    /** Extra classes merged onto the dialog panel, after its bounded `sm:max-w-md` width. */
+    readonly class = input('');
+    readonly classes = computed(() =>
+        cn('relative max-w-[calc(100vw-2rem)] sm:max-w-md rounded-lg border bg-background p-4 shadow-xl', this.class()));
     /** Dialog heading; the `<h2>` is omitted entirely when empty. Fed from the action's required `title` param. */
     readonly title = input('');
     /** Body text, rendered only when {@link contentComponent} is null. Fed from the action's `body` param. */

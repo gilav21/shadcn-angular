@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { cn } from '../../../../lib/utils';
 import { ButtonComponent } from '../../../button';
 import { RICH_TEXT_LINKS_LOCALES, type RichTextLinksLocale } from './rich-text-links.locales';
 
@@ -24,6 +25,10 @@ export interface RichTextLinkSubmit {
     host: { class: 'contents' },
 })
 export class RichTextLinksFormComponent {
+    /** Extra classes merged onto the form container, after its bounded `w-72` default. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('w-72 max-w-[calc(100vw-2rem)] space-y-3', this.class()));
+
     /** Resolved locale strings. */
     readonly locale = input<RichTextLinksLocale>(RICH_TEXT_LINKS_LOCALES['en']);
     /**

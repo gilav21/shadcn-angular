@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { cn } from '../../../../lib/utils';
 import { RICH_TEXT_AI_CONTEXT } from './rich-text-ai.context';
 
 /**
@@ -17,4 +18,11 @@ import { RICH_TEXT_AI_CONTEXT } from './rich-text-ai.context';
 })
 export class RichTextAiChipComponent {
     protected readonly ctx = inject(RICH_TEXT_AI_CONTEXT);
+
+    /** Extra classes merged onto the chip button, after its floating popover styling. */
+    readonly class = input('');
+    readonly classes = computed(() => cn(
+        'fixed z-[9999] inline-flex items-center gap-1 rounded-md border bg-popover px-2 py-1 text-xs font-medium shadow-lg hover:bg-accent',
+        this.class(),
+    ));
 }

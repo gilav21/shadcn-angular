@@ -14,6 +14,7 @@ import type {
 } from './rich-text-actions.types';
 import { RICH_TEXT_ACTIONS_LOCALES, type RichTextActionsLocale } from './rich-text-actions.locales';
 import { interpolate } from '../../../../lib/i18n';
+import { cn } from '../../../../lib/utils';
 
 /** The state the directive passes into the attach/edit dialog. */
 export interface ActionsDialogContext {
@@ -50,6 +51,9 @@ export interface ActionsDialogConfirm {
     host: { '[attr.data-slot]': "'rich-text-actions-dialog'" },
 })
 export class RichTextActionsDialogComponent {
+    /** Extra classes merged onto the dialog panel, after its bounded `sm:max-w-md` width. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('max-w-[calc(100vw-2rem)] sm:max-w-md', this.class()));
     /**
      * The full catalogue of registered actions. The picker shows only those
      * whose `targets` include the context's `targetKind` and that match the

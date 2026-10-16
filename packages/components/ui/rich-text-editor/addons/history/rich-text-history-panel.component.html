@@ -1,5 +1,5 @@
 @if (!readonly() && showButton()) {
-  <div class="absolute top-2 z-30 ltr:right-2 rtl:left-2">
+  <div [class]="classes()" [attr.data-slot]="'rte-history-panel'">
     <ui-popover
       [open]="historyPanelOpen()"
       (openChange)="onHistoryPanelOpenChange($event)"

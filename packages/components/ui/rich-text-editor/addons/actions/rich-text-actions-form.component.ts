@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
 import type { ActionParams, RichTextActionField } from './rich-text-actions.types';
 import { interpolate } from '../../../../lib/i18n';
+import { cn } from '../../../../lib/utils';
 
 /** Renders declarative action fields (tier 1) and emits params + validity. */
 @Component({
@@ -8,15 +9,12 @@ import { interpolate } from '../../../../lib/i18n';
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './rich-text-actions-form.component.html',
-    host: { class: 'block', '[attr.data-slot]': "'rich-text-actions-form'" },
+    host: { '[class]': 'classes()', '[attr.data-slot]': "'rich-text-actions-form'" },
 })
 export class RichTextActionsFormComponent {
-    /**
-     * Conventional style hook. The form's own markup carries fixed layout
-     * classes and does not consume this value, so styling it from the outside
-     * means targeting the `block` host element or `data-slot`.
-     */
+    /** Extra classes merged onto the `block` host. The form's inner markup keeps its own fixed layout. */
     readonly class = input('');
+    readonly classes = computed(() => cn('block', this.class()));
     /**
      * The tier-1 field descriptors to render, in order — one control each,
      * chosen by `field.type` (textarea / checkbox / select / number / text).
