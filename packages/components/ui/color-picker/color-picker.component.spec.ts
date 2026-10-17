@@ -420,6 +420,20 @@ describe('ColorPickerComponent', () => {
             document.dispatchEvent(new MouseEvent('mouseup'));
         });
 
+        it('cancels a drag in progress when the picker is destroyed, so no window listener outlives it', async () => {
+            const picker = await openAndGetPicker(fixture);
+            stubAreaRect(picker);
+            const remove = vi.spyOn(globalThis.window, 'removeEventListener');
+            picker.onAreaMouseDown(new MouseEvent('mousedown', { clientX: 0, clientY: 0 }));
+            expect(remove).not.toHaveBeenCalledWith('mousemove', expect.anything());
+
+            fixture.destroy();
+
+            // The drag was still going (no mouseup): destroying must remove what it listened for.
+            expect(remove.mock.calls.map(([type]) => type)).toContain('mousemove');
+            remove.mockRestore();
+        });
+
         it('onAreaMouseDown is ignored when disabled', async () => {
             const picker = await openAndGetPicker(fixture);
             host.disabled.set(true);

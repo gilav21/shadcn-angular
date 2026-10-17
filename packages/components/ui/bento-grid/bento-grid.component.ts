@@ -167,6 +167,12 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
     ngOnDestroy(): void {
         this.longPressCleanup?.();
         this.longPressCleanup = null;
+        // A drag still going when the grid is destroyed would keep listening on the window (and
+        // calling into a destroyed grid) until the next pointer-up.
+        this.resizeDragCleanup?.();
+        this.resizeDragCleanup = null;
+        this.touchDragCleanup?.();
+        this.touchDragCleanup = null;
     }
 
     /**

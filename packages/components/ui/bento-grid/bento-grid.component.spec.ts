@@ -862,6 +862,20 @@ describe('BentoGridComponent', () => {
             fixture.detectChanges();
         });
 
+        it('cancels a resize in progress when the grid is destroyed, so no window listener outlives it', () => {
+            const grid = getGrid();
+            const itemEl = fixture.debugElement.query(By.css('.bento-item')).nativeElement as HTMLElement;
+            const remove = vi.spyOn(globalThis.window, 'removeEventListener');
+            grid.onResizeStart(makeTouchEvent('touchstart', [{ clientX: 90, clientY: 90 }], itemEl), component.items()[0], 'se');
+            expect(grid.resizingItemId()).toBe('1');
+
+            fixture.destroy();
+
+            // No touchend arrived: destroying must remove what the drag was listening for.
+            expect(remove.mock.calls.map(([type]) => type)).toContain('touchmove');
+            remove.mockRestore();
+        });
+
         it('onResizeStart works with a touch event', () => {
             const grid = getGrid();
             const itemEl = fixture.debugElement.query(By.css('.bento-item')).nativeElement as HTMLElement;
@@ -879,6 +893,22 @@ describe('BentoGridComponent', () => {
                 { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'TouchDrag' },
             ]);
             fixture.detectChanges();
+        });
+
+        it('cancels a touch drag in progress when the grid is destroyed, so no window listener outlives it', () => {
+            component.gap.set('0px');
+            fixture.detectChanges();
+            const grid = getGrid();
+            const itemEl = fixture.debugElement.query(By.css('.bento-item')).nativeElement as HTMLElement;
+            mockRect(itemEl, 100, 120);
+            const remove = vi.spyOn(globalThis.window, 'removeEventListener');
+            grid.onTouchDragStart(makeTouchEvent('touchstart', [{ clientX: 5, clientY: 5 }], itemEl), component.items()[0]);
+            expect(grid.draggedItemId()).toBe('1');
+
+            fixture.destroy();
+
+            expect(remove.mock.calls.map(([type]) => type)).toContain('touchmove');
+            remove.mockRestore();
         });
 
         it('onTouchDragStart begins drag and moves preview, commits on touchend', () => {
