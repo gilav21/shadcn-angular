@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import {
   Component,
   ChangeDetectionStrategy,
@@ -76,6 +77,8 @@ interface AdjacentPanels {
 })
 export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
   private readonly el = inject(ElementRef);
+  // The document it was given: teardown also runs on the server, which has no global `document`.
+  private readonly document = inject(DOCUMENT);
   private readonly group = inject(ResizablePanelGroupComponent, { optional: true });
 
   /** Extra classes merged onto the divider. Its width/height comes from {@link handleSize} as an inline style, so use that rather than a `w-*` utility. */
@@ -120,8 +123,8 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     this.listeners.forEach(remove => remove());
     this.listeners = [];
     this.isDragging.set(false);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
+    this.document.body.style.cursor = '';
+    this.document.body.style.userSelect = '';
   }
 
   ngAfterViewInit(): void {
@@ -337,21 +340,22 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
       if (e.touches.length === 1) { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); }
     };
     const onEnd = (): void => { this.cleanupListeners(); };
-    document.body.style.cursor = isHorizontal ? 'col-resize' : 'row-resize';
-    document.body.style.userSelect = 'none';
+    const doc = this.document;
+    doc.body.style.cursor = isHorizontal ? 'col-resize' : 'row-resize';
+    doc.body.style.userSelect = 'none';
     if (isTouch) {
-      document.addEventListener('touchmove', onTouchMove, { passive: false });
-      document.addEventListener('touchend', onEnd);
+      doc.addEventListener('touchmove', onTouchMove, { passive: false });
+      doc.addEventListener('touchend', onEnd);
       this.listeners.push(
-        () => document.removeEventListener('touchmove', onTouchMove),
-        () => document.removeEventListener('touchend', onEnd)
+        () => doc.removeEventListener('touchmove', onTouchMove),
+        () => doc.removeEventListener('touchend', onEnd)
       );
     } else {
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onEnd);
+      doc.addEventListener('mousemove', onMouseMove);
+      doc.addEventListener('mouseup', onEnd);
       this.listeners.push(
-        () => document.removeEventListener('mousemove', onMouseMove),
-        () => document.removeEventListener('mouseup', onEnd)
+        () => doc.removeEventListener('mousemove', onMouseMove),
+        () => doc.removeEventListener('mouseup', onEnd)
       );
     }
   }

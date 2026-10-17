@@ -1,3 +1,4 @@
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import {
     Component,
     ChangeDetectionStrategy,
@@ -5,6 +6,7 @@ import {
     ElementRef,
     OnInit,
     OnDestroy,
+    PLATFORM_ID,
     inject,
     NgZone,
     Renderer2,
@@ -42,6 +44,8 @@ export class MeteorsComponent implements OnInit, OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly ngZone = inject(NgZone);
     private readonly renderer = inject(Renderer2);
+    private readonly document = inject(DOCUMENT);
+    private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
     /**
      * Number of meteors kept alive on the canvas. Each one that leaves the
@@ -74,7 +78,8 @@ export class MeteorsComponent implements OnInit, OnDestroy {
     private rgb = { r: 255, g: 255, b: 255 };
 
     ngOnInit(): void {
-        if (prefersReducedMotion()) return;
+        // Canvas drawing and an animation loop are for a browser; a server renders the empty host.
+        if (!this.isBrowser || prefersReducedMotion()) return;
         this.ngZone.runOutsideAngular(() => {
             this.setupCanvas();
             this.resolveColor();
@@ -95,9 +100,9 @@ export class MeteorsComponent implements OnInit, OnDestroy {
             this.rgb = { r: 255, g: 255, b: 255 };
             return;
         }
-        const temp = document.createElement('div');
+        const temp = this.document.createElement('div');
         temp.style.color = raw;
-        document.body.appendChild(temp);
+        this.document.body.appendChild(temp);
         const computed = getComputedStyle(temp).color;
         temp.remove();
         const match = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(computed);

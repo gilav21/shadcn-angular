@@ -169,7 +169,8 @@ export class CanvasItemViewPool<C extends object> {
 
   private create(): CanvasItemView<C> {
     const view = this.container.createEmbeddedView(this.template, this.createContext());
-    const host = document.createElement('div');
+    // The mount's own document: this runs from ngAfterViewInit, which a server runs too.
+    const host = this.mount.ownerDocument.createElement('div');
     host.dataset['slot'] = 'canvas-item';
     host.style.position = 'absolute';
     host.style.left = '0';
