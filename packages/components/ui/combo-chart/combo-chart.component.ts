@@ -20,12 +20,12 @@ import {
 } from '../../lib/chart.types';
 import {
     getChartColor,
-    formatChartValue,
+    formatChartValueOrGap,
     getChartSummary,
     extent,
 } from '../../lib/chart.utils';
 import { linearScale, zeroBasedDomain, bandScale } from '../../lib/chart-scale';
-import { linePath } from '../../lib/chart-path';
+import { finiteOrZero, linePath } from '../../lib/chart-path';
 import { nearestPointX, pointerToSvg } from '../../lib/chart-interaction';
 import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
 import { ChartLegendComponent, ChartLegendItem } from '../chart-legend';
@@ -73,7 +73,8 @@ export class ComboChartComponent implements AfterViewInit {
      * ({@link categories}) and its values feed {@link cumulativePercents}.
      * Further series are grouped side by side inside each category band and are
      * indexed positionally, so every series must list its values in the same
-     * category order; a missing slot is drawn as 0.
+     * category order; a missing slot, or a value that is not a finite number, is drawn as 0 and shown
+     * as a dash in the tooltip.
      */
     readonly barSeries = input.required<ChartSeries[]>();
     /**
@@ -153,7 +154,15 @@ export class ComboChartComponent implements AfterViewInit {
     private readonly _tooltipPos = signal({ x: 0, y: 0 });
     private readonly _domRtl = signal(false);
 
-    readonly hoveredIndex = this._hover.asReadonly();
+    /**
+     * The hovered category, or `null`. An index only counts while it names a category: `setHover` is
+     * public and unchecked, and a data change can remove the category that was hovered, so a stale or
+     * out-of-range index reads as no hover at all (no tooltip, title, crosshair or dimming).
+     */
+    readonly hoveredIndex = computed((): number | null => {
+        const i = this._hover();
+        return i !== null && Number.isInteger(i) && i >= 0 && i < this.categories().length ? i : null;
+    });
     readonly tooltipPos = this._tooltipPos.asReadonly();
 
     readonly classes = computed(() => cn('relative w-full', this.class()));
@@ -194,10 +203,11 @@ export class ComboChartComponent implements AfterViewInit {
     readonly cumulativePercents = computed(() => {
         const first = this.barSeries()[0];
         if (!first) return [];
-        const total = first.data.reduce((sum, d) => sum + d.value, 0) || 1;
+        // A non-finite value counts as 0 (as `finiteOrZero` does for stacking), so one bad datum never changes the rest.
+        const total = first.data.reduce((sum, d) => sum + finiteOrZero(d.value), 0) || 1;
         let running = 0;
         return first.data.map(d => {
-            running += d.value;
+            running += finiteOrZero(d.value);
             return (running / total) * 100;
         });
     });
@@ -253,7 +263,7 @@ export class ComboChartComponent implements AfterViewInit {
         this.categories().forEach((name, ci) => {
             const base = band.position(String(ci)) ?? 0;
             series.forEach((s, si) => {
-                const value = s.data[ci]?.value ?? 0;
+                const value = finiteOrZero(s.data[ci]?.value);
                 const end = yp.scale(value);
                 result.push({
                     key: `${s.name}-${name}`,
@@ -272,7 +282,10 @@ export class ComboChartComponent implements AfterViewInit {
         const centers = this.categoryCenters();
         const ys = this.ySecondary();
         const explicit = this.lineSeries().map((s, i): ComboLine => {
-            const points = s.data.map((d, ci) => ({ x: centers[ci]?.x ?? 0, y: ys.scale(d.value) }));
+            const points = s.data.flatMap((d, ci) => {
+                const centre = centers[ci];
+                return centre ? [{ x: centre.x, y: ys.scale(d.value) }] : [];
+            });
             return {
                 key: s.id ?? s.name,
                 name: s.name,
@@ -281,7 +294,10 @@ export class ComboChartComponent implements AfterViewInit {
             };
         });
         if (!this.showCumulative()) return explicit;
-        const cumPoints = this.cumulativePercents().map((p, ci) => ({ x: centers[ci]?.x ?? 0, y: ys.scale(p) }));
+        const cumPoints = this.cumulativePercents().flatMap((p, ci) => {
+            const centre = centers[ci];
+            return centre ? [{ x: centre.x, y: ys.scale(p) }] : [];
+        });
         return [
             {
                 key: '__cumulative__',
@@ -299,22 +315,22 @@ export class ComboChartComponent implements AfterViewInit {
     ]);
 
     readonly crosshairX = computed(() => {
-        const i = this._hover();
+        const i = this.hoveredIndex();
         return i === null ? null : this.categoryCenters()[i]?.x ?? null;
     });
 
     readonly tooltipRows = computed((): ChartTooltipRow[] => {
-        const i = this._hover();
+        const i = this.hoveredIndex();
         if (i === null) return [];
         const rows: ChartTooltipRow[] = this.barSeries().map((s, si) => ({
             label: s.name,
-            value: formatChartValue(s.data[i]?.value ?? 0),
+            value: formatChartValueOrGap(s.data[i]?.value),
             color: getChartColor(si, s.color),
         }));
         this.lineSeries().forEach((s, li) => {
             rows.push({
                 label: s.name,
-                value: formatChartValue(s.data[i]?.value ?? 0),
+                value: formatChartValueOrGap(s.data[i]?.value),
                 color: getChartColor(this.barSeries().length + li, s.color),
             });
         });
@@ -329,7 +345,7 @@ export class ComboChartComponent implements AfterViewInit {
     });
 
     readonly hoverTitle = computed(() => {
-        const i = this._hover();
+        const i = this.hoveredIndex();
         return i === null ? undefined : this.categories()[i];
     });
 
