@@ -189,7 +189,8 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
     "ee4ae640264458990edc3273669500db701b58caa519a487a7582c6685a10bf4"
   ],
   "observers.ts": [
-    "93d5654db2804e852f7a317e9a158041a5e8883d22a159e1726c5d05efea5176"
+    "93d5654db2804e852f7a317e9a158041a5e8883d22a159e1726c5d05efea5176",
+    "d72b9cc1557026e47c609b7538043033bacade55249e86e55c8efe4cb384278a"
   ],
   "ole2-reader.ts": [
     "3deb926aeb83ebf68b864d9584f5940dfc60d18bbd7871ec4ba375587bc0b0f4"
@@ -306,6 +307,8 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
     "9105ca4292a7d8bc01a8f809f5adc3fcf9858764c28c64160d54162af12842e1",
     "93b583e94a97e14bfe5a28e980dfe2fb64cacaa2d6e67f5e3195bca1d7219cfd",
     "973df4b72dc4f1efa209b145b30baa59e9f4a100f0b6b2077365a41858ee6dc7",
+    "9ff672ba45a3ee74628694f3ca25b5da10713edc035af1ff8483697f3745a05d",
+    "aff1a3c101b8f2f847aefcd5d9d54ca4c3fc14902cff874b3f8d58f84a4d87e1",
     "b962398f29184bc9bf70fc6aad59b13538ed38ab79d84580dc935d9b2d156cc9",
     "c5f750ac882c606c43bfe07f0b8e051374834258afe29dc737c9352a8afd8b08",
     "c993b2ec357778760abbff55dbbbff16afa65351fd7f5e97c1834376bfaa121c",
@@ -324,9 +327,11 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
     "9e600c645bb1a3321b43998ee5655b7a95ad21b4ba06386887da3626fe5ed61b",
     "a59d3954afb654208ac4fe1d19845aad0c64d03c6180a7f7c118cebef1b1f1fc",
     "a6483da78988b4be0c357d5404c29be45243c415b038365cd6d8d9527e18b4c5",
+    "abc50972bfcf35bcb6744f68d699f8b9e82e0c6178ee488b702b230fae88fb4a",
     "bbbdbdb4b9766040ef3236583d7aae7032b96b40caec461a06f2f1cdc74d9aaa",
     "c7493d725606d81e68964f9d0a0eb38b725581f7699359ddcc0f9e4d45707019",
     "d2388ec969311c6ea5158bc69fe25256db9970b30d9e80b9143d9ec288e1f906",
+    "df5fdaadd2f216c29d4ebb59a02d84c8df1e5fe0b6f9a1a8701869db7c8bdaa8",
     "ea7282c77a2fe0237a59d384b7ce1137c58b0d647c1e4a84395bcad09648ed41",
     "eb29d20ea81fa1ef226caee306a07d16dd89ab4dc43ba787f0ac980853d0efa3",
     "f026e67c842d7f29d7fcfa8f9220ad7dcfb39ed91cee39040d5b043b2f7d3d66",
@@ -458,7 +463,8 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
     "4f9bb32b41e14249ab506e052a857f961378e75bb144d120fa3a19f1ffdc208a",
     "594e563d5ccec123d8b4863582657aae568063a4a5711f916a632a5705fedaa8",
     "7ec681ed8daeaefe5aa43cfb665bc97c484e3f821b0fe22bc16873e4df147d3e",
-    "a8b41fc77c4556e1d94aa4ba2b032ad1400860d295dc54a0af3463168b223343"
+    "a8b41fc77c4556e1d94aa4ba2b032ad1400860d295dc54a0af3463168b223343",
+    "f12ba6bdf709f35b56e25680c7ac29411335b87b91d3372419a87097f333aad7"
   ],
   "parsers/pdf-readable/readable-types.ts": [
     "04c8943f9cf1eec905919232db95523146f2df5a797f092d43a3ea762fc2397a",
@@ -525,7 +531,8 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   ],
   "parsers/ttf-parser.ts": [
     "1dbd3794da2b53cc9edec4a40dc2bc76cdba7bac1a9f7db0bea4f7c68dce7634",
-    "2491f2a6b8085268418254074c6f55a2150a5fdfc1c1d52f3caf8a330b1bd540"
+    "2491f2a6b8085268418254074c6f55a2150a5fdfc1c1d52f3caf8a330b1bd540",
+    "8733d11f71502b2a3b6ea39c42928c944efed0bc6eb1e495a842711284dd7faf"
   ],
   "parsers/xlsx-reader.ts": [
     "1dcbc3e0d75913c5d91c2331defa89c020e4f94a28078b39b656490cb7ed8b07",
