@@ -201,7 +201,9 @@ classes = computed(() => cn(
 Exception: a *zero-box* component — its template is only `<ng-content>` and
 its host is `display: contents` — renders no element for a class to reach, so
 it has **no** `class` input (a declared-but-ignored `class` input is a silent
-no-op for the consumer). Style the projected element instead.
+no-op for the consumer). Style the projected element instead. Likewise a
+placeholder whose host is `hidden` and whose template is empty (API parity
+only, never painted) has no `class` input.
 
 ---
 
@@ -355,10 +357,12 @@ reference implementation for this pattern.
   parameters, and types in TypeScript files and the
   `@Component({ imports: [...] })` array. ESLint's
   `@typescript-eslint/no-unused-vars` enforces this (prefix an intentionally
-  unused parameter with `_`). `tsconfig.json` does **not** set
-  `noUnusedLocals`/`noUnusedParameters`, so also clear the editor's faded
-  `ts(6133)` ("declared but its value is never read") hints before finishing
-  any file — they catch unused private members ESLint misses.
+  unused parameter with `_`). `tsconfig.json` sets
+  `noUnusedLocals`/`noUnusedParameters`, so `npm run typecheck` fails on a
+  `ts(6133)` ("declared but its value is never read") — it catches unused
+  private members ESLint misses. An effect kept only for its side effect is a
+  `protected readonly` field (not `private`, which would be flagged, and not
+  moved into the constructor, which would change its creation order).
 
 ### 3. Testing & Documentation
 
@@ -519,7 +523,7 @@ Before submitting a component, verify:
 - [ ] Storybook covers all options/variants
 - [ ] Demo page includes copy-paste examples
 - [ ] No unused declarations (imports, variables, parameters, types) —
-  ESLint `no-unused-vars` clean and no `ts(6133)` hints
+  ESLint `no-unused-vars` clean and `npm run typecheck` passing (no `ts(6133)`)
 - [ ] Strict typing (no `any`, handles `undefined`)
 - [ ] **SonarQube server scan run** (`npm run sonar:gate` against
   `localhost:9000` — coverage re-measured unless the tree fingerprint proves it
@@ -1009,8 +1013,8 @@ When generating or modifying components:
 8. **Form Components**: Support both `value` input and `ControlValueAccessor`
 9. **Clean up unused declarations** — after writing or modifying code, verify
    every import, variable, and parameter is actually used. Remove any that
-   aren't. ESLint `no-unused-vars` must be clean; also clear `ts(6133)`
-   hints (unused private members).
+   aren't. ESLint `no-unused-vars` and `npm run typecheck` (which enforces
+   `noUnusedLocals`/`noUnusedParameters`) must be clean.
 10. **SonarQube compliance** — follow ALL rules in Section 4
     "SonarQube Compliance". **Before declaring ANY work done, run the full
     SonarQube server scan** (`npm run sonar:gate` against `localhost:9000`;

@@ -23,7 +23,7 @@ const ctx: Omit<ClassifyContext, 'pageBounds'> = {
     structure: { mcidToType: new Map(), hasStructure: false },
 };
 
-function pageExtractOf(lines: readonly Line[], overrides?: Partial<PageExtract>): PageExtract {
+function pageExtractOf(_lines: readonly Line[], overrides?: Partial<PageExtract>): PageExtract {
     return {
         index: 0,
         width: 612,

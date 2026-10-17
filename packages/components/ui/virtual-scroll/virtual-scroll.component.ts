@@ -80,14 +80,14 @@ export interface VirtualScrollWindow2D {
   standalone: true,
 })
 export class VirtualItemDirective {
-  /* eslint-disable @typescript-eslint/no-unused-vars -- dir and ctx required by Angular type-narrowing contract */
+   
   static ngTemplateContextGuard<T>(
-    dir: VirtualItemDirective,
-    ctx: unknown
-  ): ctx is { $implicit: T; index: number } {
+    _dir: VirtualItemDirective,
+    _ctx: unknown
+  ): _ctx is { $implicit: T; index: number } {
     return true;
   }
-  /* eslint-enable @typescript-eslint/no-unused-vars */
+   
 }
 
 /**
@@ -311,10 +311,6 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
 
   private getOffsetForIndex(index: number): number {
     return this.mainAxis().offsetForIndex(index, this.mainEstimate());
-  }
-
-  private getIndexForOffset(scrollY: number): number {
-    return this.mainAxis().indexForOffset(scrollY, this.mainEstimate(), this.mainAxisCount());
   }
 
   viewportRange = computed(() => {

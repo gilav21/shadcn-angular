@@ -23,7 +23,6 @@ function createItems(count: number): TestItem[] {
  */
 type VsPrivate = {
     getOffsetForIndex(index: number): number;
-    getIndexForOffset(scrollY: number): number;
     handleResizes(entries: ResizeObserverEntry[]): void;
     calculateScrollProgress(): number;
 };
@@ -431,12 +430,6 @@ describe('VirtualScrollComponent', () => {
 
         expect(asPrivate(vsComponent).calculateScrollProgress()).toBe(0);
     });
-
-    it('should clamp the index when scrolling past the end of the content (white-box: getIndexForOffset has no caller in the component)', () => {
-        const priv = asPrivate(getVs());
-        // Total content is 100 * 50 = 5000px; scrolling far beyond clamps to last.
-        expect(priv.getIndexForOffset(999999)).toBe(99);
-    });
 });
 
 describe('VirtualItemDirective', () => {
@@ -513,7 +506,7 @@ describe('VirtualScrollComponent with an id-less row type', () => {
 });
 
 describe('VirtualScrollComponent where ResizeObserver does not exist', () => {
-    /** SSR and jsdom — where consumers' own tests run — have no ResizeObserver. */
+    /** SSR and jsdom ï¿½ where consumers' own tests run ï¿½ have no ResizeObserver. */
     it('still renders its window and tears down cleanly', async () => {
         // The file-level afterEach restores the saved constructor.
         globalThis.ResizeObserver = undefined as unknown as typeof ResizeObserver;

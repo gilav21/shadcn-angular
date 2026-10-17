@@ -136,12 +136,6 @@ class PdfBuilder {
 
 // ── Helper: parse CSS class values from generated CSS ─────────────────
 
-function _extractCssValue(css: string, className: string): string | null {
-    const re = new RegExp(String.raw`\.${className}\{([^}]+)\}`);
-    const m = re.exec(css);
-    return m ? m[1] : null;
-}
-
 function extractAllClasses(css: string, prefix: string): Map<string, string> {
     const re = new RegExp(String.raw`\.${prefix}([0-9a-f]+)\{([^}]+)\}`, 'g');
     const map = new Map<string, string>();

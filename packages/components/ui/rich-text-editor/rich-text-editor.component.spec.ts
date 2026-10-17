@@ -8886,17 +8886,6 @@ describe('RichTextEditorComponent — RTL, Enter edges & misc coverage', () => {
             component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
             expect(editor.querySelector('details > p')).toBeTruthy();
         });
-
-        it('isSelectionInsideEditor reflects whether the caret sits in the editor', () => {
-            const probe = component as unknown as { isSelectionInsideEditor(): boolean };
-            document.getSelection()?.removeAllRanges();
-            expect(probe.isSelectionInsideEditor()).toBe(false);
-
-            component.writeValue('<p>inside</p>');
-            fixture.detectChanges();
-            caretIn(editor.querySelector('p')!.firstChild!, 3);
-            expect(probe.isSelectionInsideEditor()).toBe(true);
-        });
     });
 });
 

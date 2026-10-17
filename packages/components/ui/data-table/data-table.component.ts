@@ -2838,7 +2838,8 @@ export class DataTableComponent<T>
     grid.setAttribute('aria-colcount', String(this.enhancedColumns().length));
   }
 
-  private readonly _gridSemanticsEffect = afterRenderEffect(() => {
+  // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+  protected readonly _gridSemanticsEffect = afterRenderEffect(() => {
     // Re-stamp whenever the rendered window, the data or the columns move.
     this.virtualRowRange();
     this.processedData();
@@ -2847,7 +2848,8 @@ export class DataTableComponent<T>
     this.stampGridSemantics();
   });
 
-  private readonly _fillHandlePositionEffect = afterRenderEffect(() => {
+  // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+  protected readonly _fillHandlePositionEffect = afterRenderEffect(() => {
     this.fillHandleCell();
     this.data();
     this.virtualVisibleRows();
@@ -4051,7 +4053,8 @@ export class DataTableComponent<T>
    * The first run is the initial state, so there is nothing to report yet; see
    * {@link currentQuery}.
    */
-  private readonly _queryEmitter = effect(() => {
+  // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+  protected readonly _queryEmitter = effect(() => {
     const next = this.currentQuery();
     const previous = this._lastEmittedQuery;
     this._lastEmittedQuery = next;
@@ -5996,7 +5999,8 @@ export class DataTableComponent<T>
    * because `onDoubleTap` cancels the second `touchend` of whatever it listens
    * on and must not swallow the second click of a double-tap on a cell.
    */
-  private readonly registerResizeDoubleTap = effect((onCleanup) => {
+  // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+  protected readonly registerResizeDoubleTap = effect((onCleanup) => {
     const stops = this.resizeHandles().map((handle) =>
       onDoubleTap(handle.nativeElement, () => {
         const key = handle.nativeElement.closest<HTMLElement>("[data-column-id]")?.dataset["columnId"];

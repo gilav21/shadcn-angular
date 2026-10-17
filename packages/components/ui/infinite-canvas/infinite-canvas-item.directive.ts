@@ -48,12 +48,12 @@ export class InfiniteCanvasItemDirective<T extends CanvasItem = CanvasItem> {
    */
   readonly ofType = input<readonly T[] | undefined>(undefined);
 
-  /* eslint-disable @typescript-eslint/no-unused-vars -- dir and ctx required by Angular's type-narrowing contract */
+   
   static ngTemplateContextGuard<T extends CanvasItem>(
-    dir: InfiniteCanvasItemDirective<T>,
-    ctx: unknown,
-  ): ctx is CanvasItemContext<T> {
+    _dir: InfiniteCanvasItemDirective<T>,
+    _ctx: unknown,
+  ): _ctx is CanvasItemContext<T> {
     return true;
   }
-  /* eslint-enable @typescript-eslint/no-unused-vars */
+   
 }

@@ -3175,7 +3175,7 @@ const IGNORED_OPERATORS = new Set([
 ]);
 
 function processStrokeColorOperator(
-    token: string, operandStack: string[], gs: GraphicsState,
+    token: string, _operandStack: string[], gs: GraphicsState,
     popNum: () => number,
 ): boolean {
     switch (token) {
@@ -5423,7 +5423,7 @@ function renderLineAsHeading(
 }
 
 function renderLineAsBullet(
-    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, _lineText: string, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     if (state.inNumberedList) { state.html.push('</ol>'); state.inNumberedList = false; }
@@ -5440,7 +5440,7 @@ function renderLineAsBullet(
 }
 
 function renderLineAsNumbered(
-    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, _lineText: string, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     const rtl = isLineRTL(line);
@@ -6125,7 +6125,7 @@ function applyParagraphSpacing(state: HtmlBuilderState, lineSpacing: number, bod
 }
 
 function handleBorderBoxLine(
-    line: TextLine, ctx: HtmlBuilderContext, state: HtmlBuilderState,
+    _line: TextLine, ctx: HtmlBuilderContext, state: HtmlBuilderState,
     renderedBorderBoxes: Set<PathRect>, borderBox: PathRect,
 ): void {
     if (!renderedBorderBoxes.has(borderBox)) {

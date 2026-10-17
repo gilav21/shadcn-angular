@@ -12,7 +12,6 @@ import {
     type ComponentRef,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DOCUMENT } from '@angular/common';
 import { Subject, defer, from, isObservable, of, type Observable } from 'rxjs';
 import { catchError, debounceTime, switchMap, tap } from 'rxjs/operators';
 import { RichTextEditorAddonHost, RichTextSanitizerService } from '../..';
@@ -68,7 +67,6 @@ export class RichTextMentionsDirective {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly injector = inject(Injector);
     private readonly vcr = inject(ViewContainerRef);
-    private readonly document = inject(DOCUMENT);
 
     /** Locale for the popover UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteMentionsLocale = input<LocaleInput<RichTextMentionsLocale>>();

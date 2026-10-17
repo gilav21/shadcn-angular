@@ -109,7 +109,7 @@ export class PageRendererComponent implements OnDestroy {
         this.instanceMap.set(event.id, instance);
         const item = this.dashboardItems().find(i => i.id === event.id);
         if (item) {
-            this.updateInstance(instance, item.inputs);
+            this.updateInstance(item.inputs);
         }
     }
 
@@ -117,12 +117,12 @@ export class PageRendererComponent implements OnDestroy {
         items.forEach(item => {
             const instance = this.instanceMap.get(item.id);
             if (instance) {
-                this.updateInstance(instance, item.inputs);
+                this.updateInstance(item.inputs);
             }
         });
     }
 
-    private updateInstance(instance: Record<string, unknown>, inputs: Record<string, unknown> | undefined): void {
+    private updateInstance(inputs: Record<string, unknown> | undefined): void {
         if (!inputs) return;
         Object.entries(inputs).forEach(([_key, _value]) => {
             // Angular inputs are set by the framework via BentoGrid's setInput mechanism.

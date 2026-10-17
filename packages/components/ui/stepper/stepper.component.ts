@@ -107,9 +107,6 @@ export class StepperComponent {
   readonly guardPending = this._guardPending.asReadonly();
   private guardToken = 0;
 
-  // For simple mode, use steps array length
-  private readonly simpleStepCount = computed(() => this.steps().length);
-
   classes = computed(() =>
     cn(
       'flex',
