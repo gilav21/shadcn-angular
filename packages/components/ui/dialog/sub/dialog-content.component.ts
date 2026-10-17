@@ -106,7 +106,9 @@ export class DialogContentComponent implements AfterViewInit {
      * elements whose nearest panel is this one count.
      */
     private ownId(panel: HTMLElement, slot: string): string | null {
-        const own = [...panel.querySelectorAll<HTMLElement>(`[data-slot="${slot}"]`)].find(
+        // Array.from, not a spread: a consumer's `lib` may omit dom.iterable (Storybook's does), and a
+        // NodeList is only iterable with it.
+        const own = Array.from(panel.querySelectorAll<HTMLElement>(`[data-slot="${slot}"]`)).find(
             el => el.closest('[data-slot="dialog-content"]') === panel
         );
         if (!own) return null;
