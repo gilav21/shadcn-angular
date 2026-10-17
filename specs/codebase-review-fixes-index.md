@@ -32,14 +32,17 @@
 
 Totals: 15 specs, 183 use cases, 125 tasks.
 
+**Status (2026-10-17): all 15 specs are implemented, merged to master and released.**
+The "Can start now" column above is the original plan, kept as history.
+
 ## Waves
 
 | Wave | Specs | Notes |
 |------|-------|-------|
 | 0 | 14 (CLAUDE.md part of Task 10 + agent-guidance deletions) | ✅ Done 2026-10-03. Pulled ahead of everything because every executing agent loads `.claude/CLAUDE.md`. Committed before any worktree was created. |
-| 1 | 1, 4, 6, 7, 9, 11, 14 | Seven worktrees on pairwise-disjoint source. The only shared file is `e2e/orchestrator/specs.ts` (4 and 7 each add an `EXPLICIT_SPECS` entry); merge 4 first, then rebase 7. |
-| 2 | 2, 3, 5, 8, 10, 12 | 2 and 3 are disjoint from each other and both rebase on 1. 5 rebases on 6. 8 rebases on 7 and 14. 10 rebases on 9. 12 needs 11. |
-| 3 | 13, 15 | 13 rebases on 12 (heatmap). 15 touches files from almost every UI spec, so it runs last; its Task 9 (overlay family) must read the merged 7 and 8 first. |
+| 1 | 1, 4, 6, 7, 9, 11, 14 | ✅ Merged to master and released. Seven worktrees on pairwise-disjoint source. The only shared file is `e2e/orchestrator/specs.ts` (4 and 7 each add an `EXPLICIT_SPECS` entry); merge 4 first, then rebase 7. |
+| 2 | 2, 3, 5, 8, 10, 12 | ✅ Merged to master and released (with wave 1: CLI 0.0.53, rte 0.2.1, data-table 0.3.1). 2 and 3 are disjoint from each other and both rebase on 1. 5 rebases on 6. 8 rebases on 7 and 14. 10 rebases on 9. 12 needs 11. |
+| 3 | 13, 15 | ✅ Done 2026-10-17: PR #205 merged (`dd4397ef`), released as CLI 0.0.54, rte 0.2.2, data-table 0.3.2. Both worktrees removed. One CodeQL finding on the PR (`js/incomplete-multi-character-sanitization` in the completeness gate's comment stripping, spec 15) was fixed before merge in `2664bf53`. 13 rebases on 12 (heatmap). 15 touches files from almost every UI spec, so it runs last; its Task 9 (overlay family) must read the merged 7 and 8 first. |
 
 Wave rule: merge each wave to master before the next starts. Regenerate the
 registry with `sync-registry --fix` rather than merging `registry.json`.
