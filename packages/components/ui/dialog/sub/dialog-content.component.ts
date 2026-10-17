@@ -5,6 +5,8 @@ import {
     computed,
     inject,
     effect,
+    afterRenderEffect,
+    signal,
     AfterViewInit,
     ElementRef,
 } from '@angular/core';
@@ -63,6 +65,17 @@ export class DialogContentComponent implements AfterViewInit {
         )
     );
 
+    /**
+     * `id` of this panel's own title, for `aria-labelledby`; null while it has none. The title is rendered
+     * either from the `title` input or projected as a `<ui-dialog-title>`, so it is found in the DOM after
+     * render and given an id, which covers both modes.
+     */
+    protected readonly titleId = signal<string | null>(null);
+    /** `id` of this panel's own description, for `aria-describedby`; null while it has none. */
+    protected readonly descriptionId = signal<string | null>(null);
+
+    private static idSeq = 0;
+
     private contentEl?: HTMLElement;
     private previousActiveElement?: Element | null;
 
@@ -75,6 +88,30 @@ export class DialogContentComponent implements AfterViewInit {
                 this.previousActiveElement.focus();
             }
         });
+
+        afterRenderEffect(() => {
+            // The inputs are read so a title or description set after the dialog opened is picked up too.
+            this.title();
+            this.description();
+            if (!this.dialog?.open()) return;
+            const panel = this.el.nativeElement.querySelector('[data-slot="dialog-content"]') as HTMLElement | null;
+            this.titleId.set(panel ? this.ownId(panel, 'dialog-title') : null);
+            this.descriptionId.set(panel ? this.ownId(panel, 'dialog-description') : null);
+        });
+    }
+
+    /**
+     * The id of the `slot` element that belongs to `panel` itself, giving it one if it has none. A dialog
+     * nested inside this one has a title of its own that this panel must never take as its name, so only
+     * elements whose nearest panel is this one count.
+     */
+    private ownId(panel: HTMLElement, slot: string): string | null {
+        const own = [...panel.querySelectorAll<HTMLElement>(`[data-slot="${slot}"]`)].find(
+            el => el.closest('[data-slot="dialog-content"]') === panel
+        );
+        if (!own) return null;
+        own.id ||= `${slot}-${++DialogContentComponent.idSeq}`;
+        return own.id;
     }
 
     ngAfterViewInit(): void {
