@@ -1,4 +1,4 @@
-<div [class]="containerClasses()">
+<div [class]="containerClasses()" [attr.data-slot]="'data-table-column-header'">
   @if (!enableSorting()) {
     <div>{{ title() }}</div>
   } @else {

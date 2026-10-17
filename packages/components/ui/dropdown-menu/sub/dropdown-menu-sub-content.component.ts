@@ -30,6 +30,7 @@ function ringOf(item: HTMLElement): HTMLElement[] {
     @if (sub.isOpen()) {
       <div
         [class]="classes()"
+        [attr.data-slot]="'dropdown-menu-sub-content'"
         role="menu"
         tabindex="-1"
         (mouseenter)="onMouseEnter()"

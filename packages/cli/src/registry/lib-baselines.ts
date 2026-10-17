@@ -24,6 +24,9 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   "caret-context.ts": [
     "5ac6d15ef0f8b6d0eadbf9c59c60b593237c05b9403ee3836b11d0626734aa89"
   ],
+  "chart-color-scale.ts": [
+    "19b3cc3a078cf75aaf81da474acea6794247b4537df94b64c28199cc3e452249"
+  ],
   "chart-interaction.ts": [
     "3f9881a4e6801e2df2ad6d4dd3c2275a9f13f2c0990564cc6671675a339fd788",
     "a8938d174250649f84867a6ef2af2134d52e1c9643d5e4d13fafe26a15b24550"
@@ -48,6 +51,7 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
     "272741ebeaa60fbb6819da77c125d02ef499006b94fa6991c10e77e83b81e0c5",
     "5ed543f849c2ddc79e7d1f77945fa3890521f15401969f48e86a4b4f19c68937",
     "5f6708df6ec899afd1cb3485f22c495cce82a5cf773124845f731ef8d81ab7b1",
+    "91f77fb46286c6faa21d0722deb2c215b07a6948d3aebcc37c4b3534d243c5f2",
     "a8e113f79047683214df737a639542051498fbc6e71d5682938c844dd6521fbf"
   ],
   "chart.types.ts": [
@@ -84,10 +88,14 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   ],
   "color-extract.ts": [
     "2e7863edf27cbc9aaef80c3fffac3d79f74c6db41278a620937475cc35e9d2ce",
-    "2f735634431ad038831de0f23739ee4a41cccaecd0be4546dc84cfc33c02a1b0"
+    "2f735634431ad038831de0f23739ee4a41cccaecd0be4546dc84cfc33c02a1b0",
+    "e1430e80c4972b3361e133bb0923d8ce345f062b8d86b480e9dfaa0a6b9edac8"
   ],
   "color.ts": [
     "3aebfe1899df706d3a68d0d1fb809afd93caf79c8143d467899c6751b132b3df",
+    "589daaa749425f34bd92d2947b69fca402328572eb942cccf77d42d8cbf8092e",
+    "a38e538dbafe48d904a282f4d92242d15ff5a7653c97d874137cefbaa833f1ea",
+    "e5e771352b3775b6cf80fb73e085585b237628e16dd28cae6d3153f01321f452",
     "f1134d13390ed803a42fe3e9bd93a80c04bd48c05e48a282a4e0c0fb6880427d",
     "fe1775079eb8b76d91b396a2e5f62d87cf98ceec7015c68100d6458c9ee9ff9d"
   ],

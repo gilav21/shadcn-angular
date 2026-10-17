@@ -254,6 +254,7 @@ const meta: Meta<DataTableComponent<User>> = {
             options: [undefined, ...THEME_NAMES],
             description: 'Colour preset for this table and its overlays (the change-theme names); unset follows the global tokens.',
         },
+        class: { control: 'text', description: 'Extra classes merged onto the host after `block h-full w-full`, e.g. `h-[400px]`.' },
         data: { control: 'object', description: 'Row data (two-way bound via [(data)]). Required.' },
         columns: { control: false, description: 'Column definitions (ColumnDef[]) — accessors, cells, editing, formatting. Required.' },
         showToolbar: { control: 'boolean', description: 'Shows the top toolbar (global filter, columns menu).' },
@@ -365,6 +366,7 @@ const meta: Meta<DataTableComponent<User>> = {
         showPageSizeSelector: { control: 'boolean', description: 'Shows the rows-per-page selector in the pagination footer.' },
     },
     args: {
+        class: '',
         showToolbar: true,
         showColumnVisibilityToggle: true,
         showPagination: true,
@@ -467,6 +469,7 @@ export const Playground: Story = {
             <div class="h-[600px] w-full p-4">
                 <ui-data-table
                     [theme]="theme"
+                    [class]="class"
                     [(data)]="data"
                     [columns]="columns"
                     [showToolbar]="showToolbar"

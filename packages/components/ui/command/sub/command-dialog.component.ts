@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   contentChild,
   effect,
   inject,
@@ -8,6 +9,7 @@ import {
   model,
   OnDestroy,
 } from '@angular/core';
+import { cn } from '../../../lib/utils';
 import { DialogComponent, DialogContentComponent } from '../../dialog';
 import { ShortcutBindingService, ShortcutComponentHandle } from '../../../lib/shortcut-binding.service';
 import { CommandComponent } from '../command.component';
@@ -19,16 +21,20 @@ import { CommandInputComponent } from './command-input.component';
   imports: [DialogComponent, DialogContentComponent, CommandComponent],
   template: `
     <ui-dialog [(open)]="open">
-      <ui-dialog-content class="overflow-hidden p-0 shadow-lg">
+      <ui-dialog-content [class]="classes()">
         <ui-command class="**:data-[slot=command-group]:px-2 **:data-[slot=command-group]:font-medium **:data-[slot=command-group]:text-muted-foreground **:data-[slot=command-item]:px-2 **:data-[slot=command-item]:py-3 [&_[data-slot=command-item]_svg]:h-5 [&_[data-slot=command-item]_svg]:w-5">
            <ng-content />
         </ui-command>
       </ui-dialog-content>
     </ui-dialog>
   `,
-  host: { class: 'contents' },
+  host: { class: 'contents', '[attr.data-slot]': '"command-dialog"' },
 })
 export class CommandDialogComponent implements OnDestroy {
+  /** Extra classes merged onto the dialog panel, after `overflow-hidden p-0 shadow-lg` — e.g. a width utility. */
+  readonly class = input('');
+  readonly classes = computed(() => cn('overflow-hidden p-0 shadow-lg', this.class()));
+
   /**
    * Two-way open state of the underlying `ui-dialog`. Toggled by the global
    * {@link shortcut}, and each transition to open focuses the projected

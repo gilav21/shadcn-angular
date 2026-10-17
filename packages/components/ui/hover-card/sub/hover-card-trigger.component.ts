@@ -2,6 +2,7 @@ import {
     Component,
     ChangeDetectionStrategy,
     inject,
+    input,
 } from '@angular/core';
 import { isTouchDevice } from '../../../lib/touch';
 import { HoverCardComponent } from '../hover-card.component';
@@ -11,6 +12,7 @@ import { HoverCardComponent } from '../hover-card.component';
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <span
+      [class]="class()"
       tabindex="0"
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
@@ -28,6 +30,9 @@ import { HoverCardComponent } from '../hover-card.component';
 })
 export class HoverCardTriggerComponent {
     private readonly hoverCard = inject(HoverCardComponent, { optional: true });
+
+    /** Extra classes for the focusable wrapper around the projected trigger. */
+    readonly class = input('');
 
     /**
      * Opens the card after the hover delay. Also bound to `focus`, so keyboard

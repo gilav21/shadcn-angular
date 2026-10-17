@@ -18,6 +18,7 @@ import { MENUBAR_SUB, type MenubarSubComponent } from './menubar-sub.component';
     @if (sub.isOpen()) {
       <div
         [class]="classes()"
+      [attr.data-slot]="'menubar-sub-content'"
         role="menu"
         tabindex="-1"
         (mouseenter)="onMouseEnter()"

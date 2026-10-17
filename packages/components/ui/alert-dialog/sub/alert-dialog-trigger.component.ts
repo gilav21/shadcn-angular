@@ -4,6 +4,7 @@ import {
     ElementRef,
     afterNextRender,
     inject,
+    input,
     signal,
 } from '@angular/core';
 import { ALERT_DIALOG } from '../alert-dialog.component';
@@ -14,6 +15,7 @@ import { hasInteractiveContent } from '../../../lib/a11y';
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <span
+      [class]="class()"
       (click)="onClick()"
       (keydown.enter)="onKeydown($event)"
       (keydown.space)="onKeydown($event)"
@@ -27,6 +29,9 @@ import { hasInteractiveContent } from '../../../lib/a11y';
     host: { class: 'contents' },
 })
 export class AlertDialogTriggerComponent {
+    /** Extra classes for the element that wraps the projected trigger. */
+    readonly class = input('');
+
     private readonly alertDialog = inject(ALERT_DIALOG, { optional: true });
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 

@@ -20,6 +20,8 @@ export class AspectRatioComponent {
    * content loads and no layout shift occurs.
    */
   ratio = input<number>(1);
+  /** Extra classes for the ratio box — e.g. `overflow-hidden rounded-lg` to clip the projected media. */
+  readonly class = input('');
 
   containerStyles = computed(() => ({
     position: 'relative' as const,

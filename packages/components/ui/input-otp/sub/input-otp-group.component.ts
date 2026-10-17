@@ -7,6 +7,6 @@ import {
   selector: 'ui-input-otp-group',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: ``,
-  host: { class: 'hidden' },
+  host: { class: 'hidden', '[attr.data-slot]': '"input-otp-group"' },
 })
 export class InputOTPGroupComponent { }

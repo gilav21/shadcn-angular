@@ -6,18 +6,25 @@ import {
     ElementRef,
     DestroyRef,
     NgZone,
+    computed,
+    input,
 } from '@angular/core';
+import { cn } from '../../lib/utils';
 
 @Component({
     selector: 'ui-hover-card',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'relative inline-block',
+        '[class]': 'classes()',
         '[attr.data-slot]': '"hover-card"',
     },
 })
 export class HoverCardComponent {
+    /** Extra classes merged onto the host, after `relative inline-block` — e.g. `block` to span the row. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('relative inline-block', this.class()));
+
     readonly open = signal(false);
     readonly touchOpen = signal(false);
     private readonly openDelay = 200;

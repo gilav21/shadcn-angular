@@ -1,4 +1,12 @@
-<div [class]="containerClasses()" [attr.data-slot]="'toaster'">
+<div
+  #region
+  [class]="containerClasses()"
+  [attr.data-slot]="'toaster'"
+  (pointerenter)="onPointerEnter()"
+  (pointerleave)="onPointerLeave()"
+  (focusin)="onFocusIn()"
+  (focusout)="onFocusOut($event)"
+>
   @for (toast of toastService.toasts(); track toast.id) {
     <ui-toast
       [variant]="toast.variant"

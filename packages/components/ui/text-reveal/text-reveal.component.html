@@ -1,4 +1,4 @@
-<div [class]="classes()">
+<div [class]="classes()" [attr.data-slot]="'text-reveal'">
   @for (word of words(); track $index) {
     <span
       class="inline-block transition-all duration-500 will-change-[transform,opacity,filter]"

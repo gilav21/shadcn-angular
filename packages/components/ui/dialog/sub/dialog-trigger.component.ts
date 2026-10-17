@@ -5,6 +5,7 @@ import {
     afterNextRender,
     inject,
     signal,
+    input,
 } from '@angular/core';
 import { DIALOG } from '../dialog.component';
 import { hasInteractiveContent } from '../../../lib/a11y';
@@ -14,6 +15,7 @@ import { hasInteractiveContent } from '../../../lib/a11y';
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <span
+      [class]="class()"
       [attr.tabindex]="wrapsInteractive() ? null : 0"
       [attr.role]="wrapsInteractive() ? null : 'button'"
       [attr.data-slot]="'dialog-trigger'"
@@ -27,6 +29,9 @@ import { hasInteractiveContent } from '../../../lib/a11y';
     host: { class: 'contents' },
 })
 export class DialogTriggerComponent {
+    /** Extra classes for the element that wraps the projected trigger. */
+    readonly class = input('');
+
     private readonly dialog = inject(DIALOG, { optional: true });
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 

@@ -9,9 +9,10 @@ import {
     Injectable,
     InjectionToken,
     forwardRef,
+    computed,
 } from '@angular/core';
 import { NgTemplateOutlet, DOCUMENT } from '@angular/common';
-import { isRtl } from '../../lib/utils';
+import { cn, isRtl } from '../../lib/utils';
 import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 import { DropdownMenuContentComponent } from './sub/dropdown-menu-content.component';
 import { DropdownMenuItemComponent } from './sub/dropdown-menu-item.component';
@@ -139,10 +140,15 @@ export const DROPDOWN_MENU = new InjectionToken<DropdownMenuComponent>('DROPDOWN
       </ng-template>
     `,
     host: {
-        class: 'relative inline-block',
+        '[class]': 'classes()',
+        '[attr.data-slot]': '"dropdown-menu"',
     },
 })
 export class DropdownMenuComponent implements OnDestroy {
+    /** Extra classes merged onto the host, after `relative inline-block`. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('relative inline-block', this.class()));
+
     private readonly el = inject(ElementRef);
     private readonly document = inject(DOCUMENT);
     private readonly service = inject(DropdownMenuService);

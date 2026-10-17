@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     computed,
     inject,
+    input,
     DestroyRef,
     signal,
 } from '@angular/core';
@@ -111,6 +112,9 @@ export class RichTextColorsButtonComponent {
         this.context.activeColor() ? '' : this.emptyIndicatorClass,
     ));
 
+    /** Extra classes merged onto the toolbar button, after the built-in icon-button styling. */
+    readonly class = input('');
+
     protected readonly buttonClasses = computed(() => cn(
         'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors',
         'hover:bg-accent hover:text-accent-foreground',
@@ -121,6 +125,7 @@ export class RichTextColorsButtonComponent {
         // state the 44px touch minimum themselves rather than inherit it.
         'pointer-coarse:min-h-11 pointer-coarse:min-w-11',
         this.toolbarView?.compact() ? 'p-1' : 'p-1.5',
+        this.class(),
     ));
 
     /**

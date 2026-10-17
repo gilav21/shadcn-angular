@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { cn } from '../../../../lib/utils';
 import type { RichTextFileImportLocale } from './rich-text-file-import.locales';
 
 /**
@@ -16,6 +17,10 @@ import type { RichTextFileImportLocale } from './rich-text-file-import.locales';
     host: { class: 'contents' },
 })
 export class RichTextFileImportOverlayComponent {
+    /** Extra classes merged onto the busy and error layers, after the full-editor scrim styling. */
+    readonly class = input('');
+    readonly layerClasses = computed(() => cn('absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]', this.class()));
+
     /**
      * Renders the full-editor busy layer (`data-slot="rte-file-import-busy"`)
      * showing {@link locale}`.importing`. The directive holds this true for the

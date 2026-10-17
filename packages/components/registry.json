@@ -4868,10 +4868,12 @@
       "heatmap/index.ts"
     ],
     "libFiles": [
+      "chart-color-scale.ts",
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
+      "color.ts",
       "observers.ts"
     ],
     "dependencies": [
@@ -4898,10 +4900,12 @@
       "calendar-heatmap/index.ts"
     ],
     "libFiles": [
+      "chart-color-scale.ts",
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts",
+      "color.ts",
       "observers.ts"
     ],
     "dependencies": [

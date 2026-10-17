@@ -1,4 +1,4 @@
-<div class="min-w-56 max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-1 shadow-md" [attr.dir]="dir()">
+<div [class]="classes()" [attr.dir]="dir()">
   @for (row of actions(); track row.trigger) {
     <div class="flex items-center justify-between gap-3 rounded-sm px-2 py-1.5 text-sm">
       <span class="truncate">

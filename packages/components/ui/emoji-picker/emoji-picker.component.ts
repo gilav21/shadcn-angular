@@ -10,8 +10,10 @@ import {
     forwardRef,
     DestroyRef,
     effect,
+    computed,
 } from '@angular/core';
 import { bindOverlayLayer } from '../../lib/overlay-stack.service';
+import { cn } from '../../lib/utils';
 
 export const EMOJI_PICKER = new InjectionToken<EmojiPickerComponent>('EMOJI_PICKER');
 
@@ -252,7 +254,7 @@ export const EMOJI_CATEGORIES: EmojiCategory[] = [
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [{ provide: EMOJI_PICKER, useExisting: forwardRef(() => EmojiPickerComponent) }],
     template: `
-        <div class="relative inline-block" [attr.data-slot]="'emoji-picker'">
+        <div [class]="classes()" [attr.data-slot]="'emoji-picker'">
             <ng-content />
         </div>
     `,
@@ -262,6 +264,10 @@ export const EMOJI_CATEGORIES: EmojiCategory[] = [
     },
 })
 export class EmojiPickerComponent {
+    /** Extra classes merged onto the element this component renders, after its built-in styling. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('relative inline-block', this.class()));
+
     private readonly el = inject(ElementRef);
     private readonly destroyRef = inject(DestroyRef);
 

@@ -1,4 +1,4 @@
-<span [class]="classes()" #ticker>
+<span [class]="classes()" [attr.data-slot]="'number-ticker'" #ticker>
   @for (char of displayDigits(); track $index) {
     <ui-number-ticker-digit [digit]="char"/>
   }

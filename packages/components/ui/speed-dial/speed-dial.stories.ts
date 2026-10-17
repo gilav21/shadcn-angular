@@ -108,8 +108,10 @@ const meta: Meta<SpeedDialComponent> = {
       description: 'Stagger delay in milliseconds applied between successive item animations.',
     },
     disabled: { control: 'boolean', description: 'Disables opening/closing the speed dial.' },
+    class: { control: 'text', description: 'Extra classes merged onto the dial host, after `relative inline-flex`.' },
   },
   args: {
+    class: 'absolute top-1/2',
     type: 'linear',
     direction: 'up',
     radius: 60,
@@ -123,7 +125,7 @@ type Story = StoryObj<SpeedDialComponent>;
 
 const PLAYGROUND_TEMPLATE = `
   <div class="h-[600px] w-full relative flex items-center justify-center border rounded-md bg-slate-50">
-    <ui-speed-dial [type]="type" [direction]="direction" [radius]="radius" [transitionDelay]="transitionDelay" [disabled]="disabled" class="absolute top-1/2">
+    <ui-speed-dial [type]="type" [direction]="direction" [radius]="radius" [transitionDelay]="transitionDelay" [disabled]="disabled" [class]="class">
       <ui-speed-dial-trigger ariaLabel="Toggle actions">
         <ui-button size="icon" class="rounded-full h-12 w-12 shadow-lg" aria-label="Open menu">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>

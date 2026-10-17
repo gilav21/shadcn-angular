@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import type { RichTextActionTrigger } from './rich-text-actions.types';
 import { RICH_TEXT_ACTIONS_LOCALES, type RichTextActionsLocale } from './rich-text-actions.locales';
+import { cn } from '../../../../lib/utils';
 
 /** One row in the edit popover describing an action on the focused element. */
 export interface PopoverActionRow {
@@ -22,6 +23,10 @@ export interface PopoverActionRow {
     host: { '[attr.data-slot]': "'rich-text-actions-popover'" },
 })
 export class RichTextActionsPopoverComponent {
+    /** Extra classes merged onto the popover panel, after its bordered `min-w-56` default. */
+    readonly class = input('');
+    readonly classes = computed(() =>
+        cn('min-w-56 max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-1 shadow-md', this.class()));
     /**
      * The rows to list, tracked by `trigger` — so at most one click row and one
      * hover row, or a single row for a combined action covering both. A row

@@ -1,4 +1,5 @@
 import {
+    ChangeDetectionStrategy,
     Component,
     ElementRef,
     ChangeDetectorRef,
@@ -8,11 +9,13 @@ import {
     input,
     signal,
 } from '@angular/core';
+import { cn } from '../../../lib/utils';
 
 const DIGIT = /^\d$/;
 
 @Component({
     selector: 'ui-number-ticker-digit',
+    changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './number-ticker-digit.component.html',
 })
 export class NumberTickerDigitComponent {
@@ -23,7 +26,11 @@ export class NumberTickerDigitComponent {
      * digit) is swapped instantly. The first value sets the initial
      * state without animating.
      */
-    digit = input.required<string>();
+    readonly digit = input.required<string>();
+    /** Extra classes for the single-character cell, after its fixed `1em` x `0.6em` box. */
+    readonly class = input('');
+
+    readonly classes = computed(() => cn('relative inline-block overflow-hidden h-[1em] w-[0.6em] align-top', this.class()));
 
     private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly cdr = inject(ChangeDetectorRef);

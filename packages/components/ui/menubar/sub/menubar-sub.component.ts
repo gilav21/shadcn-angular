@@ -5,9 +5,12 @@ import {
   InjectionToken,
   forwardRef,
   OnDestroy,
+  computed,
+  input,
 } from '@angular/core';
 import type { MenubarSubTriggerComponent } from './menubar-sub-trigger.component';
 import type { MenubarSubContentComponent } from './menubar-sub-content.component';
+import { cn } from '../../../lib/utils';
 
 export const MENUBAR_SUB = new InjectionToken<MenubarSubComponent>('MENUBAR_SUB');
 
@@ -16,9 +19,13 @@ export const MENUBAR_SUB = new InjectionToken<MenubarSubComponent>('MENUBAR_SUB'
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [{ provide: MENUBAR_SUB, useExisting: forwardRef(() => MenubarSubComponent) }],
   template: `<ng-content />`,
-  host: { class: 'relative block w-full' },
+  host: { '[class]': 'classes()', '[attr.data-slot]': '"menubar-sub"' },
 })
 export class MenubarSubComponent implements OnDestroy {
+  /** Extra classes merged onto the element this component renders, after its built-in styling. */
+  readonly class = input('');
+  readonly classes = computed(() => cn('relative block w-full', this.class()));
+
   isOpen = signal(false);
   private timeoutId: ReturnType<typeof setTimeout> | undefined;
 

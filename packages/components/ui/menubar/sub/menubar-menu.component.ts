@@ -5,8 +5,10 @@ import {
   inject,
   InjectionToken,
   forwardRef,
+  input,
 } from '@angular/core';
 import { MenubarService } from '../menubar.component';
+import { cn } from '../../../lib/utils';
 
 export const MENUBAR_MENU = new InjectionToken<MenubarMenuComponent>('MENUBAR_MENU');
 
@@ -17,13 +19,17 @@ let nextId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [{ provide: MENUBAR_MENU, useExisting: forwardRef(() => MenubarMenuComponent) }],
   template: `
-    <div class="relative" [attr.data-slot]="'menubar-menu'" role="none">
+    <div [class]="classes()" [attr.data-slot]="'menubar-menu'" role="none">
       <ng-content />
     </div>
   `,
   host: { class: 'contents' },
 })
 export class MenubarMenuComponent {
+  /** Extra classes merged onto the element this component renders, after its built-in styling. */
+  readonly class = input('');
+  readonly classes = computed(() => cn('relative', this.class()));
+
   id = `menubar-menu-${nextId++}`;
   readonly service = inject(MenubarService);
   isOpen = computed(() => this.service.isActive(this.id));

@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { ButtonComponent } from '../../button';
 import { IconComponent } from '../../icon';
-import { stringifyValue } from '../../../lib/utils';
+import { cn, stringifyValue } from '../../../lib/utils';
 import { FilterGroup, FilterOperator, FilterRule } from '../data-table.types';
 
 /** {key,header} pairs the builder offers as filterable columns. */
@@ -126,9 +126,13 @@ const VALUELESS: ReadonlySet<FilterOperator> = new Set(['isEmpty', 'isNotEmpty']
             </div>
         </div>
     `,
-    host: { class: 'block' },
+    host: { '[class]': 'classes()' },
 })
 export class DataTableFilterBuilderComponent {
+    /** Extra classes merged onto the host, after `block`. Applies to the outermost group only — nested groups render their own host. */
+    readonly class = input('');
+    readonly classes = computed(() => cn('block', this.class()));
+
     /**
      * The filter tree to render. Fully controlled: every edit emits a brand-new
      * tree on {@link groupChange} and mutates nothing here, so the builder shows

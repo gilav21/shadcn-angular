@@ -16,9 +16,14 @@ const meta: Meta<AspectRatioComponent> = {
             step: 0.05,
             description: 'The aspect ratio of the content (width / height).',
         },
+        class: {
+            control: 'text',
+            description: 'Extra classes for the ratio box, e.g. `overflow-hidden rounded-lg`.',
+        },
     },
     args: {
         ratio: 16 / 9,
+        class: '',
     },
 };
 
@@ -27,7 +32,7 @@ type Story = StoryObj<AspectRatioComponent>;
 
 const TEMPLATE = `
     <div class="w-full sm:w-[450px]">
-        <ui-aspect-ratio [ratio]="ratio">
+        <ui-aspect-ratio [ratio]="ratio" [class]="class">
             <img
                 src="https://images.unsplash.com/photo-1588345921523-c2dcdb7f1dcd?w=800&dpr=2&q=80"
                 alt="Photo by Drew Beamer"

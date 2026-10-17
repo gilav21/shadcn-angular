@@ -50,7 +50,7 @@ export const CONTEXT_MENU = new InjectionToken<ContextMenuComponent>('CONTEXT_ME
     template: `
       <ng-content />
       @if (items().length > 0) {
-        <ui-context-menu-content>
+        <ui-context-menu-content [class]="class()">
           <ng-container *ngTemplateOutlet="menuItemsTpl; context: { $implicit: items() }"></ng-container>
         </ui-context-menu-content>
       }
@@ -103,6 +103,12 @@ export class ContextMenuComponent implements OnDestroy {
      * {@link ContextMenuItem}.
      */
     items = input<ContextMenuItem[]>([]);
+    /**
+     * Extra classes for the menu panel the component renders from {@link items}. The host is
+     * `display: contents`, so with hand-authored content put the class on your own
+     * `<ui-context-menu-content>` instead.
+     */
+    readonly class = input('');
     open = signal(false);
     position = signal({ x: 0, y: 0 });
     data = signal<unknown>(undefined);

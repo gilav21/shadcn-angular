@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, output, signal, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, effect } from '@angular/core';
 import { AlertDialogComponent, AlertDialogContentComponent } from '../alert-dialog';
 
 @Component({
@@ -8,6 +8,7 @@ import { AlertDialogComponent, AlertDialogContentComponent } from '../alert-dial
     template: `
         <ui-alert-dialog [open]="open()">
             <ui-alert-dialog-content
+                [class]="class()"
                 [title]="title()"
                 [description]="description()"
                 [actionText]="confirmLabel()"
@@ -17,8 +18,11 @@ import { AlertDialogComponent, AlertDialogContentComponent } from '../alert-dial
             />
         </ui-alert-dialog>
     `,
+    host: { class: 'contents', '[attr.data-slot]': '"confirm-dialog"' },
 })
 export class ConfirmDialogComponent {
+    /** Extra classes merged onto the dialog panel, e.g. a width utility. */
+    readonly class = input('');
     readonly open = signal(false);
     readonly title = signal('Confirm');
     readonly description = signal('Are you sure?');

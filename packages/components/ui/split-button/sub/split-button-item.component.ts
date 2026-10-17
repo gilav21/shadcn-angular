@@ -15,6 +15,7 @@ import { SPLIT_BUTTON } from '../split-button.component';
     template: `
     <button
       [class]="classes()"
+      [attr.data-slot]="'split-button-item'"
       [disabled]="disabled()"
       (click)="onClick($event)"
       role="menuitem"
@@ -42,12 +43,15 @@ export class SplitButtonItemComponent {
      * set it whenever the consumer needs to tell projected entries apart.
      */
     value = input<string>('');
+    /** Extra classes merged onto the entry button, after the built-in menu-item styling. */
+    readonly class = input('');
 
     classes = computed(() => cn(
         'relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
         'hover:bg-accent hover:text-accent-foreground',
         'focus:bg-accent focus:text-accent-foreground',
-        this.disabled() && 'pointer-events-none opacity-50'
+        this.disabled() && 'pointer-events-none opacity-50',
+        this.class(),
     ));
 
     /**

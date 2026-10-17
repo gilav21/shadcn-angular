@@ -91,8 +91,13 @@ function parseHex(input: string): RGBA | null {
     return null;
 }
 
+/**
+ * `scale` is the value 100% stands for. CSS Color 4 `none` is a missing
+ * component, which converts as 0.
+ */
 function parseChannel(s: string, scale: number): number {
     const t = s.trim();
+    if (t === 'none') return 0;
     if (t.endsWith('%')) {
         return (Number.parseFloat(t) / 100) * scale;
     }
@@ -112,14 +117,40 @@ function parseRgbFunc(input: string): RGBA | null {
     return { r: clamp255(r), g: clamp255(g), b: clamp255(b), a: clamp01(a) };
 }
 
+const DEGREES_PER_ANGLE_UNIT: Record<string, number> = {
+    deg: 1,
+    grad: 0.9,
+    rad: 180 / Math.PI,
+    turn: 360,
+};
+
+/**
+ * Chroma that 100% stands for in CSS Color 4's `oklch()`; the other
+ * percentage references are 100 for `hsl()` s/l and 1 for lightness/alpha.
+ */
+const OKLCH_CHROMA_AT_100_PERCENT = 0.4;
+
+/**
+ * A CSS `<hue>` in degrees: a bare number (degrees), a number with a
+ * `deg` / `grad` / `rad` / `turn` unit, or `none`. NaN when it is none of those.
+ */
+function parseHue(token: string): number {
+    if (token === 'none') return 0;
+    // 'grad' is tried before its suffix 'rad'.
+    const unit = Object.keys(DEGREES_PER_ANGLE_UNIT).find(u => token.endsWith(u));
+    const digits = unit ? token.slice(0, -unit.length) : token;
+    if (!/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/.test(digits)) return Number.NaN;
+    return Number(digits) * DEGREES_PER_ANGLE_UNIT[unit ?? 'deg'];
+}
+
 function parseHslFunc(input: string): RGBA | null {
     const m = /^hsla?\(([^)]+)\)$/i.exec(input.trim());
     if (!m) return null;
     const parts = m[1].split(/[\s,/]+/).filter(Boolean);
     if (parts.length < 3) return null;
-    const h = Number.parseFloat(parts[0]);
-    const s = Number.parseFloat(parts[1]);
-    const l = Number.parseFloat(parts[2]);
+    const h = parseHue(parts[0]);
+    const s = parseChannel(parts[1], 100);
+    const l = parseChannel(parts[2], 100);
     const a = parts.length >= 4 ? parseChannel(parts[3], 1) : 1;
     if ([h, s, l, a].some(Number.isNaN)) return null;
     const rgb = hslToRgb({ h, s, l });
@@ -131,10 +162,9 @@ function parseOklchFunc(input: string): RGBA | null {
     if (!m) return null;
     const parts = m[1].split(/[\s,/]+/).filter(Boolean);
     if (parts.length < 3) return null;
-    const lStr = parts[0];
-    const l = lStr.endsWith('%') ? Number.parseFloat(lStr) / 100 : Number.parseFloat(lStr);
-    const c = Number.parseFloat(parts[1]);
-    const h = Number.parseFloat(parts[2]);
+    const l = parseChannel(parts[0], 1);
+    const c = Math.max(0, parseChannel(parts[1], OKLCH_CHROMA_AT_100_PERCENT));
+    const h = parseHue(parts[2]);
     const a = parts.length >= 4 ? parseChannel(parts[3], 1) : 1;
     if ([l, c, h, a].some(Number.isNaN)) return null;
     const rgb = oklchToRgb({ l, c, h });
@@ -214,6 +244,16 @@ function roundTo(v: number, places: number): number {
 }
 
 export function rgbToHsl(c: RGB): HSL {
+    const exact = rgbToHslExact(c);
+    return { h: Math.round(exact.h), s: Math.round(exact.s), l: Math.round(exact.l) };
+}
+
+/**
+ * {@link rgbToHsl} without rounding (h in degrees, s and l in percent), for
+ * callers that interpolate: rounding to whole degrees first would add up to
+ * half a degree of hue error at each endpoint.
+ */
+export function rgbToHslExact(c: RGB): HSL {
     const r = c.r / 255;
     const g = c.g / 255;
     const b = c.b / 255;
@@ -227,7 +267,7 @@ export function rgbToHsl(c: RGB): HSL {
         s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
         h = hueFromMaxChannel(r, g, b, max, d);
     }
-    return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+    return { h: h * 360, s: s * 100, l: l * 100 };
 }
 
 function hueFromMaxChannel(r: number, g: number, b: number, max: number, d: number): number {
@@ -396,13 +436,23 @@ const WHITE: RGB = { r: 255, g: 255, b: 255 };
  * `color-contrast` failure. Deriving the foreground from the background's
  * luminance keeps the caller's colour and makes the text legible on all of them.
  *
- * Falls back to white when `background` cannot be parsed.
+ * A translucent `background` is judged as it is seen: composited over
+ * `backdrop` (assumed opaque; its own alpha is ignored). The backdrop defaults
+ * to white and falls back to it when unparseable.
+ *
+ * Falls back to white text when `background` cannot be parsed.
  */
-export function readableForeground(background: string): '#000000' | '#ffffff' {
+export function readableForeground(background: string, backdrop = '#ffffff'): '#000000' | '#ffffff' {
     const bg = parseColor(background);
     if (!bg) return '#ffffff';
-    const rgb: RGB = { r: bg.r, g: bg.g, b: bg.b };
-    return contrastRatio(rgb, BLACK) >= contrastRatio(rgb, WHITE) ? '#000000' : '#ffffff';
+    const seen = compositeOver(bg, parseColor(backdrop) ?? WHITE);
+    return contrastRatio(seen, BLACK) >= contrastRatio(seen, WHITE) ? '#000000' : '#ffffff';
+}
+
+/** Unrounded so a near-tie contrast decision is not flipped by 8-bit rounding. */
+function compositeOver(fg: RGBA, backdrop: RGB): RGB {
+    const over = (f: number, b: number): number => f * fg.a + b * (1 - fg.a);
+    return { r: over(fg.r, backdrop.r), g: over(fg.g, backdrop.g), b: over(fg.b, backdrop.b) };
 }
 
 function rotateHue(c: RGBA, deltaDeg: number): RGBA {

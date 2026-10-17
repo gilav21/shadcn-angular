@@ -17,7 +17,7 @@ import { CommandService } from '../command.component';
   selector: 'ui-command-input',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="flex items-center border-b px-3" [attr.data-slot]="'command-input'" [attr.dir]="dir()">
+    <div [class]="classes()" [attr.data-slot]="'command-input'" [attr.dir]="dir()">
       <svg class="h-4 w-4 shrink-0 opacity-50 ltr:mr-2 rtl:ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
       </svg>
@@ -37,6 +37,10 @@ import { CommandService } from '../command.component';
 export class CommandInputComponent implements OnInit {
   @ViewChild('inputEl') inputEl!: ElementRef<HTMLInputElement>;
   readonly cmdService = inject(CommandService);
+
+  /** Extra classes merged onto the search row (icon + field), after the bordered default — the `<input>` itself is not reachable from here. */
+  readonly class = input('');
+  readonly classes = computed(() => cn('flex items-center border-b px-3', this.class()));
 
   /** Override for the placeholder. Falls back to the locale's `searchPlaceholder`. */
   readonly placeholder = input<string>();

@@ -44,6 +44,10 @@ const meta: Meta<BreadcrumbStoryProps> = {
             options: ['en', 'he', 'ar', 'de', 'fr', 'es', 'ja', 'zh', 'ru', 'pt'],
             description: 'Locale dictionary key. Falls back to `UI_LOCALE_ID` when unset. `he`/`ar` also flip `dir` to rtl.',
         },
+        class: {
+            control: 'text',
+            description: 'Extra classes for the `<nav>` landmark, e.g. `mb-4`.',
+        },
         items: {
             control: 'object',
             description: '`ui-breadcrumb-list` data-driven mode: renders items with auto-generated separators, skipping projected content.',
@@ -62,6 +66,7 @@ const meta: Meta<BreadcrumbStoryProps> = {
     },
     args: {
         locale: 'en',
+        class: '',
         items: [
             { label: 'Home', href: '/' },
             { label: 'Components', href: '/components' },
@@ -76,7 +81,7 @@ export default meta;
 type Story = StoryObj<BreadcrumbStoryProps>;
 
 const PLAYGROUND_TEMPLATE = `
-    <ui-breadcrumb [locale]="locale">
+    <ui-breadcrumb [locale]="locale" [class]="class">
         <ui-breadcrumb-list [items]="items" [skeleton]="skeleton" [skeletonCount]="skeletonCount" />
     </ui-breadcrumb>`;
 

@@ -1,6 +1,6 @@
 import {
+    ChangeDetectionStrategy,
     Component,
-    ElementRef,
     OnDestroy,
     computed,
     effect,
@@ -16,13 +16,12 @@ export { NumberTickerDigitComponent };
 
 @Component({
     selector: 'ui-number-ticker',
+    changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [NumberTickerDigitComponent],
     templateUrl: './number-ticker.component.html',
     host: { dir: 'ltr' }
 })
 export class NumberTickerComponent implements OnDestroy {
-    private readonly _el = inject(ElementRef);
-
     /**
      * Target number. Every change restarts the tween from whatever value is
      * currently on screen, so rapid updates chase the latest value rather than

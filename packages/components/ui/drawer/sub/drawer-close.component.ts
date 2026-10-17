@@ -5,6 +5,7 @@ import {
     afterNextRender,
     inject,
     signal,
+    input,
 } from '@angular/core';
 import { DRAWER } from '../drawer.component';
 import { hasInteractiveContent } from '../../../lib/a11y';
@@ -14,6 +15,7 @@ import { hasInteractiveContent } from '../../../lib/a11y';
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <span
+      [class]="class()"
       (click)="onClick()"
       (keydown.enter)="onKeydown($event)"
       (keydown.space)="onKeydown($event)"
@@ -27,6 +29,9 @@ import { hasInteractiveContent } from '../../../lib/a11y';
     host: { class: 'contents' },
 })
 export class DrawerCloseComponent {
+    /** Extra classes for the element that wraps the projected trigger. */
+    readonly class = input('');
+
     private readonly drawer = inject(DRAWER, { optional: true });
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 

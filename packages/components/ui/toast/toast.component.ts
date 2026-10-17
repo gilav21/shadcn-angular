@@ -7,6 +7,7 @@ import {
   signal,
   Injectable,
 } from '@angular/core';
+import { cn } from '../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -85,6 +86,9 @@ export class ToastService {
   private counter = 0;
   private readonly timeoutIds = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly intervalIds = new Map<string, ReturnType<typeof setInterval>>();
+  /** Per armed toast: the time left (`remaining`, authoritative while paused) and the absolute `deadline` (authoritative while running). */
+  private readonly lifetimes = new Map<string, { showCountdown: boolean; remaining: number; deadline: number }>();
+  private paused = false;
 
   /**
    * Queues a toast and returns its generated id (usable with {@link dismiss}).
@@ -113,27 +117,40 @@ export class ToastService {
     return id;
   }
 
-  /** Arms (or re-arms) the auto-dismiss timeout and the optional countdown interval for one toast. */
+  /**
+   * Starts a toast's auto-dismiss clock. While the service is {@link pause}d the clock is
+   * not started — the full duration is parked and {@link resume} arms it.
+   */
   private scheduleLifetime(id: string, duration: number, showCountdown: boolean): void {
     if (duration <= 0) return;
 
-    this.timeoutIds.set(id, setTimeout(() => this.dismiss(id), duration));
+    if (this.paused) {
+      this.lifetimes.set(id, { showCountdown, remaining: duration, deadline: 0 });
+      return;
+    }
+    this.arm(id, duration, showCountdown);
+  }
+
+  /**
+   * Arms the dismiss timeout and the optional countdown interval to fire `remaining` ms
+   * from now. The countdown is derived from the absolute deadline, not from elapsed time
+   * since creation, so a pause shifts it along with the timeout.
+   */
+  private arm(id: string, remaining: number, showCountdown: boolean): void {
+    const deadline = Date.now() + remaining;
+    this.lifetimes.set(id, { showCountdown, remaining, deadline });
+    this.timeoutIds.set(id, setTimeout(() => this.dismiss(id), remaining));
 
     if (!showCountdown) return;
 
-    const intervalId = setInterval(() => {
-      this.toastsSignal.update(toasts => toasts.map(t => {
-        if (t.id !== id) return t;
-        const elapsed = Date.now() - (t.createdAt ?? Date.now());
-        const remaining = Math.max(0, Math.ceil((duration - elapsed) / 1000));
-        return { ...t, countdownSeconds: remaining };
-      }));
-    }, 1000);
-    this.intervalIds.set(id, intervalId);
+    this.intervalIds.set(id, setInterval(() => {
+      const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      this.toastsSignal.update(toasts => toasts.map(t => (t.id === id ? { ...t, countdownSeconds: seconds } : t)));
+    }, 1000));
   }
 
-  /** Clears the auto-dismiss timeout and countdown interval for one toast, if any are armed. */
-  private clearLifetime(id: string): void {
+  /** Stops the dismiss timeout and countdown interval for one toast, keeping its {@link lifetimes} entry. */
+  private stopTimers(id: string): void {
     const timeoutId = this.timeoutIds.get(id);
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -143,6 +160,40 @@ export class ToastService {
     if (intervalId) {
       clearInterval(intervalId);
       this.intervalIds.delete(id);
+    }
+  }
+
+  /** Forgets a toast's auto-dismiss clock entirely — timers and the remaining time. */
+  private clearLifetime(id: string): void {
+    this.stopTimers(id);
+    this.lifetimes.delete(id);
+  }
+
+  /**
+   * Freezes every auto-dismiss clock and countdown, remembering how much time each toast
+   * had left. `ui-toaster` calls this while the pointer is over the stack or keyboard
+   * focus is inside it (WCAG 2.2.1); call it yourself from a custom toaster. Toasts
+   * raised while paused start frozen. Calling it again while paused does nothing.
+   */
+  pause(): void {
+    if (this.paused) return;
+    this.paused = true;
+    const now = Date.now();
+    for (const [id, lifetime] of this.lifetimes) {
+      this.stopTimers(id);
+      lifetime.remaining = Math.max(0, lifetime.deadline - now);
+    }
+  }
+
+  /**
+   * Re-arms every frozen clock with the time it had left when {@link pause} was called,
+   * and restarts the countdowns from the frozen second. Does nothing when not paused.
+   */
+  resume(): void {
+    if (!this.paused) return;
+    this.paused = false;
+    for (const [id, lifetime] of this.lifetimes) {
+      this.arm(id, lifetime.remaining, lifetime.showCountdown);
     }
   }
 
@@ -281,6 +332,7 @@ export class ToastService {
     this.timeoutIds.clear();
     this.intervalIds.forEach(intervalId => clearInterval(intervalId));
     this.intervalIds.clear();
+    this.lifetimes.clear();
     this.toastsSignal.set([]);
   }
 }
@@ -349,7 +401,10 @@ export class ToastComponent {
   protected readonly t = this.i18n.t;
   protected readonly dir = this.i18n.dir;
 
-  readonly classes = computed(() => toastVariants({ variant: this.variant() }));
+  /** Extra classes merged onto the toast box, after the variant styles — so a `bg-*` or `border-*` here wins. */
+  readonly class = input('');
+
+  readonly classes = computed(() => cn(toastVariants({ variant: this.variant() }), this.class()));
 
   readonly role = computed(() =>
     this.variant() === 'destructive' ? 'alert' : 'status'

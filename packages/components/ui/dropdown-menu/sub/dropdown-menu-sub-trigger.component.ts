@@ -20,6 +20,7 @@ import { DropdownMenuSubComponent } from './dropdown-menu-sub.component';
     <div
       #trigger
       [class]="classes()"
+      [attr.data-slot]="'dropdown-menu-sub-trigger'"
       role="menuitem"
       tabindex="-1"
       [attr.aria-haspopup]="true"

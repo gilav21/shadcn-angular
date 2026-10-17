@@ -11,13 +11,14 @@ import { Component, inject, input } from '@angular/core';
     imports: [ButtonComponent, ToasterComponent],
     template: `
     <div class="flex flex-col gap-4">
-      <ui-toaster [vertical]="vertical()" [horizontal]="horizontal()" />
+      <ui-toaster [vertical]="vertical()" [horizontal]="horizontal()" [class]="class()" />
       <div class="flex gap-2 flex-wrap">
         <ui-button (click)="showDefault()">Default</ui-button>
         <ui-button variant="destructive" (click)="showDestructive()">Destructive</ui-button>
         <ui-button variant="outline" (click)="showSuccess()">Success</ui-button>
         <ui-button variant="secondary" (click)="showWithAction()">With Action</ui-button>
         <ui-button variant="ghost" (click)="showCountdown()">With Countdown</ui-button>
+        <ui-button variant="outline" (click)="showPausable()">Pauses on hover / focus</ui-button>
       </div>
       <div class="flex gap-2 flex-wrap">
         <ui-button variant="outline" (click)="showInfo()">Info</ui-button>
@@ -38,6 +39,7 @@ class ToastStoryWrapperComponent {
 
     vertical = input<'top' | 'center' | 'bottom'>('bottom');
     horizontal = input<'start' | 'center' | 'end'>('end');
+    class = input('');
 
     showDefault() {
         this.toastService.toast({
@@ -108,6 +110,17 @@ class ToastStoryWrapperComponent {
         setTimeout(() => this.toastService.update(id, { title: 'Done', variant: 'success', duration: 3000 }), 2400);
     }
 
+    /** Hover the stack or Tab to the action: the countdown freezes and resumes with the time left (WCAG 2.2.1). */
+    showPausable() {
+        this.toastService.toast({
+            title: 'Pauses while you read it',
+            description: 'Hover this toast, or Tab to its action — the timer stops until you leave.',
+            duration: 8000,
+            showCountdown: true,
+            action: { label: 'Undo', onClick: () => { /* undo handler */ } },
+        });
+    }
+
     showCountdown() {
         this.toastService.toast({
             title: 'Auto-dismissing…',
@@ -118,7 +131,7 @@ class ToastStoryWrapperComponent {
     }
 }
 
-const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: string }> = {
+const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: string; class: string }> = {
     title: 'UI/Toast',
     component: ToastStoryWrapperComponent,
     tags: ['autodocs'],
@@ -138,11 +151,16 @@ const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: st
             control: 'select',
             options: ['start', 'center', 'end'],
             description: 'Horizontal position of toasts',
-        }
+        },
+        class: {
+            control: 'text',
+            description: 'Extra classes merged onto the fixed toast stack, e.g. `bottom-24` to clear a footer bar.',
+        },
     },
     args: {
         vertical: 'bottom',
         horizontal: 'end',
+        class: '',
     },
 };
 
@@ -151,7 +169,7 @@ type Story = StoryObj<ToastStoryWrapperComponent>;
 
 const render: NonNullable<Story['render']> = (args) => ({
     props: args,
-    template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
+    template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [class]="class"></toast-story-wrapper>`,
 });
 
 /** Interactive playground — trigger buttons drive the ToastService; position is wired to the Controls panel. */

@@ -235,7 +235,14 @@
       "selector": "ui-alert-dialog-description",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -246,7 +253,14 @@
       "selector": "ui-alert-dialog-footer",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -257,7 +271,14 @@
       "selector": "ui-alert-dialog-header",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -268,7 +289,14 @@
       "selector": "ui-alert-dialog-title",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -279,7 +307,14 @@
       "selector": "ui-alert-dialog-trigger",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the element that wraps the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -464,6 +499,12 @@
       "description": "",
       "projectsContent": true,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the ratio box — e.g. `overflow-hidden rounded-lg` to clip the projected media.",
+          "default": "''"
+        },
         {
           "name": "ratio",
           "type": "number",
@@ -1387,6 +1428,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the `<nav>` landmark — e.g. `mb-4` for spacing below the trail.",
+          "default": "''"
+        },
+        {
           "name": "locale",
           "type": "LocaleInput<BreadcrumbLocale>",
           "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set."
@@ -1877,7 +1924,14 @@
       "selector": "ui-confirm-dialog",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the dialog panel, e.g. a width utility.",
+          "default": "''"
+        }
+      ],
       "outputs": [
         {
           "name": "cancelled",
@@ -1976,7 +2030,7 @@
         {
           "name": "fromColor",
           "type": "string",
-          "description": "Colour of the lowest value in {@link valueDomain}. Must be an `hsl(h, s%, l%)` string — {@link sequentialColorScale} parses and interpolates the H/S/L channels, so hex/rgb/`var(--…)` values will not interpolate.",
+          "description": "Colour of the lowest value in {@link valueDomain}. Any CSS colour `parseColor` accepts (hex, `rgb()`, `hsl()`, `oklch()`, a basic named colour) — {@link sequentialColorScale} interpolates its H/S/L channels along the shorter hue arc. `var(--…)` and other unresolved values cannot be interpolated: the nearer endpoint is shown instead.",
           "default": "'hsl(214, 95%, 92%)'"
         },
         {
@@ -1999,7 +2053,7 @@
         {
           "name": "toColor",
           "type": "string",
-          "description": "Colour of the highest value in {@link valueDomain}; same `hsl(...)` requirement as {@link fromColor}.",
+          "description": "Colour of the highest value in {@link valueDomain}; accepts the same formats as {@link fromColor}.",
           "default": "'hsl(221, 83%, 38%)'"
         }
       ],
@@ -3117,7 +3171,14 @@
       "selector": "ui-collapsible-trigger",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the trigger wrapper, after the built-in focus and cursor styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -3510,6 +3571,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the dialog panel, after `overflow-hidden p-0 shadow-lg` — e.g. a width utility.",
+          "default": "''"
+        },
+        {
           "name": "open",
           "type": "boolean",
           "description": "Two-way open state of the underlying `ui-dialog`. Toggled by the global {@link shortcut}, and each transition to open focuses the projected `ui-command-input` on the next tick.",
@@ -3557,7 +3624,14 @@
       "selector": "ui-command-empty",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the empty-state message, after the centred muted default.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -3597,6 +3671,12 @@
           "name": "ariaLabel",
           "type": "string",
           "description": "Override for the aria-label. Falls back to the locale's `search`."
+        },
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the search row (icon + field), after the bordered default — the `<input>` itself is not reachable from here.",
+          "default": "''"
         },
         {
           "name": "locale",
@@ -3696,7 +3776,14 @@
       "selector": "ui-command-separator",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the rule, after `-mx-1 h-px bg-border`.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -3707,7 +3794,14 @@
       "selector": "ui-command-shortcut",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the hint, after the muted `text-xs` default — so a `text-*` here wins.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -4039,6 +4133,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the menu panel the component renders from {@link items}. The host is `display: contents`, so with hand-authored content put the class on your own `<ui-context-menu-content>` instead.",
+          "default": "''"
+        },
+        {
           "name": "items",
           "type": "ContextMenuItem[]",
           "description": "Data-driven menu contents. When non-empty the component renders its own `<ui-context-menu-content>` from this array (separators, labels, nested `sub` branches and items, recursively), so you only project a trigger. Leave it empty (the default) to hand-author the content with `<ui-context-menu-content>` and friends — both forms may not be combined, as a non-empty array appends a second content block after your projected one. Each entry's `click` callback fires before the menu closes; see {@link ContextMenuItem}.",
@@ -4139,7 +4239,14 @@
       "selector": "ui-context-menu-separator",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -4150,7 +4257,14 @@
       "selector": "ui-context-menu-shortcut",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -4209,7 +4323,14 @@
       "selector": "ui-context-menu-sub",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -4220,7 +4341,14 @@
       "selector": "ui-context-menu-trigger",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -4588,6 +4716,12 @@
           "type": "number",
           "description": "Milliseconds a changed cell stays highlighted. See {@link enableCellFlash}.",
           "default": "500"
+        },
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the host, after `block h-full w-full` — e.g. `h-[400px]` to give the table a fixed height.",
+          "default": "''"
         },
         {
           "name": "collapsedGroups",
@@ -5554,6 +5688,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the host, after `block`. Applies to the outermost group only — nested groups render their own host.",
+          "default": "''"
+        },
+        {
           "name": "columns",
           "type": "FilterBuilderColumn[]",
           "description": "The columns offered in each condition's first dropdown. A condition whose `column` is not in this list renders with no option selected — the tree is never rewritten to match. {@link addCondition} seeds new conditions with the first entry, so an empty array produces conditions with an empty key.",
@@ -5652,6 +5792,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the pagination bar, after the wrapping flex row.",
+          "default": "''"
+        },
         {
           "name": "ofLabel",
           "type": "string",
@@ -5876,7 +6022,14 @@
       "selector": "ui-dialog-description",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -5887,7 +6040,14 @@
       "selector": "ui-dialog-footer",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -5898,7 +6058,14 @@
       "selector": "ui-dialog-header",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -5909,7 +6076,14 @@
       "selector": "ui-dialog-title",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -5920,7 +6094,14 @@
       "selector": "ui-dialog-trigger",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the element that wraps the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -6064,7 +6245,14 @@
       "selector": "ui-drawer-close",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the element that wraps the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -6103,7 +6291,14 @@
       "selector": "ui-drawer-description",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -6150,7 +6345,14 @@
       "selector": "ui-drawer-title",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -6161,7 +6363,14 @@
       "selector": "ui-drawer-trigger",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the element that wraps the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -6173,6 +6382,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the host, after `relative inline-block`.",
+          "default": "''"
+        },
         {
           "name": "items",
           "type": "DropdownItem[]",
@@ -6263,7 +6478,14 @@
       "selector": "ui-dropdown-menu-label",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -6274,7 +6496,14 @@
       "selector": "ui-dropdown-menu-separator",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -6333,7 +6562,14 @@
       "selector": "ui-dropdown-menu-sub",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -6344,7 +6580,14 @@
       "selector": "ui-dropdown-menu-trigger",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the element that wraps the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -6416,6 +6659,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        },
         {
           "name": "closeOnScroll",
           "type": "boolean",
@@ -6514,7 +6763,14 @@
       "selector": "ui-emoji-picker-trigger",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the element that wraps the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -7577,7 +7833,7 @@
         {
           "name": "fromColor",
           "type": "string",
-          "description": "Colour of the lowest value in {@link valueDomain}. Must be an `hsl(h, s%, l%)` string — {@link sequentialColorScale} parses and interpolates the H/S/L channels, so hex/rgb/`var(--…)` values will not interpolate.",
+          "description": "Colour of the lowest value in {@link valueDomain}. Any CSS colour `parseColor` accepts (hex, `rgb()`, `hsl()`, `oklch()`, a basic named colour) — {@link sequentialColorScale} interpolates its H/S/L channels along the shorter hue arc. `var(--…)` and other unresolved values cannot be interpolated: the nearer endpoint is shown instead.",
           "default": "'hsl(214, 95%, 93%)'"
         },
         {
@@ -7618,7 +7874,7 @@
         {
           "name": "toColor",
           "type": "string",
-          "description": "Colour of the highest value in {@link valueDomain}; same `hsl(...)` requirement as {@link fromColor}.",
+          "description": "Colour of the highest value in {@link valueDomain}; accepts the same formats as {@link fromColor}.",
           "default": "'hsl(221, 83%, 40%)'"
         },
         {
@@ -7753,7 +8009,14 @@
       "selector": "ui-hover-card",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the host, after `relative inline-block` — e.g. `block` to span the row.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -7804,7 +8067,14 @@
       "selector": "ui-hover-card-trigger",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the focusable wrapper around the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -8127,6 +8397,12 @@
           "description": "Restrict the offer to types that could take this value type. The query that makes a palette worth having in a typed graph: after dragging from a `table` output, \"what can accept this\" beats an alphabetical list of everything."
         },
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the palette's dialog panel — e.g. a width utility.",
+          "default": "''"
+        },
+        {
           "name": "definitions",
           "type": "readonly NodeTypeDefinition[]",
           "description": "Every node type the graph may contain — the editor's `definitions`.",
@@ -8239,6 +8515,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the text box, after the graph-driven weight/alignment styling.",
+          "default": "''"
+        },
         {
           "name": "color",
           "type": "unknown",
@@ -8873,6 +9155,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "mask",
+          "type": "unknown",
+          "description": "The mask pattern, where `9` accepts a digit, `a` a letter and `*` either — for example `(999) 999-9999`.",
+          "default": "'', { alias: 'uiInputMask' }"
+        },
+        {
           "name": "showMaskTyped",
           "type": "boolean",
           "description": "Keep the whole mask visible while typing, rather than revealing it as it fills: every unfilled slot shows {@link slotChar} and every literal is kept, so `(000) 000-0000` with `123` typed reads `(123) ___-____`.",
@@ -8883,12 +9171,6 @@
           "type": "string",
           "description": "Placeholder character shown for a slot that has not been filled yet.",
           "default": "'_'"
-        },
-        {
-          "name": "uiInputMask",
-          "type": "string",
-          "description": "The mask pattern, where `9` accepts a digit, `a` a letter and `*` either — for example `(999) 999-9999`.",
-          "default": "''"
         }
       ],
       "outputs": [],
@@ -9308,7 +9590,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Accepted for API symmetry with the other kanban parts; the dialog renders its own overlay and does not apply this to any element.",
+          "description": "Extra classes merged onto the dialog panel (`ui-dialog-content`), e.g. a width utility.",
           "default": "''"
         },
         {
@@ -9379,7 +9661,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Accepted for API symmetry with the other kanban parts; the form renders inside the dialog overlay and these classes are not applied to any element.",
+          "description": "Extra classes merged onto the dialog panel (`ui-dialog-content`), e.g. a width utility.",
           "default": "''"
         },
         {
@@ -9479,7 +9761,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Accepted for API symmetry with the other kanban parts; the dialog renders into the alert-dialog overlay and does not apply these classes to any element.",
+          "description": "Extra classes merged onto the dialog panel (`ui-alert-dialog-content`), e.g. a width utility.",
           "default": "''"
         },
         {
@@ -9827,7 +10109,14 @@
       "selector": "ui-menubar-menu",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -9838,7 +10127,14 @@
       "selector": "ui-menubar-separator",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -9849,7 +10145,14 @@
       "selector": "ui-menubar-shortcut",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -9908,7 +10211,14 @@
       "selector": "ui-menubar-sub",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -9938,6 +10248,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the host layer (absolutely positioned over its parent) — e.g. `opacity-60` or a `z-*` to stack it.",
+          "default": "''"
+        },
         {
           "name": "color",
           "type": "string",
@@ -10307,6 +10623,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the single-character cell, after its fixed `1em` x `0.6em` box.",
+          "default": "''"
+        },
+        {
           "name": "digit",
           "type": "string",
           "description": "One character of the formatted number. A digit that replaces a digit rolls over with a vertical slide from the previous one; every other change (to a separator, decimal point or minus sign, or from one to a digit) is swapped instantly. The first value sets the initial state without animating.",
@@ -10529,6 +10851,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the editor panel, after the full-height column default.",
+          "default": "''"
+        },
         {
           "name": "componentMeta",
           "type": "ComponentMeta | undefined",
@@ -10870,6 +11198,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the host layer (absolutely positioned over its parent) — e.g. `opacity-60` or a `z-*` to stack it.",
+          "default": "''"
+        },
+        {
           "name": "color",
           "type": "string",
           "description": "Colour of both dots and connecting lines. `'currentColor'` (the default) and any `var(...)` expression are resolved once against the host's computed `color`, so the field picks up the surrounding theme; a literal CSS colour is used verbatim.",
@@ -11163,6 +11497,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        },
+        {
           "name": "closeOnScroll",
           "type": "boolean",
           "description": "Dismisses the popover when anything outside it scrolls, in any ancestor (the listener is registered in the capture phase). Off by default because the content follows the trigger anyway; turn it on inside long scrolling pages where a detached panel would look wrong.",
@@ -11192,7 +11532,14 @@
       "selector": "ui-popover-close",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the element that wraps the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -11257,7 +11604,14 @@
       "selector": "ui-popover-trigger",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the element that wraps the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -11733,6 +12087,12 @@
           "default": "''"
         },
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the card, after its bordered popover styling.",
+          "default": "''"
+        },
+        {
           "name": "dir",
           "type": "\"ltr\" | \"rtl\"",
           "description": "Text direction, so RTL content (title + body) aligns correctly.",
@@ -11760,6 +12120,12 @@
           "name": "body",
           "type": "string",
           "description": "Body text, rendered only when {@link contentComponent} is null. Fed from the action's `body` param.",
+          "default": "''"
+        },
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the dialog panel, after its bounded `sm:max-w-md` width.",
           "default": "''"
         },
         {
@@ -11851,6 +12217,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the dialog panel, after its bounded `sm:max-w-md` width.",
+          "default": "''"
+        },
+        {
           "name": "context",
           "type": "ActionsDialogContext",
           "description": "What the dialog is being opened for: create vs edit, the target kind, the selected text (used in the title), which triggers are already taken (they get a \"replaces existing\" hint and flip the confirm button to *Replace*), and an optional `prefill` for edit mode. The prefill is applied ONCE — a later change to it is ignored, so open a fresh dialog per edit.",
@@ -11899,7 +12271,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Conventional style hook. The form's own markup carries fixed layout classes and does not consume this value, so styling it from the outside means targeting the `block` host element or `data-slot`.",
+          "description": "Extra classes merged onto the `block` host. The form's inner markup keeps its own fixed layout.",
           "default": "''"
         },
         {
@@ -11964,6 +12336,12 @@
           "type": "boolean",
           "description": "Whether to offer the \"add action\" row. The addon passes `false` once both triggers are taken, since there is nothing left to attach.",
           "default": "true"
+        },
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the popover panel, after its bordered `min-w-56` default.",
+          "default": "''"
         },
         {
           "name": "locale",
@@ -12080,7 +12458,14 @@
       "selector": "ui-rte-ai-chip",
       "description": "The floating \"✨ Ask AI\" chip the AI addon shows above an active text selection. Mounted once into the editor's overlay anchor; it reads its visibility, position, and label from {@link RICH_TEXT_AI_CONTEXT} and opens the task panel on click. Reproduces the chip the base editor used to render inline, now driven entirely by the addon.",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the chip button, after its floating popover styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -12091,7 +12476,14 @@
       "selector": "ui-rte-ai-panel",
       "description": "The AI addon's task panel: a fixed, viewport-clamped popover anchored under the selection. In the `menu` phase it lists the six built-in tasks plus a free-form prompt field; in `loading`/`review` it shows the streaming status, any error, and the accept / discard / try-again controls. Mounted once into the editor's overlay anchor, it reads its state and callbacks from {@link RICH_TEXT_AI_CONTEXT}, reproducing the panel the base editor used to render inline.",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the panel, after its bounded `w-72` popover styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -12146,7 +12538,14 @@
       "selector": "ui-rte-colors-button",
       "description": "A colour toolbar button the colors addon contributes as a component slot: a standard toolbar button anchoring a popover with an inline `ui-color-picker`. Reads editor state through {@link RichTextEditorAddonHost} and its per-kind config + apply callback through {@link RICH_TEXT_COLOR_BUTTON_CONTEXT}.",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the toolbar button, after the built-in icon-button styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -12210,7 +12609,14 @@
       "selector": "ui-rte-emoji-button",
       "description": "The emoji toolbar button the addon contributes as a component slot: the `ui-emoji-picker` compound anchored to a standard toolbar button. Reads editor state through {@link RichTextEditorAddonHost} and reports picks via {@link RICH_TEXT_EMOJI_CONTEXT}.",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the toolbar button, after the built-in icon-button styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -12250,7 +12656,14 @@
       "selector": "ui-rte-file-import-button",
       "description": "The import toolbar button the file-import addon contributes as a component slot: a standard toolbar button that opens a hidden file picker restricted to the addon's accepted types. Reads editor state through {@link RichTextEditorAddonHost} and its locale + import callback through {@link RICH_TEXT_FILE_IMPORT_BUTTON_CONTEXT}; the directive performs the parse and insert.",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the toolbar button, after the built-in icon-button styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -12262,6 +12675,12 @@
       "description": "The file-import addon's editor-frame overlay: a full-editor busy layer while a file is parsing and a transient error banner when it fails. The directive creates one instance inside the editor's positioned container (`overlayAnchor`) and feeds it state through inputs — reproducing the busy / error UI the base editor used to render inline.",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the busy and error layers, after the full-editor scrim styling.",
+          "default": "''"
+        },
         {
           "name": "errorMessage",
           "type": "string",
@@ -12337,6 +12756,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the corner wrapper that anchors the history button over the editor.",
+          "default": "''"
+        },
+        {
           "name": "locale",
           "type": "RichTextHistoryLocale",
           "description": "Localized strings for the panel UI.",
@@ -12394,7 +12819,14 @@
       "selector": "ui-rte-images-button",
       "description": "The image toolbar button the images addon contributes as a component slot: a standard toolbar button anchoring a popover with a URL/alt form and, when the configured sources allow it, a file picker. Reads editor state through {@link RichTextEditorAddonHost} and its locale + callbacks through {@link RICH_TEXT_IMAGES_BUTTON_CONTEXT}; the directive performs the insert.",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the toolbar button, after the built-in icon-button styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -12406,6 +12838,12 @@
       "description": "The images addon's editor-frame overlay layer: the resize/align handles for the selected image, the full-editor uploading spinner, and per-image auto-upload error badges. The directive creates one instance inside the editor's positioned container and feeds it state through inputs.",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the full-editor uploading scrim, after its default blurred backdrop.",
+          "default": "''"
+        },
         {
           "name": "container",
           "type": "HTMLElement | null",
@@ -12509,6 +12947,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the selection frame drawn over the image, after its primary-coloured border.",
+          "default": "''"
+        },
         {
           "name": "container",
           "type": "HTMLElement | null",
@@ -12644,7 +13088,14 @@
       "selector": "ui-rte-links-button",
       "description": "The link toolbar button the links addon contributes as a component slot: a standard toolbar button anchoring a popover with the shared link form. Reads editor state through {@link RichTextEditorAddonHost} and its locale + seeded text + submit callback through {@link RICH_TEXT_LINKS_BUTTON_CONTEXT}.",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the toolbar button, after the built-in icon-button styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -12656,6 +13107,12 @@
       "description": "The link insert/edit form: a link-text field, a URL field, and confirm / cancel / (edit-mode) remove actions. Presentational only — the links addon hosts it inside the toolbar popover and inside the caret/anchor overlay, and performs the actual insert/remove through the editor host. The URL is trimmed and required; the addon validates and sanitizes it before writing any anchor.",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the form container, after its bounded `w-72` default.",
+          "default": "''"
+        },
         {
           "name": "errorMessage",
           "type": "string",
@@ -12748,6 +13205,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the floating list, after its bordered popover styling.",
+          "default": "''"
+        },
         {
           "name": "items",
           "type": "(MentionItem | TagItem)[]",
@@ -12864,7 +13327,14 @@
       "selector": "ui-rte-outline-panel",
       "description": "The document-outline addon's docked side panel: a scrollable table of contents anchored to the editor's start edge (left in LTR, right in RTL). It lists every heading in document order, indented by level, and scrolls the editor to a heading on click or Enter/Space. Mounted once into the editor's overlay anchor, it reads its state and callbacks from {@link RICH_TEXT_OUTLINE_CONTEXT}, reproducing the panel the base editor used to render inline. Renders nothing while the panel is closed.",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the docked panel, after its start-edge positioning and width steps.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -12899,6 +13369,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the menu host, after its bordered popover styling.",
+          "default": "''"
+        },
         {
           "name": "commands",
           "type": "RichTextSlashCommand[]",
@@ -12968,7 +13444,14 @@
       "selector": "ui-rte-tables-button",
       "description": "The table toolbar button the tables addon contributes as a component slot: a standard toolbar button anchoring a popover with an 8×8 grid picker. Reads editor state through {@link RichTextEditorAddonHost} and its locale + open + select callbacks through {@link RICH_TEXT_TABLES_BUTTON_CONTEXT}.",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the toolbar button, after the built-in icon-button styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -13008,7 +13491,14 @@
       "selector": "ui-rte-typography-button",
       "description": "A typography toolbar button the typography addon contributes as a component slot: a standard toolbar button anchoring a popover with an inline `ui-autocomplete`. Reads editor state through {@link RichTextEditorAddonHost} and its per-kind config + apply callback through {@link RICH_TEXT_TYPOGRAPHY_BUTTON_CONTEXT}.",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the toolbar button, after the built-in icon-button styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -13809,6 +14299,12 @@
           "description": "Forwarded to the trigger button's `aria-labelledby` to associate the combobox with an external visible label (e.g. a `<span id>` caption)."
         },
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        },
+        {
           "name": "defaultValue",
           "type": "T | undefined",
           "description": "Initial selection, applied once while the value is still `undefined` — a later change is ignored, and it never overwrites a user pick. Use {@link value} instead to keep the selection driven from the outside."
@@ -13951,7 +14447,14 @@
       "selector": "ui-select-label",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -13962,7 +14465,14 @@
       "selector": "ui-select-separator",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -14009,6 +14519,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the value text, after the truncating default.",
+          "default": "''"
+        },
         {
           "name": "displayValue",
           "type": "string | undefined",
@@ -14071,7 +14587,14 @@
       "selector": "ui-sheet-close",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the element that wraps the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -14121,7 +14644,14 @@
       "selector": "ui-sheet-description",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -14132,7 +14662,14 @@
       "selector": "ui-sheet-footer",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -14143,7 +14680,14 @@
       "selector": "ui-sheet-header",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -14154,7 +14698,14 @@
       "selector": "ui-sheet-title",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -14165,7 +14716,14 @@
       "selector": "ui-sheet-trigger",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the element that wraps the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -14224,6 +14782,12 @@
           "type": "boolean",
           "description": "Shows the \"Save Changes\" button that emits {@link mappingSave}. Off by default, because rebinds are applied to the service immediately and only need exporting if the host persists them.",
           "default": "false"
+        },
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the dialog panel, after the bounded `sm:max-w-4xl` width — e.g. a narrower `sm:max-w-2xl`.",
+          "default": "''"
         },
         {
           "name": "locale",
@@ -15429,6 +15993,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the dial host, after `relative inline-flex` — e.g. `fixed bottom-6 end-6` to pin it as a floating action button.",
+          "default": "''"
+        },
+        {
           "name": "direction",
           "type": "SpeedDialDirection",
           "description": "Where the menu opens relative to the trigger (default `'up'`). Only the four straight values apply to `'linear'` and `'semi-circle'`, only the four diagonals apply to `'quarter-circle'`, and `'circle'` ignores it entirely — see {@link type} for the per-type fallbacks. Also decides which viewport edges {@link showAt} clamps a linear menu against.",
@@ -15742,6 +16312,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the entry button, after the built-in menu-item styling.",
+          "default": "''"
+        },
+        {
           "name": "disabled",
           "type": "unknown",
           "description": "Greys the entry, blocks pointer events, and disables the underlying native button — which also removes it from the parent's ArrowUp/ArrowDown ring, since that query excludes `[disabled]`. Independent of the parent `ui-split-button`'s own `disabled`, which only gates the two button halves.",
@@ -15775,7 +16351,14 @@
       "selector": "ui-split-button-primary",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the primary button, after the flattened trailing edge that joins it to the menu half.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -16985,6 +17568,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the fixed stack, after the placement classes — e.g. `bottom-24` to clear a footer bar.",
+          "default": "''"
+        },
+        {
           "name": "horizontal",
           "type": "\"start\" | \"center\" | \"end\"",
           "description": "Horizontal anchor of the stack (default `'end'`). `'start'`/`'end'` are direction-aware and flip under RTL. The stack is capped at `420px` wide and shrinks to the viewport on small screens.",
@@ -17012,6 +17601,12 @@
           "name": "action",
           "type": "{ label: string; onClick: () => void }",
           "description": "Optional action button. `onClick` is invoked as-is and does **not** dismiss the toast — call `ToastService.dismiss(id)` yourself if the action should close it."
+        },
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the toast box, after the variant styles — so a `bg-*` or `border-*` here wins.",
+          "default": "''"
         },
         {
           "name": "countdownSeconds",
@@ -17079,6 +17674,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "",
+          "default": "''"
+        },
         {
           "name": "horizontal",
           "type": "\"start\" | \"center\" | \"end\"",
@@ -17267,7 +17868,14 @@
       "selector": "ui-tooltip-trigger",
       "description": "",
       "projectsContent": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the element that wraps the projected trigger.",
+          "default": "''"
+        }
+      ],
       "outputs": [],
       "methods": []
     },
@@ -17309,6 +17917,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the element this component renders, after its built-in styling.",
+          "default": "''"
+        },
         {
           "name": "content",
           "type": "string",
@@ -17576,16 +18190,9 @@
       "file": "packages/components/ui/tree-select/sub/tree-select-content.component.ts",
       "kind": "component",
       "selector": "ui-tree-select-content",
-      "description": "",
+      "description": "Custom-mode content slot. Zero-box (`display: contents`, projection only), so it has no `class` input: style the element you project instead.",
       "projectsContent": false,
-      "inputs": [
-        {
-          "name": "class",
-          "type": "string",
-          "description": "Extra classes for the content slot. The host renders as `contents` and projects its content verbatim, so style the element you project instead — this input exists for API symmetry and is not applied to any element.",
-          "default": "''"
-        }
-      ],
+      "inputs": [],
       "outputs": [],
       "methods": []
     },
@@ -17594,16 +18201,9 @@
       "file": "packages/components/ui/tree-select/sub/tree-select-trigger.component.ts",
       "kind": "component",
       "selector": "ui-tree-select-trigger",
-      "description": "",
+      "description": "Custom-mode trigger slot. Zero-box (`display: contents`, projection only), so it has no `class` input: style the element you project instead.",
       "projectsContent": false,
-      "inputs": [
-        {
-          "name": "class",
-          "type": "string",
-          "description": "Extra classes for the trigger slot. The host renders as `contents` and projects its content verbatim, so style the element you project instead — this input exists for API symmetry and is not applied to any element.",
-          "default": "''"
-        }
-      ],
+      "inputs": [],
       "outputs": [],
       "methods": []
     },
@@ -17971,6 +18571,12 @@
           "type": "number",
           "description": "Extra rows rendered beyond each edge of the viewport. Higher values trade memory for fewer blank frames during fast scrolling.",
           "default": "5"
+        },
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes merged onto the scrolling viewport, after the built-in sizing — give it a bounded height (`h-96`) or the list has nothing to scroll within.",
+          "default": "''"
         },
         {
           "name": "columnCount",

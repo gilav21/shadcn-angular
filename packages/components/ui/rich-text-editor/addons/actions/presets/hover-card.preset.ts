@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, type Injector, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, type Injector, computed, input } from '@angular/core';
 import { inheritThemeTokens } from '../../../../../lib/theme-presets';
+import { cn } from '../../../../../lib/utils';
 import { anchorOverlay, directionOf, mountTopLayer, type MountedOverlay } from './preset-overlay.utils';
 import type { RichTextActionDefinition, RichTextActionField } from '../rich-text-actions.types';
 import type { RichTextActionEvent, RichTextActionHandler } from '../actions-runtime';
@@ -39,10 +40,7 @@ export function hoverCardAction(o: HoverCardPresetOptions = {}): RichTextActionD
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-        <div
-            class="max-w-[calc(100vw-2rem)] sm:max-w-xs rounded-md border bg-popover p-3 text-popover-foreground shadow-md"
-            [attr.dir]="dir()"
-        >
+        <div [class]="classes()" [attr.dir]="dir()">
             @if (title()) {
                 <p class="mb-1 text-sm font-semibold">{{ title() }}</p>
             }
@@ -52,6 +50,10 @@ export function hoverCardAction(o: HoverCardPresetOptions = {}): RichTextActionD
     host: { '[attr.data-slot]': "'preset-hover-card'" },
 })
 export class PresetHoverCardComponent {
+    /** Extra classes merged onto the card, after its bordered popover styling. */
+    readonly class = input('');
+    readonly classes = computed(() =>
+        cn('max-w-[calc(100vw-2rem)] sm:max-w-xs rounded-md border bg-popover p-3 text-popover-foreground shadow-md', this.class()));
     /** Bold heading line; omitted entirely when empty. Fed from the action's `title` param. */
     readonly title = input('');
     /** Muted card text, always rendered. Fed from the action's required `body` param. */
