@@ -4,6 +4,7 @@ import { TtfFont } from './ttf-parser';
 import { buildTtf } from './ttf-builder';
 import type { TtfBuilderGlyph } from './ttf-builder';
 import { DEFAULT_PARSER_LIMITS, DrawPath, type ParserLimits } from './limits';
+import { safeLinkHref } from './markup-safety';
 
 // Fallback font for glyphs missing from embedded PDF fonts.
 // Loaded lazily from bundled NotoSans-Regular.ttf in Node.js environments.
@@ -293,22 +294,6 @@ function cssQuotedFontName(name: string): string {
         else quoted += ch;
     }
     return `'${quoted}'`;
-}
-
-const SAFE_LINK_PROTOCOLS: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:']);
-
-/**
- * The link annotation's URI as the browser will parse it when it is an absolute
- * http, https or mailto URL; `undefined` for any other scheme or a relative URI.
- */
-function safeLinkUri(uri: string): string | undefined {
-    try {
-        const url = new URL(uri);
-        return SAFE_LINK_PROTOCOLS.has(url.protocol) ? url.href : undefined;
-    } catch {
-        // Not an absolute URL; a relative URI has no page to resolve against here.
-        return undefined;
-    }
 }
 
 // ── Font Extraction & Registry ────────────────────────────────────────
@@ -3341,7 +3326,9 @@ function renderImage(img: ImageItem, z: number): string {
 }
 
 function renderAnnotation(ann: PdfAnnotation, z: number): string {
-    const href = safeLinkUri(ann.uri);
+    // The shared helper also lets a same-page `#fragment` through; a PDF link annotation never did here
+    // (it would scroll or navigate the host page), so a fragment is dropped before the shared check.
+    const href = ann.uri.startsWith('#') ? undefined : safeLinkHref(ann.uri);
     if (!href) return '';
     const left = round(ann.x * z);
     const bottom = round(ann.y * z);
