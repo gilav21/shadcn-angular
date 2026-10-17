@@ -7,6 +7,7 @@ import {
     extractPageContent,
     getPageMediaBox,
     resolveImageFilterName,
+    decodeHexDigits,
     buildImageDataUrl,
     type PdfObject,
 } from './pdf-parser';
@@ -1155,29 +1156,54 @@ describe('parsePdfPaged', () => {
         await expect(parsePdfPaged(pdf)).rejects.toThrow('Encrypted');
     });
 
-    it('parses a document outline (bookmarks) with page targets', async () => {
-        // Outline with one top-level item targeting page (obj 3) and a child.
+    it('parses a document outline (bookmarks), each item carrying the index of the page it targets', async () => {
+        // Two pages, so an item that always said "page 0" would not pass: Chapter 1 and its child
+        // target the first page (by /Dest and by a GoTo action), Chapter 2 the second.
+        const pdf = new RawPdf()
+            .setRoot(1)
+            .obj(1, '/Type /Catalog /Pages 2 0 R /Outlines 8 0 R')
+            .obj(2, '/Type /Pages /Kids [3 0 R 11 0 R] /Count 2')
+            .obj(3, '/Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R')
+            .obj(11, '/Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R')
+            .streamObj(4, '', strToBytes('BT /F1 12 Tf 100 700 Td (OutlineDoc) Tj ET'))
+            .obj(5, '/Type /Font /Subtype /Type1 /BaseFont /Helvetica')
+            .obj(8, '/Type /Outlines /First 9 0 R /Last 12 0 R /Count 2')
+            .obj(9, '/Title (Chapter 1) /Parent 8 0 R /Dest [3 0 R /XYZ 0 792 0] /First 10 0 R /Next 12 0 R')
+            .obj(10, '/Title (Section 1.1) /Parent 9 0 R /A << /S /GoTo /D [3 0 R /Fit] >>')
+            .obj(12, '/Title (Chapter 2) /Parent 8 0 R /A << /S /GoTo /D [11 0 R /Fit] >>')
+            .build();
+        const result = await parsePdfPaged(pdf);
+        expect(result.outline.map(item => item.title)).toEqual(['Chapter 1', 'Chapter 2']);
+        expect(result.outline.map(item => item.pageIndex)).toEqual([0, 1]);
+        expect(result.outline[0].children).toHaveLength(1);
+        expect(result.outline[0].children[0].title).toBe('Section 1.1');
+        expect(result.outline[0].children[0].pageIndex).toBe(0);
+    });
+
+    it('gives an outline item no page when its target is not a page of the document', async () => {
         const pdf = new RawPdf()
             .setRoot(1)
             .obj(1, '/Type /Catalog /Pages 2 0 R /Outlines 8 0 R')
             .obj(2, '/Type /Pages /Kids [3 0 R] /Count 1')
             .obj(3, '/Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R')
-            .streamObj(4, '', strToBytes('BT /F1 12 Tf 100 700 Td (OutlineDoc) Tj ET'))
+            .streamObj(4, '', strToBytes('BT /F1 12 Tf 100 700 Td (OutlineNoPage) Tj ET'))
             .obj(5, '/Type /Font /Subtype /Type1 /BaseFont /Helvetica')
-            .obj(8, '/Type /Outlines /First 9 0 R /Last 9 0 R /Count 1')
-            .obj(9, '/Title (Chapter 1) /Parent 8 0 R /Dest [3 0 R /XYZ 0 792 0] /First 10 0 R')
-            .obj(10, '/Title (Section 1.1) /Parent 9 0 R /A << /S /GoTo /D [3 0 R /Fit] >>')
+            .obj(8, '/Type /Outlines /First 9 0 R /Last 14 0 R /Count 6')
+            // a reference to an object that does not exist
+            .obj(9, '/Title (Dangling) /Dest [99 0 R /Fit] /Next 10 0 R')
+            // a reference to an object that exists but is not a page
+            .obj(10, '/Title (Not a page) /Dest [5 0 R /Fit] /Next 11 0 R')
+            // a page NUMBER, which only a remote (GoToR) destination uses
+            .obj(11, '/Title (Page number) /Dest [0 /Fit] /Next 12 0 R')
+            // an action that does not exist, and one that is not a GoTo
+            .obj(12, '/Title (Dangling action) /A 77 0 R /Next 13 0 R')
+            .obj(13, '/Title (Link action) /A << /S /URI /URI (https://example.com) >> /Next 14 0 R')
+            // and one that does target the page, so the others are not "everything is absent"
+            .obj(14, '/Title (Real) /Dest [3 0 R /Fit]')
             .build();
         const result = await parsePdfPaged(pdf);
-        expect(result.outline).toHaveLength(1);
-        expect(result.outline[0].title).toBe('Chapter 1');
-        // NOTE: getPages() returns resolved page DICTS (not refs), so
-        // buildPageObjNumMap() builds an empty ref->index map and outline
-        // destinations referencing pages by indirect ref resolve to -1.
-        // This is the parser's actual (arguably buggy) behavior.
-        expect(result.outline[0].pageIndex).toBe(-1);
-        expect(result.outline[0].children).toHaveLength(1);
-        expect(result.outline[0].children[0].title).toBe('Section 1.1');
+        expect(result.outline.map(item => item.title)).toEqual(['Dangling', 'Not a page', 'Page number', 'Dangling action', 'Link action', 'Real']);
+        expect(result.outline.map(item => item.pageIndex)).toEqual([undefined, undefined, undefined, undefined, undefined, 0]);
     });
 
     it('reports image-only pages', async () => {
@@ -2244,7 +2270,7 @@ describe('parsePdf - outline edge cases', () => {
             .streamObj(4, '', strToBytes(content))
             .obj(5, '/Type /Font /Subtype /Type1 /BaseFont /Helvetica')
             .obj(8, '/Type /Outlines /First 9 0 R /Last 11 0 R /Count 3')
-            // item with a named (string) destination -> pageIndex -1
+            // item with a named (string) destination the document does not define -> no page
             .obj(9, '/Title (Named Dest) /Dest (SomeNamedDest) /Next 10 0 R')
             // item with a GoTo action
             .obj(10, '/Title (GoTo Item) /A << /S /GoTo /D [3 0 R /Fit] >> /Next 11 0 R')
@@ -2254,9 +2280,11 @@ describe('parsePdf - outline edge cases', () => {
         const result = await parsePdfPaged(pdf);
         expect(result.outline).toHaveLength(3);
         expect(result.outline[0].title).toBe('Named Dest');
-        expect(result.outline[0].pageIndex).toBe(-1);
+        expect(result.outline[0].pageIndex).toBeUndefined();
         expect(result.outline[1].title).toBe('GoTo Item');
+        expect(result.outline[1].pageIndex).toBe(0);
         expect(result.outline[2].title).toBe('Plain Item');
+        expect(result.outline[2].pageIndex).toBeUndefined();
     });
 
     it('returns an empty outline when the catalog has no Outlines', async () => {
@@ -2933,5 +2961,56 @@ describe('parsePdf / parsePdfPaged — hostile font names and link targets', () 
             + '<h1><span style="font-size: 24pt">Large Heading</span></h1>\n'
             + '<p style="margin-top:18pt"><a href="https://example.com/page" target="_blank" rel="noopener noreferrer" style="color:#1a0dab;text-decoration:underline">Visit our site</a></p>',
         ]);
+    });
+});
+
+describe('PDF hex decoding is total: it never throws and never invents a byte', () => {
+    // One representative per class of input (PDF 32000-1, 7.3.4.3: only hex digits and white-space
+    // are allowed; a final lone digit is read as if followed by 0). What is not allowed is skipped.
+    const bytes = (raw: string): number[] => [...decodeHexDigits(raw)];
+
+    it.each([
+        ['valid upper case', '48656C6C6F', [0x48, 0x65, 0x6c, 0x6c, 0x6f]],
+        ['valid lower case', '4a6b', [0x4a, 0x6b]],
+        ['an odd digit count reads the last digit as if followed by 0', '414', [0x41, 0x40]],
+        ['white-space of every kind between digits', '48 65\n6C\t6C\r\f6F\0', [0x48, 0x65, 0x6c, 0x6c, 0x6f]],
+        ['empty', '', []],
+        ['one invalid character is skipped, not read as a digit', '4Z', [0x40]],
+        ['an invalid character between pairs leaves the pairs aligned', '48G65', [0x48, 0x65]],
+        ['nothing but invalid characters', 'ZZ', []],
+        // The tail's own letters count if they happen to be hex digits (an `e` would), so this tail has none.
+        ['an unterminated string swallowing tail text', '4865 /Xyz 5 0 R', [0x48, 0x65, 0x50]],
+    ] as const)('%s', (_name, raw, expected) => {
+        expect(bytes(raw)).toEqual(expected);
+    });
+
+    const catalog = (outlineItems: string, content = '(HexDoc) Tj', fontDict = '/Type /Font /Subtype /Type1 /BaseFont /Helvetica'): ArrayBuffer =>
+        new RawPdf()
+            .setRoot(1)
+            .obj(1, '/Type /Catalog /Pages 2 0 R /Outlines 8 0 R')
+            .obj(2, '/Type /Pages /Kids [3 0 R] /Count 1')
+            .obj(3, '/Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R')
+            .streamObj(4, '', strToBytes(`BT /F1 12 Tf 100 700 Td ${content} ET`))
+            .obj(5, fontDict)
+            .obj(8, '/Type /Outlines /First 9 0 R /Last 10 0 R /Count 2')
+            .obj(9, `/Title ${outlineItems} /Next 10 0 R /A << /S /GoTo /D [3 0 R /Fit] >>`)
+            .obj(10, '/Title (Second) /Prev 9 0 R /A << /S /GoTo /D [3 0 R /Fit] >>')
+            .build();
+
+    it('one outline title with a bad hex string does not drop it or the items after it', async () => {
+        const result = await parsePdfPaged(catalog('<ZZ>'));
+        expect(result.outline.map(item => item.title)).toContain('Second');
+    });
+
+    it('one bad hex string in a page\'s content is read as the digits it has and the page text goes on', async () => {
+        // `<4Z>` is the digit 4 and a skipped Z: one lone digit, read as 0x40, which is "@".
+        const result = await parsePdf(catalog('(First)', '<4Z> Tj (After) Tj'));
+        expect(result.text).toContain('@');
+        expect(result.text).toContain('After');
+    });
+
+    it('a name with a bad # escape is kept as written and does not abort the document', async () => {
+        const result = await parsePdf(catalog('(First)', '(NameDoc) Tj', '/Type /Font /Subtype /Type1 /BaseFont /Bad#ZZName'));
+        expect(result.text).toContain('NameDoc');
     });
 });
