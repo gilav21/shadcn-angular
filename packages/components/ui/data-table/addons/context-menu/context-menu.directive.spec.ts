@@ -742,6 +742,17 @@ describe('DataTableContextMenuDirective', () => {
       }
     });
 
+    it('custom mode, range selection on: a right-click on a selected cell opens the menu like any other', async () => {
+      host.rangeSelection = true;
+      host.selected = (row, column) => row === 2 && column === 'name';
+      const { comp, el, shown } = await setupCustom();
+
+      rightClick(el('cell-name'), 10, 20);
+
+      expect(comp.rowEvents).toHaveLength(1);
+      expect(shown()).toHaveBeenCalledTimes(1);
+    });
+
     it('custom mode, range selection on: a long-press on any other cell is left to range selection, and a right-click still opens', async () => {
       vi.useFakeTimers();
       try {

@@ -194,8 +194,8 @@ export class DataTableContextMenuDirective<T = unknown> {
     const missing = CUSTOM_MODE_HOST_MEMBERS.filter((member) => typeof this.host[member] !== 'function');
     this.hostSupportsCustomMode = missing.length === 0;
     if (missing.length === 0) return;
-    // Reported once, not thrown: it is a setup problem, so rendering carries on and the gestures fall through
-    // to the browser instead of failing on every right-click.
+    // Reported (again if the bound menu changes), not thrown: it is a setup problem, so rendering carries on
+    // and the gestures fall through to the browser instead of failing on every right-click.
     this.errors.handleError(new Error(
       `uiDtContextMenu [contextMenu] needs a newer <ui-data-table>: its DataTableAddonHost lacks ${missing.join(', ')}. ` +
         'Run `npx @gilav21/shadcn-angular update data-table`.',
