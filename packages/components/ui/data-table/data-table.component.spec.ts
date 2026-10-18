@@ -3343,6 +3343,35 @@ describe('DataTableComponent - Row Grouping', () => {
             expect(renderedIds()).toEqual([
                 { index: '0', id: 'o2' }, { index: '1', id: 'o5' }, { index: '2', id: 'o4' },
             ]);
+            expect(component.getRenderedRowAt(0)?.id).toBe('o2');
+            expect(component.getRenderedRowAt(3)).toBeUndefined();
+
+            // Rows supplied a page at a time (server-side paging): nothing is sliced here either.
+            fixture.componentRef.setInput('showPagination', true);
+            fixture.componentRef.setInput('localPagination', false);
+            fixture.componentRef.setInput('collapsedGroups', {});
+            fixture.detectChanges();
+            expect(renderedIds().map(({ id }) => id)).toEqual(['o1', 'o3', 'o2', 'o5', 'o4']);
+            expect(renderedIds().every(({ index, id }) => component.getRenderedRowAt(Number(index))?.id === id)).toBe(true);
+        });
+
+        // The test runner loads no Tailwind, so the focus ring and the range tint are read from the classes that carry them.
+        it('selects a range across a group boundary by rendered index', () => {
+            fixture.componentRef.setInput('enableCellRangeSelection', true);
+            fixture.detectChanges();
+            const cell = (row: number, column: string): HTMLElement =>
+                fixture.nativeElement.querySelector(`[data-row-index="${row}"] [data-column="${column}"]`);
+
+            cell(1, 'id').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+            (document as Document & { elementFromPoint?: () => Element | null }).elementFromPoint = () => cell(2, 'status');
+            document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 1, clientY: 1 }));
+            document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(component.cellRange()).toEqual({ startRow: 1, startCol: 'id', endRow: 2, endCol: 'status' });
+            const tintedRows = new Set(Array.from(fixture.nativeElement.querySelectorAll('[data-row-index] [data-column].bg-primary\\/15') as NodeListOf<HTMLElement>)
+                .map((c) => c.closest<HTMLElement>('[data-row-index]')!.dataset['rowIndex']));
+            expect([...tintedRows].sort((a, b) => Number(a) - Number(b))).toEqual(['1', '2']);
         });
 
         // The test runner loads no Tailwind, so the focus ring is read from the class that carries it.

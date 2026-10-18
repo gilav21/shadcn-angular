@@ -1249,8 +1249,7 @@
               @if (pagedGroupedDisplayRows().length > 0) {
                 @for (
                   displayRow of pagedGroupedDisplayRows();
-                  track groupTrackBy(displayRow);
-                  let i = $index
+                  track groupTrackBy(displayRow)
                 ) {
                   @if (isGroupRow(displayRow)) {
                     <ui-table-row

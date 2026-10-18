@@ -1602,12 +1602,12 @@
       "lines": 132
     },
     "data-table/data-table.component.html": {
-      "bytes": 69645,
-      "lines": 1532
+      "bytes": 69611,
+      "lines": 1531
     },
     "data-table/data-table.component.spec.ts": {
-      "bytes": 297165,
-      "lines": 6663
+      "bytes": 299262,
+      "lines": 6692
     },
     "data-table/data-table.component.ts": {
       "bytes": 230059,
