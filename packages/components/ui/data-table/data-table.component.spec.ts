@@ -3355,6 +3355,37 @@ describe('DataTableComponent - Row Grouping', () => {
             expect(renderedIds().every(({ index, id }) => component.getRenderedRowAt(Number(index))?.id === id)).toBe(true);
         });
 
+        // A small page size, so that wrongly slicing the list drops rows (the default size 10 holds the whole list).
+        it('numbers the whole list again when paging is switched off after a page was visited', () => {
+            const everyRow = [
+                { index: '0', id: 'o1' }, { index: '1', id: 'o3' }, { index: '2', id: 'o2' }, { index: '3', id: 'o5' }, { index: '4', id: 'o4' },
+            ];
+            fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 2 });
+            fixture.detectChanges();
+            expect(renderedIds()).toEqual([{ index: '0', id: 'o3' }]);
+
+            fixture.componentRef.setInput('showPagination', false);
+            fixture.detectChanges();
+            expect(renderedIds()).toEqual(everyRow);
+
+            fixture.componentRef.setInput('showPagination', true);
+            fixture.componentRef.setInput('localPagination', false);
+            fixture.detectChanges();
+            expect(renderedIds()).toEqual(everyRow);
+            expect(component.getRenderedRowAt(1)?.id).toBe('o3');
+        });
+
+        it('leaves the rendered rows to the sub-rows path when groupBy is set together with enableSubRows', () => {
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            fixture.componentRef.setInput('enableSubRows', true);
+            fixture.detectChanges();
+
+            expect(component.groupingActive()).toBe(false);
+            expect(renderedIds().map(({ id }) => id)).toEqual(['o1', 'o2', 'o3', 'o4', 'o5']);
+            expect(component.getRenderedRowAt(1)?.id).toBe('o2');
+            errorSpy.mockRestore();
+        });
+
         // The test runner loads no Tailwind, so the focus ring and the range tint are read from the classes that carry them.
         it('selects a range across a group boundary by rendered index', () => {
             fixture.componentRef.setInput('enableCellRangeSelection', true);
@@ -3374,7 +3405,6 @@ describe('DataTableComponent - Row Grouping', () => {
             expect([...tintedRows].sort((a, b) => Number(a) - Number(b))).toEqual(['1', '2']);
         });
 
-        // The test runner loads no Tailwind, so the focus ring is read from the class that carries it.
         it('draws the focus ring on the cell at the focused rendered index', () => {
             component.focusCell(3, 'id');
             fixture.detectChanges();
