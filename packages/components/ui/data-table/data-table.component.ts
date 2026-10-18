@@ -1872,6 +1872,9 @@ export class DataTableComponent<T>
       if (!touch) return;
       const cell = this.cellFromElement(this._document.elementFromPoint(touch.clientX, touch.clientY));
       if (!cell) return;
+      // A hold on what is already selected belongs to its context menu (its directive reads the same
+      // selection at touchstart); starting a fresh range here would erase what the menu is about.
+      if (this.isCellSelected(cell.rowIndex, cell.columnKey)) return;
       this.startRangeDrag(cell, false);
     });
   }
@@ -5481,6 +5484,29 @@ export class DataTableComponent<T>
    */
   getRenderedTreeRowAt(index: number): FlattenedTreeRow<T> | undefined {
     return this.processedTreeRows()[index];
+  }
+
+  /** Moves the keyboard focus to a cell, the anchor for keyboard nav, copy and the fill handle. */
+  focusCell(rowIndex: number, columnKey: string): void {
+    this.focusedCell.set({ rowIndex, columnKey });
+  }
+
+  /** Whether {@link enableCellRangeSelection} is on. */
+  isCellRangeSelectionEnabled(): boolean {
+    return this.enableCellRangeSelection();
+  }
+
+  /**
+   * Whether a cell is selected: inside the current range, or the focused cell
+   * when there is no range. A one-cell range collapses to a plain focus when the
+   * finger lifts ({@link onRangeDragEnd}), so after a lone tap or hold the
+   * focused cell is the whole selection. With a range, a focus outside it does
+   * not count.
+   */
+  isCellSelected(rowIndex: number, columnKey: string): boolean {
+    if (this.cellRange()) return this.isCellInRange(rowIndex, columnKey);
+    const focused = this.focusedCell();
+    return focused?.rowIndex === rowIndex && focused.columnKey === columnKey;
   }
 
   private buildRowActionContext(row: T, index: number): RowActionContext<T> {

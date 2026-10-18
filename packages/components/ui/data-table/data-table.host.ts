@@ -2,6 +2,7 @@ import type {
   ColumnDef,
   DataTableExportOptions,
   DataTableExportQuery,
+  FlattenedTreeRow,
   RowActionContext,
   SortDirection,
 } from './data-table.types';
@@ -48,6 +49,21 @@ export abstract class DataTableAddonHost<T = unknown> {
   abstract getRenderedRowAt(index: number): T | undefined;
   /** Generic per-row metadata (selection + tree state) for an action context. */
   abstract getRowContext(row: T, index: number): RowActionContext<T>;
+  /**
+   * The flattened tree row at a rendered index (depth, path, expansion alongside
+   * the row), or undefined outside tree mode or out of range.
+   */
+  abstract getRenderedTreeRowAt(index: number): FlattenedTreeRow<T> | undefined;
+  /** Move the grid's keyboard focus to a cell, such as the one a context gesture landed on. */
+  abstract focusCell(rowIndex: number, columnKey: string): void;
+  /** Whether cell range selection is on (a finger's long-press on a cell then starts a range). */
+  abstract isCellRangeSelectionEnabled(): boolean;
+  /**
+   * Whether a cell is selected: inside the current range, or the focused cell
+   * when there is no range (a one-cell range collapses to a plain focus when
+   * the finger lifts, so that is all a lone tap or hold leaves behind).
+   */
+  abstract isCellSelected(rowIndex: number, columnKey: string): boolean;
   /** Current sort direction for a column key. */
   abstract getSortDirection(columnKey: string | keyof T): SortDirection;
   /** Apply a sort to a column (`multi` extends a multi-sort). */
