@@ -1494,11 +1494,11 @@
       "lines": 1
     },
     "data-table/addons/context-menu/context-menu.directive.spec.ts": {
-      "bytes": 41708,
-      "lines": 1070
+      "bytes": 42136,
+      "lines": 1081
     },
     "data-table/addons/context-menu/context-menu.directive.ts": {
-      "bytes": 15690,
+      "bytes": 15719,
       "lines": 361
     },
     "data-table/addons/context-menu/context-menu.stories.ts": {
