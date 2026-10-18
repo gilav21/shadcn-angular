@@ -788,6 +788,7 @@ describe('DataTableContextMenuDirective', () => {
     // header, its own columns and row padding), so a touch-only user must still reach the menu from those.
     it.each([
       { target: 'cell-selection', what: 'the selection column' },
+      { target: 'cell-expander', what: 'the expander column' },
       { target: 'cell-actions', what: 'the actions column' },
       { target: 'row-padding', what: 'the padding of a row' },
     ])('custom mode, range selection on: a long-press on $what opens the menu, since no range starts there', async ({ target }) => {
