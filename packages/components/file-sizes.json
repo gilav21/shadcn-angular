@@ -1334,8 +1334,8 @@
       "lines": 262
     },
     "context-menu/context-menu.component.spec.ts": {
-      "bytes": 27313,
-      "lines": 639
+      "bytes": 28625,
+      "lines": 666
     },
     "context-menu/context-menu.component.ts": {
       "bytes": 7012,
@@ -1354,8 +1354,8 @@
       "lines": 11
     },
     "context-menu/sub/context-menu-content.component.ts": {
-      "bytes": 8934,
-      "lines": 236
+      "bytes": 9233,
+      "lines": 239
     },
     "context-menu/sub/context-menu-item.component.ts": {
       "bytes": 3895,
@@ -1473,18 +1473,6 @@
       "bytes": 1789,
       "lines": 46
     },
-    "data-table-context-menu.directive.spec.ts": {
-      "bytes": 18980,
-      "lines": 492
-    },
-    "data-table-context-menu.directive.ts": {
-      "bytes": 5274,
-      "lines": 139
-    },
-    "data-table-context-menu.stories.ts": {
-      "bytes": 9060,
-      "lines": 248
-    },
     "data-table-range-chart/data-table-range-chart.component.html": {
       "bytes": 1289,
       "lines": 38
@@ -1506,20 +1494,32 @@
       "lines": 1
     },
     "data-table/addons/context-menu/context-menu.directive.spec.ts": {
-      "bytes": 19542,
-      "lines": 509
+      "bytes": 37749,
+      "lines": 966
     },
     "data-table/addons/context-menu/context-menu.directive.ts": {
-      "bytes": 8245,
-      "lines": 213
+      "bytes": 14770,
+      "lines": 348
+    },
+    "data-table/addons/context-menu/context-menu.stories.ts": {
+      "bytes": 10628,
+      "lines": 297
+    },
+    "data-table/addons/context-menu/context-menu.table.spec.ts": {
+      "bytes": 5846,
+      "lines": 134
+    },
+    "data-table/addons/context-menu/context-menu.types.ts": {
+      "bytes": 1413,
+      "lines": 28
     },
     "data-table/addons/context-menu/index.ts": {
-      "bytes": 42,
-      "lines": 1
+      "bytes": 80,
+      "lines": 2
     },
     "data-table/addons/export/export.directive.spec.ts": {
-      "bytes": 10343,
-      "lines": 305
+      "bytes": 10547,
+      "lines": 315
     },
     "data-table/addons/export/export.directive.ts": {
       "bytes": 4635,
@@ -1606,24 +1606,24 @@
       "lines": 1531
     },
     "data-table/data-table.component.spec.ts": {
-      "bytes": 290528,
-      "lines": 6538
+      "bytes": 292635,
+      "lines": 6582
     },
     "data-table/data-table.component.ts": {
-      "bytes": 228181,
-      "lines": 6277
+      "bytes": 229421,
+      "lines": 6303
     },
     "data-table/data-table.coverage.spec.ts": {
       "bytes": 19823,
       "lines": 543
     },
     "data-table/data-table.host.spec.ts": {
-      "bytes": 4347,
-      "lines": 131
+      "bytes": 6755,
+      "lines": 182
     },
     "data-table/data-table.host.ts": {
-      "bytes": 4481,
-      "lines": 96
+      "bytes": 5365,
+      "lines": 112
     },
     "data-table/data-table.locales.ts": {
       "bytes": 12901,
@@ -1634,7 +1634,7 @@
       "lines": 56
     },
     "data-table/data-table.stories.ts": {
-      "bytes": 78224,
+      "bytes": 78122,
       "lines": 1939
     },
     "data-table/data-table.types.ts": {
@@ -1798,8 +1798,8 @@
       "lines": 46
     },
     "dialog/sub/dialog-content.component.ts": {
-      "bytes": 5991,
-      "lines": 157
+      "bytes": 6148,
+      "lines": 159
     },
     "dialog/sub/dialog-description.component.ts": {
       "bytes": 673,
@@ -2578,15 +2578,15 @@
       "lines": 2
     },
     "index.ts": {
-      "bytes": 6172,
-      "lines": 182
+      "bytes": 6119,
+      "lines": 181
     },
     "infinite-canvas/addons/node-editor-context-menu/index.ts": {
       "bytes": 156,
       "lines": 3
     },
     "infinite-canvas/addons/node-editor-context-menu/node-editor-context-menu.directive.ts": {
-      "bytes": 7941,
+      "bytes": 7934,
       "lines": 209
     },
     "infinite-canvas/addons/node-editor-context-menu/node-editor-context-menu.resolve.spec.ts": {
@@ -5958,7 +5958,7 @@
       "lines": 89
     },
     "table-context-menu.stories.ts": {
-      "bytes": 13760,
+      "bytes": 13808,
       "lines": 357
     },
     "table/index.ts": {
