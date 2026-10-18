@@ -32,6 +32,10 @@ interface Row {
   name: string;
 }
 
+interface TreeRow extends Row {
+  children?: TreeRow[];
+}
+
 const ROWS: Row[] = [
   { id: '1', name: 'Alice' },
   { id: '2', name: 'Bob' },
@@ -119,6 +123,53 @@ describe('DataTableComponent as DataTableAddonHost', () => {
     host.onSortChange('name', 'desc');
     expect(host.getSortedRows().map((r) => r.name)).toEqual(['Bob', 'Alice']);
     expect(host.getRawRows()).toEqual(ROWS);
+  });
+
+  it('returns the flattened tree row at a rendered index, and undefined outside tree mode', () => {
+    expect(host.getRenderedTreeRowAt(0)).toBeUndefined();
+
+    const tree = TestBed.createComponent<DataTableComponent<TreeRow>>(DataTableComponent);
+    tree.componentRef.setInput('data', [{ id: '1', name: 'Parent', children: [{ id: '2', name: 'Child' }] }]);
+    tree.componentRef.setInput('columns', COLUMNS);
+    tree.componentRef.setInput('enableSubRows', true);
+    tree.componentRef.setInput('getSubRows', (row: TreeRow) => row.children);
+    tree.detectChanges();
+    const treeHost = tree.debugElement.injector.get<DataTableAddonHost<TreeRow>>(DataTableAddonHost);
+
+    expect(treeHost.getRenderedTreeRowAt(0)).toMatchObject({
+      row: { name: 'Parent' }, depth: 0, isLeaf: false, childCount: 1, isExpanded: false,
+    });
+    expect(treeHost.getRenderedTreeRowAt(5)).toBeUndefined();
+  });
+
+  it('moves the grid focus to a cell', () => {
+    host.focusCell(1, 'name');
+    expect(fixture.componentInstance.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'name' });
+  });
+
+  it('reports whether cell range selection is on', () => {
+    expect(host.isCellRangeSelectionEnabled()).toBe(false);
+    fixture.componentRef.setInput('enableCellRangeSelection', true);
+    expect(host.isCellRangeSelectionEnabled()).toBe(true);
+  });
+
+  it('answers whether a cell is selected: inside the range, or the focused cell when there is no range', () => {
+    expect(host.isCellSelected(0, 'id')).toBe(false);
+
+    // A lone hold or tap leaves a focused cell and no range (a 1x1 range collapses when the finger lifts).
+    fixture.componentInstance.focusedCell.set({ rowIndex: 1, columnKey: 'name' });
+    expect(host.isCellSelected(1, 'name')).toBe(true);
+    expect(host.isCellSelected(0, 'id')).toBe(false);
+
+    fixture.componentInstance.cellRange.set({ startRow: 1, startCol: 'name', endRow: 0, endCol: 'id' });
+    expect(host.isCellSelected(0, 'id')).toBe(true);
+    expect(host.isCellSelected(1, 'name')).toBe(true);
+    expect(host.isCellSelected(2, 'name')).toBe(false);
+    expect(host.isCellSelected(1, 'missing')).toBe(false);
+
+    // With a range, the focus alone no longer counts outside it.
+    fixture.componentInstance.focusedCell.set({ rowIndex: 2, columnKey: 'name' });
+    expect(host.isCellSelected(2, 'name')).toBe(false);
   });
 
   it('shows and clears the busy overlay label', () => {

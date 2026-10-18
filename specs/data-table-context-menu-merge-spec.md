@@ -67,7 +67,7 @@ flat one on tables 609 and 742 and the addon on 367 and 966).
 |---|-------|---------|
 | V-1 | "They are duplicates." | ❌ **Refuted as stated.** The addon replaced the table's *built-in* menu, not the flat directive, and has capabilities the flat one lacks (⋮ buttons, column sort/pin/hide menu). The flat one has capabilities the addon lacks (bring-your-own menu, header right-click, tree-row context, cell focus, range-selection guard). They **overlap in one gesture** — right-click a row, a menu opens — and nobody decided to keep both. |
 | V-2 | The collision is only cosmetic. | ⚠️ **No.** The CLI already special-cases it: `gen-component-docs-lib.ts:64` and its spec say docs are "keyed by file, not class name: `DataTableContextMenuDirective` exists both as a standalone directive and …". The compiled-package README maps the name to `uiDtContextMenu`. An IDE auto-import can pick either file; the two have different selectors and inputs, so the mistake shows at runtime. |
-| V-3 | The addon can host the flat directive's behaviour through `DataTableAddonHost`. | ❌ **Not today.** The flat one reaches three things the host does not expose: `focusedCell` (a writable signal), `getRenderedTreeRowAt(index)`, and `enableCellRangeSelection()`. `DataTableComponent` already implements the middle one publicly (`data-table.component.ts:5482`) and has the other two as members; **none is on `DataTableAddonHost`** (`data-table.host.ts`, 96 lines). The touch route chosen in D-6 also needs the in-range test, `isCellInRange(rowIndex, columnKey)`, which is public on the table (`data-table.component.ts:2524`) and likewise absent from the host. |
+| V-3 | The addon can host the flat directive's behaviour through `DataTableAddonHost`. | ❌ **Not today.** The flat one reaches three things the host does not expose: `focusedCell` (a writable signal), `getRenderedTreeRowAt(index)`, and `enableCellRangeSelection()`. `DataTableComponent` already implements the middle one publicly (`data-table.component.ts:5482`) and has the other two as members; **none is on `DataTableAddonHost`** (`data-table.host.ts`, 96 lines). The touch route chosen in D-6 also needs "is this cell selected": in the range, or the focused cell when there is no range (a 1×1 range collapses to a plain focus when the finger lifts, `onRangeDragEnd`). The table has the parts (`isCellInRange`, `data-table.component.ts:2524`, and `focusedCell`) but no single answer, and the host has neither. |
 | V-4 | Adding to the host breaks only the table. | ⚠️ It also breaks every hand-written host in tests: `FakeHost` classes `extends DataTableAddonHost` in `addons/context-menu/context-menu.directive.spec.ts:26` and `addons/export/export.directive.spec.ts:36` (the only two; `pivot` does not). The table provides itself with `useExisting` (`data-table.component.ts:265`) and does not `extends`/`implements` the token, so a **missing method is a runtime error, not a compile error**, in a consumer whose addon is newer than their table (see Risks). |
 | V-5 | The flat row finder is a superset of the addon's. | ❌ **Wrong direction.** `[data-slot="table-row"]` matches rows that carry no `data-row-index`; the flat code then **defaults the index to 0** and would attribute a group-header or footer row's gesture to row 0's data. The addon's `[data-row-index]` rule cannot do that. Whether the flat directive's `{ id: data-row-id }` / `{}` fallbacks serve any real DOM is **unverified** — they are exercised only by hand-built DOM in its spec. Task 1 settles it (see Decision D-3). |
 | V-6 | Merging needs the addon to import `table-context-menu`. | ❌ It must **not**: that would add `table-context-menu.directive.ts` to the data-table package's closure. The shared event type is structurally `{ row, index, event, depth?, isLeaf?, parentRow? }`; the addon defines its own interface of that shape and TypeScript's structural typing keeps every existing handler typed with `TableRowContextMenuEvent` compiling. |
@@ -120,14 +120,14 @@ collision, and it is the only one that works in the compiled data-table package.
 | UC-1 | **Custom mode, row.** `<ui-data-table uiDtContextMenu [contextMenu]="menu">`: a right-click on a rendered row opens `menu` at the pointer and emits `rowContextMenu` with `row`, `index`, the source event and, in tree mode, `depth`, `isLeaf`, `parentRow`. The menu receives the same data it receives today (`{ ...treeRow, row }` in tree mode, else the row). |
 | UC-2 | **Custom mode, touch.** A one-finger long-press on a row opens the menu at the finger and emits exactly what a right-click emits, once, even when the platform also raises a `contextmenu` (Android). |
 | UC-3 | **Custom mode, header.** With `[contextMenuRowsOnly]="false"`, a right-click or long-press on a column header opens `menu` with `{ id, name, element }` and emits `headerContextMenu`. With the default (`true`) a header gesture is not taken and the browser menu appears. |
-| UC-4 | **Touch and range selection.** In **simple mode** a long-press on a row opens the built menu exactly as it does today, including while `enableCellRangeSelection` is on. In **custom mode** with `enableCellRangeSelection` on, a long-press on a cell **inside the current range** opens the bound menu and leaves the range as it is; a long-press on a cell **outside** it starts a new range, as today, and opens no menu; a right-click and the keyboard key open the menu either way. With range selection off, a long-press opens the menu everywhere. So a touch-only user always has a route to the menu (D-6). |
+| UC-4 | **Touch and range selection.** In **simple mode** a long-press on a row opens the built menu exactly as it does today, including while `enableCellRangeSelection` is on. In **custom mode** with `enableCellRangeSelection` on, a long-press on a cell that is **already selected** (inside the current range, or the focused cell when there is no range) opens the bound menu and leaves the selection as it is; a long-press on any **other** cell starts a new range, as today, and opens no menu; a right-click and the keyboard key open the menu either way. With range selection off, a long-press opens the menu everywhere. So a touch-only user always has a route to the menu (D-6). |
 | UC-5 | **Disabled.** `[contextMenuDisabled]="true"` makes every context gesture on the table fall through to the browser in both modes. The ⋮ buttons are explicit clicks and are unaffected. |
 | UC-6 | **Simple mode is unchanged.** `rowActions`, the ⋮ row and header buttons, the column menu (sort / pin / hide, localised), theme inheritance, `rowMenuOpen` and `columnMenuOpen` behave exactly as before. |
 | UC-7 | **Both inputs set.** `[contextMenu]` owns right-click, long-press and the key; the ⋮ buttons registered by `rowActions` still open the built menu. Documented, tested, not an error. |
 | UC-8 | **Neither input set.** The directive takes no gesture (the browser menu appears) and registers no ⋮ button. |
 | UC-9 | **Cell focus.** A row gesture on a cell sets the table's focused cell to that cell, except for the selection and expander columns, as the flat directive does today. |
 | UC-10 | **One directive.** `DataTableContextMenuDirective` is declared exactly once, with selector `[uiDtContextMenu]`. The flat file, its spec, its stories, its registry entry, its e2e harness and its `ui/index.ts` export are gone; `npm run check:registry` is clean. |
-| UC-11 | **Host contract.** `DataTableAddonHost` exposes `getRenderedTreeRowAt`, `focusCell`, `isCellRangeSelectionEnabled` and `isCellInRange`; the real `DataTableComponent` returns what it returns today for each; the addon never imports `DataTableComponent`. |
+| UC-11 | **Host contract.** `DataTableAddonHost` exposes `getRenderedTreeRowAt`, `focusCell`, `isCellRangeSelectionEnabled` and `isCellSelected`; the real `DataTableComponent` returns what it returns today for each; the addon never imports `DataTableComponent`. |
 | UC-12 | **Upgrade path.** A consumer who still writes `[uiDataTableContextMenu]` is told, by `npx @gilav21/shadcn-angular update`, the exact replacement; the orphaned flat files are pruned. |
 | UC-13 | **Docs and demos.** The demo page, the Storybook stories and `docs/directives.md` show both modes with copy-paste examples, and no longer describe a second directive. |
 | UC-14 | **Package.** The compiled `@gilav21/shadcn-angular-data-table` contains the merged directive and **no** new dependency (in particular not `table-context-menu`). |
@@ -159,13 +159,13 @@ collision, and it is the only one that works in the compiled data-table package.
 | T-1 | `custom mode: a row right-click opens the bound menu with the row (tree row merged in tree mode) and emits rowContextMenu` | UC-1 | unit (addon spec, real DOM + `FakeHost`) | the addon has no `contextMenu` input |
 | T-2 | `custom mode: a long-press opens at the finger, emits once, and swallows the echoed contextmenu` | UC-2 | unit | same |
 | T-3 | `custom mode: header gestures open the menu with {id,name,element} only when contextMenuRowsOnly is false; a header without attributes falls back to id null, name ''` | UC-3 | unit | same |
-| T-4 | `simple mode: a long-press still opens the built menu while range selection is on` and `custom mode, range selection on: a long-press inside the current range opens the menu, outside it opens none, a right-click and the key open either way; range selection off: a long-press opens` — `it.each` over `{simple, custom} × {inside, outside, no range} × {touch, mouse}` | UC-4 | unit | the addon has no custom mode |
+| T-4 | `simple mode: a long-press still opens the built menu while range selection is on` and `custom mode, range selection on: a long-press on a selected cell (in the range, or the focused cell with no range) opens the menu, on any other cell it opens none, a right-click and the key open either way; range selection off: a long-press opens` — `it.each` over `{simple, custom} × {in the range, focused with no range, elsewhere} × {touch, mouse}` | UC-4 | unit | the addon has no custom mode |
 | T-5 | `contextMenuDisabled releases every gesture in both modes and leaves the ⋮ buttons working` | UC-5 | unit | no such input |
 | T-6 | **The addon's existing 22 tests, unchanged** | UC-6 | unit | (must stay green; any edit to them needs a recorded reason) |
 | T-7 | `both inputs: contextMenu owns right-click, the ⋮ button opens the built menu` | UC-7 | unit | no `contextMenu` |
 | T-8 | `neither input: the gesture is not taken and no ⋮ button is registered` | UC-8 | unit | partly (no ⋮) |
 | T-9 | `a row gesture focuses the clicked cell unless the column is _selection or _expander` — asserts the **host** call, not a private field | UC-9 | unit | no `focusCell` on the host |
-| T-10 | `the real DataTableComponent: getRenderedTreeRowAt, focusCell, isCellRangeSelectionEnabled and isCellInRange behave as the members they wrap` — a component test over a tree table and a range-selection table | UC-11 | unit (`data-table.component*.spec.ts`) | host methods absent |
+| T-10 | `the real DataTableComponent: getRenderedTreeRowAt, focusCell, isCellRangeSelectionEnabled and isCellSelected behave as the members they wrap` — a component test over a tree table and a range-selection table | UC-11 | unit (`data-table.component*.spec.ts`) | host methods absent |
 | T-11 | `a row without data-row-index (group header, footer) is not taken as row 0` — the V-5 hazard | UC-1, UC-6 | unit + e2e | the flat rule takes it |
 | T-12 | `the merged directive on a real table in a pristine consumer app: right-click row → custom menu with the row; header right-click; ⋮ button → built menu` | UC-1, UC-3, UC-6, UC-7 | e2e (extend harness `data-table-context-menu`) | no custom mode |
 | T-13 | `registry: data-table-context-menu is gone, data-table/context-menu has no table-context-menu dependency, no flat file remains, obsoleteFiles lists the two orphans` | UC-10, UC-12, UC-14 | unit (`sync-registry` / `check:registry` fixtures) + gate | entry exists |
@@ -196,8 +196,8 @@ collision, and it is the only one that works in the compiled data-table package.
 - **Mutation checks before done** (derive each from the contract):
   (a) drop the `isCellRangeSelectionEnabled()` guard in custom mode → T-4 red;
   (h) apply that guard to simple mode too → T-4's simple-mode case red;
-  (i) evaluate "inside the range" when the hold fires instead of at touchstart → T-19 red;
-  (j) make the table restart the range on a hold inside it → T-18 red;
+  (i) evaluate "selected" when the hold fires instead of at touchstart → T-19 red;
+  (j) make the table restart the range on a hold on a selected cell → T-18 red;
   (b) take the first matching row without requiring `data-row-index` → T-11 red;
   (c) stop calling `focusCell` for non-special columns → T-9 red;
   (d) make `contextMenuDisabled` also suppress the ⋮ button → T-5 red;
@@ -266,7 +266,7 @@ Final input and output list (names fixed here, types in code):
 Gesture routing, as a rule the code and tests both state:
 
 1. `contextMenuDisabled()` → not taken.
-2. Custom mode only: a touch long-press while `host.isCellRangeSelectionEnabled()` is taken **only if the pressed cell was inside the range at touchstart** (`host.isCellInRange`, sampled by the directive's own passive `touchstart` listener, D-6); otherwise the hold belongs to range selection and is not taken. Simple mode has no such rule.
+2. Custom mode only: a touch long-press while `host.isCellRangeSelectionEnabled()` is taken **only if the pressed cell was selected at touchstart** (`host.isCellSelected`, sampled by the directive's own passive `touchstart` listener, D-6); otherwise the hold belongs to range selection and is not taken. Simple mode has no such rule.
 3. The target is inside a row (`[data-row-index]`):
    `contextMenu()` set → custom row path; else `rowActions()` set → built row
    path; else not taken.
@@ -283,13 +283,13 @@ abstract getRenderedTreeRowAt(index: number): FlattenedTreeRow<T> | undefined;
 abstract focusCell(rowIndex: number, columnKey: string): void;
 /** Whether cell range selection is on (a finger's hold on a cell then starts a range). */
 abstract isCellRangeSelectionEnabled(): boolean;
-/** Whether a cell falls inside the current range selection (the table's own highlight test). */
-abstract isCellInRange(rowIndex: number, columnKey: string): boolean;
+/** Whether a cell is selected: inside the current range, or the focused cell when there is no range. */
+abstract isCellSelected(rowIndex: number, columnKey: string): boolean;
 ```
 
 `DataTableComponent` implements them as one-line wrappers over what it already
 has (`processedTreeRows()[index]`, `focusedCell.set({ rowIndex, columnKey })`,
-`enableCellRangeSelection()`, the public `isCellInRange`). The host file also re-exports the
+`enableCellRangeSelection()`, and the public `isCellInRange` plus `focusedCell` for `isCellSelected`). The host file also re-exports the
 `FlattenedTreeRow` type for addon authors. Both FakeHosts get stubs.
 
 ### Efficiency
@@ -414,24 +414,32 @@ and 3 are ruled out: 1 leaves the gap, 3 adds UI nobody asked for.
 
 How option 2 works, so the code and the tests agree:
 
+- **"Selected" means:** inside the current range, **or** the focused cell when
+  there is no range. The second half matters: a 1×1 range collapses to a plain
+  focus when the finger lifts (`onRangeDragEnd`), so after a hold or a tap that
+  selects one cell, the table holds only a focused cell, not a range. (The first
+  draft of this decision said a tap leaves a 1×1 range; the code says otherwise,
+  and "inside the range" alone would have given a touch user no route to the menu
+  for a single cell. Corrected 2026-10-18 while writing the tests.)
 - The table's range handler (`setupTouchRangeSelection`) **does not restart the
-  range when the hold lands inside the current range**; outside it, it starts a
+  range when the hold lands on a selected cell**; on any other cell it starts a
   new range exactly as today. This is a base change and applies even to a table
   with no menu directive (T-18).
-- The directive reads `host.isCellInRange(row, column)` for the pressed cell in
+- The directive reads `host.isCellSelected(row, column)` for the pressed cell in
   its own passive `touchstart` listener and keeps that answer until the next
   touchstart. When the hold fires (or the platform echoes a `contextmenu`) it
-  takes the gesture only if the answer was "inside". Sampling at touchstart makes
+  takes the gesture only if the answer was "selected". Sampling at touchstart makes
   the result independent of which of the two 500 ms handlers fires first: the
   table's handler may already have re-anchored the range onto the pressed cell
   by then (T-19, mutation (i)).
-- Because a tap already collapses the range to the tapped cell, the usual
-  sequence on a phone is: hold an unselected cell → a range starts (no menu);
-  lift; hold it again → it is inside the range → the menu opens.
+- The sequence on a phone: hold an unselected cell → it is focused and a range
+  starts (no menu); lift (a lone cell collapses to a focus); hold the same cell
+  again → it is selected → the menu opens. Drag out a range first, lift, hold
+  inside it → the menu opens for that range.
 
-**Cost, accepted:** on a table with range selection on, a user can no longer
-re-anchor by holding inside an existing multi-cell range; they tap first (a tap
-already collapses the range) and then hold. Simple mode is unaffected: its hold
+**Cost, accepted:** on a table with range selection on, holding on the focused
+cell or inside an existing range no longer starts a fresh drag from there; the
+user holds on a different cell to start one. Simple mode is unaffected: its hold
 still opens the built menu, and the range handler's new rule only changes whether
 the range is restarted.
 
@@ -454,7 +462,7 @@ the range is restarted.
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
 | 1 | **Inspect first, then write failing tests.** (a) Render a real `<ui-data-table>` in a browser spec (flat, tree, grouped, with footer, pivot) and record which rows carry `data-row-index` (Decision D-3); (b) write **T-1…T-5, T-7…T-11, T-18, T-19** against stubs of the four host members and the new inputs; keep the addon's 22 existing tests untouched as **T-6**; record the red list in the log | UC-1…UC-5, UC-7…UC-9, UC-11 | ⬜ Not started | — | — | — |
-| 2 | **Extend the host and the table.** Add `getRenderedTreeRowAt`, `focusCell`, `isCellRangeSelectionEnabled`, `isCellInRange` and the `FlattenedTreeRow` re-export to `data-table.host.ts`; implement the wrappers in `DataTableComponent`; make the touch range handler keep the range on a hold inside it (D-6, **T-18**); add stubs to both `FakeHost`s; T-10 and T-18 green; run the **consumers**: `npx vitest --run packages/components/ui/data-table` (all addons) | UC-11 | ⬜ Not started | — | — | — |
+| 2 | **Extend the host and the table.** Add `getRenderedTreeRowAt`, `focusCell`, `isCellRangeSelectionEnabled`, `isCellSelected` and the `FlattenedTreeRow` re-export to `data-table.host.ts`; implement them in `DataTableComponent`; make the touch range handler keep the selection on a hold on a selected cell (D-6, **T-18**); add stubs to both `FakeHost`s; T-10 and T-18 green; run the **consumers**: `npx vitest --run packages/components/ui/data-table` (all addons) | UC-11 | ⬜ Not started | — | — | — |
 | 3 | **Add the types file** `context-menu.types.ts` (`DataTableRowContextMenuEvent<T>`, `DataTableHeaderContextMenuEvent`) and export it from the addon barrel | UC-1, UC-3 | ⬜ Not started | — | — | — |
 | 4 | **Implement custom mode** in the addon directive: `contextMenu`, `contextMenuDisabled`, `contextMenuRowsOnly`, the two outputs, the routing rule, the cell-focus side effect and the range-selection guard; keep the structure under cognitive complexity 15 (extract the row, header and routing helpers); T-1…T-9, T-11 green and the 22 existing tests still green | UC-1…UC-9 | ⬜ Not started | — | — | — |
 | 5 | **Migrate the demos and stories.** `data-table-context-menu-demo.component.ts` (custom mode, keep its route and nav), `data-table-demo.component.{ts,html}` (drop the `Flat…` alias; two tables move to `uiDtContextMenu [contextMenu]`), `data-table.stories.ts`, `context-menu-integration.stories.ts`, the text in `table-context-menu.stories.ts`; fold `data-table-context-menu.stories.ts` into stories for the addon (one per mode, all options); every demo keeps a copy-paste example | UC-13 | ⬜ Not started | — | — | — |
@@ -503,3 +511,6 @@ verdicts._
 | 2026-10-18 | — | Spec written on branch `refactor/merge-data-table-context-menu` after the human chose "merge into the addon and expand the host contract". Step 0 corrected two earlier statements: the directives are not duplicates (the addon replaced the table's *built-in* menu), and the e2e blast radius is one harness plus the addon's own, not three. It also found the flat row finder's index-0 default (V-5) and that the host lacks exactly three members the flat directive needs (V-3). |
 | 2026-10-18 | UC-4, D-5 | **Revised after the human asked "why remove the touch long-press?"** The first draft applied the range-selection guard to simple mode too. Checked against the code: the table's touch range selection is a 500 ms long-press (`setupTouchRangeSelection`), the same hold as the context-menu long-press, which is why the flat directive steps aside when `enableCellRangeSelection` is on. Simple mode now keeps its long-press; the guard stays custom-mode-only. The same check exposed that the guard leaves touch-only users with no way to open a custom-mode menu on a range-selection table (OQ-1, awaiting the human's choice). |
 | 2026-10-18 | D-6 (was OQ-1) | **Human chose option 2.** Spec updated: `isCellInRange` joins the host (four members, not three; the table already has it publicly at `data-table.component.ts:2524`), the table's touch range handler keeps the range on a hold inside it, and the directive samples "inside the range" at touchstart so the result does not depend on handler order. UC-4, the routing rule, T-4, new T-18 / T-19, mutations (i)–(j) and Tasks 1–2 revised. Options 1 and 3 recorded as ruled out. |
+| 2026-10-18 | 1 (a) | **DOM inspection of a real `<ui-data-table>` (D-3), measured with a throwaway browser spec, since deleted.** Rows that carry `data-row-index`: data rows in the flat, tree and virtual-scroll templates. Rows that do **not**: the header row, an expanded **detail** row, group-header rows, **grouped data rows** (they carry `data-row-id` only, and grouping partitions `sortedData()` so a "rendered index" is undefined for them), the spacer row and the footer row. Every one of them still matches `[data-slot="table-row"]`. **Two pre-existing bugs in the flat directive, reproduced on a real table:** (1) a **header** right-click with `contextMenuRowsOnly=false` emits `rowContextMenu` for row 0 (`ROW idx=0 Alice`) and never `headerContextMenu`, because the header row itself matches the row selector; (2) a body right-click in a **grouped** table emits `idx=0` with row 0's data whatever was clicked. Its hand-built-DOM spec could not see either. **Outcome for D-3:** the merged directive resolves rows only through `[data-row-index]` (so both bugs are fixed by construction, and detail, footer and spacer rows are not taken); the `data-row-id` / index-0 fallbacks are dropped and their tests deleted. **Deviation from D-3's second branch, recorded:** grouped data rows lack `data-row-index` but the table is **not** changed to emit one, because a rendered index has no defined meaning under grouping; a grouped table's row gestures therefore fall through to the browser menu (it previously opened a menu with the wrong row). Follow-up for the human: give grouped rows a defined row identity for menus. T-3 and T-11 must run on the real table, not on hand-built DOM. |
+| 2026-10-18 | D-6, host contract | **Corrected while writing the tests.** The table's `onRangeDragEnd` collapses a 1×1 range to a plain focus (`cellRange` becomes null), so after a tap or a lone hold there is no range at all and "inside the range" never holds for a single cell. The fourth host member is therefore `isCellSelected(rowIndex, columnKey)` (in the range, or the focused cell when there is no range), not `isCellInRange`; the table keeps `isCellInRange` as is. UC-4, T-4, T-10, T-18, T-19, mutations (i)–(j), Task 2 and the D-6 walk-through revised. Side effect, recorded as the accepted cost: holding on the focused cell no longer starts a fresh drag. |
+| 2026-10-18 | 1 (b) | **Red list (tests written first, nothing implemented).** `addons/context-menu/context-menu.directive.spec.ts`: the **22 existing tests (T-6) still pass**; of 22 new tests, 14 fail for the stated reason (no `contextMenu` input, no `contextMenuDisabled`, no `contextMenuRowsOnly`, no outputs, no `focusCell` call) — T-1 (2 cases), T-2, T-3 (2), T-4 (3), T-5 (built-menu case), T-7, T-9 (3 cases), the swap test; the other 8 are guard tests that pass vacuously until the directive takes any gesture (header-by-default, neither-input, detail row, outside, destroyed, the simple-mode long-press, T-19 and the custom-mode disabled case) and are proven by mutation checks (a)–(j), not by this list. `data-table.host.spec.ts` (T-10): `focusCell`, `isCellRangeSelectionEnabled` and `isCellSelected` fail (not a function); `getRenderedTreeRowAt` passes because the table already has it publicly, so it now pins the contract. `data-table.component.spec.ts` (T-18): fails — the table restarts the range on every hold. New `addons/context-menu/context-menu.table.spec.ts` (real table): the row and header cases fail; the detail/footer/grouped cases are guards. |

@@ -1639,6 +1639,50 @@ describe('DataTableComponent', () => {
         expect(component.cellRange()).toEqual({ startRow: 1, startCol: 'name', endRow: 1, endCol: 'name' });
     });
 
+    // A hold on a selected cell is how a touch user reaches the selection's context menu (the menu's
+    // directive reads the selection at touchstart); restarting the range there would erase what the menu is about.
+    it('keeps the selection when a long-press lands on a selected cell, and starts a new range anywhere else', () => {
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.detectChanges();
+        const doc = document as Document & { elementFromPoint?: (x: number, y: number) => Element | null };
+        const container = component.scrollContainerRef()!.nativeElement;
+        const hold = (cell: HTMLElement): void => {
+            doc.elementFromPoint = () => cell;
+            const touchStart = Object.assign(new Event('touchstart', { bubbles: true, cancelable: true }), {
+                touches: [{ clientX: 10, clientY: 10 }],
+            }) as unknown as TouchEvent;
+            vi.useFakeTimers();
+            try {
+                container.dispatchEvent(touchStart);
+                vi.advanceTimersByTime(500);
+            } finally {
+                vi.useRealTimers();
+            }
+        };
+        const liftFinger = (): void => {
+            globalThis.dispatchEvent(new Event('touchend'));
+        };
+
+        // Inside a multi-cell range.
+        const range = { startRow: 0, startCol: 'id', endRow: 1, endCol: 'id' };
+        component.cellRange.set(range);
+        hold(cellEl(1, 'id'));
+        liftFinger();
+        expect(component.cellRange()).toEqual(range);
+
+        // The focused cell with no range: a lone hold leaves exactly this, since a 1x1 range collapses to a focus.
+        component.cellRange.set(null);
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'name' });
+        hold(cellEl(1, 'name'));
+        expect(component.cellRange()).toBeNull();
+        liftFinger();
+
+        // Anywhere else a range starts, as it always did.
+        hold(cellEl(2, 'name'));
+        expect(component.cellRange()).toEqual({ startRow: 2, startCol: 'name', endRow: 2, endCol: 'name' });
+        liftFinger();
+    });
+
     it('long-press is a no-op while range selection is disabled, while editing a cell, or when no cell is under the touch point', () => {
         const container = component.scrollContainerRef()!.nativeElement;
         const doc = document as Document & { elementFromPoint?: (x: number, y: number) => Element | null };
