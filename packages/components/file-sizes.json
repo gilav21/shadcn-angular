@@ -1506,8 +1506,8 @@
       "lines": 297
     },
     "data-table/addons/context-menu/context-menu.table.spec.ts": {
-      "bytes": 8324,
-      "lines": 190
+      "bytes": 8415,
+      "lines": 191
     },
     "data-table/addons/context-menu/context-menu.types.ts": {
       "bytes": 1413,
@@ -1606,8 +1606,8 @@
       "lines": 1531
     },
     "data-table/data-table.component.spec.ts": {
-      "bytes": 301035,
-      "lines": 6731
+      "bytes": 300738,
+      "lines": 6725
     },
     "data-table/data-table.component.ts": {
       "bytes": 230059,

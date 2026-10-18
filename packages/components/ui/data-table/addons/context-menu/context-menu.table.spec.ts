@@ -140,9 +140,10 @@ describe('DataTableContextMenuDirective on a real data table', () => {
 
   it('leaves a group header to the browser', async () => {
     const { host, root } = await render(true);
-    const header = root.querySelector('[data-group-key]') as HTMLElement;
+    // The chevron button is where a right-click on a group header usually lands.
+    const chevron = root.querySelector('[data-group-key] button') as HTMLElement;
 
-    const event = rightClick(header);
+    const event = rightClick(chevron);
 
     expect(host.rowEvents).toHaveLength(0);
     expect(host.menu.show).not.toHaveBeenCalled();

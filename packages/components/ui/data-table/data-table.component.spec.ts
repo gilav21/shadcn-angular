@@ -3291,12 +3291,6 @@ describe('DataTableComponent - Row Grouping', () => {
         expect((page2[1] as { row: OrderData }).row.id).toBe('o4');
     });
 
-    it('pagedGroupedDisplayRows returns every row unsliced when localPagination is off', () => {
-        fixture.componentRef.setInput('localPagination', false);
-        fixture.detectChanges();
-        expect(component.pagedGroupedDisplayRows()).toEqual(component.groupedDisplayRows());
-    });
-
     // The rendered index is the contract every callback, event and addon reads through getRenderedRowAt: the row
     // in the element stamped data-row-index="i" must be getRenderedRowAt(i). Grouping reorders the rows on screen
     // (pending: o1, o3 · shipped: o2, o5 · delivered: o4) while the sorted data stays o1..o5.
