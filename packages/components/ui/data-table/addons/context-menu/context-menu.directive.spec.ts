@@ -890,14 +890,16 @@ describe('DataTableContextMenuDirective', () => {
     });
 
     it('follows the bound menu when it is swapped or cleared', async () => {
-      const { comp, el } = await setupCustom();
+      const { comp, fixture, el } = await setupCustom();
       const second = fakeMenu();
 
       comp.menu.set(second);
+      fixture.detectChanges();
       rightClick(el('cell-name'), 3, 4);
       expect(second.show).toHaveBeenCalledTimes(1);
 
       comp.menu.set(undefined);
+      fixture.detectChanges();
       const event = rightClick(el('cell-name'));
       expect(event.defaultPrevented).toBe(false);
       expect(second.show).toHaveBeenCalledTimes(1);
