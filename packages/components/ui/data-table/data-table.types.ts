@@ -476,6 +476,12 @@ export interface GroupRow {
     collapsed: boolean;
 }
 
+/**
+ * A row of the grouped display list: a group header, or a data row carrying the
+ * rendered index every callback, event and addon uses for it (`data-row-index`,
+ * {@link DataTableComponent.getRenderedRowAt}). Headers take no index, and the
+ * numbering restarts on each page.
+ */
 export type DataTableDisplayRow<T> =
     | GroupRow
-    | { kind: 'data'; row: T };
+    | { kind: 'data'; row: T; index: number };

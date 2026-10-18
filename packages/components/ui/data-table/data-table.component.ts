@@ -105,6 +105,7 @@ import {
   computeVariableRowRange,
   buildPrefixSums,
   partitionIntoGroups,
+  renumberDataRows,
   computeAggregateValue,
   buildFillValues,
   parseClipboardGrid,
@@ -1533,6 +1534,8 @@ export class DataTableComponent<T>
   }
 
   readonly processedData = computed(() => {
+    // Grouping reorders the rows on screen, so the drawn order is the rendered order.
+    if (this.groupingActive()) return this.groupedDataRows();
     if (this.enableSubRows()) {
       const visible = this.visibleTreeRows();
       if (!this.pagesLocally()) return visible.map((tr) => tr.row);
@@ -1611,12 +1614,13 @@ export class DataTableComponent<T>
     );
 
     const result: DataTableDisplayRow<T>[] = [];
+    let index = 0;
     for (const group of groups) {
       const collapsed = collapsedMap[group.groupKey] === true;
       result.push(this.buildGroupRow(group.groupKey, group.groupValue, group.rows, collapsed));
       if (!collapsed) {
         for (const row of group.rows) {
-          result.push({ kind: 'data', row });
+          result.push({ kind: 'data', row, index: index++ });
         }
       }
     }
@@ -1662,8 +1666,15 @@ export class DataTableComponent<T>
   readonly pagedGroupedDisplayRows = computed<DataTableDisplayRow<T>[]>(() => {
     const rows = this.groupedDisplayRows();
     if (!this.pagesLocally()) return rows;
-    return this.slicePage(rows);
+    return renumberDataRows(this.slicePage(rows));
   });
+
+  /** The data rows of {@link pagedGroupedDisplayRows}, in the order they are drawn. */
+  private readonly groupedDataRows = computed<T[]>(() =>
+    this.pagedGroupedDisplayRows().flatMap((displayRow) =>
+      displayRow.kind === 'data' ? [displayRow.row] : [],
+    ),
+  );
 
   private readonly filteredRowIds = computed(() => {
     if (this.enableSubRows()) {

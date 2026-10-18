@@ -1,6 +1,7 @@
 import { stringifyValue } from '../../lib/utils';
 import type {
     AggregateFn,
+    DataTableDisplayRow,
     FilterGroup,
     FilterOperator,
     FilterRule,
@@ -684,6 +685,16 @@ export function partitionIntoGroups<T>(
         groupValue: value.groupValue,
         rows: value.rows,
     }));
+}
+
+/**
+ * Numbers the data rows of a grouped display list from 0, leaving group headers
+ * unnumbered. A page slice keeps the global index its rows were given before
+ * paging, so this restarts the count to match the rows the page actually draws.
+ */
+export function renumberDataRows<T>(rows: readonly DataTableDisplayRow<T>[]): DataTableDisplayRow<T>[] {
+    let index = 0;
+    return rows.map((row) => (row.kind === 'group' ? row : { ...row, index: index++ }));
 }
 
 // ── Advanced filter evaluation (A5) ──

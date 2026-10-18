@@ -3296,6 +3296,63 @@ describe('DataTableComponent - Row Grouping', () => {
         fixture.detectChanges();
         expect(component.pagedGroupedDisplayRows()).toEqual(component.groupedDisplayRows());
     });
+
+    // The rendered index is the contract every callback, event and addon reads through getRenderedRowAt: the row
+    // in the element stamped data-row-index="i" must be getRenderedRowAt(i). Grouping reorders the rows on screen
+    // (pending: o1, o3 · shipped: o2, o5 · delivered: o4) while the sorted data stays o1..o5.
+    describe('rendered row index', () => {
+        const renderedIds = (): { index: string | undefined; id: string }[] =>
+            Array.from(fixture.nativeElement.querySelectorAll('[data-row-index]') as NodeListOf<HTMLElement>)
+                .map((row) => ({ index: row.dataset['rowIndex'], id: row.querySelector('[data-column="id"]')!.textContent!.trim() }));
+
+        it('numbers the data rows in the order they are drawn, group headers not counted', () => {
+            expect(renderedIds()).toEqual([
+                { index: '0', id: 'o1' }, { index: '1', id: 'o3' },
+                { index: '2', id: 'o2' }, { index: '3', id: 'o5' },
+                { index: '4', id: 'o4' },
+            ]);
+            expect(renderedIds().every(({ index, id }) => component.getRenderedRowAt(Number(index))?.id === id)).toBe(true);
+        });
+
+        it('restarts at 0 on every page and skips the rows of a collapsed group', () => {
+            fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
+            fixture.detectChanges();
+            expect(renderedIds()).toEqual([{ index: '0', id: 'o2' }, { index: '1', id: 'o5' }]);
+
+            fixture.componentRef.setInput('paginationState', { pageIndex: 0, pageSize: 10 });
+            fixture.componentRef.setInput('collapsedGroups', { pending: true });
+            fixture.detectChanges();
+            expect(renderedIds()).toEqual([
+                { index: '0', id: 'o2' }, { index: '1', id: 'o5' }, { index: '2', id: 'o4' },
+            ]);
+            expect(component.getRenderedRowAt(0)?.id).toBe('o2');
+            expect(component.getRenderedRowAt(3)).toBeUndefined();
+
+            // The pager hidden: the whole list is drawn unsliced, and the numbering is the same.
+            fixture.componentRef.setInput('showPagination', false);
+            fixture.detectChanges();
+            expect(renderedIds()).toEqual([
+                { index: '0', id: 'o2' }, { index: '1', id: 'o5' }, { index: '2', id: 'o4' },
+            ]);
+        });
+
+        it('hands a row action the rendered index of its own row', () => {
+            const clicked: { id: string; index: number }[] = [];
+            component.registerCellAction({
+                id: 'menu',
+                ariaLabel: 'Row actions',
+                onClick: (_event, context) => clicked.push({ id: context.row.id, index: context.index }),
+            });
+            fixture.detectChanges();
+
+            const buttons = Array.from(fixture.nativeElement.querySelectorAll('[aria-label="Row actions"]') as NodeListOf<HTMLElement>);
+            buttons.forEach((button) => button.click());
+
+            expect(clicked).toEqual([
+                { id: 'o1', index: 0 }, { id: 'o3', index: 1 }, { id: 'o2', index: 2 }, { id: 'o5', index: 3 }, { id: 'o4', index: 4 },
+            ]);
+        });
+    });
 });
 
 describe('DataTableComponent — i18n integration', () => {

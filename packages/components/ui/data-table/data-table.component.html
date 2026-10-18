@@ -1303,13 +1303,14 @@
                       [attr.data-state]="isRowSelected(displayRow.row) ? 'selected' : null"
                       [attr.data-disabled]="isDisabled(displayRow.row) || null"
                       [class.opacity-50]="isDisabled(displayRow.row)"
+                      [attr.data-row-index]="displayRow.index"
                       [attr.data-row-id]="getRowId()(displayRow.row)"
                       data-slot="table-group-data-row"
                       class="border-0"
                     >
                       @for (col of enhancedColumns(); track col.accessorKey) {
                         <ui-table-cell
-                          [class]="getCellClass(col, i)"
+                          [class]="getCellClass(col, displayRow.index)"
                           [attr.data-column]="String(col.accessorKey)"
                           [style]="getCellStyle(col)"
                         >
@@ -1319,7 +1320,7 @@
                               context: {
                                 $implicit: col,
                                 row: displayRow.row,
-                                rowIndex: i,
+                                rowIndex: displayRow.index,
                                 treeRow: null,
                                 recycle: false,
                               }
