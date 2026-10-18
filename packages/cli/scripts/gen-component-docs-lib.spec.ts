@@ -303,6 +303,11 @@ describe('scoreRoute', () => {
         expect(scoreRoute(route('buttons', './demos/inputs/button-demo.component'), 'button')).toBe(1);
     });
 
+    it('ranks the route named parent-addon first for an addon', () => {
+        expect(scoreRoute(route('data-table-context-menu', './demos/x'), 'data-table/context-menu')).toBe(0);
+        expect(scoreRoute(route('data-table', './demos/x'), 'data-table/context-menu')).toBe(4);
+    });
+
     it('resolves an addon by its last name segment', () => {
         expect(scoreRoute(route('x', './demos/export-demo.component'), 'data-table/export')).toBe(1);
     });
@@ -330,6 +335,11 @@ describe('resolveDemoRoutes', () => {
     it('leaves a component with no demo unresolved rather than guessing', () => {
         const resolved = resolveDemoRoutes(FIXTURE_REGISTRY, FIXTURE_DOCS, [FIXTURE_ROUTES[1]]);
         expect(resolved.has('dot')).toBe(false);
+    });
+
+    it('documents the data-table context-menu addon on its own page, not on the table page that also imports it', () => {
+        const resolved = resolveDemoRoutes(registry, apiDocs, readRealRoutes());
+        expect(resolved.get('data-table/context-menu')?.path).toBe('data-table-context-menu');
     });
 
     it('documents the button on the button page, not on the spinner page', () => {

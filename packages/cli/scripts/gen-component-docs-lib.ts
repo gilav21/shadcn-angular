@@ -180,7 +180,8 @@ export function classOwners(
  * maintain.
  */
 export function scoreRoute(route: DemoRoute, name: string): number {
-    if (route.path === name) return 0;
+    // An addon's own page is the route named after it: `data-table/context-menu` -> `data-table-context-menu`.
+    if (route.path === name || route.path === name.replaceAll('/', '-')) return 0;
     const base = route.module.split('/').pop() ?? '';
     const stem = name.split('/').pop() as string;
     if (base === `${name}-demo.component` || base === `${stem}-demo.component`) return 1;

@@ -6198,8 +6198,8 @@
       "npmDependencies": [],
       "snippet": "<div uiDtContextMenu></div>",
       "snippetSkipReason": "",
-      "demoRoute": "data-table",
-      "demoFile": "demo/src/app/demos/data-display/data-table-demo.component.ts",
+      "demoRoute": "data-table-context-menu",
+      "demoFile": "demo/src/app/demos/data-display/data-table-context-menu-demo.component.ts",
       "api": [
         {
           "className": "DataTableContextMenuDirective",
