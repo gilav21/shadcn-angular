@@ -905,6 +905,53 @@ describe('DataTableContextMenuDirective', () => {
       expect(second.show).toHaveBeenCalledTimes(1);
     });
 
+    // The CLI only checks that the base file EXISTS before applying an addon, so a project can hold a newer
+    // addon next to an older table whose host lacks the members custom mode reads.
+    describe('against a table older than the addon', () => {
+      const olderHost = (): FakeHost<Row> => {
+        const stale = new FakeHost<Row>();
+        for (const member of ['getRenderedTreeRowAt', 'focusCell', 'isCellRangeSelectionEnabled', 'isCellSelected']) {
+          (stale as unknown as Record<string, unknown>)[member] = undefined;
+        }
+        return stale;
+      };
+
+      it('says what to update when a menu is bound', async () => {
+        host = olderHost();
+        await expect(setupCustom()).rejects.toThrow(/getRenderedTreeRowAt.*focusCell.*isCellRangeSelectionEnabled.*isCellSelected.*update data-table/s);
+      });
+
+      it('keeps simple mode working: it never reads the newer members, not even on a touch', async () => {
+        // A throw inside a DOM listener is reported to the window, not to the caller, so catch it there.
+        const uncaught: unknown[] = [];
+        const onError = (event: ErrorEvent): void => {
+          uncaught.push(event.error);
+          event.preventDefault();
+        };
+        globalThis.addEventListener('error', onError);
+        vi.useFakeTimers();
+        try {
+          host = olderHost();
+          const { comp, el } = await setupCustom(c => {
+            c.menu.set(undefined);
+            c.actions.set(() => [{ label: 'Edit' }]);
+          });
+
+          touchDown(el('cell-name'), 10, 20);
+          vi.advanceTimersByTime(500);
+          expect(comp.builtOpens).toHaveLength(1);
+
+          vi.advanceTimersByTime(1000);
+          rightClick(el('cell-name'));
+          expect(comp.builtOpens).toHaveLength(2);
+          expect(uncaught).toEqual([]);
+        } finally {
+          vi.useRealTimers();
+          globalThis.removeEventListener('error', onError);
+        }
+      });
+    });
+
     it('stops answering gestures once destroyed', async () => {
       const { comp, fixture, el, shown } = await setupCustom();
       const cell = el('cell-name');

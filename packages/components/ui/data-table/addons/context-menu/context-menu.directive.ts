@@ -31,6 +31,17 @@ const SLOT_ID = 'context-menu';
 /** Columns the table adds itself; a gesture on one of them does not move the grid focus. */
 const TABLE_OWNED_COLUMNS: ReadonlySet<string> = new Set(['_selection', '_expander', '_actions']);
 
+/**
+ * What custom mode reads from the host. The CLI only checks that the base file exists before it applies
+ * an addon, so a newer addon can sit next to an older table whose host lacks these.
+ */
+const CUSTOM_MODE_HOST_MEMBERS: readonly (keyof DataTableAddonHost)[] = [
+  'getRenderedTreeRowAt',
+  'focusCell',
+  'isCellRangeSelectionEnabled',
+  'isCellSelected',
+];
+
 const ROW_SELECTOR = '[data-row-index]';
 const HEADER_SELECTOR = '[data-slot="table-head"], [data-slot="data-table-header"], th';
 
@@ -102,6 +113,10 @@ export class DataTableContextMenuDirective<T = unknown> {
   constructor() {
     const destroyRef = inject(DestroyRef);
 
+    effect(() => {
+      if (this.contextMenu()) this.requireCustomModeHost();
+    });
+
     effect((onCleanup) => {
       if (!this.rowActions()) return;
       onCleanup(
@@ -129,7 +144,9 @@ export class DataTableContextMenuDirective<T = unknown> {
     afterNextRender(() => {
       const element = this.el.nativeElement;
       const onPress = (event: TouchEvent): void => {
-        this.pressedCellSelected = this.selectedCellAt(event.target);
+        // Simple mode never asks the host about selection, so an older table keeps working there.
+        this.pressedCellSelected =
+          this.contextMenu() !== undefined && this.host.isCellRangeSelectionEnabled() && this.selectedCellAt(event.target);
       };
       const stopGestures = onContextGesture(element, (gesture) => this.openFromGesture(gesture));
       element.addEventListener('touchstart', onPress, { passive: true });
@@ -162,6 +179,15 @@ export class DataTableContextMenuDirective<T = unknown> {
       ...this.pinItems(key, currentPin, t),
       ...this.visibilityItems(key, col, t),
     ];
+  }
+
+  private requireCustomModeHost(): void {
+    const missing = CUSTOM_MODE_HOST_MEMBERS.filter((member) => typeof this.host[member] !== 'function');
+    if (missing.length === 0) return;
+    throw new Error(
+      `uiDtContextMenu [contextMenu] needs a newer <ui-data-table>: its DataTableAddonHost lacks ${missing.join(', ')}. ` +
+        'Run `npx @gilav21/shadcn-angular update data-table`.',
+    );
   }
 
   /** Whether the gesture was taken: by `contextMenu` if bound, else by the built row menu if `rowActions` is set. */
