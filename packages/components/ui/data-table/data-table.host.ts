@@ -64,6 +64,8 @@ export abstract class DataTableAddonHost<T = unknown> {
    * the finger lifts, so that is all a lone tap or hold leaves behind).
    */
   abstract isCellSelected(rowIndex: number, columnKey: string): boolean;
+  /** Whether a cell is open in the inline editor (the table's range handler ignores every touch hold meanwhile). */
+  abstract isEditingCell(): boolean;
   /** Current sort direction for a column key. */
   abstract getSortDirection(columnKey: string | keyof T): SortDirection;
   /** Apply a sort to a column (`multi` extends a multi-sort). */

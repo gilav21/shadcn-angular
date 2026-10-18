@@ -60,10 +60,11 @@ export type ApiTableRow = ApiMember;
 export interface ApiTable {
     readonly className: string;
     /**
-     * Repo-relative source file. Class names are NOT unique across the library
-     * — `DataTableContextMenuDirective` exists both as a standalone directive
-     * and as a data-table addon — so this is the only stable identity a table
-     * has, and the only safe key for tracing a row back to the extract.
+     * Repo-relative source file. Do not key on the class name alone: a name can
+     * be declared in two files (it was, for `DataTableContextMenuDirective`,
+     * until the standalone directive was merged into the data-table addon), so
+     * this is the only stable identity a table has, and the only safe key for
+     * tracing a row back to the extract.
      */
     readonly file: string;
     readonly kind: 'component' | 'directive';

@@ -5509,6 +5509,11 @@ export class DataTableComponent<T>
     return focused?.rowIndex === rowIndex && focused.columnKey === columnKey;
   }
 
+  /** Whether a cell is open in the inline editor. */
+  isEditingCell(): boolean {
+    return this.editingCell() !== null;
+  }
+
   private buildRowActionContext(row: T, index: number): RowActionContext<T> {
     const selected = !!this.rowSelection()[this.getRowId()(row)];
     const context: RowActionContext<T> = { row, index, selected };

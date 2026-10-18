@@ -41,6 +41,7 @@ const CUSTOM_MODE_HOST_MEMBERS: readonly (keyof DataTableAddonHost)[] = [
   'focusCell',
   'isCellRangeSelectionEnabled',
   'isCellSelected',
+  'isEditingCell',
 ];
 
 const ROW_SELECTOR = '[data-row-index]';
@@ -215,11 +216,11 @@ export class DataTableContextMenuDirective<T = unknown> {
 
   /**
    * With range selection on, the table starts a range from a touch hold on an unselected data cell. It
-   * ignores every other hold (a header, its own columns, a row's padding) and a hold on what is already
-   * selected, so those are free to open the menu.
+   * ignores every other hold (a header, its own columns, a row's padding), a hold on what is already
+   * selected, and every hold while a cell is being edited, so those are free to open the menu.
    */
   private rangeSelectionWillTake(target: EventTarget | null): boolean {
-    if (!this.host.isCellRangeSelectionEnabled()) return false;
+    if (!this.host.isCellRangeSelectionEnabled() || this.host.isEditingCell()) return false;
     const cell = this.cellAt(target);
     return cell !== null && !TABLE_OWNED_COLUMNS.has(cell.columnKey) && !this.host.isCellSelected(cell.rowIndex, cell.columnKey);
   }
@@ -356,6 +357,6 @@ function rowIndexOf(rowEl: HTMLElement): number {
 
 /** The bounding rect of the button nearest an event target, if any. */
 function buttonRect(target: EventTarget | null): DOMRect | undefined {
-  const button = (target as HTMLElement | null)?.closest('button');
+  const button = target instanceof Element ? target.closest('button') : null;
   return button?.getBoundingClientRect();
 }

@@ -1494,12 +1494,12 @@
       "lines": 1
     },
     "data-table/addons/context-menu/context-menu.directive.spec.ts": {
-      "bytes": 42136,
-      "lines": 1081
+      "bytes": 43120,
+      "lines": 1107
     },
     "data-table/addons/context-menu/context-menu.directive.ts": {
-      "bytes": 15719,
-      "lines": 361
+      "bytes": 15819,
+      "lines": 362
     },
     "data-table/addons/context-menu/context-menu.stories.ts": {
       "bytes": 10628,
@@ -1518,8 +1518,8 @@
       "lines": 2
     },
     "data-table/addons/export/export.directive.spec.ts": {
-      "bytes": 10547,
-      "lines": 315
+      "bytes": 10598,
+      "lines": 318
     },
     "data-table/addons/export/export.directive.ts": {
       "bytes": 4635,
@@ -1606,24 +1606,24 @@
       "lines": 1531
     },
     "data-table/data-table.component.spec.ts": {
-      "bytes": 292635,
-      "lines": 6582
+      "bytes": 292879,
+      "lines": 6587
     },
     "data-table/data-table.component.ts": {
-      "bytes": 229421,
-      "lines": 6303
+      "bytes": 229549,
+      "lines": 6308
     },
     "data-table/data-table.coverage.spec.ts": {
       "bytes": 19823,
       "lines": 543
     },
     "data-table/data-table.host.spec.ts": {
-      "bytes": 6677,
-      "lines": 181
+      "bytes": 7012,
+      "lines": 189
     },
     "data-table/data-table.host.ts": {
-      "bytes": 5365,
-      "lines": 112
+      "bytes": 5519,
+      "lines": 114
     },
     "data-table/data-table.locales.ts": {
       "bytes": 12901,

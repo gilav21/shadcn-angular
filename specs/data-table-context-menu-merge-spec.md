@@ -127,7 +127,7 @@ collision, and it is the only one that works in the compiled data-table package.
 | UC-8 | **Neither input set.** The directive takes no gesture (the browser menu appears) and registers no ⋮ button. |
 | UC-9 | **Cell focus.** A row gesture on a cell sets the table's focused cell to that cell, except for the table's own selection, expander and actions columns (the flat directive skipped the first two; the third matches the table's own `cellFromElement`, and is tested). |
 | UC-10 | **One directive.** `DataTableContextMenuDirective` is declared exactly once, with selector `[uiDtContextMenu]`. The flat file, its spec, its stories, its registry entry, its e2e harness and its `ui/index.ts` export are gone; `npm run check:registry` is clean. |
-| UC-11 | **Host contract.** `DataTableAddonHost` exposes `getRenderedTreeRowAt`, `focusCell`, `isCellRangeSelectionEnabled` and `isCellSelected`; the real `DataTableComponent` returns what it returns today for each; the addon never imports `DataTableComponent`. |
+| UC-11 | **Host contract.** `DataTableAddonHost` exposes `getRenderedTreeRowAt`, `focusCell`, `isCellRangeSelectionEnabled`, `isCellSelected` and `isEditingCell`; the real `DataTableComponent` returns what it returns today for each; the addon never imports `DataTableComponent`. |
 | UC-12 | **Upgrade path.** A consumer who still writes `[uiDataTableContextMenu]` is told, by `npx @gilav21/shadcn-angular update`, the exact replacement, and applying the addon prunes the orphaned flat files (pristine copies only). `update` finds installed components by their first file, so a project that has only the removed flat directive installed keeps its own copy and learns what to do from the note; it is never silently rewritten. |
 | UC-13 | **Docs and demos.** The demo page, the Storybook stories and `docs/directives.md` show both modes with copy-paste examples, and no longer describe a second directive. *(Deviation, recorded in the log: the dedicated demo page demonstrates custom mode; simple mode's copy-paste examples are on the data-table demo page and in the `RowActions` / `ColumnMenu` stories, because a new section on the dedicated page needs copy in ten locales.)* |
 | UC-14 | **Package.** The compiled `@gilav21/shadcn-angular-data-table` contains the merged directive and **no** new dependency (in particular not `table-context-menu`). |
@@ -276,7 +276,7 @@ Gesture routing, as a rule the code and tests both state:
 ### The host contract (what is added to `DataTableAddonHost`)
 
 ```ts
-// data-table.host.ts — four additions, all documented where they are declared
+// data-table.host.ts — five additions (the fifth came out of review round 3), all documented where they are declared
 /** The flattened tree row at a rendered index (depth, path, expansion), or undefined outside tree mode or out of range. */
 abstract getRenderedTreeRowAt(index: number): FlattenedTreeRow<T> | undefined;
 /** Move the grid's keyboard focus to a cell (the cell a context gesture landed on). */
@@ -285,12 +285,13 @@ abstract focusCell(rowIndex: number, columnKey: string): void;
 abstract isCellRangeSelectionEnabled(): boolean;
 /** Whether a cell is selected: inside the current range, or the focused cell when there is no range. */
 abstract isCellSelected(rowIndex: number, columnKey: string): boolean;
+/** Whether a cell is open in the inline editor (the table's range handler ignores every touch hold meanwhile). */
+abstract isEditingCell(): boolean;
 ```
 
 `DataTableComponent` implements them as one-line wrappers over what it already
 has (`processedTreeRows()[index]`, `focusedCell.set({ rowIndex, columnKey })`,
-`enableCellRangeSelection()`, and the public `isCellInRange` plus `focusedCell` for `isCellSelected`). The host file also re-exports the
-`FlattenedTreeRow` type for addon authors. Both FakeHosts get stubs.
+`enableCellRangeSelection()`, and the public `isCellInRange` plus `focusedCell` for `isCellSelected`; `editingCell() !== null` for `isEditingCell`). The host file imports `FlattenedTreeRow` for its own signature; addon authors already get the type from the `data-table` barrel (`export * from './data-table.types'`), so it is **not** re-exported from the host file (this section said it would be; recorded in the log). Both FakeHosts get stubs.
 
 ### Efficiency
 
@@ -444,12 +445,12 @@ How option 2 works, so the code and the tests agree:
 
 **Cost, accepted:** on a table with range selection on, holding on the focused
 cell or inside an existing range no longer starts a fresh drag from there; the
-user holds on a different cell to start one. **Known edge, not covered:** while a
-cell is being edited the table's range handler ignores every hold
-(`editingCell() !== null`) and the directive, which cannot see that state through
-the host, still yields to it for an unselected data cell, so such a hold does
-nothing; finishing the edit first resolves it. Exposing the editing state would
-be a fifth host member, which this spec does not take on. Simple mode is unaffected: its hold
+user holds on a different cell to start one. **Editing a cell:** the table's range handler ignores every hold while a
+cell is being edited (`editingCell() !== null`). The first draft of this spec left
+that as a known edge (a hold on an unselected data cell then did nothing in either
+handler, a touch dead end); review round 3 flagged it and it is fixed with a fifth
+host member, `isEditingCell`: while a cell is being edited the directive no longer
+yields, so the menu opens. Simple mode is unaffected: its hold
 still opens the built menu, and the range handler's new rule only changes whether
 the range is restarted.
 
@@ -531,3 +532,4 @@ verdicts._
 | 2026-10-18 | review-gate round 2 | Independent reviewer on the same template, no knowledge of round 1: **90/100**, one point under the bar. Its code findings were all minor (an inaccurate "reported once" comment, the editing-cell edge above, a mouse right-click on a selected cell untested, a pre-existing `as HTMLElement`); the rest was this record: Status and the Task rows not updated, UC-9 / UC-12 / D-5 wording behind the code, and "obsoleteFiles prunes orphans" asserted rather than proven. Fixed: the comment; the missing test; UC-9, UC-12, UC-13 and D-5 now match the code; the edge is recorded; and a new CLI test proves the pruning against the **real last published source** of the removed directive (kept as a fixture): applying the addon removes it when it is clean against the lockfile and when it is untracked but byte-identical to what we shipped (which proves the regenerated baselines recognise it), and keeps an edited copy; the registry mutation (dropping `obsoleteFiles`) turns it red. |
 | 2026-10-18 | 11 (release verdicts) | From the release tooling, not guessed: **CLI** `release:cli -- patch --dry-run`: publish REQUIRED (`packages/cli/package.json` MCP floor from the sweep branch, regenerated baselines, the new fixture); **`@gilav21/shadcn-angular-data-table`** `release:package -- data-table patch --dry-run`: release REQUIRED, 9 files (context-menu content, the addon's directive / types / barrel, the table component and its host, dialog, select); **`@gilav21/shadcn-angular-rte`** `release:package -- rte patch --dry-run`: release REQUIRED, 9 files, none from this change (the dialog, parser and colour-picker fixes of the sweep branch). Publishing is manual (2FA) after both PRs merge. The compiled data-table package gains exactly one file (184 staged, `context-menu.types.ts`) and no `table-context-menu`. |
 | 2026-10-18 | 11 (gate evidence) | The Sonar gate, its four-condition verdict and the final review score are on the final commit, so they are in the pull request description, not here: a line in this file would need a commit after the scan it describes. |
+| 2026-10-18 | review-gate round 3 | Independent reviewer, fresh context: **90/100** again, with the code judged faithful and the findings narrower. Fixed: (1) the table-level T-18 test never held a cell outside a *live* range, so a wrong guard such as `if (this.cellRange()) return` passed it → a case with a live multi-cell range and a hold outside it, mutation red; (3) the stale JSDoc in `gen-component-docs-lib.ts` that still said `DataTableContextMenuDirective` exists twice; (5) the compiled package's README row (`packages/data-table-package/README.md`) now describes both modes; (6) the editing-cell touch dead end → fixed with a fifth host member, `isEditingCell` (host spec, directive spec, older-table list, export fake host, mutation red); (7) the context-menu key on a range-selection table is now tested with the right-click, on a selected and an unselected cell; (8) the second `obsoleteFiles` entry (the removed spec file) is tested too, and that exposed a real limit worth recording: the baselines hold published component sources, **not specs**, so an *untracked* old spec cannot be proven ours and is kept with a warning, while a *tracked* one (the only way a spec is installed, `--include-tests` post-dates the lockfile) is pruned; (9) `buttonRect` uses an `instanceof Element` check instead of an assertion. **Recorded deviations:** (2) `scoreRoute` ranks a route named `parent-addon` first for *every* addon, not just this one; measured by diffing `component-docs.json` before and after, **exactly one component changed page** (`data-table/context-menu`: `data-table` → `data-table-context-menu`), so no other addon page moved; (4) `FlattenedTreeRow` is not re-exported from `data-table.host.ts` (addons get it from the barrel), the host-contract section above now says so. |

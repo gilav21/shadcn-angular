@@ -171,6 +171,14 @@ describe('DataTableComponent as DataTableAddonHost', () => {
     expect(host.isCellSelected(2, 'name')).toBe(false);
   });
 
+  it('reports whether a cell is being edited', () => {
+    expect(host.isEditingCell()).toBe(false);
+    fixture.componentInstance.editingCell.set({ rowIndex: 0, columnKey: 'name' });
+    expect(host.isEditingCell()).toBe(true);
+    fixture.componentInstance.editingCell.set(null);
+    expect(host.isEditingCell()).toBe(false);
+  });
+
   it('shows and clears the busy overlay label', () => {
     expect(host.busyLabel()).toBeNull();
     host.setBusy('Exporting…');

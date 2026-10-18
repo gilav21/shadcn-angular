@@ -1670,6 +1670,11 @@ describe('DataTableComponent', () => {
         liftFinger();
         expect(component.cellRange()).toEqual(range);
 
+        // Outside that live range: a new range replaces it, as it always did.
+        hold(cellEl(2, 'name'));
+        expect(component.cellRange()).toEqual({ startRow: 2, startCol: 'name', endRow: 2, endCol: 'name' });
+        liftFinger();
+
         // The focused cell with no range: a lone hold leaves exactly this, since a 1x1 range collapses to a focus.
         component.cellRange.set(null);
         component.focusedCell.set({ rowIndex: 1, columnKey: 'name' });

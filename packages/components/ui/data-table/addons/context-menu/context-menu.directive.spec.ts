@@ -40,6 +40,7 @@ class FakeHost<T> extends DataTableAddonHost<T> {
   treeRows: Record<number, FlattenedTreeRow<T>> = {};
   readonly focusCalls: [number, string][] = [];
   rangeSelection = false;
+  editing = false;
   /** Which cells count as selected (the real table: inside its range, or the focused cell with no range). */
   selected: (rowIndex: number, columnKey: string) => boolean = () => false;
 
@@ -60,6 +61,9 @@ class FakeHost<T> extends DataTableAddonHost<T> {
   }
   isCellSelected(rowIndex: number, columnKey: string): boolean {
     return this.selected(rowIndex, columnKey);
+  }
+  isEditingCell(): boolean {
+    return this.editing;
   }
   getRowContext(row: T, index: number): RowActionContext<T> {
     return { row, index, selected: false };
@@ -742,15 +746,20 @@ describe('DataTableContextMenuDirective', () => {
       }
     });
 
-    it('custom mode, range selection on: a right-click on a selected cell opens the menu like any other', async () => {
+    it.each([
+      { how: 'a right-click', open: (target: Element) => target.dispatchEvent(typedContextMenu('mouse', 10, 20)) },
+      { how: 'the context-menu key', open: (target: Element) => rightClick(target, 0, 0) },
+    ])('custom mode, range selection on: $how on a selected or an unselected cell opens the menu', async ({ open }) => {
       host.rangeSelection = true;
       host.selected = (row, column) => row === 2 && column === 'name';
       const { comp, el, shown } = await setupCustom();
 
-      rightClick(el('cell-name'), 10, 20);
+      open(el('cell-name'));
+      host.selected = () => false;
+      open(el('cell-name'));
 
-      expect(comp.rowEvents).toHaveLength(1);
-      expect(shown()).toHaveBeenCalledTimes(1);
+      expect(comp.rowEvents).toHaveLength(2);
+      expect(shown()).toHaveBeenCalledTimes(2);
     });
 
     it('custom mode, range selection on: a long-press on any other cell is left to range selection, and a right-click still opens', async () => {
@@ -788,6 +797,23 @@ describe('DataTableContextMenuDirective', () => {
         const { comp, el } = await setupCustom();
 
         touchDown(el(target), 10, 20);
+        vi.advanceTimersByTime(500);
+
+        expect(comp.rowEvents).toHaveLength(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // The table's range handler ignores every hold while a cell is being edited, so nothing else would take it.
+    it('custom mode, range selection on: a long-press on an unselected cell opens the menu while another cell is being edited', async () => {
+      vi.useFakeTimers();
+      try {
+        host.rangeSelection = true;
+        host.editing = true;
+        const { comp, el } = await setupCustom();
+
+        touchDown(el('cell-name'), 10, 20);
         vi.advanceTimersByTime(500);
 
         expect(comp.rowEvents).toHaveLength(1);
@@ -980,7 +1006,7 @@ describe('DataTableContextMenuDirective', () => {
     describe('against a table older than the addon', () => {
       const olderHost = (): FakeHost<Row> => {
         const stale = new FakeHost<Row>();
-        for (const member of ['getRenderedTreeRowAt', 'focusCell', 'isCellRangeSelectionEnabled', 'isCellSelected']) {
+        for (const member of ['getRenderedTreeRowAt', 'focusCell', 'isCellRangeSelectionEnabled', 'isCellSelected', 'isEditingCell']) {
           (stale as unknown as Record<string, unknown>)[member] = undefined;
         }
         stale.rows = [{ id: 'r0', name: 'Zero' }, { id: 'r1', name: 'One' }, ROW];
@@ -1028,7 +1054,7 @@ describe('DataTableContextMenuDirective', () => {
         stop();
 
         expect(reported).toHaveLength(1);
-        expect(String(reported[0])).toMatch(/getRenderedTreeRowAt.*focusCell.*isCellRangeSelectionEnabled.*isCellSelected.*update data-table/s);
+        expect(String(reported[0])).toMatch(/getRenderedTreeRowAt.*focusCell.*isCellRangeSelectionEnabled.*isCellSelected.*isEditingCell.*update data-table/s);
       });
 
       it('then lets gestures fall through to the browser instead of failing on each one', async () => {
