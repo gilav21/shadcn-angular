@@ -81,6 +81,7 @@ Batch the CLI publish once 1–4 have merged, rather than publishing four times.
 | Run parsers in a Web Worker | spec 6 | Containment, not correctness. DOM-based parsers block it. ⚠️ 2026-10-17: only docx/pptx/xlsx-reader/svg-sanitizer use `DOMParser`; the PDF/DOC/PPT family can move. **Spec written: [`parsers-in-web-worker-spec.md`](parsers-in-web-worker-spec.md)** |
 | Public "truncated / limits hit" flag on parse results | spec 6 | API addition; revisit for file-viewer UX |
 | SSR safety sweep (68 bare `document.*` refs) | spec 15 | Mostly handler-time and safe; render-time cases in sheet/drawer/dialog are fixed by spec 7 |
+| Two unrelated `DataTableContextMenuDirective` classes (flat `uiDataTableContextMenu`, addon `uiDtContextMenu`) | spec 14 follow-up, 2026-10-17 | Design decision. 2026-10-18: human chose to merge into the addon and expand the host contract; **spec written: [`data-table-context-menu-merge-spec.md`](data-table-context-menu-merge-spec.md)** |
 | `readonly` sweep (~1,400 public members) | spec 15 | S2933 flags only private members (0 found); no Sonar impact |
 
 ## Completion log
@@ -94,3 +95,4 @@ Batch the CLI publish once 1–4 have merged, rather than publishing four times.
 | 2026-10-10 | 6 | Parser resource limits (Tasks 3-10) done on `wave-1-integration`; completion log in the spec. `release:package rte` required. |
 | 2026-10-12 | 8 | Keyboard and touch parity (Tasks 1-8) on its worktree branch; every task scored 92-93 by a fresh reviewer; completion log in the spec. `release:package data-table` and `rte` required. |
 | 2026-10-17 | follow-ups | Specs written (not started) for two recorded follow-ups: [`include-tests-prefix-safety-spec.md`](include-tests-prefix-safety-spec.md) and [`parsers-in-web-worker-spec.md`](parsers-in-web-worker-spec.md). Both are independent of the 15 specs above and of each other. |
+| 2026-10-18 | follow-ups | Spec written (not started) for the `DataTableContextMenuDirective` merge: [`data-table-context-menu-merge-spec.md`](data-table-context-menu-merge-spec.md). Independent of the other follow-up specs. |

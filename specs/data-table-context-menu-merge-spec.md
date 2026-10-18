@@ -1,0 +1,456 @@
+# Merge the Two `DataTableContextMenuDirective`s — Spec
+
+> # ✅ NO PREREQUISITES
+>
+> This spec is self-contained and can start immediately. It depends on no other
+> spec in this set.
+>
+> **Merge-order note (not a prerequisite):** PR #207 (`chore/backlog-sweep`)
+> regenerates `packages/cli/src/registry/{component,lib}-baselines.ts`,
+> `packages/components/file-sizes.json`, `api-docs.json` and
+> `demo/public/component-docs.json`, and turns on `noUnusedLocals` /
+> `noUnusedParameters`. This spec regenerates the same generated files again
+> (Task 11). Cut the branch from #207's head (or from `master` after it merges),
+> never regenerate on a stale base, and never merge the generated files by
+> hand — regenerate (`.claude/skills/spec-waves`, "never merge generated files").
+
+**Status:** ⬜ Not started
+**Date:** 2026-10-18
+**Source:** follow-up recorded in `repo-hygiene-and-docs-drift-spec.md` §6
+(2026-10-17, "duplicate `DataTableContextMenuDirective`: a design decision,
+needs its own spec"), then the human's decision on 2026-10-18: *"Merge into the
+addon and expand the host contract to include what's needed."*
+**Living history:** never delete a completed row, a fixed bug or a superseded
+decision — mark it and append below.
+
+---
+
+## Step 0 — what the two directives are, verified against the source
+
+Everything below was read from the tree at branch
+`refactor/merge-data-table-context-menu` (cut from `chore/backlog-sweep`,
+2026-10-18). Nothing is from memory.
+
+### The two directives, side by side
+
+Both are exported as `class DataTableContextMenuDirective<T = unknown>`. They
+share nothing else: no base class, no common helper beyond `onContextGesture`.
+
+| | **Flat** — `ui/data-table-context-menu.directive.ts` (139 lines) | **Addon** — `ui/data-table/addons/context-menu/context-menu.directive.ts` (213 lines) |
+|---|---|---|
+| Selector | `ui-data-table[uiDataTableContextMenu]` | `[uiDtContextMenu]` |
+| Born | earliest commit in its tracked history is the 2026-05-21 file-per-component refactor (`e57aa555`); last touched `b445ed18` (2026-10-12, `onContextGesture`) | `3bbb2300` (2026-06-29, "review 96"), when `e6b684ed` **removed the built-in row/column menu from the table base** so the base ships no `context-menu` code |
+| Job | **"Show *my* menu where the user right-clicks."** The consumer owns a `<ui-context-menu>` (templated content, any items, shortcuts, sub-menus) and binds it. | **"Give the table its standard menus."** The directive *builds* the menu: a ⋮ row-actions menu from a `rowActions` callback, and a sort / pin / hide column menu. |
+| How it reaches the table | `inject(DataTableComponent, { optional: true })` — the whole component | `inject(DataTableAddonHost)` — the small DI contract the base provides (`data-table.host.ts`) |
+| Menu comes from | Input `uiDataTableContextMenu: ContextMenuComponent` (required, doubles as the selector) | Input `rowActions: (RowActionContext<T>) => ContextMenuItem[]`; it creates a `ContextMenuComponent` itself with `vcr.createComponent` and **inherits the table's theme tokens onto it** (`inheritThemeTokens`) |
+| Inputs | `uiDataTableContextMenu` (menu), `contextMenuDisabled` (false), `contextMenuRowsOnly` (true) | `rowActions`, `enableColumnMenu` (false) |
+| Outputs | `rowContextMenu: TableRowContextMenuEvent<T>`, `headerContextMenu: DataTableHeaderContextMenuEvent` | `rowMenuOpen: RowActionContext<T>`, `columnMenuOpen: ColumnDef<T>` |
+| Gesture entry | `onContextGesture(tableElement, …)` in the constructor | `onContextGesture(el, …)` inside `afterNextRender`, torn down on destroy |
+| Row detection | `closest('[data-slot="table-row"], [data-slot="data-table-row"], tr[data-row-index]')`; index from `data-row-index` (**defaults to 0** when absent); data from `dataTable.getRenderedRowAt(index)`, falling back to `{ id: data-row-id }` or `{}` | `closest('[data-row-index]')`; index from `data-row-index`; `host.getRenderedRowAt(index)`; **ignores** the gesture when the row is not rendered |
+| Header gesture | **Yes**, when `contextMenuRowsOnly` is `false`: `closest('[data-slot="table-head"], [data-slot="data-table-header"], th')`; emits `{ column: { id, name, element }, event }`; opens the menu with that column object | **No.** The header menu opens only from the ⋮ header button |
+| Data handed to the menu (`menu.show(x, y, data)`) | Row: the whole `FlattenedTreeRow` merged with `row` (`{ ...treeRow, row }`) in tree mode, else the row; header: `{ id, name, element }` | Row: the `RowActionContext` (`row`, `index`, `selected`, and `depth`/`isLeaf`/`parentRow`/`isExpanded` when sub-rows are on); column: `{ columnKey, column }` |
+| Table side effect | Sets `dataTable.focusedCell` to the clicked cell, unless the column is `_selection` / `_expander` | none |
+| Touch guard | A one-finger hold on a cell **returns `false` while `enableCellRangeSelection()` is on**, so the hold starts a range selection; a right-click or the key still opens the menu | none: a long-press always opens the row menu |
+| Extra UI | none | The ⋮ row button (`registerCellAction`) and ⋮ header button (`registerHeaderAction`) — the table renders them through the host's slot registries |
+| Tests | `data-table-context-menu.directive.spec.ts`, 492 lines, 18 tests | `data-table/addons/context-menu/context-menu.directive.spec.ts`, 509 lines, 22 tests, with a `FakeHost` |
+| Registry | component `data-table-context-menu` (flat file, deps `context-menu`, `data-table`, **`table-context-menu`** — only to borrow the `TableRowContextMenuEvent` type) | addon `data-table/context-menu` (`parent: 'data-table'`, `requiresBaseFiles: ['data-table/data-table.host.ts']`, `attach.selector: 'uiDtContextMenu'`) |
+| Barrel | `ui/index.ts:86` `export * from './data-table-context-menu.directive'` | the addon's own `index.ts` only (addons are not re-exported from `ui/index.ts`) |
+| In the compiled package | **No** | **Yes** (`@gilav21/shadcn-angular-data-table`; its README lists it) |
+| Used by | demo `data-table-context-menu-demo` (route + nav), `data-table-demo` (two tables), `data-table-context-menu.stories.ts`, `data-table.stories.ts:1107`, `context-menu-integration.stories.ts:375`, e2e harness `data-table-ctx-directive` | CLI `apply` wiring (`apply-wire.spec.ts`, `apply-core.spec.ts`, `why.spec.ts` all name this class and `uiDtContextMenu`), demo `data-table-demo` (two tables), `data-table.stories.ts:1178`, e2e harness `data-table-context-menu`, `pkg-data-table` |
+
+No table in the repo uses both directives at once (`data-table-demo` uses the
+flat one on tables 609 and 742 and the addon on 367 and 966).
+
+### Claims checked
+
+| # | Claim | Verdict |
+|---|-------|---------|
+| V-1 | "They are duplicates." | ❌ **Refuted as stated.** The addon replaced the table's *built-in* menu, not the flat directive, and has capabilities the flat one lacks (⋮ buttons, column sort/pin/hide menu). The flat one has capabilities the addon lacks (bring-your-own menu, header right-click, tree-row context, cell focus, range-selection guard). They **overlap in one gesture** — right-click a row, a menu opens — and nobody decided to keep both. |
+| V-2 | The collision is only cosmetic. | ⚠️ **No.** The CLI already special-cases it: `gen-component-docs-lib.ts:64` and its spec say docs are "keyed by file, not class name: `DataTableContextMenuDirective` exists both as a standalone directive and …". The compiled-package README maps the name to `uiDtContextMenu`. An IDE auto-import can pick either file; the two have different selectors and inputs, so the mistake shows at runtime. |
+| V-3 | The addon can host the flat directive's behaviour through `DataTableAddonHost`. | ❌ **Not today.** The flat one reaches three things the host does not expose: `focusedCell` (a writable signal), `getRenderedTreeRowAt(index)`, and `enableCellRangeSelection()`. `DataTableComponent` already implements the middle one publicly (`data-table.component.ts:5482`) and has the other two as members; **none is on `DataTableAddonHost`** (`data-table.host.ts`, 96 lines). |
+| V-4 | Adding to the host breaks only the table. | ⚠️ It also breaks every hand-written host in tests: `FakeHost` classes `extends DataTableAddonHost` in `addons/context-menu/context-menu.directive.spec.ts:26` and `addons/export/export.directive.spec.ts:36` (the only two; `pivot` does not). The table provides itself with `useExisting` (`data-table.component.ts:265`) and does not `extends`/`implements` the token, so a **missing method is a runtime error, not a compile error**, in a consumer whose addon is newer than their table (see Risks). |
+| V-5 | The flat row finder is a superset of the addon's. | ❌ **Wrong direction.** `[data-slot="table-row"]` matches rows that carry no `data-row-index`; the flat code then **defaults the index to 0** and would attribute a group-header or footer row's gesture to row 0's data. The addon's `[data-row-index]` rule cannot do that. Whether the flat directive's `{ id: data-row-id }` / `{}` fallbacks serve any real DOM is **unverified** — they are exercised only by hand-built DOM in its spec. Task 1 settles it (see Decision D-3). |
+| V-6 | Merging needs the addon to import `table-context-menu`. | ❌ It must **not**: that would add `table-context-menu.directive.ts` to the data-table package's closure. The shared event type is structurally `{ row, index, event, depth?, isLeaf?, parentRow? }`; the addon defines its own interface of that shape and TypeScript's structural typing keeps every existing handler typed with `TableRowContextMenuEvent` compiling. |
+| V-7 | The breaking-change machinery can announce the rename. | ✅ `BreakingChange { kind: 'selector', from: 'uiDataTableContextMenu', … }` is scanned in consumer templates (`core/breaking-scan.ts:31-41`: a bare identifier `from` is a token; a binding `[token]`, `(token)` or `[(token)]` matches) and `suggestedAddon` points at `apply`. The earlier moves of `rowActions` / `enableColumnMenu` off the table use exactly this (`registry/index.ts:480-481`). It is **data-only**: no CLI logic change. |
+| V-8 | My earlier estimate: "touches 3 demos, the stories and 3 e2e harnesses." | ⚠️ **Corrected.** Demos: `data-table-context-menu-demo.component.ts` (plus its route `demo.routes.ts:133` and nav `app.ts:280`) and `data-table-demo.component.{ts,html}` (two uses). Stories: `data-table-context-menu.stories.ts` (delete or fold), `data-table.stories.ts`, `context-menu-integration.stories.ts`, and a text mention in `table-context-menu.stories.ts:114`. E2E: **one** harness (`data-table-ctx-directive`) deleted with its `EXPLICIT_SPECS` entry (`e2e/orchestrator/specs.ts:286-294`), and the addon's own harness (`data-table-context-menu`) extended. Docs: `docs/directives.md:46,52`, plus generated files. |
+
+### Why the existing tests did not catch the problem (CLAUDE.md "When a bug gets past the tests")
+
+Not a bug, but the same shape of question: each directive's spec is thorough
+for *its own* behaviour, and no test ever places both on one page or asks
+"which one owns the gesture". Answer **case 3**: the combined behaviour (UC-7,
+both modes at once; UC-8, neither) is covered by no test. Those are new tests,
+written against the merged directive.
+
+---
+
+## PM section
+
+### Business logic
+
+A developer who wants a context menu on a `<ui-data-table>` uses **one**
+directive, `uiDtContextMenu`, in one of two modes:
+
+- **Simple mode** — give it a callback. The table gets the ⋮ buttons, a
+  right-click row menu built from your items, and (optionally) the standard
+  sort/pin/hide column menu.
+- **Custom mode** — give it your own `<ui-context-menu>`. It opens on a row
+  right-click, a long-press and the context-menu key, and (optionally) on a
+  header; it emits the row or column that was hit.
+
+The directive keeps working through the table's public contract
+(`DataTableAddonHost`) and never imports the table component.
+
+### Why the customer wants this
+
+Today the library ships two directives with the same class name, different
+selectors and different inputs, and the docs, auto-import and the compiled
+package README all say "`DataTableContextMenuDirective`" without saying which.
+A developer who wants "a menu on right-click" has to learn there are two
+products, pick one, and discover afterwards that the other one had the feature
+they needed (for example, the addon cannot open a menu from a header
+right-click; the flat one cannot give them the ⋮ buttons). The workaround is to
+read both source files. The merged directive removes the choice and the
+collision, and it is the only one that works in the compiled data-table package.
+
+### Use cases = definition of done
+
+| ID | Use case |
+|----|----------|
+| UC-1 | **Custom mode, row.** `<ui-data-table uiDtContextMenu [contextMenu]="menu">`: a right-click on a rendered row opens `menu` at the pointer and emits `rowContextMenu` with `row`, `index`, the source event and, in tree mode, `depth`, `isLeaf`, `parentRow`. The menu receives the same data it receives today (`{ ...treeRow, row }` in tree mode, else the row). |
+| UC-2 | **Custom mode, touch.** A one-finger long-press on a row opens the menu at the finger and emits exactly what a right-click emits, once, even when the platform also raises a `contextmenu` (Android). |
+| UC-3 | **Custom mode, header.** With `[contextMenuRowsOnly]="false"`, a right-click or long-press on a column header opens `menu` with `{ id, name, element }` and emits `headerContextMenu`. With the default (`true`) a header gesture is not taken and the browser menu appears. |
+| UC-4 | **Range-selection guard.** While `enableCellRangeSelection` is on, a long-press on a cell does **not** open the menu in either mode (the hold starts a range); a right-click and the keyboard key still do. |
+| UC-5 | **Disabled.** `[contextMenuDisabled]="true"` makes every context gesture on the table fall through to the browser in both modes. The ⋮ buttons are explicit clicks and are unaffected. |
+| UC-6 | **Simple mode is unchanged.** `rowActions`, the ⋮ row and header buttons, the column menu (sort / pin / hide, localised), theme inheritance, `rowMenuOpen` and `columnMenuOpen` behave exactly as before. |
+| UC-7 | **Both inputs set.** `[contextMenu]` owns right-click, long-press and the key; the ⋮ buttons registered by `rowActions` still open the built menu. Documented, tested, not an error. |
+| UC-8 | **Neither input set.** The directive takes no gesture (the browser menu appears) and registers no ⋮ button. |
+| UC-9 | **Cell focus.** A row gesture on a cell sets the table's focused cell to that cell, except for the selection and expander columns, as the flat directive does today. |
+| UC-10 | **One directive.** `DataTableContextMenuDirective` is declared exactly once, with selector `[uiDtContextMenu]`. The flat file, its spec, its stories, its registry entry, its e2e harness and its `ui/index.ts` export are gone; `npm run check:registry` is clean. |
+| UC-11 | **Host contract.** `DataTableAddonHost` exposes `getRenderedTreeRowAt`, `focusCell` and `isCellRangeSelectionEnabled`; the real `DataTableComponent` returns what it returns today for each; the addon never imports `DataTableComponent`. |
+| UC-12 | **Upgrade path.** A consumer who still writes `[uiDataTableContextMenu]` is told, by `npx @gilav21/shadcn-angular update`, the exact replacement; the orphaned flat files are pruned. |
+| UC-13 | **Docs and demos.** The demo page, the Storybook stories and `docs/directives.md` show both modes with copy-paste examples, and no longer describe a second directive. |
+| UC-14 | **Package.** The compiled `@gilav21/shadcn-angular-data-table` contains the merged directive and **no** new dependency (in particular not `table-context-menu`). |
+
+### Explicitly out of scope
+
+- Changing `table-context-menu`, `tree-context-menu`, `context-menu-attach` or
+  `node-editor-context-menu`. (They stay separate: different hosts.)
+- Adding new menu items or new table features. Menus are as rich as today.
+- A dev-mode warning for the "neither input set" case (UC-8 is silent by
+  design; a warning is a possible follow-up).
+- Backward-compatible aliases for the old selector or class name (pre-1.0, per
+  the project rule). Migration help is limited to the data-only breaking-change
+  note and pruning orphaned files (UC-12).
+- Merging the two *outputs* pairs (Decision D-2).
+- Changing `onContextGesture`.
+
+---
+
+## QA section
+
+> Tests are written **first**. Task 1 produces them red against stubs of the
+> new host methods and the new inputs.
+
+### Traceability
+
+| Test | Name | Proves | Type | Red today because |
+|------|------|--------|------|-------------------|
+| T-1 | `custom mode: a row right-click opens the bound menu with the row (tree row merged in tree mode) and emits rowContextMenu` | UC-1 | unit (addon spec, real DOM + `FakeHost`) | the addon has no `contextMenu` input |
+| T-2 | `custom mode: a long-press opens at the finger, emits once, and swallows the echoed contextmenu` | UC-2 | unit | same |
+| T-3 | `custom mode: header gestures open the menu with {id,name,element} only when contextMenuRowsOnly is false; a header without attributes falls back to id null, name ''` | UC-3 | unit | same |
+| T-4 | `a long-press is left to range selection in both modes; a right-click still opens` — `it.each` over `{custom, simple} × {touch, mouse}` | UC-4 | unit | the addon has no guard |
+| T-5 | `contextMenuDisabled releases every gesture in both modes and leaves the ⋮ buttons working` | UC-5 | unit | no such input |
+| T-6 | **The addon's existing 22 tests, unchanged** | UC-6 | unit | (must stay green; any edit to them needs a recorded reason) |
+| T-7 | `both inputs: contextMenu owns right-click, the ⋮ button opens the built menu` | UC-7 | unit | no `contextMenu` |
+| T-8 | `neither input: the gesture is not taken and no ⋮ button is registered` | UC-8 | unit | partly (no ⋮) |
+| T-9 | `a row gesture focuses the clicked cell unless the column is _selection or _expander` — asserts the **host** call, not a private field | UC-9 | unit | no `focusCell` on the host |
+| T-10 | `the real DataTableComponent: getRenderedTreeRowAt, focusCell and isCellRangeSelectionEnabled behave as the members they wrap` — a component test over a tree table and a range-selection table | UC-11 | unit (`data-table.component*.spec.ts`) | host methods absent |
+| T-11 | `a row without data-row-index (group header, footer) is not taken as row 0` — the V-5 hazard | UC-1, UC-6 | unit + e2e | the flat rule takes it |
+| T-12 | `the merged directive on a real table in a pristine consumer app: right-click row → custom menu with the row; header right-click; ⋮ button → built menu` | UC-1, UC-3, UC-6, UC-7 | e2e (extend harness `data-table-context-menu`) | no custom mode |
+| T-13 | `registry: data-table-context-menu is gone, data-table/context-menu has no table-context-menu dependency, no flat file remains, obsoleteFiles lists the two orphans` | UC-10, UC-12, UC-14 | unit (`sync-registry` / `check:registry` fixtures) + gate | entry exists |
+| T-14 | `update reports uiDataTableContextMenu with the exact replacement and the addon to apply` | UC-12 | CLI unit (`breaking-scan.spec.ts`) | no such entry |
+| T-15 | `the data-table package source contains the merged directive and imports nothing from table-context-menu` | UC-14 | e2e (`pkg-data-table`) + gate | — |
+| T-16 | Storybook: a story per mode passes axe | UC-13 | Storybook a11y | — |
+| T-17 | README / docs read-through: `docs/directives.md` has one row; demo page shows both modes | UC-13 | gate evidence | two rows |
+
+### Edge cases and failure modes the tests must cover
+
+- **Inputs, as classes** ("Writing Tests" step 2): flat table rows; tree rows
+  (root, nested, leaf); a row index with no rendered row; a group header and a
+  footer row (no `data-row-index`); a header with and without `data-column-id`
+  and with surrounding whitespace in its text; a cell in `_selection`,
+  `_expander` and a data column; right-click, keyboard key (`contextmenu` with
+  no pointer), one-finger long-press, and long-press plus echoed `contextmenu`;
+  `enableCellRangeSelection` on and off; RTL.
+- **Lifecycle:** destroying the table removes the gesture listener and destroys
+  a built menu; changing `contextMenu` from one menu to another, or to
+  `undefined`, takes effect on the next gesture (no stale reference); toggling
+  `rowActions` while a custom menu is bound keeps ⋮ working.
+- **Accessibility:** the custom menu is the consumer's; the built menu keeps its
+  existing keyboard behaviour; the ⋮ buttons keep their `aria-label`s and the
+  44 px touch target; the long-press has the touch alternative required by
+  CLAUDE.md §6 (it is the touch alternative to `contextmenu`).
+- **Mutation checks before done** (derive each from the contract):
+  (a) drop the `isCellRangeSelectionEnabled()` guard → T-4 red;
+  (b) take the first matching row without requiring `data-row-index` → T-11 red;
+  (c) stop calling `focusCell` for non-special columns → T-9 red;
+  (d) make `contextMenuDisabled` also suppress the ⋮ button → T-5 red;
+  (e) hand the menu `row` instead of `{ ...treeRow, row }` in tree mode → T-1 red;
+  (f) let the built menu win over `contextMenu` when both are set → T-7 red;
+  (g) delete `getRenderedTreeRowAt` from the host → T-10 and the type check red.
+- **Coverage:** 100 % lines on the changed addon file; the three host methods
+  are covered by T-10; the deleted files take their coverage with them.
+
+---
+
+## Architecture section
+
+### Usability — the public API
+
+**Simple mode (unchanged):**
+
+```html
+<ui-data-table
+  [data]="rows" [columns]="columns"
+  uiDtContextMenu
+  [rowActions]="rowActions"
+  [enableColumnMenu]="true" />
+```
+
+**Custom mode (what the flat directive does today):**
+
+```html
+<ui-context-menu #menu>
+  <ui-context-menu-item (click)="edit()">Edit</ui-context-menu-item>
+  <ui-context-menu-item (click)="remove()">Delete</ui-context-menu-item>
+</ui-context-menu>
+
+<ui-data-table
+  [data]="rows" [columns]="columns"
+  uiDtContextMenu
+  [contextMenu]="menu"
+  [contextMenuRowsOnly]="false"
+  (rowContextMenu)="onRow($event)"
+  (headerContextMenu)="onHeader($event)" />
+```
+
+**Migration (what `update` prints for UC-12):**
+
+```html
+<!-- before -->  <ui-data-table [uiDataTableContextMenu]="menu" (rowContextMenu)="onRow($event)" />
+<!-- after  -->  <ui-data-table uiDtContextMenu [contextMenu]="menu" (rowContextMenu)="onRow($event)" />
+```
+
+and `import { DataTableContextMenuDirective } from '@/components/ui/data-table/addons/context-menu'`
+(the class name is unchanged; only the module path and the selector change).
+
+Final input and output list (names fixed here, types in code):
+
+| Member | Type | Mode | Notes |
+|---|---|---|---|
+| `rowActions` | `(context: RowActionContext<T>) => ContextMenuItem[]` | simple | existing |
+| `enableColumnMenu` | `boolean` (false) | simple | existing |
+| `contextMenu` | `ContextMenuComponent \| undefined` | custom | **new** |
+| `contextMenuDisabled` | `boolean` (false) | both | **new**, gestures only (UC-5) |
+| `contextMenuRowsOnly` | `boolean` (true) | custom | **new**; header gestures need `false` |
+| `rowMenuOpen` / `columnMenuOpen` | `RowActionContext<T>` / `ColumnDef<T>` | simple | existing |
+| `rowContextMenu` | `DataTableRowContextMenuEvent<T>` | custom | **moved** from the flat directive |
+| `headerContextMenu` | `DataTableHeaderContextMenuEvent` | custom | **moved** |
+
+Gesture routing, as a rule the code and tests both state:
+
+1. `contextMenuDisabled()` → not taken.
+2. Touch long-press and `host.isCellRangeSelectionEnabled()` → not taken.
+3. The target is inside a row (`[data-row-index]`):
+   `contextMenu()` set → custom row path; else `rowActions()` set → built row
+   path; else not taken.
+4. Otherwise the target is inside a header and `contextMenu()` is set and
+   `contextMenuRowsOnly()` is `false` → custom header path; else not taken.
+
+### The host contract (what is added to `DataTableAddonHost`)
+
+```ts
+// data-table.host.ts — three additions, all documented where they are declared
+/** The flattened tree row at a rendered index (depth, path, expansion), or undefined outside tree mode or out of range. */
+abstract getRenderedTreeRowAt(index: number): FlattenedTreeRow<T> | undefined;
+/** Move the grid's keyboard focus to a cell (the cell a context gesture landed on). */
+abstract focusCell(rowIndex: number, columnKey: string): void;
+/** Whether cell range selection is on (a finger's hold on a cell then starts a range). */
+abstract isCellRangeSelectionEnabled(): boolean;
+```
+
+`DataTableComponent` implements them as one-line wrappers over what it already
+has (`processedTreeRows()[index]`, `focusedCell.set({ rowIndex, columnKey })`,
+`enableCellRangeSelection()`). The host file also re-exports the
+`FlattenedTreeRow` type for addon authors. Both FakeHosts get stubs.
+
+### Efficiency
+
+No new hot path. Gestures are rare; the new work is one `closest` plus two
+host calls per gesture. The directive registers one `onContextGesture` listener
+per table, as each directive does today (it is **one** now instead of up to two
+if both had been placed on a table). Budget: unchanged; no measured assertion
+is claimed because there is no perf claim.
+
+### DX for the consuming developer
+
+- **Learn:** one directive, one attribute, two modes, and the routing rule above.
+- **Ignore:** the host contract (addon authors only).
+- **Types they touch:** `DataTableContextMenuDirective`,
+  `DataTableRowContextMenuEvent<T>`, `DataTableHeaderContextMenuEvent`,
+  `RowActionContext<T>`, `ContextMenuItem`.
+- **Wrong-hold messages:** the `update` note for the old selector (UC-12). A
+  table with `uiDtContextMenu` and neither input simply does nothing (UC-8); a
+  dev-mode warning is a recorded follow-up, not part of this spec.
+
+### Implementation options
+
+#### Decision D-1 — how to remove the duplication
+
+**Option 1 — merge the flat directive's behaviour into the addon as a second
+mode, extend the host, delete the flat file.**
+Pros: one class, one selector, one place; keeps the addon architecture (the base
+imports no addon; addons use only the host); the capability the flat directive
+had is preserved and gains the compiled package; matches the dual-mode pattern
+in `CLAUDE.md`. Cons: touches ~25 files; grows the host contract (three
+methods); a breaking selector change for flat-directive users (mitigated by the
+data-only breaking note).
+
+**Option 2 — rename the addon directive only** (for example
+`DataTableRowActionsDirective`).
+Pros: smallest change; removes the name collision. Cons: leaves the overlap
+(two ways to open a menu on a row right-click) and the two-products confusion;
+renames a class the CLI's own `apply` wiring and the published package README
+name.
+
+**Option 3 — move the addon's built menus into the flat directive.**
+Pros: the flat directive already handles gestures and headers. Cons: the flat
+directive injects `DataTableComponent`, the coupling the addon pattern exists to
+remove; the built-in menu and its ⋮ slots would drag the table back into
+depending on the flat file; the compiled package would need the flat file and
+`table-context-menu`.
+
+**Option 4 — keep both, share a base class.**
+Pros: no breaking change. Cons: keeps two selectors and two classes; the
+confusion is the problem.
+
+**✅ Chosen: Option 1**, as the human decided. Option 2 is the cheap fallback
+if the host expansion turns out larger than estimated; Options 3 and 4 are ruled
+out for the reasons above so a future agent does not re-litigate them.
+
+#### Decision D-2 — the API of custom mode
+
+**A — the selector doubles as the input** (`[uiDtContextMenu]="menu"`, an alias
+input typed `ContextMenuComponent | ''`).
+Pros: shortest. Cons: a bare `uiDtContextMenu` attribute (simple mode, today's
+usage, shipped in the package README) would bind `''` to a menu input — a type
+union and a runtime check for an empty string.
+
+**B — the selector is a marker, the menu is a named input**
+(`uiDtContextMenu [contextMenu]="menu"`).
+Pros: consistent with the sibling addons (`uiDtExport` plus
+`[exportDataProvider]`); typed `ContextMenuComponent | undefined`; today's bare
+usage is untouched. Cons: two attributes where the flat directive had one.
+
+**✅ Chosen: B.** Outputs: **keep both pairs** (`rowMenuOpen`/`columnMenuOpen` for
+the built menus, `rowContextMenu`/`headerContextMenu` for a bound menu). Their
+payloads differ (`RowActionContext<T>` vs the event with the source event and
+tree fields) and unifying them would change a published output's payload.
+
+#### Decision D-3 — how a row is found (V-5)
+
+The merged rule is the addon's: `closest('[data-row-index]')`, rows not rendered
+by the table are ignored. Task 1 inspects the real DOM the table renders (data
+rows, group headers, footers, pivot and tree rows) and records whether any row
+that should open a menu lacks `data-row-index`. **Decision rule:** if none does,
+the flat directive's selectors, its index default of 0 and its
+`{ id: data-row-id }` / `{}` fallbacks are dropped and their tests are deleted
+with a note in the log; if some do, the table is changed to emit
+`data-row-index` on them (a base change, recorded), never the directive to
+guess.
+
+#### Decision D-4 — the row event type
+
+The addon defines `DataTableRowContextMenuEvent<T>` (same fields as
+`TableRowContextMenuEvent<T>`) in a support file `context-menu.types.ts` in the
+addon folder, together with `DataTableHeaderContextMenuEvent`, so the addon has
+no import from `table-context-menu` (V-6).
+
+#### Decision D-5 — the two behaviour changes in simple mode
+
+Applying the routing rule to both modes changes two simple-mode behaviours; both
+are recorded here so they are decisions, not accidents:
+
+1. **Range-selection guard (UC-4).** A long-press with `enableCellRangeSelection`
+   on no longer opens the built row menu. Reason: the hold starts a range, the
+   same conflict the flat directive's comment documents.
+2. **`contextMenuDisabled` (UC-5)** now also silences the built menu's gestures.
+   There was no way to do that before.
+
+### Risks
+
+| Risk | Mitigation |
+|------|------------|
+| A consumer has an **older table** and a **newer addon**: the new host methods do not exist, so `host.focusCell is not a function` at the first gesture | The addon entry already carries `requiresBaseFiles: ['data-table/data-table.host.ts']`; Task 9 verifies, with a CLI unit/e2e over `update`, that updating the addon also brings the table component that implements the methods (the entry depends on `data-table`). If that is not guaranteed, the addon is given a defensive check of the three methods at construction with a clear error, and this risk is raised as a blocker before merging. |
+| The selector rename is silently missed by a consumer | UC-12: the breaking note is scanned in templates by `update`; T-14 asserts it fires for `[uiDataTableContextMenu]`, `(rowContextMenu)` alone does not. |
+| A group-header or footer row opens a menu for the wrong row | D-3 and T-11; mutation (b). |
+| Two outputs pairs confuse readers | The JSDoc on each output says which mode emits it; the demo shows each. |
+| Orphaned flat files remain in consumers' projects | `obsoleteFiles` on the addon entry lists `data-table-context-menu.directive.ts` and its spec; T-13. |
+| The change reaches the compiled data-table package | Expected (UC-14): a `release:package -- data-table` is required; Task 11 computes the verdict with the tooling and records it. The CLI verdict is computed too (the bundled baselines regenerate, so a CLI release is expected, as in #207). |
+| Generated files conflict with PR #207 | See the merge-order note; regenerate, never merge. |
+
+---
+
+## Task table (order = implementation order)
+
+| # | Task | Proves | Status | Completed | Score | Retrospective |
+|---|------|--------|--------|-----------|-------|---------------|
+| 1 | **Inspect first, then write failing tests.** (a) Render a real `<ui-data-table>` in a browser spec (flat, tree, grouped, with footer, pivot) and record which rows carry `data-row-index` (Decision D-3); (b) write **T-1…T-5, T-7…T-11** against stubs of the three host methods and the new inputs; keep the addon's 22 existing tests untouched as **T-6**; record the red list in the log | UC-1…UC-5, UC-7…UC-9, UC-11 | ⬜ Not started | — | — | — |
+| 2 | **Extend the host.** Add `getRenderedTreeRowAt`, `focusCell`, `isCellRangeSelectionEnabled` and the `FlattenedTreeRow` re-export to `data-table.host.ts`; implement the wrappers in `DataTableComponent`; add stubs to both `FakeHost`s; T-10 green; run the **consumers**: `npx vitest --run packages/components/ui/data-table` (all addons) | UC-11 | ⬜ Not started | — | — | — |
+| 3 | **Add the types file** `context-menu.types.ts` (`DataTableRowContextMenuEvent<T>`, `DataTableHeaderContextMenuEvent`) and export it from the addon barrel | UC-1, UC-3 | ⬜ Not started | — | — | — |
+| 4 | **Implement custom mode** in the addon directive: `contextMenu`, `contextMenuDisabled`, `contextMenuRowsOnly`, the two outputs, the routing rule, the cell-focus side effect and the range-selection guard; keep the structure under cognitive complexity 15 (extract the row, header and routing helpers); T-1…T-9, T-11 green and the 22 existing tests still green | UC-1…UC-9 | ⬜ Not started | — | — | — |
+| 5 | **Migrate the demos and stories.** `data-table-context-menu-demo.component.ts` (custom mode, keep its route and nav), `data-table-demo.component.{ts,html}` (drop the `Flat…` alias; two tables move to `uiDtContextMenu [contextMenu]`), `data-table.stories.ts`, `context-menu-integration.stories.ts`, the text in `table-context-menu.stories.ts`; fold `data-table-context-menu.stories.ts` into stories for the addon (one per mode, all options); every demo keeps a copy-paste example | UC-13 | ⬜ Not started | — | — | — |
+| 6 | **Remove the flat directive.** Delete `ui/data-table-context-menu.directive.ts`, its `.spec.ts` and `.stories.ts`, the `ui/index.ts:86` export; delete the registry entry `data-table-context-menu` (CLI literal) and its `portable-tests.json` entry; add `obsoleteFiles` to `data-table/context-menu`; add the `BreakingChange` (`kind: 'selector'`, `from: 'uiDataTableContextMenu'`, `suggestedAddon: 'data-table/context-menu'`, note with the exact before/after) — on the entry the scan reads for installed components (verify in `breaking-scan.ts`; if the addon's `breaking` is not scanned, put it on `data-table`); `sync-registry --fix`; T-13, T-14 | UC-10, UC-12, UC-14 | ⬜ Not started | — | — | — |
+| 7 | **E2E.** Extend `e2e/harness/data-table-context-menu` with custom mode (row, header, both-inputs) — **T-12**; delete `e2e/harness/data-table-ctx-directive` and its `EXPLICIT_SPECS` entry (`e2e/orchestrator/specs.ts:286-294`, per CLAUDE.md the only legitimate edit of that file); run `npm run e2e -- data-table-context-menu`, `pkg-data-table`, `pkg-data-table-ng21`, `data-table`, `data-table-pivot`, `data-table-export` | UC-1, UC-3, UC-6, UC-7, UC-14 | ⬜ Not started | — | — | — |
+| 8 | **Docs.** `docs/directives.md` rows 46 and 52 (one directive, two modes, the collision note removed), the data-table package README row, JSDoc on every new input and output; `npm run docs:regen` (restore `documentation.json`) and `docs:check`; **T-17** | UC-13 | ⬜ Not started | — | — | — |
+| 9 | **The stale-table risk.** Prove with a CLI test or an e2e over `update` that bringing the addon forward also brings the table that implements the host methods; if it cannot be guaranteed, add the construction-time check and record it | UC-11, UC-12 | ⬜ Not started | — | — | — |
+| 10 | **Mutation checks (a)–(g)** from the QA section, each red then restored; record the results | all | ⬜ Not started | — | — | — |
+| 11 | **Close.** `npm run check:all`, `check:registry`, `check:completeness`, regenerate once (component and lib baselines via `packages/cli` build + `gen-component-baselines.mjs` / `gen-lib-baselines.mjs`, `docs:sizes`, `docs:regen`), `npm run test-visual` (zero failures), `npm run verify:portable -- data-table/context-menu` (both legs, if the entry stays verified), Storybook axe on the new stories (**T-16**; run one pattern per invocation — the launcher takes a single path pattern), `npm run e2e:impact -- --base origin/master` and run the impacted set serially if load makes `ng serve` slow, then `npm run sonar:gate` with the four-condition verdict from CLAUDE.md §4 (no `coverage] FAILED`, `SCM revision ID` equals HEAD, `coverage/.tree-hash` current, server gate OK and `inNewCodePeriod` issues 0). **Release verdicts** from the tooling (`release:cli -- patch --dry-run`, `release:package -- data-table patch --dry-run`), recorded in the PR description | all | ⬜ Not started | — | — | — |
+
+---
+
+## Definition of Done (per task)
+
+A task row may be marked ✅ Done only when **all** of these pass:
+
+1. **Fully tested** — every test named for this task is written and passing.
+2. **Fully covered** — no uncovered lines introduced in the files touched.
+3. **Zero lint errors** — `npm run lint` clean.
+4. **Zero SonarQube issues** — the **full server scan** (`npm run sonar:gate`
+   against `http://localhost:9000` — coverage re-measured unless the tree
+   fingerprint proves it current) run and clean on the changed code. eslint is
+   NOT a substitute. If the token, server, or Docker is unavailable, the task is
+   **blocked, not done** — stop and tell the user.
+5. **Review gate ≥ 91** — invoke the `review-gate` skill and reach a score of
+   at least 91 from a fresh independent reviewer.
+
+Then, and only then, update this spec's task row with:
+
+- **Completed** — the date/time (`date +"%Y-%m-%d %H:%M"`).
+- **Score** — the review-gate score.
+- **Retrospective** — 1–2 sentences: what went well, and what to improve later.
+
+Marking a row Done without all five is a process violation, not a shortcut.
+
+---
+
+## Completion log
+
+_Append per task: the DOM inspection result for D-3, the red lists, the
+mutation-check results, the stale-table finding, gate evidence and the release
+verdicts._
+
+| Date | Task | Event |
+|------|------|-------|
+| 2026-10-18 | — | Spec written on branch `refactor/merge-data-table-context-menu` after the human chose "merge into the addon and expand the host contract". Step 0 corrected two earlier statements: the directives are not duplicates (the addon replaced the table's *built-in* menu), and the e2e blast radius is one harness plus the addon's own, not three. It also found the flat row finder's index-0 default (V-5) and that the host lacks exactly three members the flat directive needs (V-3). |
