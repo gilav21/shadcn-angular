@@ -3314,45 +3314,42 @@ describe('DataTableComponent - Row Grouping', () => {
             expect(renderedIds().every(({ index, id }) => component.getRenderedRowAt(Number(index))?.id === id)).toBe(true);
         });
 
-        it('restarts at 0 on every page and skips the rows of a collapsed group', () => {
+        it('restarts at 0 on every page', () => {
             fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
             fixture.detectChanges();
+
             expect(renderedIds()).toEqual([{ index: '0', id: 'o2' }, { index: '1', id: 'o5' }]);
             expect(component.getRenderedRowAt(0)?.id).toBe('o2');
             expect(component.getRenderedRowAt(2)).toBeUndefined();
+        });
 
-            // A page that opens on data rows whose group header sits on the previous page, then a header.
+        it('numbers a page that opens on data rows whose group header is on the previous page', () => {
             fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 2 });
             fixture.detectChanges();
+
             expect(renderedIds()).toEqual([{ index: '0', id: 'o3' }]);
             expect(component.getRenderedRowAt(0)?.id).toBe('o3');
             expect(component.getRenderedRowAt(1)).toBeUndefined();
+        });
 
-            fixture.componentRef.setInput('paginationState', { pageIndex: 0, pageSize: 10 });
+        it('skips the rows of a collapsed group, on a later page too', () => {
             fixture.componentRef.setInput('collapsedGroups', { pending: true });
+            fixture.componentRef.setInput('paginationState', { pageIndex: 2, pageSize: 2 });
             fixture.detectChanges();
-            expect(renderedIds()).toEqual([
-                { index: '0', id: 'o2' }, { index: '1', id: 'o5' }, { index: '2', id: 'o4' },
-            ]);
-            expect(component.getRenderedRowAt(0)?.id).toBe('o2');
-            expect(component.getRenderedRowAt(3)).toBeUndefined();
 
-            // The pager hidden: the whole list is drawn unsliced, and the numbering is the same.
+            expect(renderedIds()).toEqual([{ index: '0', id: 'o4' }]);
+            expect(component.getRenderedRowAt(0)?.id).toBe('o4');
+            expect(component.getRenderedRowAt(1)).toBeUndefined();
+        });
+
+        it('skips the rows of a collapsed group when nothing is paged', () => {
+            fixture.componentRef.setInput('collapsedGroups', { pending: true });
             fixture.componentRef.setInput('showPagination', false);
             fixture.detectChanges();
-            expect(renderedIds()).toEqual([
-                { index: '0', id: 'o2' }, { index: '1', id: 'o5' }, { index: '2', id: 'o4' },
-            ]);
+
+            expect(renderedIds()).toEqual([{ index: '0', id: 'o2' }, { index: '1', id: 'o5' }, { index: '2', id: 'o4' }]);
             expect(component.getRenderedRowAt(0)?.id).toBe('o2');
             expect(component.getRenderedRowAt(3)).toBeUndefined();
-
-            // Rows supplied a page at a time (server-side paging): nothing is sliced here either.
-            fixture.componentRef.setInput('showPagination', true);
-            fixture.componentRef.setInput('localPagination', false);
-            fixture.componentRef.setInput('collapsedGroups', {});
-            fixture.detectChanges();
-            expect(renderedIds().map(({ id }) => id)).toEqual(['o1', 'o3', 'o2', 'o5', 'o4']);
-            expect(renderedIds().every(({ index, id }) => component.getRenderedRowAt(Number(index))?.id === id)).toBe(true);
         });
 
         // A small page size, so that wrongly slicing the list drops rows (the default size 10 holds the whole list).
@@ -3368,6 +3365,7 @@ describe('DataTableComponent - Row Grouping', () => {
             fixture.detectChanges();
             expect(renderedIds()).toEqual(everyRow);
 
+            // Rows supplied a page at a time (server-side paging): nothing is sliced here either.
             fixture.componentRef.setInput('showPagination', true);
             fixture.componentRef.setInput('localPagination', false);
             fixture.detectChanges();
@@ -3383,6 +3381,17 @@ describe('DataTableComponent - Row Grouping', () => {
             expect(component.groupingActive()).toBe(false);
             expect(renderedIds().map(({ id }) => id)).toEqual(['o1', 'o2', 'o3', 'o4', 'o5']);
             expect(component.getRenderedRowAt(1)?.id).toBe('o2');
+            errorSpy.mockRestore();
+        });
+
+        it('leaves the rendered rows to the virtual list when groupBy is set together with enableVirtualScroll', () => {
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            fixture.componentRef.setInput('enableVirtualScroll', true);
+            fixture.detectChanges();
+
+            expect(component.groupingActive()).toBe(false);
+            expect(renderedIds().length).toBeGreaterThan(0);
+            expect(renderedIds().every(({ index, id }) => component.getRenderedRowAt(Number(index))?.id === id)).toBe(true);
             errorSpy.mockRestore();
         });
 
