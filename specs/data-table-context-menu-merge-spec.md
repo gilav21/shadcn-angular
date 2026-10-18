@@ -120,7 +120,7 @@ collision, and it is the only one that works in the compiled data-table package.
 | UC-1 | **Custom mode, row.** `<ui-data-table uiDtContextMenu [contextMenu]="menu">`: a right-click on a rendered row opens `menu` at the pointer and emits `rowContextMenu` with `row`, `index`, the source event and, in tree mode, `depth`, `isLeaf`, `parentRow`. The menu receives the same data it receives today (`{ ...treeRow, row }` in tree mode, else the row). |
 | UC-2 | **Custom mode, touch.** A one-finger long-press on a row opens the menu at the finger and emits exactly what a right-click emits, once, even when the platform also raises a `contextmenu` (Android). |
 | UC-3 | **Custom mode, header.** With `[contextMenuRowsOnly]="false"`, a right-click or long-press on a column header opens `menu` with `{ id, name, element }` and emits `headerContextMenu`. With the default (`true`) a header gesture is not taken and the browser menu appears. |
-| UC-4 | **Range-selection guard.** While `enableCellRangeSelection` is on, a long-press on a cell does **not** open the menu in either mode (the hold starts a range); a right-click and the keyboard key still do. |
+| UC-4 | **Touch and range selection.** In **simple mode** a long-press on a row opens the built menu exactly as it does today, including while `enableCellRangeSelection` is on. In **custom mode** the flat directive's guard is kept (it is today's behaviour): while `enableCellRangeSelection` is on, a long-press on a cell is left to range selection and does not open the bound menu; a right-click and the keyboard key still do. *(Revised 2026-10-18 after the human asked why a touch long-press would be removed: the first draft extended the guard to simple mode, which would have taken a working touch path away. See D-5 and OQ-1.)* |
 | UC-5 | **Disabled.** `[contextMenuDisabled]="true"` makes every context gesture on the table fall through to the browser in both modes. The ⋮ buttons are explicit clicks and are unaffected. |
 | UC-6 | **Simple mode is unchanged.** `rowActions`, the ⋮ row and header buttons, the column menu (sort / pin / hide, localised), theme inheritance, `rowMenuOpen` and `columnMenuOpen` behave exactly as before. |
 | UC-7 | **Both inputs set.** `[contextMenu]` owns right-click, long-press and the key; the ⋮ buttons registered by `rowActions` still open the built menu. Documented, tested, not an error. |
@@ -159,7 +159,7 @@ collision, and it is the only one that works in the compiled data-table package.
 | T-1 | `custom mode: a row right-click opens the bound menu with the row (tree row merged in tree mode) and emits rowContextMenu` | UC-1 | unit (addon spec, real DOM + `FakeHost`) | the addon has no `contextMenu` input |
 | T-2 | `custom mode: a long-press opens at the finger, emits once, and swallows the echoed contextmenu` | UC-2 | unit | same |
 | T-3 | `custom mode: header gestures open the menu with {id,name,element} only when contextMenuRowsOnly is false; a header without attributes falls back to id null, name ''` | UC-3 | unit | same |
-| T-4 | `a long-press is left to range selection in both modes; a right-click still opens` — `it.each` over `{custom, simple} × {touch, mouse}` | UC-4 | unit | the addon has no guard |
+| T-4 | `simple mode: a long-press still opens the built menu while range selection is on` and `custom mode: a long-press is left to range selection while it is on, a right-click and the key still open` — `it.each` over `{simple, custom} × {touch, mouse}` with `enableCellRangeSelection` on | UC-4 | unit | the addon has no custom mode |
 | T-5 | `contextMenuDisabled releases every gesture in both modes and leaves the ⋮ buttons working` | UC-5 | unit | no such input |
 | T-6 | **The addon's existing 22 tests, unchanged** | UC-6 | unit | (must stay green; any edit to them needs a recorded reason) |
 | T-7 | `both inputs: contextMenu owns right-click, the ⋮ button opens the built menu` | UC-7 | unit | no `contextMenu` |
@@ -192,7 +192,8 @@ collision, and it is the only one that works in the compiled data-table package.
   44 px touch target; the long-press has the touch alternative required by
   CLAUDE.md §6 (it is the touch alternative to `contextmenu`).
 - **Mutation checks before done** (derive each from the contract):
-  (a) drop the `isCellRangeSelectionEnabled()` guard → T-4 red;
+  (a) drop the `isCellRangeSelectionEnabled()` guard in custom mode → T-4 red;
+  (h) apply that guard to simple mode too → T-4's simple-mode case red;
   (b) take the first matching row without requiring `data-row-index` → T-11 red;
   (c) stop calling `focusCell` for non-special columns → T-9 red;
   (d) make `contextMenuDisabled` also suppress the ⋮ button → T-5 red;
@@ -261,7 +262,7 @@ Final input and output list (names fixed here, types in code):
 Gesture routing, as a rule the code and tests both state:
 
 1. `contextMenuDisabled()` → not taken.
-2. Touch long-press and `host.isCellRangeSelectionEnabled()` → not taken.
+2. Custom mode only: a touch long-press while `host.isCellRangeSelectionEnabled()` → not taken (the hold belongs to range selection; see OQ-1). Simple mode has no such rule.
 3. The target is inside a row (`[data-row-index]`):
    `contextMenu()` set → custom row path; else `rowActions()` set → built row
    path; else not taken.
@@ -377,16 +378,42 @@ The addon defines `DataTableRowContextMenuEvent<T>` (same fields as
 addon folder, together with `DataTableHeaderContextMenuEvent`, so the addon has
 no import from `table-context-menu` (V-6).
 
-#### Decision D-5 — the two behaviour changes in simple mode
+#### Decision D-5 — behaviour changes in simple mode
 
-Applying the routing rule to both modes changes two simple-mode behaviours; both
-are recorded here so they are decisions, not accidents:
+Exactly one simple-mode behaviour changes; it is recorded so it is a decision,
+not an accident:
 
-1. **Range-selection guard (UC-4).** A long-press with `enableCellRangeSelection`
-   on no longer opens the built row menu. Reason: the hold starts a range, the
-   same conflict the flat directive's comment documents.
-2. **`contextMenuDisabled` (UC-5)** now also silences the built menu's gestures.
+1. **`contextMenuDisabled` (UC-5)** now also silences the built menu's gestures.
    There was no way to do that before.
+
+~~**Range-selection guard.** The first draft also applied the custom mode's
+guard to simple mode, so a long-press with `enableCellRangeSelection` on would
+no longer open the built row menu.~~ **Superseded 2026-10-18.** The human asked
+why a touch long-press would be removed ("it's a mobile need"). It is: the table's
+own touch range selection is "long-press a cell, then drag" (a 500 ms hold,
+`setupTouchRangeSelection` in `data-table.component.ts`), the same hold the
+context-menu long-press uses, and the guard only exists because the two collide.
+Simple mode keeps its long-press unchanged.
+
+#### Open question OQ-1 — a touch route to the custom-mode menu on a range-selection table
+
+The flat directive's guard (kept in custom mode, UC-4) means that on a table with
+`enableCellRangeSelection` on, a **touch-only** user has no way to open the bound
+menu: no right-click, no keyboard key, no ⋮ button (custom mode registers none).
+That already holds today for the flat directive; the first draft of this spec
+carried it over without flagging it, and it breaks the touch rule of CLAUDE.md §6
+("no right-click-only context menus"). Options, **for the human to choose**; the
+spec's tasks assume option 1 until told otherwise:
+
+1. **Keep today's behaviour** and document it (range selection on + custom mode =
+   no touch menu). Cheapest; leaves the gap.
+2. **Open the menu when the long-press lands inside the current range** (the
+   spreadsheet convention: a hold on an unselected cell starts a selection; a
+   hold on the selection opens its menu). Needs one more host member (the current
+   `cellRange`) and a rule that the range handler yields in that case. Gives a
+   touch route in both modes without a collision.
+3. **Give custom mode the ⋮ row button** when a table has range selection on.
+   Reuses the existing slot mechanism; adds visible UI the consumer did not ask for.
 
 ### Risks
 
@@ -415,7 +442,7 @@ are recorded here so they are decisions, not accidents:
 | 7 | **E2E.** Extend `e2e/harness/data-table-context-menu` with custom mode (row, header, both-inputs) — **T-12**; delete `e2e/harness/data-table-ctx-directive` and its `EXPLICIT_SPECS` entry (`e2e/orchestrator/specs.ts:286-294`, per CLAUDE.md the only legitimate edit of that file); run `npm run e2e -- data-table-context-menu`, `pkg-data-table`, `pkg-data-table-ng21`, `data-table`, `data-table-pivot`, `data-table-export` | UC-1, UC-3, UC-6, UC-7, UC-14 | ⬜ Not started | — | — | — |
 | 8 | **Docs.** `docs/directives.md` rows 46 and 52 (one directive, two modes, the collision note removed), the data-table package README row, JSDoc on every new input and output; `npm run docs:regen` (restore `documentation.json`) and `docs:check`; **T-17** | UC-13 | ⬜ Not started | — | — | — |
 | 9 | **The stale-table risk.** Prove with a CLI test or an e2e over `update` that bringing the addon forward also brings the table that implements the host methods; if it cannot be guaranteed, add the construction-time check and record it | UC-11, UC-12 | ⬜ Not started | — | — | — |
-| 10 | **Mutation checks (a)–(g)** from the QA section, each red then restored; record the results | all | ⬜ Not started | — | — | — |
+| 10 | **Mutation checks (a)–(h)** from the QA section, each red then restored; record the results | all | ⬜ Not started | — | — | — |
 | 11 | **Close.** `npm run check:all`, `check:registry`, `check:completeness`, regenerate once (component and lib baselines via `packages/cli` build + `gen-component-baselines.mjs` / `gen-lib-baselines.mjs`, `docs:sizes`, `docs:regen`), `npm run test-visual` (zero failures), `npm run verify:portable -- data-table/context-menu` (both legs, if the entry stays verified), Storybook axe on the new stories (**T-16**; run one pattern per invocation — the launcher takes a single path pattern), `npm run e2e:impact -- --base origin/master` and run the impacted set serially if load makes `ng serve` slow, then `npm run sonar:gate` with the four-condition verdict from CLAUDE.md §4 (no `coverage] FAILED`, `SCM revision ID` equals HEAD, `coverage/.tree-hash` current, server gate OK and `inNewCodePeriod` issues 0). **Release verdicts** from the tooling (`release:cli -- patch --dry-run`, `release:package -- data-table patch --dry-run`), recorded in the PR description | all | ⬜ Not started | — | — | — |
 
 ---
@@ -454,3 +481,4 @@ verdicts._
 | Date | Task | Event |
 |------|------|-------|
 | 2026-10-18 | — | Spec written on branch `refactor/merge-data-table-context-menu` after the human chose "merge into the addon and expand the host contract". Step 0 corrected two earlier statements: the directives are not duplicates (the addon replaced the table's *built-in* menu), and the e2e blast radius is one harness plus the addon's own, not three. It also found the flat row finder's index-0 default (V-5) and that the host lacks exactly three members the flat directive needs (V-3). |
+| 2026-10-18 | UC-4, D-5 | **Revised after the human asked "why remove the touch long-press?"** The first draft applied the range-selection guard to simple mode too. Checked against the code: the table's touch range selection is a 500 ms long-press (`setupTouchRangeSelection`), the same hold as the context-menu long-press, which is why the flat directive steps aside when `enableCellRangeSelection` is on. Simple mode now keeps its long-press; the guard stays custom-mode-only. The same check exposed that the guard leaves touch-only users with no way to open a custom-mode menu on a range-selection table (OQ-1, awaiting the human's choice). |
