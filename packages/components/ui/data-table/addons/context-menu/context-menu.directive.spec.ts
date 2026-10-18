@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -574,7 +574,7 @@ describe('DataTableContextMenuDirective', () => {
       fixture: ComponentFixture<CustomHostComponent>;
       comp: CustomHostComponent;
       el: (id: string) => HTMLElement;
-      shown: () => Mock;
+      shown: () => ReturnType<typeof vi.fn>;
     }> {
       host.rows = [{ id: 'r0', name: 'Zero' }, { id: 'r1', name: 'One' }, ROW];
       TestBed.configureTestingModule({
@@ -590,7 +590,7 @@ describe('DataTableContextMenuDirective', () => {
         fixture,
         comp: fixture.componentInstance,
         el: (id: string) => root.querySelector<HTMLElement>(`#${id}`) as HTMLElement,
-        shown: () => (fixture.componentInstance.menu()?.show ?? vi.fn()) as unknown as Mock,
+        shown: () => (fixture.componentInstance.menu()?.show ?? vi.fn()) as unknown as ReturnType<typeof vi.fn>,
       };
     }
 
