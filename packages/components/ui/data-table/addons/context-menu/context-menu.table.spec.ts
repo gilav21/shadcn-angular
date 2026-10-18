@@ -40,7 +40,7 @@ class DetailComponent {}
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ui-data-table
-      [data]="rows" [columns]="columns" [groupBy]="groupBy()"
+      [data]="rows" [columns]="columns" [groupBy]="groupBy()" [enableCellRangeSelection]="rangeSelection()"
       [enableRowExpansion]="true" [expandedRows]="expanded" [rowDetailComponent]="detail" [showFooter]="true"
       uiDtContextMenu [contextMenu]="menu" [contextMenuRowsOnly]="false"
       (rowContextMenu)="rowEvents.push($event)" (headerContextMenu)="headerEvents.push($event)" />
@@ -52,15 +52,20 @@ class TableHostComponent {
   readonly detail = DetailComponent;
   readonly expanded: Record<string, boolean> = { '1': true };
   readonly groupBy = signal<string | undefined>(undefined);
+  readonly rangeSelection = signal(false);
   readonly menu = { show: vi.fn() } as unknown as ContextMenuComponent;
   // The directive's row type cannot be inferred from the host <ui-data-table>, so events arrive as unknown.
   readonly rowEvents: DataTableRowContextMenuEvent<unknown>[] = [];
   readonly headerEvents: DataTableHeaderContextMenuEvent[] = [];
 }
 
-async function render(grouped = false): Promise<{ host: TableHostComponent; root: HTMLElement; table: DataTableComponent<Row> }> {
+async function render(
+  grouped = false,
+  rangeSelection = false,
+): Promise<{ host: TableHostComponent; root: HTMLElement; table: DataTableComponent<Row> }> {
   const fixture = TestBed.createComponent(TableHostComponent);
   fixture.componentInstance.groupBy.set(grouped ? 'grp' : undefined);
+  fixture.componentInstance.rangeSelection.set(rangeSelection);
   fixture.detectChanges();
   await fixture.whenStable();
   fixture.detectChanges();
@@ -130,5 +135,44 @@ describe('DataTableContextMenuDirective on a real data table', () => {
     expect(host.rowEvents).toHaveLength(0);
     expect(host.menu.show).not.toHaveBeenCalled();
     expect(events.every(event => !event.defaultPrevented)).toBe(true);
+  });
+
+  // The table's range handler and the directive both act on the same 500 ms hold. On a real table, with a real
+  // touch sequence, the first hold on a cell must start a range and open nothing; once that cell is the
+  // selection (a lone cell collapses to a focus when the finger lifts), the next hold opens the menu and
+  // leaves the selection alone. Neither handler is stubbed, so this is where their agreement is tested.
+  it('on a range-selection table the first hold selects and the next hold opens the menu', async () => {
+    const { host, root, table } = await render(false, true);
+    const cell = bodyCell(root, 1, 'name');
+    const doc = document as Document & { elementFromPoint?: (x: number, y: number) => Element | null };
+    const originalElementFromPoint = doc.elementFromPoint;
+    doc.elementFromPoint = () => cell;
+    const hold = (): void => {
+      const touchStart = Object.assign(new Event('touchstart', { bubbles: true, cancelable: true }), {
+        touches: [{ clientX: 30, clientY: 40 }],
+      });
+      cell.dispatchEvent(touchStart);
+      vi.advanceTimersByTime(500);
+    };
+    vi.useFakeTimers();
+    try {
+      hold();
+      expect(table.cellRange()).toEqual({ startRow: 1, startCol: 'name', endRow: 1, endCol: 'name' });
+      expect(host.menu.show).not.toHaveBeenCalled();
+      expect(host.rowEvents).toHaveLength(0);
+
+      globalThis.dispatchEvent(new Event('touchend'));
+      expect(table.cellRange()).toBeNull();
+      expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'name' });
+
+      vi.advanceTimersByTime(1000);
+      hold();
+      expect(host.menu.show).toHaveBeenCalledTimes(1);
+      expect(host.rowEvents.map(event => event.row)).toEqual([ROWS[1]]);
+      expect(table.cellRange()).toBeNull();
+    } finally {
+      vi.useRealTimers();
+      doc.elementFromPoint = originalElementFromPoint;
+    }
   });
 });

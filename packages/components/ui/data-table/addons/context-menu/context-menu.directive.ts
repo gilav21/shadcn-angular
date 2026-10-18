@@ -1,4 +1,5 @@
 import {
+  ErrorHandler,
   Directive,
   input,
   output,
@@ -76,6 +77,7 @@ export class DataTableContextMenuDirective<T = unknown> {
   private readonly host = inject<DataTableAddonHost<T>>(DataTableAddonHost);
   private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly vcr = inject(ViewContainerRef);
+  private readonly errors = inject(ErrorHandler);
 
   /** Consumer callback returning the menu items for a row. */
   readonly rowActions = input<RowActionsFn<T> | undefined>(undefined);
@@ -104,11 +106,14 @@ export class DataTableContextMenuDirective<T = unknown> {
   private rowMenu?: ComponentRef<ContextMenuComponent>;
   private columnMenu?: ComponentRef<ContextMenuComponent>;
   /**
-   * Whether the cell under the last finger was selected when it went down. Read when the
-   * hold fires: the table's own 500 ms range handler may already have re-anchored the range
-   * onto that cell by then, and the answer must not depend on which of the two ran first.
+   * Whether the table's range handler will take the hold that began with the last finger: it
+   * only takes a hold on a data cell that was not selected. Decided when the finger goes down and
+   * read when the hold fires, because that handler may already have re-anchored the range onto the
+   * pressed cell by then, and the answer must not depend on which of the two ran first.
    */
-  private pressedCellSelected = false;
+  private rangeSelectionTakesHold = false;
+  /** False once a bound menu met a table whose host lacks what custom mode reads (see {@link requireCustomModeHost}). */
+  private hostSupportsCustomMode = true;
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -145,8 +150,7 @@ export class DataTableContextMenuDirective<T = unknown> {
       const element = this.el.nativeElement;
       const onPress = (event: TouchEvent): void => {
         // Simple mode never asks the host about selection, so an older table keeps working there.
-        this.pressedCellSelected =
-          this.contextMenu() !== undefined && this.host.isCellRangeSelectionEnabled() && this.selectedCellAt(event.target);
+        this.rangeSelectionTakesHold = this.customMenu() !== undefined && this.rangeSelectionWillTake(event.target);
       };
       const stopGestures = onContextGesture(element, (gesture) => this.openFromGesture(gesture));
       element.addEventListener('touchstart', onPress, { passive: true });
@@ -181,29 +185,43 @@ export class DataTableContextMenuDirective<T = unknown> {
     ];
   }
 
+  /** The bound menu, unless the table is too old for custom mode (then the built menu, if any, answers). */
+  private customMenu(): ContextMenuComponent | undefined {
+    return this.hostSupportsCustomMode ? (this.contextMenu() ?? undefined) : undefined;
+  }
+
   private requireCustomModeHost(): void {
     const missing = CUSTOM_MODE_HOST_MEMBERS.filter((member) => typeof this.host[member] !== 'function');
+    this.hostSupportsCustomMode = missing.length === 0;
     if (missing.length === 0) return;
-    throw new Error(
+    // Reported once, not thrown: it is a setup problem, so rendering carries on and the gestures fall through
+    // to the browser instead of failing on every right-click.
+    this.errors.handleError(new Error(
       `uiDtContextMenu [contextMenu] needs a newer <ui-data-table>: its DataTableAddonHost lacks ${missing.join(', ')}. ` +
         'Run `npx @gilav21/shadcn-angular update data-table`.',
-    );
+    ));
   }
 
   /** Whether the gesture was taken: by `contextMenu` if bound, else by the built row menu if `rowActions` is set. */
   private openFromGesture(gesture: ContextGesture): boolean {
     if (this.contextMenuDisabled()) return false;
-    const menu = this.contextMenu();
-    if (menu && this.holdBelongsToRangeSelection(gesture)) return false;
+    const menu = this.customMenu();
+    if (menu && gesture.viaTouch && this.rangeSelectionTakesHold) return false;
 
     const rowEl = gesture.target.closest<HTMLElement>(ROW_SELECTOR);
     if (rowEl) return menu ? this.openBoundRowMenu(menu, gesture, rowEl) : this.openBuiltRowMenu(gesture, rowEl);
     return menu ? this.openBoundHeaderMenu(menu, gesture) : false;
   }
 
-  /** With range selection on, a touch hold is the table's unless it is on what is already selected. */
-  private holdBelongsToRangeSelection(gesture: ContextGesture): boolean {
-    return gesture.viaTouch && this.host.isCellRangeSelectionEnabled() && !this.pressedCellSelected;
+  /**
+   * With range selection on, the table starts a range from a touch hold on an unselected data cell. It
+   * ignores every other hold (a header, its own columns, a row's padding) and a hold on what is already
+   * selected, so those are free to open the menu.
+   */
+  private rangeSelectionWillTake(target: EventTarget | null): boolean {
+    if (!this.host.isCellRangeSelectionEnabled()) return false;
+    const cell = this.cellAt(target);
+    return cell !== null && !TABLE_OWNED_COLUMNS.has(cell.columnKey) && !this.host.isCellSelected(cell.rowIndex, cell.columnKey);
   }
 
   private openBuiltRowMenu(gesture: ContextGesture, rowEl: HTMLElement): boolean {
@@ -255,11 +273,6 @@ export class DataTableContextMenuDirective<T = unknown> {
     if (!rowEl || !columnKey) return null;
     const rowIndex = rowIndexOf(rowEl);
     return Number.isNaN(rowIndex) ? null : { rowIndex, columnKey };
-  }
-
-  private selectedCellAt(target: EventTarget | null): boolean {
-    const cell = this.cellAt(target);
-    return cell !== null && this.host.isCellSelected(cell.rowIndex, cell.columnKey);
   }
 
   private openRowMenuFromButton(event: Event, context: RowActionContext<T>): void {

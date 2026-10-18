@@ -132,7 +132,6 @@ describe('DataTableComponent as DataTableAddonHost', () => {
     tree.componentRef.setInput('data', [{ id: '1', name: 'Parent', children: [{ id: '2', name: 'Child' }] }]);
     tree.componentRef.setInput('columns', COLUMNS);
     tree.componentRef.setInput('enableSubRows', true);
-    tree.componentRef.setInput('getSubRows', (row: TreeRow) => row.children);
     tree.detectChanges();
     const treeHost = tree.debugElement.injector.get<DataTableAddonHost<TreeRow>>(DataTableAddonHost);
 

@@ -47,8 +47,8 @@ describe('directive discoverability', () => {
   it('finds the directive-only entries', () => {
     // Guards the derivation itself: if this drops to zero (e.g. a refactor
     // renames `.directive.ts`), the convention test below would vacuously pass.
-    // A floor, not a census: it was 10 until the standalone data-table directive merged into its addon.
-    expect(directiveEntries().length).toBeGreaterThanOrEqual(5);
+    // It was 10 until the standalone data-table directive merged into its addon (9 entries now).
+    expect(directiveEntries().length).toBeGreaterThanOrEqual(9);
   });
 
   it('every directive entry describes itself as a directive', () => {

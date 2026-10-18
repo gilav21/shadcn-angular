@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Component, signal } from '@angular/core';
+import { Component, ErrorHandler, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { DataTableContextMenuDirective, type RowActionsFn } from './context-menu.directive';
@@ -208,6 +208,8 @@ const fakeMenu = (): ContextMenuComponent => ({ show: vi.fn() }) as unknown as C
         <span data-slot="table-cell" id="cell-name" data-column="name">RowA</span>
         <span data-slot="table-cell" id="cell-selection" data-column="_selection">Sel</span>
         <span data-slot="table-cell" id="cell-expander" data-column="_expander">Exp</span>
+        <span data-slot="table-cell" id="cell-actions" data-column="_actions">More</span>
+        <span id="row-padding"></span>
       </div>
       <div data-slot="table-row" data-row-id="rD"><span id="detail-text">Detail</span></div>
       <div><span id="outside-text">Outside</span></div>
@@ -762,6 +764,62 @@ describe('DataTableContextMenuDirective', () => {
       }
     });
 
+    // The table's range handler only takes a hold on an unselected DATA cell (its cellFromElement ignores the
+    // header, its own columns and row padding), so a touch-only user must still reach the menu from those.
+    it.each([
+      { target: 'cell-selection', what: 'the selection column' },
+      { target: 'cell-actions', what: 'the actions column' },
+      { target: 'row-padding', what: 'the padding of a row' },
+    ])('custom mode, range selection on: a long-press on $what opens the menu, since no range starts there', async ({ target }) => {
+      vi.useFakeTimers();
+      try {
+        host.rangeSelection = true;
+        const { comp, el } = await setupCustom();
+
+        touchDown(el(target), 10, 20);
+        vi.advanceTimersByTime(500);
+
+        expect(comp.rowEvents).toHaveLength(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('custom mode, range selection on: a long-press on a header opens the header menu', async () => {
+      vi.useFakeTimers();
+      try {
+        host.rangeSelection = true;
+        const { comp, el } = await setupCustom(c => c.rowsOnly.set(false));
+
+        touchDown(el('head-one'), 7, 9);
+        vi.advanceTimersByTime(500);
+
+        expect(comp.headerEvents).toHaveLength(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('custom mode, range selection on: a selected cell opens the menu once when the platform echoes a contextmenu', async () => {
+      vi.useFakeTimers();
+      try {
+        host.rangeSelection = true;
+        host.selected = (row, column) => row === 2 && column === 'name';
+        const { comp, el } = await setupCustom();
+
+        touchDown(el('cell-name'), 10, 20);
+        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(100);
+        const echo = typedContextMenu('touch', 10, 20);
+        el('cell-name').dispatchEvent(echo);
+
+        expect(comp.rowEvents).toHaveLength(1);
+        expect(echo.defaultPrevented).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('custom mode, range selection off: a long-press opens the menu everywhere', async () => {
       vi.useFakeTimers();
       try {
@@ -865,6 +923,7 @@ describe('DataTableContextMenuDirective', () => {
       { cell: 'cell-name', focused: [[2, 'name']] },
       { cell: 'cell-selection', focused: [] },
       { cell: 'cell-expander', focused: [] },
+      { cell: 'cell-actions', focused: [] },
     ])('focuses the clicked cell only for a data column ($cell)', async ({ cell, focused }) => {
       const { comp, el } = await setupCustom();
 
@@ -913,30 +972,74 @@ describe('DataTableContextMenuDirective', () => {
         for (const member of ['getRenderedTreeRowAt', 'focusCell', 'isCellRangeSelectionEnabled', 'isCellSelected']) {
           (stale as unknown as Record<string, unknown>)[member] = undefined;
         }
+        stale.rows = [{ id: 'r0', name: 'Zero' }, { id: 'r1', name: 'One' }, ROW];
         return stale;
       };
 
-      it('says what to update when a menu is bound', async () => {
-        host = olderHost();
-        await expect(setupCustom()).rejects.toThrow(/getRenderedTreeRowAt.*focusCell.*isCellRangeSelectionEnabled.*isCellSelected.*update data-table/s);
-      });
-
-      it('keeps simple mode working: it never reads the newer members, not even on a touch', async () => {
-        // A throw inside a DOM listener is reported to the window, not to the caller, so catch it there.
+      /** The directive on an older table, with what the application's ErrorHandler is given and what escapes uncaught. */
+      async function renderOlder(configure?: (comp: CustomHostComponent) => void): Promise<{
+        comp: CustomHostComponent;
+        el: (id: string) => HTMLElement;
+        reported: unknown[];
+        uncaught: unknown[];
+        stop: () => void;
+      }> {
+        const reported: unknown[] = [];
         const uncaught: unknown[] = [];
         const onError = (event: ErrorEvent): void => {
           uncaught.push(event.error);
           event.preventDefault();
         };
         globalThis.addEventListener('error', onError);
-        vi.useFakeTimers();
-        try {
-          host = olderHost();
-          const { comp, el } = await setupCustom(c => {
-            c.menu.set(undefined);
-            c.actions.set(() => [{ label: 'Edit' }]);
-          });
+        TestBed.configureTestingModule({
+          imports: [CustomHostComponent],
+          providers: [
+            { provide: DataTableAddonHost, useValue: olderHost() },
+            { provide: ErrorHandler, useValue: { handleError: (error: unknown) => reported.push(error) } },
+          ],
+        });
+        const fixture = TestBed.createComponent(CustomHostComponent);
+        configure?.(fixture.componentInstance);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const root = fixture.nativeElement as HTMLElement;
+        return {
+          comp: fixture.componentInstance,
+          el: (id: string) => root.querySelector<HTMLElement>(`#${id}`) as HTMLElement,
+          reported,
+          uncaught,
+          stop: () => globalThis.removeEventListener('error', onError),
+        };
+      }
 
+      it('says what to update when a menu is bound', async () => {
+        const { reported, stop } = await renderOlder();
+        stop();
+
+        expect(reported).toHaveLength(1);
+        expect(String(reported[0])).toMatch(/getRenderedTreeRowAt.*focusCell.*isCellRangeSelectionEnabled.*isCellSelected.*update data-table/s);
+      });
+
+      it('then lets gestures fall through to the browser instead of failing on each one', async () => {
+        const { comp, el, uncaught, stop } = await renderOlder();
+        try {
+          const event = rightClick(el('cell-name'));
+
+          expect(event.defaultPrevented).toBe(false);
+          expect(comp.rowEvents).toHaveLength(0);
+          expect(uncaught).toEqual([]);
+        } finally {
+          stop();
+        }
+      });
+
+      it('keeps simple mode working: it never reads the newer members, not even on a touch', async () => {
+        vi.useFakeTimers();
+        const { comp, el, reported, uncaught, stop } = await renderOlder(c => {
+          c.menu.set(undefined);
+          c.actions.set(() => [{ label: 'Edit' }]);
+        });
+        try {
           touchDown(el('cell-name'), 10, 20);
           vi.advanceTimersByTime(500);
           expect(comp.builtOpens).toHaveLength(1);
@@ -944,10 +1047,11 @@ describe('DataTableContextMenuDirective', () => {
           vi.advanceTimersByTime(1000);
           rightClick(el('cell-name'));
           expect(comp.builtOpens).toHaveLength(2);
+          expect(reported).toEqual([]);
           expect(uncaught).toEqual([]);
         } finally {
           vi.useRealTimers();
-          globalThis.removeEventListener('error', onError);
+          stop();
         }
       });
     });
