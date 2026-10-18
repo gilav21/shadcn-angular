@@ -3318,6 +3318,15 @@ describe('DataTableComponent - Row Grouping', () => {
             fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
             fixture.detectChanges();
             expect(renderedIds()).toEqual([{ index: '0', id: 'o2' }, { index: '1', id: 'o5' }]);
+            expect(component.getRenderedRowAt(0)?.id).toBe('o2');
+            expect(component.getRenderedRowAt(2)).toBeUndefined();
+
+            // A page that opens on data rows whose group header sits on the previous page, then a header.
+            fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 2 });
+            fixture.detectChanges();
+            expect(renderedIds()).toEqual([{ index: '0', id: 'o3' }]);
+            expect(component.getRenderedRowAt(0)?.id).toBe('o3');
+            expect(component.getRenderedRowAt(1)).toBeUndefined();
 
             fixture.componentRef.setInput('paginationState', { pageIndex: 0, pageSize: 10 });
             fixture.componentRef.setInput('collapsedGroups', { pending: true });
@@ -3334,6 +3343,16 @@ describe('DataTableComponent - Row Grouping', () => {
             expect(renderedIds()).toEqual([
                 { index: '0', id: 'o2' }, { index: '1', id: 'o5' }, { index: '2', id: 'o4' },
             ]);
+        });
+
+        // The test runner loads no Tailwind, so the focus ring is read from the class that carries it.
+        it('draws the focus ring on the cell at the focused rendered index', () => {
+            component.focusCell(3, 'id');
+            fixture.detectChanges();
+
+            const ringed = Array.from(fixture.nativeElement.querySelectorAll('[data-row-index] [data-column="id"].ring-2') as NodeListOf<HTMLElement>)
+                .map((cell) => cell.textContent!.trim());
+            expect(ringed).toEqual(['o5']);
         });
 
         it('hands a row action the rendered index of its own row', () => {

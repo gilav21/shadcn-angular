@@ -1620,7 +1620,8 @@ export class DataTableComponent<T>
       result.push(this.buildGroupRow(group.groupKey, group.groupValue, group.rows, collapsed));
       if (!collapsed) {
         for (const row of group.rows) {
-          result.push({ kind: 'data', row, index: index++ });
+          result.push({ kind: 'data', row, index });
+          index += 1;
         }
       }
     }

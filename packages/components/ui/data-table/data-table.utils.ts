@@ -694,7 +694,12 @@ export function partitionIntoGroups<T>(
  */
 export function renumberDataRows<T>(rows: readonly DataTableDisplayRow<T>[]): DataTableDisplayRow<T>[] {
     let index = 0;
-    return rows.map((row) => (row.kind === 'group' ? row : { ...row, index: index++ }));
+    return rows.map((row) => {
+        if (row.kind === 'group') return row;
+        const numbered = { ...row, index };
+        index += 1;
+        return numbered;
+    });
 }
 
 // ── Advanced filter evaluation (A5) ──
