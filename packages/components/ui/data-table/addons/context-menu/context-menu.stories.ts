@@ -1,8 +1,8 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { ContextMenuComponent, ContextMenuItem } from './context-menu';
-import { ColumnDef, DataTableComponent } from './data-table';
-import { DataTableContextMenuDirective, DataTableHeaderContextMenuEvent } from './data-table-context-menu.directive';
-import { TableRowContextMenuEvent } from './table-context-menu.directive';
+import { ContextMenuComponent, ContextMenuItem } from '../../../context-menu';
+import { ColumnDef, DataTableComponent, RowActionContext } from '../..';
+import { DataTableContextMenuDirective } from './context-menu.directive';
+import type { DataTableHeaderContextMenuEvent, DataTableRowContextMenuEvent } from './context-menu.types';
 
 interface Invoice {
   id: string;
@@ -42,6 +42,13 @@ const HEADER_ITEMS: ContextMenuItem[] = [
   { label: 'Hide column', icon: 'eye-off' },
 ];
 
+const rowActions = (context: RowActionContext<Invoice>): ContextMenuItem[] => [
+  { label: `Edit ${context.row.id}`, icon: 'pencil' },
+  { label: 'Duplicate', icon: 'copy' },
+  { type: 'separator' },
+  { label: 'Delete', icon: 'trash' },
+];
+
 const TABLE_SHELL = (table: string) => `
   <div class="p-4 sm:p-6 space-y-3">
     <p class="text-sm text-muted-foreground">
@@ -54,10 +61,12 @@ const TABLE_SHELL = (table: string) => `
 `;
 
 /**
- * `DataTableContextMenuDirective` has no `component` metadata target because it is a
- * directive — every input is exposed through `argTypes` so the Controls panel drives
- * it live. It attaches to `<ui-data-table>` (selector `ui-data-table[uiDataTableContextMenu]`),
- * opens the `ui-context-menu` you hand it on right-click, and emits the row / header payload.
+ * `uiDtContextMenu` is the data-table's context-menu addon. It is a directive, so every input is exposed
+ * through `argTypes` and the Controls panel drives it live. It works in two modes, chosen by what you bind:
+ *
+ * - **Simple:** `[rowActions]` (and `[enableColumnMenu]`). The addon builds the menus and adds the ⋮ buttons.
+ * - **Custom:** `[contextMenu]`. A right-click, the context-menu key or a long-press opens *your*
+ *   `<ui-context-menu>`, with the row (or the header) as its data.
  */
 const meta: Meta = {
   title: 'UI/Data Table Context Menu',
@@ -68,33 +77,34 @@ const meta: Meta = {
     }),
   ],
   argTypes: {
-    uiDataTableContextMenu: {
+    contextMenu: {
       control: false,
       description:
-        'Required. The `ContextMenuComponent` instance to open on right-click — pass a template reference (`#menu`) to the `<ui-context-menu>` you render next to the table. The directive calls `menu.show(x, y, data)` with the row data (or the tree-row context) for rows, and the `{ id, name, element }` column descriptor for headers.',
-      table: { type: { summary: 'ContextMenuComponent' } },
+        'Custom mode. The `ContextMenuComponent` to open on right-click — pass a template reference (`#menu`) to the `<ui-context-menu>` you render next to the table. The addon calls `menu.show(x, y, data)` with the row data (or the flattened tree row with `row` merged in) for rows, and the `{ id, name, element }` column descriptor for headers.',
+      table: { type: { summary: 'ContextMenuComponent | undefined' } },
     },
     contextMenuDisabled: {
       control: 'boolean',
-      description: 'When true the directive ignores `contextmenu` entirely — the native browser menu is shown and no output fires.',
+      description:
+        'When true every context gesture on the table falls through to the browser: the native menu is shown and no output fires. The ⋮ buttons are unaffected.',
       table: { defaultValue: { summary: 'false' } },
     },
     contextMenuRowsOnly: {
       control: 'boolean',
       description:
-        'When true (default) only rows open the menu; headers keep the native browser menu. Set to false to also open the menu on column headers and emit `headerContextMenu`.',
+        'Custom mode. When true (default) only rows open the menu; headers keep the native browser menu. Set to false to also open it on column headers and emit `headerContextMenu`.',
       table: { defaultValue: { summary: 'true' } },
     },
     rowContextMenu: {
       action: 'rowContextMenu',
       description:
-        'Emits `TableRowContextMenuEvent<T>`: `{ row, index, event, depth?, isLeaf?, parentRow? }` — the tree fields are populated when the table renders sub-rows.',
+        'Custom mode. Emits `DataTableRowContextMenuEvent<T>`: `{ row, index, event, depth?, isLeaf?, parentRow? }` — the tree fields are populated when the table renders sub-rows.',
       table: { category: 'outputs' },
     },
     headerContextMenu: {
       action: 'headerContextMenu',
       description:
-        'Emits `DataTableHeaderContextMenuEvent`: `{ column: { id, name, element }, event }` — `id` is the column `accessorKey`. Only fires when `contextMenuRowsOnly` is false.',
+        'Custom mode. Emits `DataTableHeaderContextMenuEvent`: `{ column: { id, name, element }, event }` — `id` is the column `accessorKey`. Only fires when `contextMenuRowsOnly` is false.',
       table: { category: 'outputs' },
     },
   },
@@ -107,7 +117,7 @@ const meta: Meta = {
 export default meta;
 type Story = StoryObj;
 
-/** Interactive playground — every input is wired to the Controls panel. */
+/** Custom mode, interactive playground — every input is wired to the Controls panel. */
 export const Playground: Story = {
   render: (args) => ({
     props: {
@@ -122,7 +132,8 @@ export const Playground: Story = {
         [columns]="columns"
         [showToolbar]="false"
         [showPagination]="false"
-        [uiDataTableContextMenu]="menu"
+        uiDtContextMenu
+        [contextMenu]="menu"
         [contextMenuDisabled]="contextMenuDisabled"
         [contextMenuRowsOnly]="contextMenuRowsOnly"
         (rowContextMenu)="rowContextMenu($event)"
@@ -133,7 +144,7 @@ export const Playground: Story = {
   }),
 };
 
-/** Row menu (the default): right-click any row to open the menu — headers keep the native menu. */
+/** Custom mode, row menu (the default): right-click any row to open your menu — headers keep the native menu. */
 export const RowMenu: Story = {
   render: () => ({
     props: { data: [...INVOICES], columns: COLUMNS, items: ROW_ITEMS },
@@ -143,15 +154,15 @@ export const RowMenu: Story = {
         [columns]="columns"
         [showToolbar]="false"
         [showPagination]="false"
-        [uiDataTableContextMenu]="menu"
-        [contextMenuRowsOnly]="true"
+        uiDtContextMenu
+        [contextMenu]="menu"
       />
       <ui-context-menu #menu [items]="items" />
     `),
   }),
 };
 
-/** Column-header menu: set `contextMenuRowsOnly` to false so right-clicking a `<th>` opens the menu too. */
+/** Custom mode, column-header menu: set `contextMenuRowsOnly` to false so right-clicking a header opens the menu too. */
 export const ColumnHeaderMenu: Story = {
   render: () => ({
     props: { data: [...INVOICES], columns: COLUMNS, items: HEADER_ITEMS },
@@ -161,7 +172,8 @@ export const ColumnHeaderMenu: Story = {
         [columns]="columns"
         [showToolbar]="false"
         [showPagination]="false"
-        [uiDataTableContextMenu]="menu"
+        uiDtContextMenu
+        [contextMenu]="menu"
         [contextMenuRowsOnly]="false"
       />
       <ui-context-menu #menu [items]="items" />
@@ -170,7 +182,7 @@ export const ColumnHeaderMenu: Story = {
 };
 
 /**
- * Event payloads — the panel prints exactly what the two outputs emit: which row (data + index)
+ * Custom mode, event payloads — the panel prints exactly what the two outputs emit: which row (data + index)
  * and which column (`accessorKey` + rendered header text). Swap `[items]` on the shared menu in
  * the handlers to show a row menu or a header menu from one `<ui-context-menu>`.
  */
@@ -182,7 +194,7 @@ export const EventPayloads: Story = {
       items: ContextMenuItem[];
       rowLog: string;
       headerLog: string;
-      onRow: (event: TableRowContextMenuEvent<Invoice>) => void;
+      onRow: (event: DataTableRowContextMenuEvent<Invoice>) => void;
       onHeader: (event: DataTableHeaderContextMenuEvent) => void;
     } = {
       data: [...INVOICES],
@@ -211,7 +223,8 @@ export const EventPayloads: Story = {
               [columns]="columns"
               [showToolbar]="false"
               [showPagination]="false"
-              [uiDataTableContextMenu]="menu"
+              uiDtContextMenu
+              [contextMenu]="menu"
               [contextMenuRowsOnly]="false"
               (rowContextMenu)="onRow($event)"
               (headerContextMenu)="onHeader($event)"
@@ -228,6 +241,41 @@ export const EventPayloads: Story = {
   },
 };
 
+/** Simple mode: bind `rowActions` and the addon builds the row menu itself and adds the ⋮ button to every row. */
+export const RowActions: Story = {
+  render: () => ({
+    props: { data: [...INVOICES], columns: COLUMNS, rowActions },
+    template: TABLE_SHELL(`
+      <ui-data-table
+        [data]="data"
+        [columns]="columns"
+        [showToolbar]="false"
+        [showPagination]="false"
+        uiDtContextMenu
+        [rowActions]="rowActions"
+      />
+    `),
+  }),
+};
+
+/** Simple mode with the column menu: `enableColumnMenu` adds a ⋮ button to every header (sort, pin, hide). */
+export const ColumnMenu: Story = {
+  render: () => ({
+    props: { data: [...INVOICES], columns: COLUMNS, rowActions },
+    template: TABLE_SHELL(`
+      <ui-data-table
+        [data]="data"
+        [columns]="columns"
+        [showToolbar]="false"
+        [showPagination]="false"
+        uiDtContextMenu
+        [rowActions]="rowActions"
+        [enableColumnMenu]="true"
+      />
+    `),
+  }),
+};
+
 /** Disabled: `contextMenuDisabled` restores the browser's native context menu and suppresses both outputs. */
 export const Disabled: Story = {
   args: { contextMenuDisabled: true },
@@ -239,7 +287,8 @@ export const Disabled: Story = {
         [columns]="columns"
         [showToolbar]="false"
         [showPagination]="false"
-        [uiDataTableContextMenu]="menu"
+        uiDtContextMenu
+        [contextMenu]="menu"
         [contextMenuDisabled]="contextMenuDisabled"
       />
       <ui-context-menu #menu [items]="items" />

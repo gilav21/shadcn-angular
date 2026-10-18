@@ -111,7 +111,7 @@ const meta: Meta = {
           '',
           '**Header cells are not covered.** The directive only reacts to `td` / `[data-slot="table-cell"]`,',
           'so right-clicking a `<ui-table-head>` falls through to the browser menu. Header menus are the',
-          'job of `DataTableContextMenuDirective`.',
+          'job of the `uiDtContextMenu` addon of the data table (`DataTableContextMenuDirective`).',
           '',
           '**Touch:** a one-finger long-press on a cell opens the same menu and emits the same row and cell',
           'payloads as a right-click, once, on iOS and Android alike; the `event` field is then the `touchstart`',

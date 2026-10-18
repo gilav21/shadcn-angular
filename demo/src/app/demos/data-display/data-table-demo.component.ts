@@ -52,7 +52,6 @@ import {
   multiselectFilterFn,
 } from '../../../../../packages/components/ui';
 import { DataTableContextMenuDirective } from '../../../../../packages/components/ui/data-table/addons/context-menu';
-import { DataTableContextMenuDirective as FlatDataTableContextMenuDirective } from '../../../../../packages/components/ui/data-table-context-menu.directive';
 import { DataTableExportDirective } from '../../../../../packages/components/ui/data-table/addons/export';
 import { computePivot, type PivotAggregate } from '../../../../../packages/components/ui/data-table/addons/pivot';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
@@ -637,7 +636,6 @@ class OpsTicketDetailComponent {
     ToggleGroupItemComponent,
     DataTableComponent,
     DataTableContextMenuDirective,
-    FlatDataTableContextMenuDirective,
     DataTableExportDirective,
     ContextMenuComponent,
     ContextMenuContentComponent,

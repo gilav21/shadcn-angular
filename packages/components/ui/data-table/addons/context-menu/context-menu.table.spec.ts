@@ -53,7 +53,8 @@ class TableHostComponent {
   readonly expanded: Record<string, boolean> = { '1': true };
   readonly groupBy = signal<string | undefined>(undefined);
   readonly menu = { show: vi.fn() } as unknown as ContextMenuComponent;
-  readonly rowEvents: DataTableRowContextMenuEvent<Row>[] = [];
+  // The directive's row type cannot be inferred from the host <ui-data-table>, so events arrive as unknown.
+  readonly rowEvents: DataTableRowContextMenuEvent<unknown>[] = [];
   readonly headerEvents: DataTableHeaderContextMenuEvent[] = [];
 }
 

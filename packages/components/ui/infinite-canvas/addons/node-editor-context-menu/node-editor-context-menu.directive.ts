@@ -30,7 +30,7 @@ const TOUCH_SLOP_PX = 10;
  * ### Why a directive, and why on the editor element
  *
  * It follows the convention already in this repo — `uiTreeContextMenu`,
- * `uiTableContextMenu`, `uiDataTableContextMenu` all attach a
+ * `uiTableContextMenu`, `uiDtContextMenu` all attach a
  * {@link ContextMenuComponent} to a host and hand it the thing under the
  * pointer. A node graph is the same problem with a richer answer.
  *

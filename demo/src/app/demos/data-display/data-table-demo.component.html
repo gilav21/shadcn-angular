@@ -606,7 +606,7 @@
       (columnFiltersChange)="onOpsColumnFilters($event)" [(columnOrder)]="opsColumnOrder"
       [(columnVisibility)]="opsColumnVisibility" [(expandedRows)]="opsExpandedRows"
       uiDtExport #opsExp="uiDtExport"
-      [uiDataTableContextMenu]="opsContextMenu" [exportDataProvider]="opsExportProvider" />
+      uiDtContextMenu [contextMenu]="opsContextMenu" [exportDataProvider]="opsExportProvider" />
   </div>
 
   <ui-context-menu #opsContextMenu>
@@ -739,7 +739,8 @@
       [enableRowDrag]="treeDragEnabled()"
       [rowDragMode]="treeDragMode()"
       (rowReorder)="onTreeRowReorder($event)"
-      [uiDataTableContextMenu]="treeContextMenu"
+      uiDtContextMenu
+      [contextMenu]="treeContextMenu"
       (rowContextMenu)="onTreeTableContextMenu($event)"
     />
   </div>

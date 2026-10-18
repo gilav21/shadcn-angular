@@ -6,8 +6,11 @@ import {
   ContextMenuItem,
   DataTableComponent,
 } from '../../../../../packages/components/ui';
-import { DataTableContextMenuDirective, DataTableHeaderContextMenuEvent } from '../../../../../packages/components/ui/data-table-context-menu.directive';
-import { TableRowContextMenuEvent } from '../../../../../packages/components/ui/table-context-menu.directive';
+import {
+  DataTableContextMenuDirective,
+  type DataTableHeaderContextMenuEvent,
+  type DataTableRowContextMenuEvent,
+} from '../../../../../packages/components/ui/data-table/addons/context-menu';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { DATA_TABLE_CONTEXT_MENU_DEMO_LOCALES, DataTableContextMenuDemoLocale } from './data-table-context-menu-demo.locales';
 
@@ -74,7 +77,8 @@ export class DtcmActionsCellComponent {
             [columns]="columns()"
             [showToolbar]="false"
             [showPagination]="false"
-            [uiDataTableContextMenu]="menu"
+            uiDtContextMenu
+            [contextMenu]="menu"
             [contextMenuRowsOnly]="false"
             (rowContextMenu)="onRowContextMenu($event)"
             (headerContextMenu)="onHeaderContextMenu($event)"
@@ -183,7 +187,7 @@ export class DataTableContextMenuDemoComponent {
     return hidden.length > 0 ? hidden.map((key) => this.headerFor(key, t)).join(', ') : t.noneLabel;
   });
 
-  protected onRowContextMenu(event: TableRowContextMenuEvent): void {
+  protected onRowContextMenu(event: DataTableRowContextMenuEvent): void {
     const row = event.row as PaymentRow;
     this.rowEventText.set(`{ index: ${event.index}, row: ${JSON.stringify(row)} }`);
     this.menuItems.set(this.buildRowItems(row));

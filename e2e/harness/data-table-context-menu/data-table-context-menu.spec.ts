@@ -42,3 +42,42 @@ test('right-clicking a row opens the row context menu', async ({ page }) => {
     await expect(menu).toBeVisible();
     await expect(menu).toContainText('Edit row');
 });
+
+test('custom mode: a right-click on a row opens the bound menu and reports the row', async ({ page }) => {
+    await page.goto('/');
+
+    const table = page.getByTestId('custom-table');
+    await table.getByText('Beta').click({ button: 'right' });
+
+    const menu = page.locator('[data-slot="context-menu-content"]');
+    await expect(menu).toBeVisible();
+    await expect(menu).toContainText('Rename');
+    await expect(menu).toContainText('Archive');
+    await expect(page.getByTestId('custom-row')).toHaveText('Beta');
+});
+
+test('custom mode: a header right-click reports the header, not a row', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByTestId('custom-table').getByText('Label').first().click({ button: 'right' });
+
+    await expect(page.locator('[data-slot="context-menu-content"]')).toBeVisible();
+    await expect(page.getByTestId('custom-header')).toHaveText('Label');
+    await expect(page.getByTestId('custom-row')).toHaveText('');
+});
+
+test('both inputs: the bound menu owns the right-click and the ⋮ button still opens the built menu', async ({ page }) => {
+    await page.goto('/');
+
+    const table = page.getByTestId('custom-table');
+    await table.getByText('Alpha').click({ button: 'right' });
+    const menu = page.locator('[data-slot="context-menu-content"]');
+    await expect(menu).toContainText('Rename');
+    await page.keyboard.press('Escape');
+    await expect(menu).toBeHidden();
+
+    await table.getByRole('button', { name: 'Row actions' }).first().click();
+    await expect(menu).toBeVisible();
+    await expect(menu).toContainText('Pin row');
+    await expect(menu).not.toContainText('Rename');
+});
