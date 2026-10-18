@@ -1330,8 +1330,8 @@
       "lines": 274
     },
     "context-menu/context-menu.component.browser.spec.ts": {
-      "bytes": 11994,
-      "lines": 262
+      "bytes": 13117,
+      "lines": 284
     },
     "context-menu/context-menu.component.spec.ts": {
       "bytes": 28625,
@@ -1494,20 +1494,20 @@
       "lines": 1
     },
     "data-table/addons/context-menu/context-menu.directive.spec.ts": {
-      "bytes": 37749,
-      "lines": 966
+      "bytes": 41708,
+      "lines": 1070
     },
     "data-table/addons/context-menu/context-menu.directive.ts": {
-      "bytes": 14770,
-      "lines": 348
+      "bytes": 15690,
+      "lines": 361
     },
     "data-table/addons/context-menu/context-menu.stories.ts": {
       "bytes": 10628,
       "lines": 297
     },
     "data-table/addons/context-menu/context-menu.table.spec.ts": {
-      "bytes": 5846,
-      "lines": 134
+      "bytes": 7905,
+      "lines": 178
     },
     "data-table/addons/context-menu/context-menu.types.ts": {
       "bytes": 1413,
@@ -1618,8 +1618,8 @@
       "lines": 543
     },
     "data-table/data-table.host.spec.ts": {
-      "bytes": 6755,
-      "lines": 182
+      "bytes": 6677,
+      "lines": 181
     },
     "data-table/data-table.host.ts": {
       "bytes": 5365,
