@@ -2344,7 +2344,7 @@ export function getReverseDependents(name: ComponentName): Set<ComponentName> {
     return out;
 }
 
-let _reverseDepGraph: Map<ComponentName, ComponentName[]> | null = null;
+let reverseDepGraphCache: Map<ComponentName, ComponentName[]> | null = null;
 
 /**
  * Clears memoized derived state. Called by `loadRegistry` after the live
@@ -2352,11 +2352,11 @@ let _reverseDepGraph: Map<ComponentName, ComponentName[]> | null = null;
  * (`getReverseDependents`, …) recompute against the fresh data.
  */
 export function __resetRegistryCaches(): void {
-    _reverseDepGraph = null;
+    reverseDepGraphCache = null;
 }
 
 function reverseDepGraph(): Map<ComponentName, ComponentName[]> {
-    if (_reverseDepGraph) return _reverseDepGraph;
+    if (reverseDepGraphCache) return reverseDepGraphCache;
     const graph = new Map<ComponentName, ComponentName[]>();
     for (const name of Object.keys(registry) as ComponentName[]) {
         for (const dep of registry[name].dependencies ?? []) {
@@ -2366,7 +2366,7 @@ function reverseDepGraph(): Map<ComponentName, ComponentName[]> {
             graph.set(dep, list);
         }
     }
-    _reverseDepGraph = graph;
+    reverseDepGraphCache = graph;
     return graph;
 }
 

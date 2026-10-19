@@ -58,7 +58,7 @@ const SOURCE: NodeTypeDefinition = {
     label: 'Source',
     ports: [{ id: 'out', direction: 'out', label: 'Out' }],
     initialState: () => 5,
-    compute: (_inputs, ctx) => ({ out: ctx.state }),
+    compute: (inputs, ctx) => ({ out: ctx.state }),
 };
 
 /** in → double → out */
@@ -444,7 +444,7 @@ describe('asSubgraphGraph', () => {
         ['a string', 'nodes'],
         ['an object with no connections', { nodes: [] }],
         ['an object with no nodes', { connections: [] }],
-    ])('rejects %s', (_label, value) => {
+    ])('rejects %s', (label, value) => {
         expect(asSubgraphGraph(value)).toBeNull();
     });
 });

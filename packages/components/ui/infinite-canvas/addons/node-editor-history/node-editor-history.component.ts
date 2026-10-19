@@ -171,11 +171,11 @@ export class NodeEditorHistoryComponent {
     return status === 'done' ? text.succeeded : status;
   }
 
-  protected trackRun(_index: number, run: RunRecord): number {
+  protected trackRun(index: number, run: RunRecord): number {
     return run.id;
   }
 
-  protected trackNode(_index: number, node: RunNodeRecord): string {
+  protected trackNode(index: number, node: RunNodeRecord): string {
     return String(node.nodeId);
   }
 }

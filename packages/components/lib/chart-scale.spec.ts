@@ -225,7 +225,7 @@ describe('zeroBasedDomain', () => {
         ['all zeros still have an axis', [0, 0, 0], [-1, 1]],
         ['no values still have an axis', [], [-1, 1]],
         ['non-finite entries are ignored', [Number.NaN, 4, Number.POSITIVE_INFINITY, null, undefined], [0, 4]],
-    ])('%s', (_label, values, expected) => {
+    ])('%s', (label, values, expected) => {
         expect(zeroBasedDomain(values as number[])).toEqual(expected);
     });
 });

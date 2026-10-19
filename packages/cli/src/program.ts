@@ -281,7 +281,7 @@ export function createProgram(): Command {
     // component, dependency, and lib-file changes ship without an npm republish —
     // only the CLI code or registry schema does. Falls back to the bundled
     // snapshot (with a warning) when the fetch fails.
-    program.hook('preAction', async (_thisCommand, actionCommand) => {
+    program.hook('preAction', async (thisCommand, actionCommand) => {
         const opts = actionCommand.opts<{ branch?: string; registry?: string; remote?: boolean }>();
         const registry = await resolveRegistry(actionCommand, opts.registry);
         await loadRegistry({ branch: opts.branch, registry, remote: opts.remote });

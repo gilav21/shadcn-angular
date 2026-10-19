@@ -133,7 +133,7 @@ interface RuledGrid {
 
 function findRuledTable(
     band: readonly Line[],
-    _rows: readonly Line[][],
+    rows: readonly Line[][],
     rects: readonly PathRect[],
     pageIndex: number,
 ): BandTableSplit | null {

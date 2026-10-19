@@ -440,7 +440,7 @@ describe('describeArc terminates and stays finite for every sweep', () => {
         ['several turns', 0, Math.PI * 6],
         ['a negative full sweep', 0, -Math.PI * 2],
         ['a negative sweep past a turn', 1, 1 - Math.PI * 3],
-    ])('%s', (_label, start, end) => {
+    ])('%s', (label, start, end) => {
         for (const innerRadius of [0, 40]) {
             const path = describeArc(0, 0, 100, innerRadius, start, end);
             expect(path).not.toMatch(/NaN|Infinity/);

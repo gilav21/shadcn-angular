@@ -490,7 +490,7 @@ describe('RichTextMentionsDirective', () => {
         ['an erroring Observable', () => throwError(() => new Error('boom')) as Observable<MentionItem[]>],
         ['a rejected Promise', () => Promise.reject(new Error('boom'))],
         ['a synchronous throw', () => { throw new Error('boom'); }],
-    ])('shows no candidates for a search that fails with %s, then searches again on the next keystroke', async (_kind, fail) => {
+    ])('shows no candidates for a search that fails with %s, then searches again on the next keystroke', async (kind, fail) => {
         const fixture = mountSearchHost();
         let calls = 0;
         fixture.componentInstance.search.set((q) => {

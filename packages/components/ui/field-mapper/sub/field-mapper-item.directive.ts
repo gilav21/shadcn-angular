@@ -20,9 +20,9 @@ import type { FieldMapperItemContext } from '../field-mapper.types';
 })
 export class FieldMapperItemDirective {
     static ngTemplateContextGuard(
-        _dir: FieldMapperItemDirective,
-        _ctx: unknown,
-    ): _ctx is FieldMapperItemContext {
+        dir: FieldMapperItemDirective,
+        ctx: unknown,
+    ): ctx is FieldMapperItemContext {
         return true;
     }
 }

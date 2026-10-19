@@ -38,11 +38,11 @@ describe('RichTextSanitizerService - workload: unclosed and nested inline tags',
         ['html: bold holding blocks, nested', () => sanitizer.sanitize(toSize('<b><div>x'))],
     ];
 
-    it.each(cases)('%s', (_name, run) => {
+    it.each(cases)('%s', (name, run) => {
         const started = performance.now();
         const out = run();
         // The measurement is this spec's whole output; stderr is the channel the
         // lint rules leave open for it.
-        console.error(`${_name}: ${Math.round(performance.now() - started)} ms, ${out.length} chars out`);
+        console.error(`${name}: ${Math.round(performance.now() - started)} ms, ${out.length} chars out`);
     });
 });

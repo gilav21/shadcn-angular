@@ -46,7 +46,7 @@ const TEXT_INPUT: NodeTypeDefinition<string> = {
     initialState: () => 'hello',
     view: TypingViewComponent,
     bodyHeight: 44,
-    compute: (_inputs, ctx) => ({ text: ctx.state }),
+    compute: (inputs, ctx) => ({ text: ctx.state }),
 };
 
 const SINK: NodeTypeDefinition = {

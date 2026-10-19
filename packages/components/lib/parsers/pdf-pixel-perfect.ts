@@ -1634,7 +1634,7 @@ class TextLine {
     // F5: optimize_normal (HTMLTextLine.cc:363-540) — 1:1 C++ translation
     // Adjusts letter-space and word-space to reduce HTML element count.
     // Builds new_offsets list and swaps at end (C++ line 537).
-    optimizeNormal(mgr: AllStateManager, _hEps: number, spaceThreshold: number, z: number): void {
+    optimizeNormal(mgr: AllStateManager, hEps: number, spaceThreshold: number, z: number): void {
         // C++ line 366-367: remove useless states at end
         let lastSt = this.states.at(-1);
         while (lastSt && (lastSt.installed?.startIdx ?? 0) >= this.text.length) {
@@ -1805,7 +1805,7 @@ class TextLine {
     private emitLineContent(
         parts: string[],
         mgr: AllStateManager,
-        _fontRegistry: FontRegistry,
+        fontRegistry: FontRegistry,
         hEps: number,
         spaceThreshold: number,
         z: number,
@@ -2572,52 +2572,52 @@ class PixelPerfectProcessor {
     private registerGraphicsStateOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
         m.set('q', () => this.saveState());
         m.set('Q', () => this.restoreState());
-        m.set('cm', (_op, ops) => this.opCm(ops));
-        m.set('w', (_op, ops) => { if (ops.length >= 1) this.lineWidth = Number.parseFloat(ops[0]); });
-        m.set('g', (_op, ops) => { this.fillColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.fillColorChanged = true; });
-        m.set('G', (_op, ops) => { this.strokeColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.strokeColorChanged = true; });
-        m.set('rg', (_op, ops) => this.opRg(ops, true));
-        m.set('RG', (_op, ops) => this.opRg(ops, false));
-        m.set('k', (_op, ops) => this.opK(ops, true));
-        m.set('K', (_op, ops) => this.opK(ops, false));
-        m.set('cs', (_op, ops) => this.opCs(ops));
-        m.set('CS', (_op, ops) => this.opCs(ops));
+        m.set('cm', (op, ops) => this.opCm(ops));
+        m.set('w', (op, ops) => { if (ops.length >= 1) this.lineWidth = Number.parseFloat(ops[0]); });
+        m.set('g', (op, ops) => { this.fillColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.fillColorChanged = true; });
+        m.set('G', (op, ops) => { this.strokeColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.strokeColorChanged = true; });
+        m.set('rg', (op, ops) => this.opRg(ops, true));
+        m.set('RG', (op, ops) => this.opRg(ops, false));
+        m.set('k', (op, ops) => this.opK(ops, true));
+        m.set('K', (op, ops) => this.opK(ops, false));
+        m.set('cs', (op, ops) => this.opCs(ops));
+        m.set('CS', (op, ops) => this.opCs(ops));
         m.set('sc', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
         m.set('SC', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
         m.set('scn', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
         m.set('SCN', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
-        m.set('Do', (_op, ops, res, pw, ph) => this.opDo(ops, res, pw, ph));
-        m.set('gs', (_op, ops, res) => this.opGs(ops, res));
+        m.set('Do', (op, ops, res, pw, ph) => this.opDo(ops, res, pw, ph));
+        m.set('gs', (op, ops, res) => this.opGs(ops, res));
         for (const name of ['BMC', 'BDC', 'EMC', 'MP', 'DP', 'BI']) m.set(name, noop);
     }
 
     private registerTextOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
-        m.set('Tf', (_op, ops) => this.opTf(ops));
-        m.set('Tc', (_op, ops) => { this.charSpace = Number.parseFloat(ops[0] ?? '0'); this.letterSpaceChanged = true; });
-        m.set('Tw', (_op, ops) => { this.wordSpace = Number.parseFloat(ops[0] ?? '0'); this.wordSpaceChanged = true; });
-        m.set('Tz', (_op, ops) => { this.horizScaling = Number.parseFloat(ops[0] ?? '100') / 100; this.horizScaleChanged = true; });
-        m.set('TL', (_op, ops) => { this.leading = Number.parseFloat(ops[0] ?? '0'); });
-        m.set('Tr', (_op, ops) => { this.renderMode = Number.parseInt(ops[0] ?? '0', 10); this.fillColorChanged = true; this.strokeColorChanged = true; });
-        m.set('Ts', (_op, ops) => { this.rise = Number.parseFloat(ops[0] ?? '0'); this.riseChanged = true; });
+        m.set('Tf', (op, ops) => this.opTf(ops));
+        m.set('Tc', (op, ops) => { this.charSpace = Number.parseFloat(ops[0] ?? '0'); this.letterSpaceChanged = true; });
+        m.set('Tw', (op, ops) => { this.wordSpace = Number.parseFloat(ops[0] ?? '0'); this.wordSpaceChanged = true; });
+        m.set('Tz', (op, ops) => { this.horizScaling = Number.parseFloat(ops[0] ?? '100') / 100; this.horizScaleChanged = true; });
+        m.set('TL', (op, ops) => { this.leading = Number.parseFloat(ops[0] ?? '0'); });
+        m.set('Tr', (op, ops) => { this.renderMode = Number.parseInt(ops[0] ?? '0', 10); this.fillColorChanged = true; this.strokeColorChanged = true; });
+        m.set('Ts', (op, ops) => { this.rise = Number.parseFloat(ops[0] ?? '0'); this.riseChanged = true; });
         m.set('BT', () => this.opBT());
         m.set('ET', noop);
-        m.set('Td', (_op, ops) => this.opTd(ops));
-        m.set('TD', (_op, ops) => this.opTD(ops));
-        m.set('Tm', (_op, ops) => this.opTm(ops));
+        m.set('Td', (op, ops) => this.opTd(ops));
+        m.set('TD', (op, ops) => this.opTD(ops));
+        m.set('Tm', (op, ops) => this.opTm(ops));
         m.set('T*', () => this.opTStar());
-        m.set('Tj', (_op, ops) => this.opTj(ops));
-        m.set('TJ', (_op, ops) => this.opTJ(ops));
-        m.set('\'', (_op, ops) => { this.opTStar(); this.opTj(ops); });
-        m.set('"', (_op, ops) => this.opQuoteDbl(ops));
+        m.set('Tj', (op, ops) => this.opTj(ops));
+        m.set('TJ', (op, ops) => this.opTJ(ops));
+        m.set('\'', (op, ops) => { this.opTStar(); this.opTj(ops); });
+        m.set('"', (op, ops) => this.opQuoteDbl(ops));
     }
 
     private registerPathOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
-        m.set('re', (_op, ops) => this.opRe(ops));
-        m.set('m', (_op, ops) => this.opPathMove(ops));
-        m.set('l', (_op, ops) => this.opPathLine(ops));
-        m.set('c', (_op, ops) => this.opPathCurve(ops));
-        m.set('v', (_op, ops) => this.opPathCurve2Points(ops));
-        m.set('y', (_op, ops) => this.opPathCurve2Points(ops));
+        m.set('re', (op, ops) => this.opRe(ops));
+        m.set('m', (op, ops) => this.opPathMove(ops));
+        m.set('l', (op, ops) => this.opPathLine(ops));
+        m.set('c', (op, ops) => this.opPathCurve(ops));
+        m.set('v', (op, ops) => this.opPathCurve2Points(ops));
+        m.set('y', (op, ops) => this.opPathCurve2Points(ops));
         m.set('h', noop);
         m.set('S', () => this.paintPath(true, false));
         m.set('s', () => this.paintPath(true, false));

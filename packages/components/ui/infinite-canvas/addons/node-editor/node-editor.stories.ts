@@ -356,7 +356,7 @@ const COUNTER: NodeTypeDefinition<CounterState> = {
   initialState: () => ({ value: 1 }),
   view: CounterNodeComponent,
   bodyHeight: 46,
-  compute: (_inputs, ctx) => ({ out: ctx.state.value }),
+  compute: (inputs, ctx) => ({ out: ctx.state.value }),
 };
 
 /** A pure transform: no view, no state, four lines. */

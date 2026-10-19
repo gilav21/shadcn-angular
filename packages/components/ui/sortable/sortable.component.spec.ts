@@ -485,7 +485,7 @@ describe('SortableComponent', () => {
                 { id: 2, name: 'B' },
                 { id: 3, name: 'C' },
             ]);
-            readonly posFn = (_item: TestRow, i: number, total: number): string => {
+            readonly posFn = (item: TestRow, i: number, total: number): string => {
                 if (i === 0) { return 'pos-first'; }
                 if (i === total - 1) { return 'pos-last'; }
                 return 'pos-middle';

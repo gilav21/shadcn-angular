@@ -1912,9 +1912,9 @@ function fixVisualOrderRTL(text: string): string {
 function joinSplitHebrewFragments(text: string): string {
     return text
         .replaceAll(/"([\u0590-\u05FF]+)\s+([\u0590-\u05FF])(?=\s|[^"\u0590-\u05FF]|$)/g,
-            (_m, p1: string, p2: string) => p1 + '"' + p2)
+            (match, p1: string, p2: string) => p1 + '"' + p2)
         .replaceAll(/(?<![\u0590-\u05FF])([\u0590-\u05FF])\s+([\u0590-\u05FF]+)"(?=\s|[^"\u0590-\u05FF]|$)/g,
-            (_m, p1: string, p2: string) => p1 + p2 + '"');
+            (match, p1: string, p2: string) => p1 + p2 + '"');
 }
 
 function fixBracketsAroundLtrWords(text: string): string {
@@ -3175,7 +3175,7 @@ const IGNORED_OPERATORS = new Set([
 ]);
 
 function processStrokeColorOperator(
-    token: string, _operandStack: string[], gs: GraphicsState,
+    token: string, operandStack: string[], gs: GraphicsState,
     popNum: () => number,
 ): boolean {
     switch (token) {
@@ -5422,7 +5422,7 @@ function renderLineAsHeading(
 }
 
 function renderLineAsBullet(
-    state: HtmlBuilderState, line: TextLine, _lineText: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     if (state.inNumberedList) { state.html.push('</ol>'); state.inNumberedList = false; }
@@ -5439,7 +5439,7 @@ function renderLineAsBullet(
 }
 
 function renderLineAsNumbered(
-    state: HtmlBuilderState, line: TextLine, _lineText: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     const rtl = isLineRTL(line);
@@ -6124,7 +6124,7 @@ function applyParagraphSpacing(state: HtmlBuilderState, lineSpacing: number, bod
 }
 
 function handleBorderBoxLine(
-    _line: TextLine, ctx: HtmlBuilderContext, state: HtmlBuilderState,
+    line: TextLine, ctx: HtmlBuilderContext, state: HtmlBuilderState,
     renderedBorderBoxes: Set<PathRect>, borderBox: PathRect,
 ): void {
     if (!renderedBorderBoxes.has(borderBox)) {

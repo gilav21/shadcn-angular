@@ -146,7 +146,7 @@ describe('checkPackedManifest (T-23)', () => {
             { ...HEALTHY, dependencies: { ...HEALTHY.dependencies, lodash: '^4.0.0' } },
             /dependencies drifted/,
         ],
-    ])('rejects %s', (_label, manifest, pattern) => {
+    ])('rejects %s', (label, manifest, pattern) => {
         expect(() => checkPackedManifest('rte', manifest as never)).toThrow(pattern as RegExp);
     });
 });
@@ -288,7 +288,7 @@ describe('parsePackOutput', () => {
     it.each([
         ['an empty array', '[]'],
         ['a bare object instead of an array', '{"filename":"x.tgz","files":[]}'],
-    ])('rejects %s as "returned no package"', (_label, raw) => {
+    ])('rejects %s as "returned no package"', (label, raw) => {
         expect(() => parsePackOutput(raw)).toThrow(/returned no package/);
     });
 

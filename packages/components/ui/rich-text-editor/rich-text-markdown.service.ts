@@ -2066,7 +2066,7 @@ export class RichTextMarkdownService {
         // corruption the lift was introduced to stop, reintroduced for nesting.
         return markdown.replaceAll(CODE_FENCE_OPEN, '').replaceAll(CODE_FENCE_CLOSE, '').replaceAll(
             FENCE_PATTERN,
-            (_match, prefix: string, _fence: string, lang: string, code: string) => {
+            (match, prefix: string, fence: string, lang: string, code: string) => {
                 const langAttr = lang ? ` data-language="${lang}" class="language-${lang}"` : '';
                 const token = `${prefix}${CODE_FENCE_OPEN}${store.length}${CODE_FENCE_CLOSE}`;
                 const body = stripBlockPrefix(code, prefix);
@@ -4158,7 +4158,7 @@ function trackRowspans(cells: readonly Element[], carried: Map<number, number>):
  * "&lt;code&gt;x&lt;/code&gt;".
  */
 function resolveInlineCodeText(value: string, store: readonly string[]): string {
-    return value.replaceAll(/(\d{1,9})/g, (_match, index: string) => {
+    return value.replaceAll(/(\d{1,9})/g, (match, index: string) => {
         const parked = store[Number(index)] ?? '';
         return parked.replace(/^<code>/, '').replace(/<\/code>$/, '');
     });
@@ -4179,5 +4179,5 @@ function restoreParked(
 ): string {
     if (store.length === 0) return html;
     const pattern = new RegExp(String.raw`${open}(\d{1,9})${close}`, 'g');
-    return html.replaceAll(pattern, (_match, index: string) => map(store[Number(index)] ?? ''));
+    return html.replaceAll(pattern, (match, index: string) => map(store[Number(index)] ?? ''));
 }

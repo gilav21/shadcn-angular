@@ -100,9 +100,9 @@ export type SortableLandEffect =
 })
 export class SortableItemTemplateDirective {
     static ngTemplateContextGuard<T>(
-        _dir: SortableItemTemplateDirective,
-        _ctx: unknown,
-    ): _ctx is SortableContext<T> {
+        dir: SortableItemTemplateDirective,
+        ctx: unknown,
+    ): ctx is SortableContext<T> {
         return true;
     }
 }

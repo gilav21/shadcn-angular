@@ -529,7 +529,7 @@ describe('update (command)', () => {
     it('exits 0 with "Cancelled." when the user Ctrl-Cs the addon prompt', async () => {
       process.stdin.isTTY = true;
       asMock(prompts).mockImplementation(
-        async (_questions: unknown, opts: { onCancel: () => never }) => opts.onCancel(),
+        async (questions: unknown, opts: { onCancel: () => never }) => opts.onCancel(),
       );
 
       await expect(update(['data-table'], opts())).rejects.toThrow(ProcessExitError);

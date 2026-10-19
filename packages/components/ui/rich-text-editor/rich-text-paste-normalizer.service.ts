@@ -532,7 +532,7 @@ export class RichTextPasteNormalizerService {
 
             for (const [prop, value] of styles) {
                 if (prop.startsWith('mso-')) {
-                    this.mapMsoProperty(prop, value, mapped, el);
+                    this.mapMsoProperty(prop, value, mapped);
                 } else if (!prop.startsWith('-')) {
                     this.mapStandardProperty(prop, value, mapped);
                 }
@@ -604,7 +604,6 @@ export class RichTextPasteNormalizerService {
         prop: string,
         value: string,
         mapped: Map<string, string>,
-        _el: HTMLElement
     ): void {
         if (!value) return;
         this.mapMsoFontProperty(prop, value, mapped);

@@ -256,7 +256,7 @@ describe('the runtime does not accumulate what nobody reads', () => {
         label: 'Counter',
         ports: [{ id: 'out', direction: 'out', label: 'Out' }],
         initialState: () => 0,
-        compute: (_inputs, ctx) => ({ out: ctx.state }),
+        compute: (inputs, ctx) => ({ out: ctx.state }),
     };
 
     it('keeps the computed log bounded however many runs happen', async () => {
@@ -303,7 +303,7 @@ describe('a node that is gone gets nothing back', () => {
         id: 'leaky',
         label: 'Leaky',
         ports: [{ id: 'out', direction: 'out', label: 'Out' }],
-        compute: (_inputs, ctx) => {
+        compute: (inputs, ctx) => {
             escaped = ctx.emit as Emit;
             return { out: 1 };
         },

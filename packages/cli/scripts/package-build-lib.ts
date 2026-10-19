@@ -52,7 +52,7 @@ export function eagerGraph(entry: string, sources: BundleSources): ReadonlySet<s
 export function countDynamicImports(files: Iterable<string>, sources: BundleSources): number {
     let total = 0;
     for (const file of files) {
-        for (const _ of (sources.get(file) ?? '').matchAll(/import\(\s*'\.\/([^']+)'/g)) total++;
+        total += [...(sources.get(file) ?? '').matchAll(/import\(\s*'\.\/([^']+)'/g)].length;
     }
     return total;
 }

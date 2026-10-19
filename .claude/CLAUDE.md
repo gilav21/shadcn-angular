@@ -356,11 +356,22 @@ reference implementation for this pattern.
 - **No Unused Declarations**: Remove all unused imports, variables,
   parameters, and types in TypeScript files and the
   `@Component({ imports: [...] })` array. ESLint's
-  `@typescript-eslint/no-unused-vars` enforces this (prefix an intentionally
-  unused parameter with `_`). `tsconfig.json` sets
-  `noUnusedLocals`/`noUnusedParameters`, so `npm run typecheck` fails on a
-  `ts(6133)` ("declared but its value is never read") — it catches unused
-  private members ESLint misses. An effect kept only for its side effect is a
+  `@typescript-eslint/no-unused-vars` enforces this, and `tsconfig.json`
+  sets `noUnusedLocals`, so `npm run typecheck` fails on a `ts(6133)`
+  ("declared but its value is never read") — it catches unused private
+  members ESLint misses.
+  **One standard for parameters, no underscore prefix anywhere:** a parameter
+  nothing needs is *removed* (and its callers updated), never renamed to
+  `_name`. A unit test that declares a mock parameter only to type
+  `mock.calls` says so with a generic signature —
+  `vi.fn<(text: string) => Promise<void>>()` — instead of an unused parameter.
+  A parameter that stays only because a callback signature fixes its position
+  (`replace((match, prefix) => …)`, `test.each(rows)('…', (label, input) => …)`)
+  keeps its plain camelCase name; ESLint's `after-used` rule does not flag a
+  parameter that precedes a used one, and flags exactly the trailing ones that
+  can go. Angular's `ngTemplateContextGuard(dir, ctx): ctx is Context` is the one
+  idiom ESLint cannot see through; its files are listed in `eslint.config.mjs`.
+  An effect kept only for its side effect is a
   `protected readonly` field (not `private`, which would be flagged, and not
   moved into the constructor, which would change its creation order).
 
@@ -1013,8 +1024,9 @@ When generating or modifying components:
 8. **Form Components**: Support both `value` input and `ControlValueAccessor`
 9. **Clean up unused declarations** — after writing or modifying code, verify
    every import, variable, and parameter is actually used. Remove any that
-   aren't. ESLint `no-unused-vars` and `npm run typecheck` (which enforces
-   `noUnusedLocals`/`noUnusedParameters`) must be clean.
+   aren't (parameters are removed, not prefixed with `_`). ESLint
+   `no-unused-vars` and `npm run typecheck` (which enforces
+   `noUnusedLocals`) must be clean.
 10. **SonarQube compliance** — follow ALL rules in Section 4
     "SonarQube Compliance". **Before declaring ANY work done, run the full
     SonarQube server scan** (`npm run sonar:gate` against `localhost:9000`;

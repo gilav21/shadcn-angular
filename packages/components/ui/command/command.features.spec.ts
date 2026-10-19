@@ -184,7 +184,7 @@ describe('CommandComponent — async source', () => {
         const aborted: boolean[] = [];
         const held = deferred();
         let calls = 0;
-        host.source.set((_query, signal) => {
+        host.source.set((query, signal) => {
             calls++;
             signal.addEventListener('abort', () => aborted.push(true));
             return calls === 1 ? held.promise : Promise.resolve([]);
@@ -230,7 +230,7 @@ describe('CommandComponent — async source', () => {
     it('tears the pending debounce and controller down on destroy', async () => {
         let aborted = false;
         const held = deferred();
-        host.source.set((_query, signal) => {
+        host.source.set((query, signal) => {
             signal.addEventListener('abort', () => { aborted = true; });
             return held.promise;
         });

@@ -22,9 +22,9 @@ import { Directive } from '@angular/core';
 })
 export class SortablePlaceholderTemplateDirective {
     static ngTemplateContextGuard<T>(
-        _dir: SortablePlaceholderTemplateDirective,
-        _ctx: unknown,
-    ): _ctx is { readonly $implicit: T; readonly index: number } {
+        dir: SortablePlaceholderTemplateDirective,
+        ctx: unknown,
+    ): ctx is { readonly $implicit: T; readonly index: number } {
         return true;
     }
 }

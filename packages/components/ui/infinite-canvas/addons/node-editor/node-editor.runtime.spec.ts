@@ -22,7 +22,7 @@ const SOURCE: NodeTypeDefinition = {
     label: 'Source',
     ports: [{ id: 'out', direction: 'out', label: 'Out' }],
     initialState: () => 'seed',
-    compute: (_inputs, ctx) => ({ out: ctx.state }),
+    compute: (inputs, ctx) => ({ out: ctx.state }),
 };
 
 const PASSTHROUGH: NodeTypeDefinition = {
@@ -211,7 +211,7 @@ describe('RT-4 async runs and staleness', () => {
             id: 'slow',
             label: 'Slow',
             ports: [{ id: 'out', direction: 'out', label: 'Out' }],
-            compute: async (_inputs, ctx) => {
+            compute: async (inputs, ctx) => {
                 const value = ctx.state as string;
                 await new Promise(resolve => setTimeout(resolve, delays[value] ?? 0));
                 return { out: value };
@@ -322,7 +322,7 @@ describe('RT-4 async runs and staleness', () => {
             id: 'ticker',
             label: 'Ticker',
             ports: [{ id: 'out', direction: 'out', label: 'Out' }],
-            compute: (_inputs, ctx) => {
+            compute: (inputs, ctx) => {
                 const label = ctx.state as string;
                 ctx.signal.addEventListener('abort', () => aborted.push(label));
                 return (async function* () {

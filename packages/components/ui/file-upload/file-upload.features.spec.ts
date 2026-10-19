@@ -51,7 +51,7 @@ function unreadableFileEntry(name: string): FakeEntry {
         isDirectory: false,
         name,
         fullPath: `/${name}`,
-        file: (_ok, err) => err(new Error('unreadable')),
+        file: (ok, err) => err(new Error('unreadable')),
     };
 }
 

@@ -320,7 +320,7 @@ describe('legacy .doc piece table — resource limits', () => {
         ['parseDocEnhanced', parseDocEnhanced],
     ] as const;
 
-    it.each(parsers)('T-15 %s: overlapping pieces yield text no longer than the WordDocument stream', (_name, parse) => {
+    it.each(parsers)('T-15 %s: overlapping pieces yield text no longer than the WordDocument stream', (name, parse) => {
         // The claim, not the file, used to size the text.
         const { file, wordDocumentLength } = overlappingPiecesDoc();
         const result = parse(file);
@@ -328,7 +328,7 @@ describe('legacy .doc piece table — resource limits', () => {
         expect(result.plainText.length).toBeLessThanOrEqual(wordDocumentLength);
     });
 
-    it.each(parsers)('%s hands its limits to the container read', (_name, parse) => {
+    it.each(parsers)('%s hands its limits to the container read', (name, parse) => {
         const { file } = overlappingPiecesDoc();
         const capped = { ...DEFAULT_PARSER_LIMITS, maxOle2StreamBytes: 512 };
         // The text sits at 0x600, past the 512 bytes the cap leaves of WordDocument.

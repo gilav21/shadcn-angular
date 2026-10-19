@@ -61,7 +61,7 @@ describe('RichTextSanitizerService — task row shape', () => {
             + '<ul data-task-list><li data-task><input type="checkbox">b</li></ul>c</li></ul>', 'abc'],
         ['a paragraph, and a second list after it', '<ul data-task-list><li data-task data-checked="true"><input type="checkbox" checked><span>a</span>'
             + '<ul><li>b</li></ul><p>c</p><ul><li>d</li></ul></li></ul>', 'abcd'],
-    ])('starts the next row with %s after a row nested list, every word kept in order', (_name, html, words) => {
+    ])('starts the next row with %s after a row nested list, every word kept in order', (name, html, words) => {
         // Gathered into the row's text, which shows above its nested list, the
         // words after the list moved ahead of it.
         const holder = document.createElement('div');
@@ -88,7 +88,7 @@ describe('RichTextSanitizerService — task row shape', () => {
         ['a rule', '<hr>'],
         ['an empty table', '<table><tbody><tr><td></td></tr></tbody></table>'],
         ['a rule and a break', '<hr><br>'],
-    ])('adds no empty row for %s after a row nested list, and settles', (_name, after) => {
+    ])('adds no empty row for %s after a row nested list, and settles', (name, after) => {
         // Flattened into a row, it shows nothing, so a row of its own was an empty row.
         const holder = document.createElement('div');
         holder.innerHTML = service.sanitize('<ul data-task-list><li data-task data-checked="true"><input type="checkbox" checked><span>a</span>'
@@ -173,7 +173,7 @@ describe('RichTextSanitizerService — an element holds a line or holds blocks',
         ['a quote holding two paragraphs', '<blockquote><p>one</p><p>two</p></blockquote>', 'intro one two'],
         ['a div holding a list', '<div><ul><li>item</li></ul></div>', 'intro item'],
         ['a table', '<table><tbody><tr><td>cell</td><td>next</td></tr></tbody></table>', 'intro cell next'],
-    ])('finishes unwrapping %s inside a task row', (_name, block, text) => {
+    ])('finishes unwrapping %s inside a task row', (name, block, text) => {
         // Draining a block that held a block looped forever: the emptied inner
         // block stayed in place and the outer loop kept finding it. The single
         // level input the first test used could not show that.
@@ -292,7 +292,7 @@ describe('RichTextSanitizerService — output the HTML parser reads back unchang
         // parses; unwrapped, their table sat inside the paragraph.
         ['a table in MathML inside a paragraph', '<p>p <math><mtext><table><tbody><tr><td>x</td></tr></tbody></table></mtext></math> q</p>'],
         ['a table in a button inside a paragraph', '<p>p <button><table><tbody><tr><td>x</td></tr></tbody></table></button> q</p>'],
-    ])('reads %s back unchanged, and a second pass changes nothing', (_name, html) => {
+    ])('reads %s back unchanged, and a second pass changes nothing', (name, html) => {
         // Each shape was wrapped in a paragraph the parser will not keep, so
         // every pass added empty paragraphs around it, without end.
         const { out, holder } = readBack(html);
@@ -388,7 +388,7 @@ describe('RichTextSanitizerService — output the HTML parser reads back unchang
     it.each([
         ['side by side', '<blockquote><li>x</li><li>y</li></blockquote>'],
         ['with blank text between them', '<blockquote><li>x</li>\n <li>y</li></blockquote>'],
-    ])('gives adjacent items loose in a quote one list, keeping their text: %s', (_name, html) => {
+    ])('gives adjacent items loose in a quote one list, keeping their text: %s', (name, html) => {
         const { holder } = readBack(html);
 
         expect(holder.querySelectorAll('blockquote > ul')).toHaveLength(1);
@@ -1819,7 +1819,7 @@ describe('RichTextSanitizerService — loose text given a line of its own', () =
         ['a list item', '<ul><li><b>a</b> <i>b</i> <code>c</code><p>d</p></li></ul>'],
         ['a div', '<div><b>a</b> <i>b</i> <code>c</code><p>d</p></div>'],
         ['a quote', '<blockquote><b>a</b> <i>b</i> <code>c</code><p>d</p></blockquote>'],
-    ])('keeps the spaces between the words of loose text in %s', (_name, html) => {
+    ])('keeps the spaces between the words of loose text in %s', (name, html) => {
         // Blank text between inline elements was left out of the new paragraph,
         // so "a b c" read "abc".
         const holder = document.createElement('div');

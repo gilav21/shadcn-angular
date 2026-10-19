@@ -82,9 +82,9 @@ export interface VirtualScrollWindow2D {
 export class VirtualItemDirective {
    
   static ngTemplateContextGuard<T>(
-    _dir: VirtualItemDirective,
-    _ctx: unknown
-  ): _ctx is { $implicit: T; index: number } {
+    dir: VirtualItemDirective,
+    ctx: unknown
+  ): ctx is { $implicit: T; index: number } {
     return true;
   }
    
@@ -606,7 +606,7 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
   }
 
   /** Cell identity for the `'both'` grid loop — the flat index, which is unique by construction. */
-  trackByCell(_index: number, cell: VirtualCell<T>): number {
+  trackByCell(index: number, cell: VirtualCell<T>): number {
     return cell.index;
   }
 

@@ -2047,9 +2047,9 @@ describe('DataTableComponent', () => {
                     accessorKey: 'role',
                     header: 'Role',
                     enableFiltering: true,
-                    filterFn: (_row: TestData, filterValue: unknown): boolean => {
+                    filterFn: (row: TestData, filterValue: unknown): boolean => {
                         const roles = filterValue as string[];
-                        return roles.includes(_row.role);
+                        return roles.includes(row.role);
                     },
                 },
             ];
@@ -2070,9 +2070,9 @@ describe('DataTableComponent', () => {
                     accessorKey: 'role',
                     header: 'Role',
                     enableFiltering: true,
-                    filterFn: (_row: TestData, filterValue: unknown): boolean => {
+                    filterFn: (row: TestData, filterValue: unknown): boolean => {
                         const roles = filterValue as string[];
-                        return roles.includes(_row.role);
+                        return roles.includes(row.role);
                     },
                 },
             ];
@@ -2906,7 +2906,7 @@ describe('DataTableComponent - Addon host slots & context', () => {
 
     it('invokes the slot onClick with the row context when a ⋮ button is clicked', () => {
         let captured: RowActionContext<TestData> | undefined;
-        registerCellSlot((_event, context) => { captured = context; });
+        registerCellSlot((event, context) => { captured = context; });
         fixture.detectChanges();
 
         fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'))[2].nativeElement.click();
@@ -3686,7 +3686,7 @@ describe('DataTableComponent - Row Grouping', () => {
             component.registerCellAction({
                 id: 'menu',
                 ariaLabel: 'Row actions',
-                onClick: (_event, context) => clicked.push({ id: context.row.id, index: context.index }),
+                onClick: (event, context) => clicked.push({ id: context.row.id, index: context.index }),
             });
             fixture.detectChanges();
 

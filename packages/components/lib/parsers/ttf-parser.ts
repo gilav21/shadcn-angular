@@ -300,7 +300,7 @@ function scaleSimpleGlyph(srcData: Uint8Array, scaleX: number, scaleY: number): 
 // ── Skip coordinates without modifying (to find offset of next axis) ────
 
 function skipCoordinates(
-    _view: DataView, offset: number, flags: Uint8Array, numPoints: number,
+    view: DataView, offset: number, flags: Uint8Array, numPoints: number,
     shortBit: number, sameBit: number,
 ): number {
     let pos = offset;

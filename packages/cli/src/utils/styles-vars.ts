@@ -49,7 +49,7 @@ function replaceVarInBlock(block: string, varName: string, value: string): strin
     if (commentedPattern.test(block)) {
         return block.replace(
             new RegExp(String.raw`\/\*\s*([ \t]*${escaped}\s*:\s*)[^;]*(;)\s*\*\/`, 'g'),
-            (_match, prefix, semi) => `${prefix}${value}${semi}`,
+            (match, prefix, semi) => `${prefix}${value}${semi}`,
         );
     }
 
@@ -58,7 +58,7 @@ function replaceVarInBlock(block: string, varName: string, value: string): strin
     if (uncommentedPattern.test(block)) {
         return block.replace(
             new RegExp(String.raw`(${escaped}\s*:\s*)[^;]*(;)`, 'g'),
-            (_match, prefix, semi) => `${prefix}${value}${semi}`,
+            (match, prefix, semi) => `${prefix}${value}${semi}`,
         );
     }
 

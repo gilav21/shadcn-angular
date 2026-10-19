@@ -685,7 +685,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
     private getGridCoordinates(event: DragEvent | MouseEvent): { x: number; y: number } {
         const container = (event.currentTarget as HTMLElement);
         const rect = container.getBoundingClientRect();
-        const _isRtl = isRtl(this.el.nativeElement);
+        const isRightToLeft = isRtl(this.el.nativeElement);
 
         // Calculate click/drag position relative to container
         let clientX = event.clientX;
@@ -699,7 +699,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
         }
 
         let x = clientX - rect.left;
-        if (_isRtl) {
+        if (isRightToLeft) {
             x = rect.right - clientX;
         }
 
@@ -818,14 +818,14 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
         const state = this.initialResizeState;
         if (!state) return { deltaX: 0, deltaY: 0, direction: rawDirection };
 
-        const _isRtl = isRtl(this.el.nativeElement);
+        const isRightToLeft = isRtl(this.el.nativeElement);
         let deltaX = clientX - state.x;
         const deltaY = clientY - state.y;
 
-        if (_isRtl) {
+        if (isRightToLeft) {
             deltaX = -deltaX;
         }
-        const direction = _isRtl ? this.flipResizeDirectionForRtl(rawDirection) : rawDirection;
+        const direction = isRightToLeft ? this.flipResizeDirectionForRtl(rawDirection) : rawDirection;
         return { deltaX, deltaY, direction };
     }
 
@@ -1076,7 +1076,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
 
     private getGridCoordinatesFromPoint(clientX: number, clientY: number, container: HTMLElement): { x: number; y: number } {
         const rect = container.getBoundingClientRect();
-        const _isRtl = isRtl(this.el.nativeElement);
+        const isRightToLeft = isRtl(this.el.nativeElement);
 
         let adjustedX = clientX;
         let adjustedY = clientY;
@@ -1088,7 +1088,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
         }
 
         let x = adjustedX - rect.left;
-        if (_isRtl) {
+        if (isRightToLeft) {
             x = rect.right - adjustedX;
         }
 

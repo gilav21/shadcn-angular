@@ -16,9 +16,7 @@ export function graphemeLength(text: string): number {
     if (!text) return 0;
     const segmenter = graphemeSegmenter();
     if (!segmenter) return text.length;
-    let count = 0;
-    for (const _ of segmenter.segment(text)) count++;
-    return count;
+    return Array.from(segmenter.segment(text)).length;
 }
 
 /**

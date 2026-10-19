@@ -247,7 +247,7 @@ describe('verdictReport', () => {
     it.each([
         ['--force', ARGS({ force: true }), '--force given'],
         ['--dry-run', ARGS({ dryRun: true }), 'dry run'],
-    ])('proceeds on a NOT-required verdict under %s with nothing on the error stream', (_flag, args, note) => {
+    ])('proceeds on a NOT-required verdict under %s with nothing on the error stream', (flag, args, note) => {
         const report = verdictReport({ required: false, reasons: [] }, args);
         expect(report.proceed).toBe(true);
         expect(report.lines.join('\n')).toContain(note);
@@ -552,7 +552,7 @@ describe('nodeReleaseEffects', () => {
         ['readFile', (fx: ReleaseEffects) => fx.readFile(PKG_JSON), `read /repo/${PKG_JSON}`],
         ['writeFile', (fx: ReleaseEffects) => fx.writeFile(PKG_JSON, 'x'), `write /repo/${PKG_JSON}`],
         ['deleteFile', (fx: ReleaseEffects) => fx.deleteFile(PKG_JSON), `delete /repo/${PKG_JSON}`],
-    ])('resolves %s against the repo root', (_label, act, expected) => {
+    ])('resolves %s against the repo root', (label, act, expected) => {
         const { calls, fx } = io();
         act(fx);
         expect(calls).toContain(expected);
@@ -592,7 +592,7 @@ describe('runRelease — the unrecoverable invariant', () => {
         ['a no-push release', ['rte', 'patch', '--skip-preflight', '--no-push']],
         ['a failed preflight', ['rte', 'patch']],
         ['a refused verdict', ['rte', 'patch']],
-    ])('never invokes npm publish during %s', (_label, argv) => {
+    ])('never invokes npm publish during %s', (label, argv) => {
         const w = world(releaseTranscript(), { npmFails: argv.length === 2 });
         runRelease(argv, w.effects);
         expect(w.calls.filter((c) => c.startsWith('npm ')).join('\n')).not.toContain('publish');

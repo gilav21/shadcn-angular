@@ -54,7 +54,7 @@ const TEXT_INPUT: NodeTypeDefinition<TextState> = {
     ports: [{ id: 'text', direction: 'out', label: 'Text', type: 'text' }],
     initialState: () => ({ value: '' }),
     view: TextInputNodeComponent,
-    compute: (_inputs, ctx) => ({ text: ctx.state.value }),
+    compute: (inputs, ctx) => ({ text: ctx.state.value }),
 };
 
 const UPPERCASE: NodeTypeDefinition = {

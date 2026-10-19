@@ -11,7 +11,7 @@ import { playwright } from '@vitest/browser-playwright';
  */
 const BENCHMARKS = process.env['WORKLOAD'] ? [] : ['**/*.workload.spec.ts'];
 
-export default defineConfig(({ mode: _mode }) => ({
+export default defineConfig({
     plugins: [angular({
         tsconfig: 'tsconfig.json',
         // Single-pass compile that skips Angular's template type-checking.
@@ -167,4 +167,4 @@ export default defineConfig(({ mode: _mode }) => ({
             instances: [{ browser: 'chromium' }],
         },
     },
-}));
+});

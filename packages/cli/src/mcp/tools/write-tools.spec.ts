@@ -90,7 +90,7 @@ const handlers = new Map<string, ToolHandler>();
 
 /** A ToolHost that records handlers instead of exposing them over MCP. */
 const host = {
-  registerTool: (name: string, _config: unknown, handler: ToolHandler) => {
+  registerTool: (name: string, config: unknown, handler: ToolHandler) => {
     handlers.set(name, handler);
   },
 } as unknown as ToolHost;

@@ -88,7 +88,7 @@ export function exportRun(run: RunRecord): string {
   return JSON.stringify(run, jsonSafe, 2);
 }
 
-function jsonSafe(_key: string, value: unknown): unknown {
+function jsonSafe(key: string, value: unknown): unknown {
   if (typeof value === 'function') return '[function]';
   if (typeof value === 'bigint') return `${value}n`;
   if (typeof value === 'symbol') return value.toString();

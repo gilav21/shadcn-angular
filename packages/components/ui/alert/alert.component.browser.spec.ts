@@ -40,7 +40,7 @@ describe('Alert layout (browser)', () => {
     it.each<[string, Type<unknown>]>([
         ['template mode', TemplateModeHostComponent],
         ['simple mode', SimpleModeHostComponent],
-    ])('%s: spans its container as a bordered, rounded box and stacks the title and description past a leading icon', (_mode, host) => {
+    ])('%s: spans its container as a bordered, rounded box and stacks the title and description past a leading icon', (mode, host) => {
         const fixture = TestBed.createComponent(host);
         fixture.detectChanges();
         const root = fixture.nativeElement as HTMLElement;

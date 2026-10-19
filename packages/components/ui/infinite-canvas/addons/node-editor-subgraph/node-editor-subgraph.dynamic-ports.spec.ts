@@ -39,7 +39,7 @@ const SOURCE: NodeTypeDefinition = {
     label: 'Source',
     ports: [{ id: 'out', direction: 'out', label: 'Out' }],
     initialState: () => 21,
-    compute: (_inputs, ctx) => ({ out: ctx.state }),
+    compute: (inputs, ctx) => ({ out: ctx.state }),
 };
 
 /** The palette entry: a subgraph with nothing in it yet. */

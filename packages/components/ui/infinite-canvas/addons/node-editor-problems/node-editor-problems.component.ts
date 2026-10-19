@@ -81,7 +81,7 @@ export class NodeEditorProblemsComponent {
   }
 
   /** Stable across re-renders, so a row is not rebuilt on every evaluation. */
-  protected trackProblem(_index: number, problem: GraphProblem): string {
+  protected trackProblem(index: number, problem: GraphProblem): string {
     return `${problem.nodeId}:${problem.kind}:${problem.portId ?? ''}`;
   }
 }

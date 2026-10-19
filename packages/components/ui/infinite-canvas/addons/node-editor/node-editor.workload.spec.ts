@@ -42,7 +42,7 @@ const CONNECTION: NodeTypeDefinition = {
   label: 'Database',
   ports: [{ id: 'schema', direction: 'out', label: 'Schema' }],
   initialState: () => 1,
-  compute: (_inputs, ctx) => ({ schema: ctx.state }),
+  compute: (inputs, ctx) => ({ schema: ctx.state }),
 };
 
 const TABLE: NodeTypeDefinition = {

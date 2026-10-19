@@ -20,7 +20,7 @@ const SOURCE: NodeTypeDefinition = {
     label: 'Source',
     ports: [{ id: 'out', direction: 'out', label: 'Out' }],
     initialState: () => 1,
-    compute: (_inputs, ctx) => ({ out: ctx.state }),
+    compute: (inputs, ctx) => ({ out: ctx.state }),
 };
 
 const DOUBLE: NodeTypeDefinition = {

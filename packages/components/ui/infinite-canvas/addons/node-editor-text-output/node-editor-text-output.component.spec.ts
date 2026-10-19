@@ -54,7 +54,7 @@ describe('safeColor', () => {
         ['a script url', 'javascript:alert(1)'],
         ['an image set', 'image-set("a.png" 1x)'],
         ['a comment escape', 'red/*'],
-    ])('refuses one that %s', (_why, colour) => {
+    ])('refuses one that %s', (why, colour) => {
         expect(safeColor(colour)).toBeNull();
     });
 

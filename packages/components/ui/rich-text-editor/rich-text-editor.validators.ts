@@ -106,7 +106,7 @@ function markdownToText(value: string): string {
     const fences: string[] = [];
     let text = value
         .replaceAll(/[\ue000\ue001]/g, '')
-        .replace(FENCE, (_match, body: string) => {
+        .replace(FENCE, (match, body: string) => {
             fences.push(body);
             return `\ue000${fences.length - 1}\ue001`;
         });
@@ -116,7 +116,7 @@ function markdownToText(value: string): string {
     for (const [pattern, replacement] of ENTITIES) {
         text = text.replace(pattern, replacement);
     }
-    return text.replace(FENCE_TOKEN, (_match, index: string) => fences[Number(index)] ?? '');
+    return text.replace(FENCE_TOKEN, (match, index: string) => fences[Number(index)] ?? '');
 }
 
 /**

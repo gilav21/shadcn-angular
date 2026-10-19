@@ -65,7 +65,7 @@ const COLOR_COMMAND_PROP: Readonly<Record<string, 'color' | 'backgroundColor'>> 
     backColor: 'backgroundColor',
 };
 
-function functionalExecCommand(id: string, _showUI?: boolean, value?: string): boolean {
+function functionalExecCommand(id: string, showUI?: boolean, value?: string): boolean {
     const prop = COLOR_COMMAND_PROP[id];
     if (!prop || value === undefined) return false;
     const selection = document.getSelection();

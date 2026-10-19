@@ -79,15 +79,10 @@ export default tseslint.config(
       // characters in ordinary strings stay allowed -- the editor legitimately
       // uses them as caret anchors.
       'no-control-regex': 'error',
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        {
-          argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
-          destructuredArrayIgnorePattern: '^_',
-          caughtErrorsIgnorePattern: '^_',
-        },
-      ],
+      // One standard, no underscore escape hatch. `after-used` flags an unused parameter only when nothing
+      // after it is used, which is exactly the parameter that can simply be removed; a leading one whose
+      // position a callback signature dictates stays, named like any other camelCase parameter.
+      '@typescript-eslint/no-unused-vars': ['error', { args: 'after-used', caughtErrors: 'all', ignoreRestSiblings: true }],
       'max-lines-per-function': [
         'warn',
         { max: 50, skipComments: true, skipBlankLines: true },
@@ -139,6 +134,30 @@ export default tseslint.config(
       'sonarjs/no-empty-test-file': 'off',
       // Defer to @typescript-eslint/no-unused-vars (already enforced).
       'sonarjs/no-unused-vars': 'off',
+    },
+  },
+
+  // --- Angular template context guards ---
+  // `static ngTemplateContextGuard(dir, ctx: unknown): ctx is Context` names its predicate target with a
+  // parameter that nothing else reads, which the rule reports as type-only use. The signature is Angular's own
+  // idiom, so these files (the only ones with a guard) keep the rule except for that parameter. No eslint-disable
+  // comment: those would ship into consumers' projects.
+  {
+    files: [
+      'packages/components/ui/field-mapper/sub/field-mapper-item.directive.ts',
+      'packages/components/ui/field-mapper/sub/field-mapper-link-label.directive.ts',
+      'packages/components/ui/infinite-canvas/addons/node-editor/node-editor-node.directive.ts',
+      'packages/components/ui/infinite-canvas/infinite-canvas-item.directive.ts',
+      'packages/components/ui/sortable/sortable.component.ts',
+      'packages/components/ui/sortable/sub/sortable-ghost.directive.ts',
+      'packages/components/ui/sortable/sub/sortable-placeholder.directive.ts',
+      'packages/components/ui/virtual-scroll/virtual-scroll.component.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { args: 'after-used', caughtErrors: 'all', ignoreRestSiblings: true, argsIgnorePattern: '^ctx$' },
+      ],
     },
   },
 

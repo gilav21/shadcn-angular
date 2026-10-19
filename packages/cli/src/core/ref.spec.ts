@@ -64,7 +64,7 @@ describe('resolveRef (remote / GitHub API)', () => {
 
   it('returns null when the API host accepts the connection and never answers', async () => {
     // A faithful stall: settles only if the caller handed fetch an AbortSignal and it fires.
-    vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => new Promise<Response>((resolve, reject) => {
       init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
     })));
     const saved = process.env['SHADCN_ANGULAR_FETCH_TIMEOUT_MS'];
