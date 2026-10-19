@@ -606,7 +606,7 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
   }
 
   /** Cell identity for the `'both'` grid loop — the flat index, which is unique by construction. */
-  trackByCell(index: number, cell: VirtualCell<T>): number {
+  trackByCell(cell: VirtualCell<T>): number {
     return cell.index;
   }
 

@@ -178,7 +178,7 @@ describe('StackedBarChartComponent', () => {
 
             const bar = component.stackedBars()[0];
             const segment = bar.segments[0];
-            component.onSegmentClick(new MouseEvent('click'), segment, bar);
+            component.onSegmentClick(segment, bar);
 
             expect(clickEvents).toHaveLength(1);
             expect(clickEvents[0]).toEqual({

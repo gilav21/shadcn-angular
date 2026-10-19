@@ -367,9 +367,12 @@ reference implementation for this pattern.
   `vi.fn<(text: string) => Promise<void>>()` — instead of an unused parameter.
   A parameter that stays only because a callback signature fixes its position
   (`replace((match, prefix) => …)`, `test.each(rows)('…', (label, input) => …)`)
-  keeps its plain camelCase name; ESLint's `after-used` rule does not flag a
-  parameter that precedes a used one, and flags exactly the trailing ones that
-  can go. Angular's `ngTemplateContextGuard(dir, ctx): ctx is Context` is the one
+  keeps its plain camelCase name. ESLint's `after-used` rule flags the trailing
+  ones for you; a *leading* unused parameter it cannot judge, so ask the same
+  question yourself: does a callback or interface signature fix its position? If
+  the function is called by name from first-party code (`findRuledTable(band,
+  rows, rects)`, a `track` function, a click handler), nothing does — remove it
+  and update the callers. Angular's `ngTemplateContextGuard(dir, ctx): ctx is Context` is the one
   idiom ESLint cannot see through; its files are listed in `eslint.config.mjs`.
   An effect kept only for its side effect is a
   `protected readonly` field (not `private`, which would be flagged, and not

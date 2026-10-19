@@ -3175,7 +3175,7 @@ const IGNORED_OPERATORS = new Set([
 ]);
 
 function processStrokeColorOperator(
-    token: string, operandStack: string[], gs: GraphicsState,
+    token: string, gs: GraphicsState,
     popNum: () => number,
 ): boolean {
     switch (token) {
@@ -3973,7 +3973,7 @@ function dispatchContentOperator(token: string, ctx: ContentExtractionContext): 
     if (processTextShowToken(token, ctx)) return true;
     if (processColorSpaceOperator(token, ctx)) return true;
     if (processColorOperator(token, ctx, () => popNumber(ctx))) return true;
-    if (processStrokeColorOperator(token, ctx.operandStack, ctx.gs, () => popNumber(ctx))) return true;
+    if (processStrokeColorOperator(token, ctx.gs, () => popNumber(ctx))) return true;
     if (processStrokeColorSpaceOperator(token, ctx)) return true;
     if (processPathBuildOperator(token, ctx, () => popNumber(ctx))) return true;
     if (processPathPaintOperator(token, ctx)) return true;
@@ -5422,7 +5422,7 @@ function renderLineAsHeading(
 }
 
 function renderLineAsBullet(
-    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     if (state.inNumberedList) { state.html.push('</ol>'); state.inNumberedList = false; }
@@ -5439,7 +5439,7 @@ function renderLineAsBullet(
 }
 
 function renderLineAsNumbered(
-    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     const rtl = isLineRTL(line);
@@ -5513,11 +5513,11 @@ function processHtmlLine(
 
     const isStructList = structType !== null && isStructureListItem(structType);
     if (isStructList || BULLET_PATTERN.test(lineText)) {
-        renderLineAsBullet(state, line, lineText, bodyFont, bodySize);
+        renderLineAsBullet(state, line, bodyFont, bodySize);
         return;
     }
     if (isNumberedLine(lineText, rtl)) {
-        renderLineAsNumbered(state, line, lineText, bodyFont, bodySize);
+        renderLineAsNumbered(state, line, bodyFont, bodySize);
         return;
     }
 
@@ -6124,7 +6124,7 @@ function applyParagraphSpacing(state: HtmlBuilderState, lineSpacing: number, bod
 }
 
 function handleBorderBoxLine(
-    line: TextLine, ctx: HtmlBuilderContext, state: HtmlBuilderState,
+    ctx: HtmlBuilderContext, state: HtmlBuilderState,
     renderedBorderBoxes: Set<PathRect>, borderBox: PathRect,
 ): void {
     if (!renderedBorderBoxes.has(borderBox)) {
@@ -6162,7 +6162,7 @@ function processRegularLine(
     const { underlinedItems, structureMap, allBorderBoxes, bodySize, bodyFont, pageWidth, leftMargin, rightMargin } = ctx;
     const borderBox = isLineInsideBorderBox(line, allBorderBoxes);
     if (borderBox) {
-        handleBorderBoxLine(line, ctx, state, renderedBorderBoxes, borderBox);
+        handleBorderBoxLine(ctx, state, renderedBorderBoxes, borderBox);
         return;
     }
 

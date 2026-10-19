@@ -19,7 +19,7 @@
           [style.padding-inline-start.px]="paddingStart()"
           [style.padding-inline-end.px]="paddingEnd()"
         >
-          @for (cell of rowEntry.cells; track trackByCell($index, cell)) {
+          @for (cell of rowEntry.cells; track trackByCell(cell)) {
             <div
               class="virtual-item shrink-0"
               [attr.data-index]="cell.index"

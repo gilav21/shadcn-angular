@@ -283,7 +283,7 @@ function scaleSimpleGlyph(srcData: Uint8Array, scaleX: number, scaleY: number): 
             shortBit: X_SHORT_VECTOR, sameBit: X_IS_SAME_OR_POSITIVE, scale: scaleX,
         });
     } else {
-        afterX = skipCoordinates(view, xDataOff, flags, numPoints, X_SHORT_VECTOR, X_IS_SAME_OR_POSITIVE);
+        afterX = skipCoordinates(xDataOff, flags, numPoints, X_SHORT_VECTOR, X_IS_SAME_OR_POSITIVE);
     }
 
     // Scale y-coordinates
@@ -300,7 +300,7 @@ function scaleSimpleGlyph(srcData: Uint8Array, scaleX: number, scaleY: number): 
 // ── Skip coordinates without modifying (to find offset of next axis) ────
 
 function skipCoordinates(
-    view: DataView, offset: number, flags: Uint8Array, numPoints: number,
+    offset: number, flags: Uint8Array, numPoints: number,
     shortBit: number, sameBit: number,
 ): number {
     let pos = offset;

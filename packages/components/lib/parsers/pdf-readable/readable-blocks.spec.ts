@@ -23,7 +23,7 @@ const ctx: Omit<ClassifyContext, 'pageBounds'> = {
     structure: { mcidToType: new Map(), hasStructure: false },
 };
 
-function pageExtractOf(lines: readonly Line[], overrides?: Partial<PageExtract>): PageExtract {
+function pageExtractOf(overrides?: Partial<PageExtract>): PageExtract {
     return {
         index: 0,
         width: 612,
@@ -206,7 +206,7 @@ describe('buildPageBlocks', () => {
             lineOf('Above the rule content', 50, 550, 700),
             lineOf('Below the rule content', 50, 550, 600),
         ];
-        const page = pageExtractOf(lines, { rects: [rectOf(50, 655, 500, 1)] });
+        const page = pageExtractOf({ rects: [rectOf(50, 655, 500, 1)] });
         const blocks = buildPageBlocks([...lines], page, true, ctx);
         const kinds = blocks.map(b => b.kind);
         expect(kinds).toEqual(['paragraph', 'rule', 'paragraph']);
@@ -222,7 +222,7 @@ describe('buildPageBlocks', () => {
             page: 0, stroked: false, filled: true,
             strokeColor: '#000000', fillColor: '#3b82f6', lineWidth: 0,
         };
-        const page = pageExtractOf(lines, { rects: [fill] });
+        const page = pageExtractOf({ rects: [fill] });
         const blocks = buildPageBlocks([...lines], page, false, ctx);
         const table = blocks.find(b => b.kind === 'table');
         expect(table?.kind).toBe('table');
@@ -243,7 +243,7 @@ describe('buildPageBlocks', () => {
             page: 0, stroked: true, filled: false,
             strokeColor: '#999999', fillColor: '#ffffff', lineWidth: 0.75,
         };
-        const page = pageExtractOf(lines, { rects: [rowSeparator] });
+        const page = pageExtractOf({ rects: [rowSeparator] });
         const blocks = buildPageBlocks([...lines], page, false, ctx);
         expect(blocks.some(b => b.kind === 'table')).toBe(true);
         expect(blocks.some(b => b.kind === 'rule')).toBe(false);
@@ -259,7 +259,7 @@ describe('buildPageBlocks', () => {
             page: 0, stroked: true, filled: false,
             strokeColor: '#00008b', fillColor: '#000000', lineWidth: 0.8,
         };
-        const page = pageExtractOf(lines, { rects: [headerRule] });
+        const page = pageExtractOf({ rects: [headerRule] });
         const blocks = buildPageBlocks([...lines], page, false, ctx);
         expect(blocks.some(b => b.kind === 'table')).toBe(true);
         expect(blocks.some(b => b.kind === 'rule')).toBe(true);
@@ -278,7 +278,7 @@ describe('buildPageBlocks', () => {
         const top = edge(40, 700, 400, 0.8);
         const bottom = edge(40, 640, 400, 0.8);
         const leftEdge = edge(40, 640, 0.8, 60);
-        const page = pageExtractOf(lines, { rects: [top, bottom, leftEdge] });
+        const page = pageExtractOf({ rects: [top, bottom, leftEdge] });
         const blocks = buildPageBlocks([...lines], page, false, ctx);
         const box = blocks.find(b => b.kind === 'columns');
         expect(box?.kind).toBe('columns');
@@ -297,7 +297,7 @@ describe('buildPageBlocks', () => {
             page: 0, stroked: true, filled: false,
             strokeColor: '#000000', fillColor: '#000000', lineWidth: 0.8,
         };
-        const page = pageExtractOf(lines, { rects: [...gridLines, leftEdge] });
+        const page = pageExtractOf({ rects: [...gridLines, leftEdge] });
         const blocks = buildPageBlocks([...lines], page, false, ctx);
         expect(blocks.some(b => b.kind === 'columns' && b.style.border !== '')).toBe(false);
     });
@@ -312,7 +312,7 @@ describe('buildPageBlocks', () => {
             width: 100, height: 40, renderWidth: 100, renderHeight: 40,
             x: 20, y: 730, page: 0,
         };
-        const page = pageExtractOf(lines, { images: [logo] });
+        const page = pageExtractOf({ images: [logo] });
         const blocks = buildPageBlocks([...lines], page, true, ctx);
         const imageBlock = blocks.find(b => b.kind === 'image');
         expect(imageBlock?.kind).toBe('image');
@@ -332,7 +332,7 @@ describe('buildPageBlocks', () => {
             width: 100, height: 40, renderWidth: 100, renderHeight: 40,
             x: 20, y: 730, page: 0,
         };
-        const page = pageExtractOf(lines, { images: [logo] });
+        const page = pageExtractOf({ images: [logo] });
         const blocks = buildPageBlocks([...lines], page, true, ctx);
         const imageBlock = blocks.find(b => b.kind === 'image');
         if (imageBlock?.kind === 'image') expect(imageBlock.style.align).toBe('');
@@ -350,7 +350,7 @@ describe('buildPageBlocks', () => {
             renderWidth: 120, renderHeight: 40,
             x: 50, y: 660, page: 0,
         };
-        const page = pageExtractOf(lines, { images: [image] });
+        const page = pageExtractOf({ images: [image] });
         const blocks = buildPageBlocks([...lines], page, true, ctx);
         const imageBlock = blocks.find(b => b.kind === 'image');
         expect(imageBlock).toBeDefined();
@@ -371,7 +371,7 @@ describe('buildPageBlocks — subheadings interleaved in a bullet list', () => {
             bullet('• third responsibility here', 644),
             bullet('• fourth responsibility here', 630),
         ];
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf(), false, ctx);
         const kinds = blocks.map(b => b.kind);
         expect(kinds.filter(k => k === 'list')).toHaveLength(2);
         expect(kinds.filter(k => k !== 'list')).toHaveLength(2);
@@ -393,7 +393,7 @@ describe('buildPageBlocks — subheadings interleaved in a bullet list', () => {
             bullet('the following continuation line here', 686),
             bullet('• another standalone responsibility', 672),
         ];
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf(), false, ctx);
         const list = blocks.find(b => b.kind === 'list');
         expect(list?.kind).toBe('list');
         if (list?.kind === 'list') {
@@ -416,7 +416,7 @@ describe('buildPageBlocks — side-by-side columns', () => {
 
     it('wraps two multi-row columns in a columns block', () => {
         const lines = twoColumns(4);
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf(), false, ctx);
         const columns = blocks.find(b => b.kind === 'columns');
         expect(columns).toBeDefined();
         if (columns?.kind === 'columns') {
@@ -440,7 +440,7 @@ describe('buildPageBlocks — side-by-side columns', () => {
             lines.push(lineOf(`body line ${i} crossing the gutter`, 150, 400, y));
             y -= 16;
         }
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf(), false, ctx);
         expect(blocks.some(b => b.kind === 'columns')).toBe(true);
         const bodyBlock = blocks.find(b =>
             b.kind !== 'columns' && blockLines(b).some(l => l.words[0].text.startsWith('body')));
@@ -460,7 +460,7 @@ describe('buildPageBlocks — side-by-side columns', () => {
             );
             y -= 16;
         }
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf(), false, ctx);
         const columns = blocks.find(b => b.kind === 'columns');
         expect(columns?.kind).toBe('columns');
         if (columns?.kind !== 'columns') return;
@@ -478,12 +478,12 @@ describe('buildPageBlocks — side-by-side columns', () => {
         const lines = [lineOf('body text under the rules', 50, 550, 600)];
         const doubleRule = [rectOf(45, 736.4, 506, 0.7), rectOf(45, 734.1, 506, 0.7)];
         const doubled = buildPageBlocks(
-            [...lines], pageExtractOf(lines, { rects: doubleRule }), false, ctx);
+            [...lines], pageExtractOf({ rects: doubleRule }), false, ctx);
         expect(doubled.filter(b => b.kind === 'rule')).toHaveLength(2);
 
         const slices = [rectOf(45, 700, 506, 1), rectOf(45, 699.6, 506, 1.2)];
         const sliced = buildPageBlocks(
-            [...lines], pageExtractOf(lines, { rects: slices }), false, ctx);
+            [...lines], pageExtractOf({ rects: slices }), false, ctx);
         expect(sliced.filter(b => b.kind === 'rule')).toHaveLength(1);
     });
 
@@ -493,7 +493,7 @@ describe('buildPageBlocks — side-by-side columns', () => {
             lineOf('across the calendar.', 69, 300, 466),
         ];
         const bar = rectOf(57, 455.1, 2.2, 41.2);
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects: [bar] }), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf({ rects: [bar] }), false, ctx);
         const marked = blocks.find(b => b.style.ruleStart);
         expect(marked?.style.ruleStart?.widthPt).toBeCloseTo(2.2, 1);
         expect(marked?.style.ruleStart?.gapPt).toBeCloseTo(69 - 59.2, 1);
@@ -504,7 +504,7 @@ describe('buildPageBlocks — side-by-side columns', () => {
             lineOf('the honey changes flavour room by room', 69, 380, 480),
             lineOf('across the calendar.', 69, 300, 466),
         ];
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects: [] }), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf({ rects: [] }), false, ctx);
         expect(blocks.some(b => b.style.ruleStart)).toBe(false);
     });
 
@@ -513,7 +513,7 @@ describe('buildPageBlocks — side-by-side columns', () => {
             lineOf('Total', 50, 120, 700),
             lineOf('42', 400, 430, 700),
         ];
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf(), false, ctx);
         expect(blocks.some(b => b.kind === 'columns')).toBe(false);
     });
 });
@@ -535,7 +535,7 @@ describe('button box reconstruction', () => {
     it('gives a short label inside a stroked outline a border and drops the box', () => {
         const label = lineOf('Print', 40, 92, 503, { fontSize: 17 });
         const outline = outlineOf(29, 509, 77, 36);
-        const blocks = buildPageBlocks([label], pageExtractOf([label], { images: [outline] }), true, ctx);
+        const blocks = buildPageBlocks([label], pageExtractOf({ images: [outline] }), true, ctx);
         expect(blocks.some(b => b.kind === 'image')).toBe(false);
         const boxed = blocks.find(b => (b.kind === 'paragraph' || b.kind === 'heading') && b.style.border !== '');
         expect(boxed).toBeDefined();
@@ -546,14 +546,14 @@ describe('button box reconstruction', () => {
         const label = lineOf('OK', 40, 70, 503, { fontSize: 17 });
         const fill = outlineOf(29, 509, 77, 36, { svgStrokeColor: '', svgStrokeWidth: 0 });
         const stroke = outlineOf(29, 509, 77, 36);
-        const blocks = buildPageBlocks([label], pageExtractOf([label], { images: [fill, stroke] }), true, ctx);
+        const blocks = buildPageBlocks([label], pageExtractOf({ images: [fill, stroke] }), true, ctx);
         expect(blocks.some(b => b.kind === 'image')).toBe(false);
     });
 
     it('leaves a large framed panel alone (outline too big for a button)', () => {
         const label = lineOf('Section title inside a page frame', 60, 400, 700, { fontSize: 12 });
         const frame = outlineOf(40, 400, 500, 300);
-        const blocks = buildPageBlocks([label], pageExtractOf([label], { images: [frame] }), true, ctx);
+        const blocks = buildPageBlocks([label], pageExtractOf({ images: [frame] }), true, ctx);
         expect(blocks.some(b => b.kind === 'image')).toBe(true);
         const boxed = blocks.find(b => (b.kind === 'paragraph' || b.kind === 'heading') && b.style.border !== '');
         expect(boxed).toBeUndefined();
@@ -563,7 +563,7 @@ describe('button box reconstruction', () => {
         const a = lineOf('One', 40, 70, 512, { fontSize: 12 });
         const b = lineOf('Two', 40, 70, 500, { fontSize: 12 });
         const outline = outlineOf(29, 506, 77, 36);
-        const blocks = buildPageBlocks([a, b], pageExtractOf([a, b], { images: [outline] }), true, ctx);
+        const blocks = buildPageBlocks([a, b], pageExtractOf({ images: [outline] }), true, ctx);
         expect(blocks.some(b2 => b2.kind === 'image')).toBe(true);
     });
 });
@@ -785,7 +785,7 @@ describe('stacked paragraphs (intentional break preservation)', () => {
                 wordAt('- College (2015-2018)', 149, 334, 173),
             ],
         };
-        const blocks = buildPageBlocks([wideSibling, mba, bsc], pageExtractOf([wideSibling, mba, bsc]), true, ctx);
+        const blocks = buildPageBlocks([wideSibling, mba, bsc], pageExtractOf(), true, ctx);
         const para = paragraphWith('MBA', blocks);
         expect(para?.kind).toBe('paragraph');
         expect(para && para.kind === 'paragraph' ? para.stacked : undefined).toBe(true);
@@ -806,7 +806,7 @@ describe('stacked paragraphs (intentional break preservation)', () => {
                 wordAt('of the sentence here', 97, 220, 182),
             ],
         };
-        const blocks = buildPageBlocks([wideSibling, first, second], pageExtractOf([wideSibling, first, second]), true, ctx);
+        const blocks = buildPageBlocks([wideSibling, first, second], pageExtractOf(), true, ctx);
         const para = paragraphWith('continuation', blocks);
         expect(para && para.kind === 'paragraph' ? para.stacked : undefined).toBe(false);
     });
@@ -814,7 +814,7 @@ describe('stacked paragraphs (intentional break preservation)', () => {
     it('treats a hyphen-ended line as a wrap artifact even with room to spare', () => {
         const first = lineOf('Ce premier cha-', 36, 120, 194, { fontSize: 10 });
         const second = lineOf('pitre est fort', 36, 110, 182, { fontSize: 10 });
-        const blocks = buildPageBlocks([wideSibling, first, second], pageExtractOf([wideSibling, first, second]), true, ctx);
+        const blocks = buildPageBlocks([wideSibling, first, second], pageExtractOf(), true, ctx);
         const para = paragraphWith('premier', blocks);
         expect(para && para.kind === 'paragraph' ? para.stacked : undefined).toBe(false);
     });
@@ -823,7 +823,7 @@ describe('stacked paragraphs (intentional break preservation)', () => {
         const title = lineOf('אישור מחלה', 420, 571, 194, { dir: 'rtl', fontSize: 12 });
         const name = lineOf('אברהם גיל', 460, 571, 179, { dir: 'rtl', fontSize: 12 });
         const wideRtl = lineOf('שורת פתיחה רחבה מאוד שמותחת את שולי העמוד לכל הרוחב', 36, 571, 400, { dir: 'rtl', fontSize: 12 });
-        const blocks = buildPageBlocks([wideRtl, title, name], pageExtractOf([wideRtl, title, name]), true, ctx);
+        const blocks = buildPageBlocks([wideRtl, title, name], pageExtractOf(), true, ctx);
         const para = paragraphWith('אישור', blocks);
         expect(para && para.kind === 'paragraph' ? para.stacked : undefined).toBe(true);
     });
@@ -912,7 +912,7 @@ describe('attachInlineImages (via buildPageBlocks)', () => {
         const circle = imageOf(510, 714, 38, 38);
         const ring = imageOf(510, 714, 38, 38, { svgStrokeColor: '#faf8f5', svgStrokeWidth: 1 });
         const glyph = imageOf(518, 714, 21, 19);
-        const blocks = buildPageBlocks([header], pageExtractOf([header], { images: [circle, ring, glyph] }), true, ctx);
+        const blocks = buildPageBlocks([header], pageExtractOf({ images: [circle, ring, glyph] }), true, ctx);
         const inline = inlineImagesOf(blocks);
         expect(inline).toHaveLength(1);
         expect(inline[0]).toBe(glyph);
@@ -922,7 +922,7 @@ describe('attachInlineImages (via buildPageBlocks)', () => {
     it('leaves a large image alone (not icon- or badge-sized)', () => {
         const header = lineOf('A heading line', 36, 200, 718, { fontSize: 12 });
         const big = imageOf(210, 700, 120, 90);
-        const blocks = buildPageBlocks([header], pageExtractOf([header], { images: [big] }), true, ctx);
+        const blocks = buildPageBlocks([header], pageExtractOf({ images: [big] }), true, ctx);
         expect(inlineImagesOf(blocks)).toHaveLength(0);
         expect(blocks.some(b => b.kind === 'image')).toBe(true);
     });
@@ -930,7 +930,7 @@ describe('attachInlineImages (via buildPageBlocks)', () => {
     it('leaves a distant small image alone (gap beyond the badge reach)', () => {
         const header = lineOf('A heading line', 36, 200, 718, { fontSize: 12 });
         const far = imageOf(260, 712, 12, 12);
-        const blocks = buildPageBlocks([header], pageExtractOf([header], { images: [far] }), true, ctx);
+        const blocks = buildPageBlocks([header], pageExtractOf({ images: [far] }), true, ctx);
         expect(inlineImagesOf(blocks)).toHaveLength(0);
     });
 });
@@ -944,7 +944,7 @@ describe('float beside a short block', () => {
             dataUrl: 'data:image/png;base64,logo', width: 112, height: 112,
             renderWidth: 112, renderHeight: 112, x: 89, y: 690, page: 0,
         };
-        const blocks = buildPageBlocks([a, b], pageExtractOf([a, b], { images: [logo] }), true, ctx);
+        const blocks = buildPageBlocks([a, b], pageExtractOf({ images: [logo] }), true, ctx);
         const float = blocks.find(bl => bl.kind === 'image' && bl.float !== '');
         expect(float).toBeDefined();
         expect(float?.kind === 'image' ? float.float : '').toBe('left');
@@ -956,7 +956,7 @@ describe('bold-to-plain paragraph boundary', () => {
     it('splits a uniformly bold line from the plain line below it', () => {
         const question = lineOf('Que veut dire la mère de Mona quand elle dit', 50, 500, 700, { style: { bold: true } });
         const option = lineOf('a) Mona doit faire plus de recherche avant', 50, 480, 686);
-        const blocks = buildPageBlocks([question, option], pageExtractOf([question, option]), true, ctx);
+        const blocks = buildPageBlocks([question, option], pageExtractOf(), true, ctx);
         const texts = blocks.map(b => blockLines(b).map(l => l.words[0].text).join(' | '));
         expect(texts.some(t => t.includes('Que veut') && t.includes('Mona doit'))).toBe(false);
     });
@@ -964,7 +964,7 @@ describe('bold-to-plain paragraph boundary', () => {
     it('keeps a plain label line with the bold line below it (one visual unit)', () => {
         const label = lineOf('לכבוד: 22/05/2026', 292, 548, 700, { dir: 'rtl', fontSize: 10 });
         const name = lineOf('גיל אברהם-אלפי', 452, 548, 688, { dir: 'rtl', fontSize: 10, style: { bold: true } });
-        const blocks = buildPageBlocks([label, name], pageExtractOf([label, name]), true, ctx);
+        const blocks = buildPageBlocks([label, name], pageExtractOf(), true, ctx);
         const joined = blocks.some(b => blockLines(b).length === 2);
         expect(joined).toBe(true);
     });
@@ -1018,7 +1018,7 @@ describe('form field slots', () => {
             lineOf('42', 310.1, 345, 677.1, { fontSize: 8 }),
         ];
         expect(splitFieldRows(lines, 0, withRules([]))).toBeNull();
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects: [] }), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf({ rects: [] }), false, ctx);
         expect(blocks.some(b => b.kind === 'columns')).toBe(false);
     });
 
@@ -1045,7 +1045,7 @@ describe('form field slots', () => {
             lineOf('Intro to letterpress', 62, 300, 520, { fontSize: 10 }),
         ];
         const rects = [box(559.8, false), box(539.5, true), box(519.9, false)];
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects }), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf({ rects }), false, ctx);
         const list = blocks.find(b => b.kind === 'list');
         expect(list?.kind).toBe('list');
         if (list?.kind !== 'list') return;
@@ -1063,7 +1063,7 @@ describe('form field slots', () => {
         ];
         const rects = [slotRule(45, 370.4, 141.7), slotRule(227.2, 370.4, 141.7),
             slotRule(409.5, 370.4, 141.7)];
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects }), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf({ rects }), false, ctx);
         const row = blocks.find(b => b.kind === 'columns');
         expect(row?.kind).toBe('columns');
         expect(row?.style.marginTop).toBeGreaterThan(12);
@@ -1074,7 +1074,7 @@ describe('form field slots', () => {
             lineOf('Woodworking fundamentals', 62, 300, 560, { fontSize: 10 }),
             lineOf('Ceramics: wheel throwing', 62, 300, 540, { fontSize: 10 }),
         ];
-        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects: [] }), false, ctx);
+        const blocks = buildPageBlocks([...lines], pageExtractOf({ rects: [] }), false, ctx);
         expect(blocks.some(b => b.kind === 'list' && b.task === true)).toBe(false);
     });
 });
@@ -1095,7 +1095,7 @@ describe('first-line-indent paragraph boundary', () => {
 
     it('splits at the indent even though the gap is under the threshold', () => {
         const lines = column();
-        const blocks = buildPageBlocks(lines, pageExtractOf(lines), false, ctx);
+        const blocks = buildPageBlocks(lines, pageExtractOf(), false, ctx);
         const texts = blocks.map(b => blockLines(b).map(l => l.words[0].text).join(' '));
         expect(texts.some(t => t.includes('City ordinances') && t.includes('What surprises'))).toBe(false);
         expect(texts.some(t => t.includes('What surprises') && t.includes('the buzz itself'))).toBe(true);
@@ -1104,7 +1104,7 @@ describe('first-line-indent paragraph boundary', () => {
     it('does not split a wrapped line that merely starts at the measure', () => {
         const lines = [0, 1, 2, 3].map(i =>
             lineOf(`flush line ${i} of one flowing paragraph`, 309.1, 551.2, 585.6 - i * 15, { fontSize: 10 }));
-        const blocks = buildPageBlocks(lines, pageExtractOf(lines), false, ctx);
+        const blocks = buildPageBlocks(lines, pageExtractOf(), false, ctx);
         expect(blocks.filter(b => b.kind === 'paragraph')).toHaveLength(1);
     });
 });
@@ -1126,7 +1126,7 @@ describe('shared fill panel', () => {
         const c = lineOf('מקור', 527, 548, 660, { dir: 'rtl', fontSize: 11 });
         const lines = [a, b, c, vendor];
         const slices = [fillRect(265, 740, 309, 60), fillRect(265, 680, 309, 60), fillRect(265, 640, 309, 40)];
-        const blocks = buildPageBlocks(lines, pageExtractOf(lines, { rects: slices }), true, ctx);
+        const blocks = buildPageBlocks(lines, pageExtractOf({ rects: slices }), true, ctx);
         const panels = blocks.filter(bl => bl.kind === 'columns' && bl.style.background === '#5d93e5');
         expect(panels).toHaveLength(1);
         const panel = panels[0];
@@ -1139,7 +1139,7 @@ describe('shared fill panel', () => {
 
     it('leaves a single-block fill as a per-block background (no wrapper)', () => {
         const only = lineOf('סה"כ לתשלום 3,966', 300, 500, 700, { dir: 'rtl', fontSize: 10 });
-        const blocks = buildPageBlocks([only], pageExtractOf([only], { rects: [fillRect(290, 690, 220, 20)] }), true, ctx);
+        const blocks = buildPageBlocks([only], pageExtractOf({ rects: [fillRect(290, 690, 220, 20)] }), true, ctx);
         expect(blocks.some(bl => bl.kind === 'columns')).toBe(false);
         expect(blocks.some(bl => bl.style.background === '#5d93e5')).toBe(true);
     });
@@ -1151,7 +1151,7 @@ describe('alignment paragraph boundary', () => {
         const title = lineOf('תשלום חשבונית', 472, 584, 745, { dir: 'rtl', fontSize: 20.5 });
         const success = lineOf('תשלום בוצע בהצלחה!', 225, 388, 722, { dir: 'rtl', fontSize: 20.5, style: { bold: true } });
         const wide = lineOf('שורת גוף מלאה שנמתחת כמעט על כל רוחב האזור כאן', 44, 584, 698, { dir: 'rtl', fontSize: 20.5 });
-        const blocks = buildPageBlocks([title, success, wide], pageExtractOf([title, success, wide]), true, ctx);
+        const blocks = buildPageBlocks([title, success, wide], pageExtractOf(), true, ctx);
         const containing = blocks.filter(b => blockLines(b).some(l => l.words[0].text.includes('בוצע')));
         expect(containing).toHaveLength(1);
         expect(blockLines(containing[0])).toHaveLength(1);
@@ -1160,7 +1160,7 @@ describe('alignment paragraph boundary', () => {
     it('keeps a full-width line joined with its centered wrap tail', () => {
         const full = lineOf('לידיעתכם התשלום ייקלט במהלך 24 השעות הקרובות בכפוף לאישור מחברת', 44, 584, 698, { dir: 'rtl', fontSize: 20.5 });
         const tail = lineOf('האשראי.', 276, 337, 675, { dir: 'rtl', fontSize: 20.5 });
-        const blocks = buildPageBlocks([full, tail], pageExtractOf([full, tail]), true, ctx);
+        const blocks = buildPageBlocks([full, tail], pageExtractOf(), true, ctx);
         const joined = blocks.some(b => blockLines(b).length === 2);
         expect(joined).toBe(true);
     });
@@ -1207,7 +1207,7 @@ describe('narrow blockquote width cap', () => {
         const v1 = lineOf('עוסק מורשה (ח.פ): 515766087', 87, 201, 635, { dir: 'rtl', fontSize: 10 });
         const v2 = lineOf('כפר הנוער בן שמן, בן שמן (כפר נוער)', 66, 201, 622, { dir: 'rtl', fontSize: 10 });
         const v3 = lineOf('טלפון 08-6280200', 129, 201, 609, { dir: 'rtl', fontSize: 10 });
-        const blocks = buildPageBlocks([wide, v1, v2, v3], pageExtractOf([wide, v1, v2, v3]), true, ctx);
+        const blocks = buildPageBlocks([wide, v1, v2, v3], pageExtractOf(), true, ctx);
         const vendor = blocks.find(b => b.kind === 'blockquote' &&
             b.lines.some(l => l.words.some(w => w.text.includes('מורשה'))));
         expect(vendor?.kind).toBe('blockquote');
@@ -1224,7 +1224,7 @@ describe('right-aligned LTR stack', () => {
         const label = lineOf('rate of exchange', 436, 546, 457, { fontSize: 13.5 });
         const a = lineOf('46.30 ILS = 15.00 USD', 392, 546, 432, { fontSize: 13.5 });
         const b = lineOf('1 ILS = 0.324 USD', 430, 546, 414, { fontSize: 13.5 });
-        const blocks = buildPageBlocks([wide, label, a, b], pageExtractOf([wide, label, a, b]), true, ctx);
+        const blocks = buildPageBlocks([wide, label, a, b], pageExtractOf(), true, ctx);
         const stack = blocks.find(bl => (bl.kind === 'paragraph' || bl.kind === 'blockquote') &&
             bl.lines.some(l => l.words.some(w => w.text.includes('46.30'))));
         const stacked = stack && (stack.kind === 'paragraph' || stack.kind === 'blockquote')
@@ -1259,7 +1259,7 @@ describe('buildPageBlocks — image floats', () => {
     }
 
     it('floats an image left of the paragraph it sits beside', () => {
-        const page = pageExtractOf([], { images: [imageAt(40, 660)] });
+        const page = pageExtractOf({ images: [imageAt(40, 660)] });
 
         const blocks = buildPageBlocks(rightColumnLines(), page, true, ctx);
 
@@ -1273,7 +1273,7 @@ describe('buildPageBlocks — image floats', () => {
             lineOf('over the lazy dog and then', 40, 360, 686),
             lineOf('keeps running for a while', 40, 360, 672),
         ];
-        const page = pageExtractOf([], { images: [imageAt(420, 660)] });
+        const page = pageExtractOf({ images: [imageAt(420, 660)] });
 
         const blocks = buildPageBlocks(lines, page, true, ctx);
 
@@ -1282,7 +1282,7 @@ describe('buildPageBlocks — image floats', () => {
 
     it('keeps an image that overlaps the text horizontally in the flow', () => {
         // Neither fully left nor fully right of the block, so it cannot float.
-        const page = pageExtractOf([], { images: [imageAt(300, 660)] });
+        const page = pageExtractOf({ images: [imageAt(300, 660)] });
 
         const blocks = buildPageBlocks(rightColumnLines(), page, true, ctx);
 
@@ -1291,7 +1291,7 @@ describe('buildPageBlocks — image floats', () => {
 
     it('does not float beside a single-line block', () => {
         // One line gives no band to wrap around, so the image stays in flow.
-        const page = pageExtractOf([], { images: [imageAt(40, 690)] });
+        const page = pageExtractOf({ images: [imageAt(40, 690)] });
 
         const blocks = buildPageBlocks([lineOf('Only one line here', 200, 520, 700)], page, true, ctx);
 
@@ -1302,7 +1302,7 @@ describe('buildPageBlocks — image floats', () => {
         // Side anchoring only applies on RTL pages, where the container would
         // otherwise right-anchor an image that was not on the right.
         const lines = [lineOf('שלום עולם זהו טקסט', 300, 560, 500, { dir: 'rtl' })];
-        const page = pageExtractOf([], { images: [imageAt(266, 740)] });
+        const page = pageExtractOf({ images: [imageAt(266, 740)] });
 
         const blocks = buildPageBlocks(lines, page, true, ctx);
 
@@ -1312,7 +1312,7 @@ describe('buildPageBlocks — image floats', () => {
     });
 
     it('drops images entirely when they are not requested', () => {
-        const page = pageExtractOf([], { images: [imageAt(40, 660)] });
+        const page = pageExtractOf({ images: [imageAt(40, 660)] });
 
         const blocks = buildPageBlocks(rightColumnLines(), page, false, ctx);
 

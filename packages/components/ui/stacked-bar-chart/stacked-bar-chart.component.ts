@@ -368,7 +368,7 @@ export class StackedBarChartComponent implements AfterViewInit {
    * to Enter/Space so mouse and keyboard behave identically; the originating
    * `event` is not forwarded on the payload.
    */
-  onSegmentClick(event: Event, segment: StackedSegment, bar: StackedBar): void {
+  onSegmentClick(segment: StackedSegment, bar: StackedBar): void {
     this.segmentClick.emit({
       series: segment.seriesName,
       category: bar.category,

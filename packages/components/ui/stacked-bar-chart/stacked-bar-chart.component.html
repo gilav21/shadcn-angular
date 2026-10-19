@@ -66,9 +66,9 @@
             (mouseleave)="onSegmentLeave()"
             (focus)="onSegmentHover(bar.categoryIndex, segment)"
             (blur)="onSegmentLeave()"
-            (click)="onSegmentClick($event, segment, bar)"
-            (keydown.enter)="onSegmentClick($event, segment, bar)"
-            (keydown.space)="onSegmentClick($event, segment, bar)"
+            (click)="onSegmentClick(segment, bar)"
+            (keydown.enter)="onSegmentClick(segment, bar)"
+            (keydown.space)="onSegmentClick(segment, bar)"
           >
             <rect
               [attr.x]="segment.x"

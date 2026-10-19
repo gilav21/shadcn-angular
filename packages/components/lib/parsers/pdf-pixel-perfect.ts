@@ -1634,7 +1634,7 @@ class TextLine {
     // F5: optimize_normal (HTMLTextLine.cc:363-540) — 1:1 C++ translation
     // Adjusts letter-space and word-space to reduce HTML element count.
     // Builds new_offsets list and swaps at end (C++ line 537).
-    optimizeNormal(mgr: AllStateManager, hEps: number, spaceThreshold: number, z: number): void {
+    optimizeNormal(mgr: AllStateManager, spaceThreshold: number, z: number): void {
         // C++ line 366-367: remove useless states at end
         let lastSt = this.states.at(-1);
         while (lastSt && (lastSt.installed?.startIdx ?? 0) >= this.text.length) {
@@ -1779,7 +1779,7 @@ class TextLine {
         const divClasses = this.buildDivClasses(mId, xId, yId, hId);
         parts.push(`<div class="${divClasses}">`);
 
-        this.emitLineContent(parts, mgr, fontRegistry, hEps, spaceThreshold, z);
+        this.emitLineContent(parts, mgr, hEps, spaceThreshold, z);
 
         parts.push('</div>');
         return parts.join('');
@@ -1805,7 +1805,6 @@ class TextLine {
     private emitLineContent(
         parts: string[],
         mgr: AllStateManager,
-        fontRegistry: FontRegistry,
         hEps: number,
         spaceThreshold: number,
         z: number,
@@ -3397,7 +3396,7 @@ function assemblePageHtml(
 
     for (const line of result.lines) {
         line.prepare(mgr, fontRegistry, z);
-        line.optimizeNormal(mgr, H_EPS, SPACE_THRESHOLD, z);
+        line.optimizeNormal(mgr, SPACE_THRESHOLD, z);
     }
 
     return {
