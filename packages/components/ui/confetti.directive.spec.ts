@@ -85,7 +85,7 @@ function installStubs(): void {
     }
     globalThis.ResizeObserver = FakeResizeObserver as unknown as typeof ResizeObserver;
 
-    globalThis.matchMedia = ((_query: string) => ({
+    globalThis.matchMedia = (() => ({
         matches: matchMediaMatches,
         media: '',
         onchange: null,

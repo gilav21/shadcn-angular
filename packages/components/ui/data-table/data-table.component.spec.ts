@@ -3641,7 +3641,7 @@ describe('DataTableComponent - Row Grouping', () => {
         it('copies the selected rows in the order they are drawn', async () => {
             fixture.componentRef.setInput('rowSelection', { o2: true, o3: true, o4: true });
             fixture.detectChanges();
-            const writeText = vi.fn(async (_text: string) => undefined);
+            const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
             vi.stubGlobal('navigator', { clipboard: { writeText } });
             try {
                 await component.copySelectedToClipboard();
@@ -3656,7 +3656,7 @@ describe('DataTableComponent - Row Grouping', () => {
             fixture.componentRef.setInput('enableVirtualScroll', true);
             fixture.componentRef.setInput('rowSelection', { o2: true, o3: true });
             fixture.detectChanges();
-            const writeText = vi.fn(async (_text: string) => undefined);
+            const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
             vi.stubGlobal('navigator', { clipboard: { writeText } });
             try {
                 await component.copySelectedToClipboard();
@@ -3671,7 +3671,7 @@ describe('DataTableComponent - Row Grouping', () => {
             fixture.componentRef.setInput('rowSelection', { o1: true, o2: true });
             fixture.componentRef.setInput('collapsedGroups', { pending: true });
             fixture.detectChanges();
-            const writeText = vi.fn(async (_text: string) => undefined);
+            const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
             vi.stubGlobal('navigator', { clipboard: { writeText } });
             try {
                 await component.copySelectedToClipboard();
@@ -3930,7 +3930,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     });
 
     it('copyRowToClipboard writes tab-separated cell values', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         await component.copyRowToClipboard(NUM_DATA[0]);
         expect(writeText).toHaveBeenCalledWith('1\tAlice\t30');
@@ -3938,7 +3938,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     });
 
     it('copyAllToClipboard writes header + every row', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         await component.copyAllToClipboard();
         const text = writeText.mock.calls[0][0] as string;
@@ -3955,7 +3955,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
             { id: '3', name: '- item', score: 4 },
         ]);
         fixture.detectChanges();
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         try {
             await component.copyAllToClipboard();
@@ -3976,7 +3976,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
         component.rowSelection.set({ '2': true, '4': true });
         fixture.detectChanges();
 
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         await component.copySelectedToClipboard();
         const text = writeText.mock.calls[0][0] as string;
@@ -3989,7 +3989,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     });
 
     it('copySelectedToClipboard is a no-op when nothing is selected', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         await component.copySelectedToClipboard();
         expect(writeText).not.toHaveBeenCalled();
@@ -3999,7 +3999,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     it('clipboard copy helpers are disabled when enableCopy is false', async () => {
         fixture.componentRef.setInput('enableCopy', false);
         fixture.detectChanges();
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         await component.copyRowToClipboard(NUM_DATA[0]);
         await component.copyAllToClipboard();
@@ -4011,7 +4011,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     });
 
     it('copyCellToClipboard is a no-op when no cell is focused', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.focusedCell.set(null);
         await component.copyCellToClipboard();
@@ -4020,7 +4020,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     });
 
     it('copyCellToClipboard copies the focused cell value', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.focusedCell.set({ rowIndex: 2, columnKey: 'name' });
         await component.copyCellToClipboard();
@@ -4307,7 +4307,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     });
 
     it('Ctrl+C copies the focused cell to the clipboard', () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.focusedCell.set({ rowIndex: 2, columnKey: 'name' });
         const evt = new KeyboardEvent('keydown', { key: 'c', ctrlKey: true });
@@ -4319,7 +4319,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     it('Ctrl+C copies a selected cell range', async () => {
         fixture.componentRef.setInput('enableCellRangeSelection', true);
         fixture.detectChanges();
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
 
         component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 1, endCol: 'name' });
@@ -4333,7 +4333,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     it('copyCellRangeToClipboard skips rows past the end of the data', async () => {
         fixture.componentRef.setInput('enableCellRangeSelection', true);
         fixture.detectChanges();
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
 
         component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 50, endCol: 'name' });
@@ -4349,7 +4349,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
         component.rowSelection.set({ '1': true });
         fixture.detectChanges();
 
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.onTableKeydown(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }));
         await Promise.resolve();
@@ -4360,7 +4360,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     });
 
     it('Ctrl+C is a no-op when nothing is focused, ranged, or selected', () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.focusedCell.set(null);
         component.cellRange.set(null);
@@ -4372,7 +4372,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     it('Ctrl+C is a no-op when enableCopy is false', () => {
         fixture.componentRef.setInput('enableCopy', false);
         fixture.detectChanges();
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 1, endCol: 'name' });
         component.onTableKeydown(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }));
@@ -4381,7 +4381,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     });
 
     it('copyCellRangeToClipboard is a no-op when there is no active range', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.cellRange.set(null);
         await component.copyCellRangeToClipboard();

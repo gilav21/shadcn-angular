@@ -10,7 +10,7 @@
   [attr.aria-expanded]="hasChildren() ? isExpanded() : null"
   [attr.aria-selected]="tree?.selectable() !== 'none' ? isSelected() : null"
 >
-  <div #header [class]="headerClasses()" (click)="onHeaderClick($event)" (keydown.enter)="onHeaderClick($event)" (keydown.space)="onHeaderClick($event)" tabindex="0">
+  <div #header [class]="headerClasses()" (click)="onHeaderClick()" (keydown.enter)="onHeaderClick()" (keydown.space)="onHeaderClick()" tabindex="0">
     @if (hasChildren()) {
       <button
         type="button"

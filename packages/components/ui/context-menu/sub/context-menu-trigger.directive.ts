@@ -28,7 +28,7 @@ import type { ContextMenuComponent } from '../context-menu.component';
     selector: '[uiContextMenuTrigger]',
     host: {
         '(contextmenu)': 'onContextMenu($event)',
-        '(click)': 'onClick($event)',
+        '(click)': 'onClick()',
     },
 })
 export class ContextMenuTriggerDirective implements AfterViewInit, OnDestroy {
@@ -86,7 +86,7 @@ export class ContextMenuTriggerDirective implements AfterViewInit, OnDestroy {
      * listener is prevented from firing. The event is otherwise untouched — it
      * still bubbles and any other `(click)` handler on the element runs.
      */
-    onClick(_event: MouseEvent): void {
+    onClick(): void {
         const contextMenu = this.uiContextMenuTrigger();
         if (contextMenu?.open()) {
             contextMenu.close();

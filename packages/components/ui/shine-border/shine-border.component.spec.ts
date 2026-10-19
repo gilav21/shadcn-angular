@@ -42,7 +42,7 @@ describe('ShineBorderComponent', () => {
     const win = globalThis.window as unknown as { matchMedia?: MatchMediaFn };
 
     function stubMatchMedia(): void {
-        win.matchMedia = ((_query: string) =>
+        win.matchMedia = (() =>
             ({ matches: reducedMotion } as unknown as MediaQueryList)) as MatchMediaFn;
     }
 

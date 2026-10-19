@@ -18,7 +18,7 @@ describe('RichTextLinksButtonComponent', () => {
     const disabled = signal(false);
     const readonly = signal(false);
     const onOpen = vi.fn();
-    const onSubmit = vi.fn((_payload: RichTextLinkSubmit) => undefined);
+    const onSubmit = vi.fn<(payload: RichTextLinkSubmit) => void>(() => undefined);
     let fixture: ComponentFixture<RichTextLinksButtonComponent>;
     let probe: ButtonProbe;
 

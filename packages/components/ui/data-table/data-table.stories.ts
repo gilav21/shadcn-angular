@@ -12,7 +12,6 @@ import {
     DataTableLoadingVisibility,
     RowActionContext,
     CellIcon,
-    RowDragPosition,
     RowReorderEvent,
 } from './data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
@@ -998,7 +997,7 @@ export const ResizableColumns: Story = {
     render: (args) => ({
         props: {
             ...args,
-            onColumnResize: (_event: unknown) => { /* resize handled externally */ },
+            onColumnResize: () => { /* resize handled externally */ },
         },
         template: `
             <div class="h-[600px] w-full p-4">
@@ -1443,7 +1442,7 @@ export const RowDragReorderTree: StoryObj<DataTableComponent<OrgRow>> = {
     render: (args) => ({
         props: {
             ...args,
-            allowDrop: (_dragRow: OrgRow, _targetRow: OrgRow, _position: RowDragPosition) => true,
+            allowDrop: () => true,
         },
         template: `
             <div class="h-[460px] w-full p-4">
@@ -1826,7 +1825,7 @@ function generateVirtualColumns(colCount: number): ColumnDef<VirtualRow>[] {
                 accessorKey: `col${c}`,
                 header: `Image ${c}`,
                 width: '80px',
-                cell: (_row: VirtualRow) => '🖼️',
+                cell: () => '🖼️',
             });
         } else {
             cols.push({

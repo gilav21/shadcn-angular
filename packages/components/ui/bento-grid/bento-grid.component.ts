@@ -536,7 +536,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
 
 
     /** Template handler that marks a widget as a valid HTML5 drop target (`dropEffect = 'move'`). The drop preview itself is computed by {@link onContainerDragOver}. */
-    onDragOver(event: DragEvent, _targetItem: DashboardItem): void {
+    onDragOver(event: DragEvent): void {
         if (!this.editable()) return;
         event.preventDefault();
 
@@ -572,7 +572,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
     }
 
     /** Template hook for the canvas `dragleave`. Deliberately empty: the preview is kept while the pointer crosses child elements, and is cleared on drop or drag-end instead. */
-    onContainerDragLeave(_event: DragEvent): void {
+    onContainerDragLeave(): void {
     }
 
     /**
@@ -1011,7 +1011,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
     }
 
     /** Clears the drag state and preview when a mouse drag ends, including a drag cancelled outside the grid — no {@link itemsChange} is emitted in that case. */
-    onDragEnd(_event: DragEvent): void {
+    onDragEnd(): void {
         this.draggedItemId.set(null);
         this.dropPreview.set(null);
         this.dragOffset.set(null);

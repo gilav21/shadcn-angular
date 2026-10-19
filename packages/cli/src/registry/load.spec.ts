@@ -59,7 +59,7 @@ describe('loadRegistry', () => {
     });
 
     it('keys the cache by registry base URL too', async () => {
-        const fetchMock = vi.fn(async () => ({
+        const fetchMock = vi.fn<(url: string) => Promise<Response>>(async () => ({
             ok: true,
             text: async () => JSON.stringify({ button: { name: 'button', files: ['button/button.component.ts'] } }),
         } as unknown as Response));
@@ -75,7 +75,7 @@ describe('loadRegistry', () => {
     // NAMES and files[] from the local manifest while core/fetch.ts pulled the
     // SOURCES from the named branch or fork — the exact split this branch closes.
     it('goes remote for the manifest when a non-default branch is named, even in the monorepo', async () => {
-        const fetchMock = vi.fn(async (_url: string) => ({
+        const fetchMock = vi.fn<(url: string) => Promise<Response>>(async () => ({
             ok: true,
             text: async () => JSON.stringify({ 'branch-only': { name: 'branch-only', files: [] } }),
         } as unknown as Response));
@@ -90,7 +90,7 @@ describe('loadRegistry', () => {
     });
 
     it('goes remote for the manifest when a custom registry base URL is named', async () => {
-        const fetchMock = vi.fn(async (_url: string) => ({
+        const fetchMock = vi.fn<(url: string) => Promise<Response>>(async () => ({
             ok: true,
             text: async () => JSON.stringify({ 'fork-only': { name: 'fork-only', files: [] } }),
         } as unknown as Response));

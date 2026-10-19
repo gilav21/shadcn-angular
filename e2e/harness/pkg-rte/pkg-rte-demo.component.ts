@@ -59,7 +59,7 @@ export class PkgRteDemoComponent {
         },
     ];
 
-    protected readonly mockAi = (_request: unknown): Promise<string> =>
+    protected readonly mockAi = (): Promise<string> =>
         new Promise((resolve) => setTimeout(() => resolve('AI SAYS HELLO'), 10));
 
     protected readonly searchMentions: RichTextEntitySearchFn<MentionItem> = (query) =>

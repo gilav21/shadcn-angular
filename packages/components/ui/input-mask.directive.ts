@@ -62,15 +62,15 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
     }
 
     private setupListeners(): void {
-        const onInput = this.renderer.listen(this.inputElement, 'input', (e) => this.handleInput(e));
-        const onKeyDown = this.renderer.listen(this.inputElement, 'keydown', (e) => this.handleKeyDown(e));
-        const onPaste = this.renderer.listen(this.inputElement, 'paste', (e) => this.handlePaste(e));
+        const onInput = this.renderer.listen(this.inputElement, 'input', () => this.handleInput());
+        const onKeyDown = this.renderer.listen(this.inputElement, 'keydown', () => this.handleKeyDown());
+        const onPaste = this.renderer.listen(this.inputElement, 'paste', () => this.handlePaste());
         const onBlur = this.renderer.listen(this.inputElement, 'blur', () => this.handleBlur());
 
         this.destroyValues.push(onInput, onKeyDown, onPaste, onBlur);
     }
 
-    private handleInput(_event?: Event): void {
+    private handleInput(): void {
         const input = this.inputElement;
         const value = input.value;
         const oldCursorPos = input.selectionStart ?? 0;
@@ -96,11 +96,11 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         }
     }
 
-    private handleKeyDown(_event: KeyboardEvent): void {
+    private handleKeyDown(): void {
         // Default backspace works, but we might want to handle jumping over literals
     }
 
-    private handlePaste(_event: ClipboardEvent): void {
+    private handlePaste(): void {
         // Paste handled by input event usually, but ensuring clean data
     }
 

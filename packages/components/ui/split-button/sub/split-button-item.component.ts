@@ -17,7 +17,7 @@ import { SPLIT_BUTTON } from '../split-button.component';
       [class]="classes()"
       [attr.data-slot]="'split-button-item'"
       [disabled]="disabled()"
-      (click)="onClick($event)"
+      (click)="onClick()"
       role="menuitem"
       tabindex="-1"
     >
@@ -61,7 +61,7 @@ export class SplitButtonItemComponent {
      * nothing while {@link disabled}. The event is not consumed, but the menu
      * closes here regardless.
      */
-    onClick(_event: MouseEvent): void {
+    onClick(): void {
         if (!this.disabled()) {
             this.splitButton.itemClick.emit({
                 label: '',

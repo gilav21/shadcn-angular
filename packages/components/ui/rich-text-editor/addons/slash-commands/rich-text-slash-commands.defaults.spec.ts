@@ -25,13 +25,13 @@ const TOOLBAR_BY_ID: Record<string, string> = {
 };
 
 function stubContext(): { ctx: RichTextSlashCommandContext; executeToolbarCommand: ReturnType<typeof vi.fn> } {
-    const executeToolbarCommand = vi.fn((_command: string) => undefined);
+    const executeToolbarCommand = vi.fn<(command: string) => void>(() => undefined);
     const ctx: RichTextSlashCommandContext = {
         query: '',
         selectedText: '',
         executeToolbarCommand,
-        insertText: vi.fn((_text: string) => undefined),
-        insertHtml: vi.fn((_html: string) => undefined),
+        insertText: vi.fn<(text: string) => void>(() => undefined),
+        insertHtml: vi.fn<(html: string) => void>(() => undefined),
         showLinkDialog: vi.fn(() => undefined),
         focusEditor: vi.fn(() => undefined),
     };

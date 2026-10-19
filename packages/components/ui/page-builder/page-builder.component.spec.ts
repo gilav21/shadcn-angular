@@ -519,7 +519,7 @@ describe('PageBuilderComponent — editor behavior', () => {
         it('exportJson writes the serialized layout through showSaveFilePicker', async () => {
             component.addItem(progressMeta);
 
-            const write = vi.fn((_data: string) => Promise.resolve());
+            const write = vi.fn<(data: string) => Promise<void>>(() => Promise.resolve());
             const close = vi.fn(() => Promise.resolve(undefined));
             const createWritable = vi.fn(() => Promise.resolve({ write, close }));
             const showSaveFilePicker = vi.fn(() => Promise.resolve({ createWritable }));

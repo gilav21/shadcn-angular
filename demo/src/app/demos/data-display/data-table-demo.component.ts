@@ -11,7 +11,6 @@ import {
   CellIcon,
   ColumnDef,
   DataTableRangeChartComponent,
-  ColumnResizeEvent,
   ContextMenuComponent,
   ContextMenuContentComponent,
   ContextMenuItemComponent,
@@ -895,7 +894,7 @@ export class DataTableDemoComponent {
     "];",
   ].join('\n');
 
-  onColumnResize(_event: ColumnResizeEvent): void {
+  onColumnResize(): void {
     // Column resize handled by data table internally
   }
 
@@ -1080,7 +1079,7 @@ export class DataTableDemoComponent {
     ];
   });
 
-  onTreeTableContextMenu(_event: unknown): void {
+  onTreeTableContextMenu(): void {
     // Context menu handled by data table internally
   }
 

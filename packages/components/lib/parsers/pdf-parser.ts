@@ -5399,7 +5399,6 @@ function insertImagesBeforeY(state: HtmlBuilderState, sortedImages: ImageItem[],
 
 function renderLineAsHeading(
     state: HtmlBuilderState, line: TextLine, headingLevel: number, bodyFont: string, bodySize: number,
-    _lineSpacing = 0,
 ): void {
     flushParagraph(state);
     closeList(state);
@@ -5508,7 +5507,7 @@ function processHtmlLine(
     const primaryFontSize = line.items.reduce((max, item) => Math.max(max, item.fontSize), 0);
     const headingLevel = structHeading > 0 ? structHeading : getHeadingLevel(primaryFontSize, bodySize);
     if (headingLevel > 0) {
-        renderLineAsHeading(state, line, headingLevel, bodyFont, bodySize, options.lineSpacing);
+        renderLineAsHeading(state, line, headingLevel, bodyFont, bodySize);
         return;
     }
 

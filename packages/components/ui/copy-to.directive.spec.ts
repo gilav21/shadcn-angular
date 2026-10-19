@@ -50,7 +50,7 @@ describe('CopyToDirective', () => {
 		// Mock clipboard API - use defineProperty to bypass readonly
 		Object.defineProperty(navigator, 'clipboard', {
 			value: {
-				writeText: vi.fn((_text: string) => Promise.resolve()),
+				writeText: vi.fn<(text: string) => Promise<void>>(() => Promise.resolve()),
 			},
 			writable: true,
 			configurable: true,

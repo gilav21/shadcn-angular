@@ -28,7 +28,7 @@ import { SPEED_DIAL } from '../speed-dial.component';
     host: {
         '[class]': 'hostClasses()',
         '(contextmenu)': 'onContextMenu($event)',
-        '(click)': 'onClick($event)',
+        '(click)': 'onClick()',
         '[attr.data-slot]': '"speed-dial-context-trigger"',
     },
 })
@@ -74,7 +74,7 @@ export class SpeedDialContextTriggerComponent {
      * {@link onContextMenu}), click anywhere to dismiss. Clicks while closed do
      * nothing — it never opens the menu.
      */
-    onClick(_event: MouseEvent): void {
+    onClick(): void {
         if (this.speedDial?.open()) {
             this.speedDial.hide();
         }

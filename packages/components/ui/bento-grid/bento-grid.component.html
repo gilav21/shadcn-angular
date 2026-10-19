@@ -110,8 +110,8 @@
         (keydown.space)="toggleSelection(item.id, false)"
         (contextmenu)="onContextMenu($event, item, menu)"
         (dragstart)="onDragStart($event, item)"
-        (dragend)="onDragEnd($event)"
-        (dragover)="onDragOver($event, item)"
+        (dragend)="onDragEnd()"
+        (dragover)="onDragOver($event)"
         (drop)="onDrop($event, item)"
         (touchstart)="onTouchDragStart($event, item)"
      >

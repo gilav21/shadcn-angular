@@ -84,7 +84,7 @@ describe('CodeBlockComponent', () => {
         beforeEach(() => {
             originalClipboard = navigator.clipboard;
             const mockClipboard = {
-                writeText: vi.fn((_text: string) => Promise.resolve()),
+                writeText: vi.fn<(text: string) => Promise<void>>(() => Promise.resolve()),
                 readText: vi.fn(() => Promise.resolve('')),
                 read: vi.fn(),
                 write: vi.fn(),

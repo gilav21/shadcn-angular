@@ -270,7 +270,7 @@ describe('ColorPickerComponent', () => {
             host.showHarmonies.set(true);
             fixture.detectChanges();
             const picker = await openAndGetPicker(fixture);
-            const writeText = vi.fn((_text: string) => Promise.resolve());
+            const writeText = vi.fn<(text: string) => Promise<void>>(() => Promise.resolve());
             Object.defineProperty(globalThis.navigator, 'clipboard', {
                 value: { writeText },
                 configurable: true,
@@ -509,7 +509,7 @@ describe('ColorPickerComponent', () => {
     describe('Copy format value', () => {
         it('copy writes the formatted value to the clipboard and flags the format', async () => {
             const picker = await openAndGetPicker(fixture);
-            const writeText = vi.fn((_text: string) => Promise.resolve());
+            const writeText = vi.fn<(text: string) => Promise<void>>(() => Promise.resolve());
             Object.defineProperty(globalThis.navigator, 'clipboard', {
                 value: { writeText },
                 configurable: true,
@@ -522,7 +522,7 @@ describe('ColorPickerComponent', () => {
 
         it('copy swallows clipboard rejections', async () => {
             const picker = await openAndGetPicker(fixture);
-            const writeText = vi.fn((_text: string) => Promise.reject(new Error('denied')));
+            const writeText = vi.fn<(text: string) => Promise<void>>(() => Promise.reject(new Error('denied')));
             Object.defineProperty(globalThis.navigator, 'clipboard', {
                 value: { writeText },
                 configurable: true,
@@ -712,7 +712,7 @@ describe('ColorPickerComponent', () => {
     describe('Copy timers', () => {
         it('copy clears a pending timer on re-copy and resets the flag after 1.5s', async () => {
             const picker = await openAndGetPicker(fixture);
-            const writeText = vi.fn((_text: string) => Promise.resolve());
+            const writeText = vi.fn<(text: string) => Promise<void>>(() => Promise.resolve());
             Object.defineProperty(globalThis.navigator, 'clipboard', { value: { writeText }, configurable: true });
             vi.useFakeTimers();
             await picker.copy('hex');
@@ -726,7 +726,7 @@ describe('ColorPickerComponent', () => {
 
         it('copyHarmony clears a pending timer on re-copy and resets after 1.5s', async () => {
             const picker = await openAndGetPicker(fixture);
-            const writeText = vi.fn((_text: string) => Promise.resolve());
+            const writeText = vi.fn<(text: string) => Promise<void>>(() => Promise.resolve());
             Object.defineProperty(globalThis.navigator, 'clipboard', { value: { writeText }, configurable: true });
             vi.useFakeTimers();
             await picker.copyHarmony('#111111');

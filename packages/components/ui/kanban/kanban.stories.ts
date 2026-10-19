@@ -7,9 +7,6 @@ import {
     KanbanCardContentComponent,
     KanbanColumn,
     KanbanCard,
-    KanbanCardAddEvent,
-    KanbanColumnDeleteEvent,
-    KanbanHistoryState,
 } from '../kanban';
 
 const meta: Meta<KanbanComponent> = {
@@ -456,13 +453,13 @@ export const FullFeatured: Story = {
                     order: 1,
                 },
             ] as KanbanCard[],
-            onCardAdded: (_event: KanbanCardAddEvent) => { /* handled by parent */ },
-            onCardUpdated: (_event: KanbanCard) => { /* handled by parent */ },
-            onCardDeleted: (_id: string) => { /* handled by parent */ },
-            onColumnAdded: (_event: Omit<KanbanColumn, 'id'>) => { /* handled by parent */ },
-            onColumnUpdated: (_event: KanbanColumn) => { /* handled by parent */ },
-            onColumnDeleted: (_event: KanbanColumnDeleteEvent) => { /* handled by parent */ },
-            onHistoryChange: (_state: KanbanHistoryState) => { /* handled by parent */ },
+            onCardAdded: () => { /* handled by parent */ },
+            onCardUpdated: () => { /* handled by parent */ },
+            onCardDeleted: () => { /* handled by parent */ },
+            onColumnAdded: () => { /* handled by parent */ },
+            onColumnUpdated: () => { /* handled by parent */ },
+            onColumnDeleted: () => { /* handled by parent */ },
+            onHistoryChange: () => { /* handled by parent */ },
         },
         template: `
             <div class="space-y-3">

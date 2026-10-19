@@ -2135,7 +2135,7 @@ class PixelPerfectProcessor {
         return new DrawPath(maxNestingDepth, maxFormDrawsPerPage);
     }
 
-    processPage(pageObj: PdfObject, _pageIndex: number): ProcessedPage {
+    processPage(pageObj: PdfObject): ProcessedPage {
         this.resetState();
         this.formDraws = this.newFormDraws();
         this.lines.length = 0;
@@ -2174,7 +2174,7 @@ class PixelPerfectProcessor {
         }
 
         // Extract annotations
-        const annotations = this.extractAnnotations(pageDict, pageHeight);
+        const annotations = this.extractAnnotations(pageDict);
 
         return {
             lines: [...this.lines],
@@ -2580,8 +2580,8 @@ class PixelPerfectProcessor {
         m.set('RG', (_op, ops) => this.opRg(ops, false));
         m.set('k', (_op, ops) => this.opK(ops, true));
         m.set('K', (_op, ops) => this.opK(ops, false));
-        m.set('cs', (_op, ops, res) => this.opCs(ops, res));
-        m.set('CS', (_op, ops, res) => this.opCs(ops, res));
+        m.set('cs', (_op, ops) => this.opCs(ops));
+        m.set('CS', (_op, ops) => this.opCs(ops));
         m.set('sc', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
         m.set('SC', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
         m.set('scn', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
@@ -2719,7 +2719,7 @@ class PixelPerfectProcessor {
         else { this.strokeColor = hex; this.strokeColorChanged = true; }
     }
 
-    private opCs(operands: ReadonlyArray<string>, _resources: Record<string, PdfObject>): void {
+    private opCs(operands: ReadonlyArray<string>): void {
         const name = operands[0]?.startsWith('/') ? operands[0].substring(1) : operands[0] ?? '';
         this.fillColorSpaceIsPattern = name === 'Pattern';
         if (!this.fillColorSpaceIsPattern) this.patternFillImage = null;
@@ -3191,7 +3191,6 @@ class PixelPerfectProcessor {
 
     private extractAnnotations(
         pageDict: Record<string, PdfObject>,
-        _pageHeight: number,
     ): PdfAnnotation[] {
         const annotsRef = pageDict['Annots'];
         if (!annotsRef) return [];
@@ -3448,7 +3447,7 @@ export async function renderPixelPerfectPaged(buffer: ArrayBuffer, options?: Pix
 
     for (let i = 0; i < pdfPages.length; i++) {
         try {
-            const result = processor.processPage(pdfPages[i], i);
+            const result = processor.processPage(pdfPages[i]);
             const page = assemblePageHtml(result, i, mgr, fontRegistry, zoom);
             pages.push(page);
         } catch {

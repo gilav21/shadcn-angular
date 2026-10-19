@@ -27,7 +27,7 @@ export interface NamedStream {
     readonly data: Uint8Array;
 }
 
-function makeHeader(_streamSectorsStart: number): Uint8Array {
+function makeHeader(): Uint8Array {
     const h = new Uint8Array(SECTOR);
     const magic = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
     h.set(magic, 0);
@@ -73,7 +73,7 @@ export function buildOle2Doc(streams: ReadonlyArray<NamedStream>): Uint8Array {
     const totalSectors = 2 + totalStreamSectors;
 
     const file = new Uint8Array(512 + totalSectors * SECTOR);
-    file.set(makeHeader(2), 0);
+    file.set(makeHeader(), 0);
 
     // FAT in sector 0.
     const fat = new Uint8Array(SECTOR);
