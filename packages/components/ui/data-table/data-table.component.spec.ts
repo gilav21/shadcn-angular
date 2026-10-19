@@ -3447,6 +3447,56 @@ describe('DataTableComponent - Row Grouping', () => {
                 expect([amountOf('o5'), amountOf('o2'), amountOf('o4')]).toEqual([99, 20, 40]);
             });
 
+            it('moves the focus with the editor when the focused cell is the one being edited', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.focusCell(3, 'amount');
+                component.startEditing(3, 'amount');
+
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+
+                expect(component.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'amount' });
+            });
+
+            it('leaves the focus where it is when another cell is focused', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.focusCell(2, 'id');
+                component.startEditing(3, 'amount');
+
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+
+                expect(component.focusedCell()).toEqual({ rowIndex: 2, columnKey: 'id' });
+            });
+
+            it('cancels, as it always did, when a commit finds no rows drawn at all', async () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.startEditing(3, 'amount');
+                component.onEditValueChange('99');
+
+                component.collapseAllGroups();
+                fixture.detectChanges();
+                expect(component.editingCell()).toEqual({ rowIndex: 3, columnKey: 'amount' });
+                component.commitEdit();
+                await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+                expect(component.editingCell()).toBeNull();
+                expect(component.data()).toEqual(ORDER_DATA);
+                // Cancelling hands the keyboard back to the grid.
+                expect(document.activeElement).toBe(fixture.nativeElement.querySelector('[tabindex="0"]'));
+            });
+
+            it('trims a range whose first row is the last one still drawn, without dropping it', () => {
+                component.cellRange.set({ startRow: 2, startCol: 'id', endRow: 4, endCol: 'amount' });
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+
+                expect(component.cellRange()).toEqual({ startRow: 2, startCol: 'id', endRow: 2, endCol: 'amount' });
+            });
+
             it('keeps the editor on its row when the rows are reordered', () => {
                 fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
                 fixture.componentRef.setInput('groupBy', undefined);

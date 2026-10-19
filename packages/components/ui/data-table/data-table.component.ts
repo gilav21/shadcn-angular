@@ -2903,6 +2903,11 @@ export class DataTableComponent<T>
       return;
     }
     this.editingCell.set({ ...editing, rowIndex: moved });
+    // Tab continues from the focused cell, which is the edited cell unless the user has focused another.
+    const focused = this.focusedCell();
+    if (focused?.rowIndex === editing.rowIndex && focused.columnKey === editing.columnKey) {
+      this.focusedCell.set({ ...focused, rowIndex: moved });
+    }
     this.cellEditError.update((error) =>
       error?.rowIndex === editing.rowIndex ? { ...error, rowIndex: moved } : error,
     );
@@ -4696,11 +4701,16 @@ export class DataTableComponent<T>
    * message and emits {@link editError} instead. On success {@link cellEdit} is
    * emitted and the column's `valueSetter` writes a new row into {@link data} —
    * a column without a `valueSetter` emits the event but changes nothing.
-   * Recorded as one undo command when {@link enableEditHistory} is on.
+   * Recorded as one undo command when {@link enableEditHistory} is on. If the
+   * rows moved since the editor opened, the edit follows its row; if that row is
+   * no longer drawn the draft is discarded without an event rather than written
+   * into another row.
    */
   commitEdit(): void {
-    // The reconciling effect only runs on the next change-detection pass; rows may have moved since.
-    this.keepEditorOnItsRow(this.processedData());
+    // The reconciling effect only runs on the next change-detection pass; rows may have moved since. With no
+    // rows drawn there is nothing to commit into, and the commit below cancels the edit as it always did.
+    const rows = this.processedData();
+    if (rows.length > 0) this.keepEditorOnItsRow(rows);
     const editing = this.editingCell();
     if (!editing) return;
 

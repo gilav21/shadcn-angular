@@ -1606,12 +1606,12 @@
       "lines": 1531
     },
     "data-table/data-table.component.spec.ts": {
-      "bytes": 311548,
-      "lines": 6939
+      "bytes": 313990,
+      "lines": 6989
     },
     "data-table/data-table.component.ts": {
-      "bytes": 233406,
-      "lines": 6401
+      "bytes": 234064,
+      "lines": 6411
     },
     "data-table/data-table.coverage.spec.ts": {
       "bytes": 19823,
