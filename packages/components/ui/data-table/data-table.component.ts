@@ -2882,6 +2882,9 @@ export class DataTableComponent<T>
    * the last row.
    */
   private reconcileIndexedState(rows: readonly T[]): void {
+    // An empty list is the loading or filtered-out state: nothing is drawn, so nothing is stale, and a
+    // server-paged table that blanks while fetching must not lose its focus, range or open editor.
+    if (rows.length === 0) return;
     this.keepEditorOnItsRow(rows);
     this.keepSelectionWithin(rows.length);
   }
@@ -2895,10 +2898,14 @@ export class DataTableComponent<T>
 
     const moved = rows.findIndex((row) => getId(row) === this.editingRowId);
     if (moved === -1) {
-      this.cancelEdit();
-    } else {
-      this.editingCell.set({ ...editing, rowIndex: moved });
+      // Not cancelEdit(): handing focus to the grid would steal it from wherever the user is now.
+      this.dropEdit();
+      return;
     }
+    this.editingCell.set({ ...editing, rowIndex: moved });
+    this.cellEditError.update((error) =>
+      error?.rowIndex === editing.rowIndex ? { ...error, rowIndex: moved } : error,
+    );
   }
 
   private keepSelectionWithin(rowCount: number): void {
@@ -4692,6 +4699,8 @@ export class DataTableComponent<T>
    * Recorded as one undo command when {@link enableEditHistory} is on.
    */
   commitEdit(): void {
+    // The reconciling effect only runs on the next change-detection pass; rows may have moved since.
+    this.keepEditorOnItsRow(this.processedData());
     const editing = this.editingCell();
     if (!editing) return;
 
@@ -4908,10 +4917,15 @@ export class DataTableComponent<T>
    * value and no output is emitted.
    */
   cancelEdit(): void {
+    this.dropEdit();
+    this.refocusTable();
+  }
+
+  private dropEdit(): void {
     this.editingCell.set(null);
+    this.editingRowId = undefined;
     this.editValue.set(null);
     this.cellEditError.set(null);
-    this.refocusTable();
   }
 
   /** Returns the inline validation message for a cell, or `null` if valid. */

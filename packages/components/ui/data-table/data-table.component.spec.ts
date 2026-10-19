@@ -3424,7 +3424,11 @@ describe('DataTableComponent - Row Grouping', () => {
             const AMOUNT_EDITABLE: ColumnDef<OrderData>[] = [
                 { accessorKey: 'id', header: 'ID' },
                 { accessorKey: 'status', header: 'Status' },
-                { accessorKey: 'amount', header: 'Amount', editable: true, valueSetter: (row, value) => ({ ...row, amount: Number(value) }) },
+                {
+                    accessorKey: 'amount', header: 'Amount', editable: true,
+                    valueSetter: (row, value) => ({ ...row, amount: Number(value) }),
+                    editValidator: (value) => (Number(value) >= 0 ? true : 'Must not be negative'),
+                },
             ];
             const amountOf = (id: string): number | undefined => component.data().find((row) => row.id === id)?.amount;
 
@@ -3459,21 +3463,94 @@ describe('DataTableComponent - Row Grouping', () => {
                 fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
                 fixture.detectChanges();
                 component.startEditing(4, 'amount');
-                component.onEditValueChange('99');
+                component.onEditValueChange('-5');
+                component.commitEdit();
+                expect(component.cellEditError()).not.toBeNull();
 
                 fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
                 fixture.detectChanges();
 
                 expect(component.editingCell()).toBeNull();
+                expect(component.editValue()).toBeNull();
+                expect(component.cellEditError()).toBeNull();
                 expect(component.data()).toEqual(ORDER_DATA);
             });
 
+            it('moves a validation message along with the editor, and reports a repeated rejection only once', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                const reported: number[] = [];
+                component.editError.subscribe((event) => reported.push(event.rowIndex));
+                component.startEditing(3, 'amount');
+                component.onEditValueChange('-5');
+                component.commitEdit();
+                expect(component.cellEditError()?.rowIndex).toBe(3);
+
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+                expect(component.editingCell()?.rowIndex).toBe(1);
+                expect(component.cellEditError()?.rowIndex).toBe(1);
+                component.commitEdit();
+
+                expect(reported).toEqual([3]);
+            });
+
+            it('commits into the row the editor was opened on even before the table has re-rendered', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.startEditing(3, 'amount');
+                component.onEditValueChange('99');
+
+                component.toggleGroupCollapsed('pending');
+                component.commitEdit();
+
+                expect([amountOf('o5'), amountOf('o2')]).toEqual([99, 20]);
+            });
+
+            it('does not take focus from elsewhere when it drops an edit', async () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                const elsewhere = document.createElement('input');
+                document.body.append(elsewhere);
+                try {
+                    component.startEditing(4, 'amount');
+                    elsewhere.focus();
+
+                    fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
+                    fixture.detectChanges();
+                    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+                    expect(component.editingCell()).toBeNull();
+                    expect(document.activeElement).toBe(elsewhere);
+                } finally {
+                    elsewhere.remove();
+                }
+            });
+
             it('clears a focused cell that no longer has a row', () => {
-                component.focusCell(0, 'id');
+                component.focusCell(1, 'id');
+                component.toggleGroupCollapsed('pending');
+                component.toggleGroupCollapsed('shipped');
+                fixture.detectChanges();
+
+                expect(component.getRenderedRowAt(1)).toBeUndefined();
+                expect(component.focusedCell()).toBeNull();
+            });
+
+            it('leaves focus, range and the editor alone while the list is empty, as when a server page is loading', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.focusCell(3, 'id');
+                component.cellRange.set({ startRow: 3, startCol: 'id', endRow: 4, endCol: 'amount' });
+                component.startEditing(3, 'amount');
+
                 component.collapseAllGroups();
                 fixture.detectChanges();
 
-                expect(component.focusedCell()).toBeNull();
+                expect(component.processedData()).toEqual([]);
+                expect(component.focusedCell()).toEqual({ rowIndex: 3, columnKey: 'id' });
+                expect(component.cellRange()).toEqual({ startRow: 3, startCol: 'id', endRow: 4, endCol: 'amount' });
+                expect(component.editingCell()).toEqual({ rowIndex: 3, columnKey: 'amount' });
             });
 
             it('keeps a focused cell whose row is still drawn', () => {
@@ -3484,15 +3561,29 @@ describe('DataTableComponent - Row Grouping', () => {
                 expect(component.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
             });
 
-            it('trims a range that runs past the last row and drops one that lies wholly beyond it', () => {
+            it('trims a range that runs past the last row', () => {
                 component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 4, endCol: 'amount' });
+                component.toggleGroupCollapsed('delivered');
                 component.toggleGroupCollapsed('pending');
                 fixture.detectChanges();
-                expect(component.cellRange()).toEqual({ startRow: 0, startCol: 'id', endRow: 2, endCol: 'amount' });
 
-                component.cellRange.set({ startRow: 1, startCol: 'id', endRow: 4, endCol: 'amount' });
-                component.toggleGroupCollapsed('shipped');
+                expect(component.cellRange()).toEqual({ startRow: 0, startCol: 'id', endRow: 1, endCol: 'amount' });
+            });
+
+            it('trims a range that was dragged upwards, so that its start is the larger row', () => {
+                component.cellRange.set({ startRow: 4, startCol: 'id', endRow: 0, endCol: 'amount' });
+                component.toggleGroupCollapsed('delivered');
                 fixture.detectChanges();
+
+                expect(component.cellRange()).toEqual({ startRow: 3, startCol: 'id', endRow: 0, endCol: 'amount' });
+            });
+
+            it('drops a range that begins at the first row that is gone', () => {
+                component.cellRange.set({ startRow: 3, startCol: 'id', endRow: 4, endCol: 'amount' });
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+
+                expect(component.getRenderedRowAt(3)).toBeUndefined();
                 expect(component.cellRange()).toBeNull();
             });
         });
@@ -3507,6 +3598,22 @@ describe('DataTableComponent - Row Grouping', () => {
                 expect(writeText.mock.calls[0][0].split('\n').map((line) => line.split('\t')[0])).toEqual(['ID', 'o3', 'o2', 'o4']);
             } finally {
                 vi.unstubAllGlobals();
+            }
+        });
+
+        it('copies the selected rows in sorted order when groupBy is set together with enableVirtualScroll', async () => {
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            fixture.componentRef.setInput('enableVirtualScroll', true);
+            fixture.componentRef.setInput('rowSelection', { o2: true, o3: true });
+            fixture.detectChanges();
+            const writeText = vi.fn(async (_text: string) => undefined);
+            vi.stubGlobal('navigator', { clipboard: { writeText } });
+            try {
+                await component.copySelectedToClipboard();
+                expect(writeText.mock.calls[0][0].split('\n').map((line) => line.split('\t')[0])).toEqual(['ID', 'o2', 'o3']);
+            } finally {
+                vi.unstubAllGlobals();
+                errorSpy.mockRestore();
             }
         });
 
