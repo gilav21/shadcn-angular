@@ -3417,6 +3417,113 @@ describe('DataTableComponent - Row Grouping', () => {
             expect(ringed).toEqual(['o5']);
         });
 
+        // What an index points at moves when rows are collapsed, paged away or reordered. The editor holds a pending
+        // draft for one row, so it must stay on that row; focus and range are drawn by index (ring and tint), so
+        // they stay put on screen but must never point past the last row.
+        describe('state addressed by rendered index', () => {
+            const AMOUNT_EDITABLE: ColumnDef<OrderData>[] = [
+                { accessorKey: 'id', header: 'ID' },
+                { accessorKey: 'status', header: 'Status' },
+                { accessorKey: 'amount', header: 'Amount', editable: true, valueSetter: (row, value) => ({ ...row, amount: Number(value) }) },
+            ];
+            const amountOf = (id: string): number | undefined => component.data().find((row) => row.id === id)?.amount;
+
+            it('keeps the editor on its row when a group above it collapses', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.startEditing(3, 'amount');
+                expect(component.getRenderedRowAt(3)?.id).toBe('o5');
+
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+                expect(component.editingCell()).toEqual({ rowIndex: 1, columnKey: 'amount' });
+                component.onEditValueChange('99');
+                component.commitEdit();
+
+                expect([amountOf('o5'), amountOf('o2'), amountOf('o4')]).toEqual([99, 20, 40]);
+            });
+
+            it('keeps the editor on its row when the rows are reordered', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.componentRef.setInput('groupBy', undefined);
+                fixture.detectChanges();
+                component.startEditing(0, 'amount');
+                expect(component.getRenderedRowAt(0)?.id).toBe('o1');
+
+                fixture.componentRef.setInput('data', [...ORDER_DATA].reverse());
+                fixture.detectChanges();
+                expect(component.editingCell()).toEqual({ rowIndex: 4, columnKey: 'amount' });
+            });
+
+            it('drops the edit, writing nothing, when its row leaves the page', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.startEditing(4, 'amount');
+                component.onEditValueChange('99');
+
+                fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
+                fixture.detectChanges();
+
+                expect(component.editingCell()).toBeNull();
+                expect(component.data()).toEqual(ORDER_DATA);
+            });
+
+            it('clears a focused cell that no longer has a row', () => {
+                component.focusCell(0, 'id');
+                component.collapseAllGroups();
+                fixture.detectChanges();
+
+                expect(component.focusedCell()).toBeNull();
+            });
+
+            it('keeps a focused cell whose row is still drawn', () => {
+                component.focusCell(1, 'id');
+                component.toggleGroupCollapsed('delivered');
+                fixture.detectChanges();
+
+                expect(component.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
+            });
+
+            it('trims a range that runs past the last row and drops one that lies wholly beyond it', () => {
+                component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 4, endCol: 'amount' });
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+                expect(component.cellRange()).toEqual({ startRow: 0, startCol: 'id', endRow: 2, endCol: 'amount' });
+
+                component.cellRange.set({ startRow: 1, startCol: 'id', endRow: 4, endCol: 'amount' });
+                component.toggleGroupCollapsed('shipped');
+                fixture.detectChanges();
+                expect(component.cellRange()).toBeNull();
+            });
+        });
+
+        it('copies the selected rows in the order they are drawn', async () => {
+            fixture.componentRef.setInput('rowSelection', { o2: true, o3: true, o4: true });
+            fixture.detectChanges();
+            const writeText = vi.fn(async (_text: string) => undefined);
+            vi.stubGlobal('navigator', { clipboard: { writeText } });
+            try {
+                await component.copySelectedToClipboard();
+                expect(writeText.mock.calls[0][0].split('\n').map((line) => line.split('\t')[0])).toEqual(['ID', 'o3', 'o2', 'o4']);
+            } finally {
+                vi.unstubAllGlobals();
+            }
+        });
+
+        it('still copies selected rows that are hidden in a collapsed group', async () => {
+            fixture.componentRef.setInput('rowSelection', { o1: true, o2: true });
+            fixture.componentRef.setInput('collapsedGroups', { pending: true });
+            fixture.detectChanges();
+            const writeText = vi.fn(async (_text: string) => undefined);
+            vi.stubGlobal('navigator', { clipboard: { writeText } });
+            try {
+                await component.copySelectedToClipboard();
+                expect(writeText.mock.calls[0][0].split('\n').map((line) => line.split('\t')[0])).toEqual(['ID', 'o1', 'o2']);
+            } finally {
+                vi.unstubAllGlobals();
+            }
+        });
+
         it('hands a row action the rendered index of its own row', () => {
             const clicked: { id: string; index: number }[] = [];
             component.registerCellAction({

@@ -1603,15 +1603,8 @@ export class DataTableComponent<T>
    * grouping is not active.
    */
   readonly groupedDisplayRows = computed<DataTableDisplayRow<T>[]>(() => {
-    if (!this.groupingActive()) return [];
-    const key = this.groupBy();
-    if (!key) return [];
-
-    const column = this.groupByColumn();
     const collapsedMap = this.collapsedGroups();
-    const groups = partitionIntoGroups(this.sortedData(), (row) =>
-      this.getCellValue(row, key, column),
-    );
+    const groups = this.rowGroups();
 
     const result: DataTableDisplayRow<T>[] = [];
     let index = 0;
@@ -1626,6 +1619,20 @@ export class DataTableComponent<T>
       }
     }
     return result;
+  });
+
+  /**
+   * Every row of the sorted data partitioned by the group column, in the order
+   * the groups are drawn, collapsed groups included. Empty when grouping is not
+   * active.
+   */
+  private readonly rowGroups = computed(() => {
+    const key = this.groupBy();
+    if (!this.groupingActive() || !key) return [];
+    const column = this.groupByColumn();
+    return partitionIntoGroups(this.sortedData(), (row) =>
+      this.getCellValue(row, key, column),
+    );
   });
 
   private buildGroupRow(
@@ -2861,6 +2868,61 @@ export class DataTableComponent<T>
     this.enhancedColumns();
     this.virtualTotalRows();
     this.stampGridSemantics();
+  });
+
+  /** Id of the row the open editor belongs to; {@link editingCell} only holds where that row was drawn. */
+  private editingRowId: string | undefined;
+
+  /**
+   * Rendered indexes move when rows are collapsed, paged away, sorted or
+   * replaced. The editor holds a pending draft for one row, so it follows that
+   * row (or is dropped when the row is no longer drawn) instead of committing
+   * into whichever row now sits at the old index. Focus and range are drawn by
+   * index, so they stay where they are on screen; they only must not point past
+   * the last row.
+   */
+  private reconcileIndexedState(rows: readonly T[]): void {
+    this.keepEditorOnItsRow(rows);
+    this.keepSelectionWithin(rows.length);
+  }
+
+  private keepEditorOnItsRow(rows: readonly T[]): void {
+    const editing = this.editingCell();
+    if (editing === null || this.editingRowId === undefined) return;
+    const getId = this.getRowId();
+    const drawn = rows[editing.rowIndex];
+    if (drawn !== undefined && getId(drawn) === this.editingRowId) return;
+
+    const moved = rows.findIndex((row) => getId(row) === this.editingRowId);
+    if (moved === -1) {
+      this.cancelEdit();
+    } else {
+      this.editingCell.set({ ...editing, rowIndex: moved });
+    }
+  }
+
+  private keepSelectionWithin(rowCount: number): void {
+    const focused = this.focusedCell();
+    if (focused !== null && focused.rowIndex >= rowCount) this.focusedCell.set(null);
+
+    const range = this.cellRange();
+    if (range === null) return;
+    const last = rowCount - 1;
+    if (Math.min(range.startRow, range.endRow) > last) {
+      this.cellRange.set(null);
+    } else if (Math.max(range.startRow, range.endRow) > last) {
+      this.cellRange.set({
+        ...range,
+        startRow: Math.min(range.startRow, last),
+        endRow: Math.min(range.endRow, last),
+      });
+    }
+  }
+
+  // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+  protected readonly _renderedRowsEffect = effect(() => {
+    const rows = this.processedData();
+    untracked(() => this.reconcileIndexedState(rows));
   });
 
   // protected, not private: nothing reads this handle; the field only creates the effect in field order.
@@ -4166,7 +4228,11 @@ export class DataTableComponent<T>
         col.accessorKey !== "_actions",
     );
     const selectedIds = this.rowSelection();
-    const rows = this.sortedData().filter(
+    // Grouping reorders the rows on screen; the copy follows the screen, collapsed groups included.
+    const inDrawnOrder = this.groupingActive()
+      ? this.rowGroups().flatMap((group) => group.rows)
+      : this.sortedData();
+    const rows = inDrawnOrder.filter(
       (row) => selectedIds[this.getRowId()(row)],
     );
     if (rows.length === 0) return;
@@ -4602,6 +4668,7 @@ export class DataTableComponent<T>
     const currentValue = this.getCellValue(row, col.accessorKey, col);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
+    this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
   }
