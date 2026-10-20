@@ -57,9 +57,9 @@ export class NodeEditorNodeDirective<T extends EditorNode = EditorNode> {
 
    
   static ngTemplateContextGuard<T extends EditorNode>(
-    dir: NodeEditorNodeDirective<T>,
-    ctx: unknown,
-  ): ctx is NodeEditorNodeContext<T> {
+    _dir: NodeEditorNodeDirective<T>,
+    _ctx: unknown,
+  ): _ctx is NodeEditorNodeContext<T> {
     return true;
   }
    

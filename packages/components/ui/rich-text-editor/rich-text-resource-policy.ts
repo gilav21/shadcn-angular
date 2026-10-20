@@ -278,7 +278,7 @@ export function stripCssComments(value: string): string {
 export function decodeCssEscapes(value: string): string {
     if (!value.includes('\\')) return value;
 
-    return value.replaceAll(/\\([0-9a-fA-F]{1,6})[ \t\n]?|\\(.)/g, (match, hex: string | undefined, literal: string | undefined) => {
+    return value.replaceAll(/\\([0-9a-fA-F]{1,6})[ \t\n]?|\\(.)/g, (...[, hex, literal]: [unknown, string | undefined, string | undefined]) => {
         if (hex !== undefined) {
             const code = Number.parseInt(hex, 16);
             return code > 0 && code <= 0x10FFFF ? String.fromCodePoint(code) : '';

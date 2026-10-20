@@ -24,7 +24,7 @@ const COLUMNS: ColumnDef<Row>[] = [
 ];
 
 const rows = (count: number): Row[] =>
-    Array.from({ length: count }, (_, i) => ({
+    Array.from({ length: count }, (...[, i]) => ({
         id: i + 1,
         name: `Person ${i + 1}`,
         city: `City ${i + 1}`,
@@ -195,7 +195,7 @@ describe('data-table grid semantics', () => {
          * aria-colindex is a gap; a wrong one sends the user to the wrong column.
          */
         it('leaves aria-colindex off rather than publishing a wrong one when columns are windowed', async () => {
-            const wide = Array.from({ length: 30 }, (_, i) => ({ accessorKey: 'name', header: `Column ${i}` }));
+            const wide = Array.from({ length: 30 }, (...[, i]) => ({ accessorKey: 'name', header: `Column ${i}` }));
             // A fresh table: cells the first render stamped would otherwise keep their old index.
             fixture.destroy();
             fixture = TestBed.createComponent(HostComponent);

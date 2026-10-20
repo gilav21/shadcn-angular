@@ -134,7 +134,7 @@ describe('treemap utils', () => {
         // several runs, not a single one — a single wall-clock sample on a loaded
         // machine measures the scheduler, not the algorithm, and would flake.
         it('squarifies 1000 nodes within the 8ms budget', () => {
-            const values = Array.from({ length: 1000 }, (_, i) => 1000 - i);
+            const values = Array.from({ length: 1000 }, (...[, i]) => 1000 - i);
             const rect = { x: 0, y: 0, width: 1200, height: 800 };
             expect(bestOf(() => squarify(values, rect))).toBeLessThan(8);
         });
@@ -151,8 +151,8 @@ describe('treemap utils', () => {
         // quadratic squarify at 4000 nodes costs far more than 4x that.
         it('scales sub-quadratically with the node count', () => {
             const rect = { x: 0, y: 0, width: 1200, height: 800 };
-            const small = Array.from({ length: 2000 }, (_, i) => 2000 - i);
-            const large = Array.from({ length: 4000 }, (_, i) => 4000 - i);
+            const small = Array.from({ length: 2000 }, (...[, i]) => 2000 - i);
+            const large = Array.from({ length: 4000 }, (...[, i]) => 4000 - i);
 
             const t1 = bestOf(() => squarify(small, rect));
             const t2 = bestOf(() => squarify(large, rect));

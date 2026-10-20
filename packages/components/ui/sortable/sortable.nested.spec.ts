@@ -146,7 +146,7 @@ describe('SortableComponent — nested lists', () => {
         const root = sortableFor('root');
         const seen: { from: readonly string[] | undefined; to: readonly string[] | undefined }[] = [];
 
-        host.landEffect.set((item, from, to) => {
+        host.landEffect.set((...[, from, to]) => {
             seen.push({ from: from.path, to: to.path });
             return null;
         });

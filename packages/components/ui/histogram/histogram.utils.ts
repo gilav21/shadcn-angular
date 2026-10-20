@@ -60,7 +60,7 @@ export function computeBinEdges(values: readonly number[], binCount?: number): n
 
     // The last edge is `hi` itself: `lo + count·width` can land an ulp below
     // it and drop the maximum sample from the last bin.
-    return Array.from({ length: count + 1 }, (_, i) => (i === count ? hi : lo + i * width));
+    return Array.from({ length: count + 1 }, (...[, i]) => (i === count ? hi : lo + i * width));
 }
 
 function edgesFor(values: readonly number[], options: HistogramBinOptions): number[] {

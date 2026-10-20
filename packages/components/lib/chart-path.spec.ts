@@ -121,13 +121,13 @@ describe('gaps at non-finite points (T-7)', () => {
     ];
 
     describe.each(['linear', 'monotone', 'step'] as const)('%s curve', curve => {
-        it.each(cases)('linePath breaks on %s', (name, points, runs) => {
+        it.each(cases)('linePath breaks on %s', (...[, points, runs]) => {
             const path = linePath(points, curve);
             expect(path.match(/M /g)?.length ?? 0).toBe(runs);
             expect(path).not.toMatch(/NaN|Infinity/);
         });
 
-        it.each(cases)('areaPath closes each run to the baseline on %s', (name, points, runs) => {
+        it.each(cases)('areaPath closes each run to the baseline on %s', (...[, points, runs]) => {
             const path = areaPath(points, 100, curve);
             expect(path.match(/M /g)?.length ?? 0).toBe(runs);
             expect(path.match(/Z/g)?.length ?? 0).toBe(runs);

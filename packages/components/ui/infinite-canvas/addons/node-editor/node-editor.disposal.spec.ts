@@ -30,7 +30,7 @@ function node(id: string): EditorNode {
 }
 
 function chain(count: number): { nodes: EditorNode[]; connections: NodeConnection[] } {
-    const nodes = Array.from({ length: count }, (_, i) => node(`n${i}`));
+    const nodes = Array.from({ length: count }, (...[, i]) => node(`n${i}`));
     const connections = nodes.slice(1).map((n, i) => ({
         id: `c${i}`,
         source: `n${i}`,
@@ -256,7 +256,7 @@ describe('the runtime does not accumulate what nobody reads', () => {
         label: 'Counter',
         ports: [{ id: 'out', direction: 'out', label: 'Out' }],
         initialState: () => 0,
-        compute: (inputs, ctx) => ({ out: ctx.state }),
+        compute: (...[, ctx]) => ({ out: ctx.state }),
     };
 
     it('keeps the computed log bounded however many runs happen', async () => {
@@ -303,7 +303,7 @@ describe('a node that is gone gets nothing back', () => {
         id: 'leaky',
         label: 'Leaky',
         ports: [{ id: 'out', direction: 'out', label: 'Out' }],
-        compute: (inputs, ctx) => {
+        compute: (...[, ctx]) => {
             escaped = ctx.emit as Emit;
             return { out: 1 };
         },

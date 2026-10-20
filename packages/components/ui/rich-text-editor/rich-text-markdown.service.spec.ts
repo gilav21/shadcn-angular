@@ -1202,7 +1202,7 @@ describe('RichTextMarkdownService', () => {
             // is read as a quote holding no nested quote marker of its own.
             ['quotes inside list items', (lines: string[], level: number) =>
                 [`> :::details s${level}`, `> - a${level}`, ...lines.map((line) => `>   ${line}`), '> :::']],
-        ])('caps details blocks nested through %s at the same depth as directly nested ones', (name, wrap) => {
+        ])('caps details blocks nested through %s at the same depth as directly nested ones', (...[, wrap]) => {
             // Counted apart, the depth started again inside a list item or a quote,
             // so 64 levels built 64 details blocks. Written as markdown: a save
             // unwraps what lies past the cap before the reader ever sees it.
@@ -1223,7 +1223,7 @@ describe('RichTextMarkdownService', () => {
 
         it.each(PAST_THE_CAP.flatMap(([name, wrap]) => [17, 40, 64].map((levels) => [name, levels, wrap] as const)))(
             'saves %s nested %i deep so the second save equals the first, every word kept in order',
-            (name, levels, wrap) => {
+            (...[, levels, wrap]) => {
                 // Written whole, the markers past the reader's cap came back as text,
                 // were escaped on the next save, and a quote's inner markers showed.
                 const words = (html: string): string =>
@@ -2333,7 +2333,7 @@ describe('RichTextMarkdownService', () => {
             // the indent a wrong dedent leaves in front of the quote.
             ['a quote under a two-digit number', '10. a\n    p\n\n    > q\n11. b', 'ol > li > blockquote', 'q'],
             ['a quote under a bullet with three spaces after it', '-   a\n    p\n\n    > q\n-   b', 'ul > li > blockquote', 'q'],
-        ])('reads %s indented to its item\'s content as the item\'s block', (name, markdown, selector, text) => {
+        ])('reads %s indented to its item\'s content as the item\'s block', (...[, markdown, selector, text]) => {
             // A continuation lost two spaces whatever the marker, so under "1. "
             // one space was left and neither a details block nor a quote opened.
             const out = readMarkdown(markdown);
@@ -2347,7 +2347,7 @@ describe('RichTextMarkdownService', () => {
             ['a details block, then a paragraph at two spaces', '1. a\n\n   :::details X\n   body\n   :::\n\n  tail', 'li > details > summary', 'X', 'tail'],
             ['a heading and a quote, then a paragraph at two spaces', '10. a\n\n    ## h\n\n    > q\n    > r\n\n  t', 'li > blockquote', 'qr', 't'],
             ['a quote, then a lazy line at two spaces', '-   a\n    b\n\n    > q\n    > r\n  c', 'li > blockquote', 'qr', 'c'],
-        ])('reads %s under a wide marker as blocks of the item', (name, markdown, selector, text, last) => {
+        ])('reads %s under a wide marker as blocks of the item', (...[, markdown, selector, text, last]) => {
             // Dedented by its least indented line, one later line at two spaces
             // left the block's quotes and details blocks one or two spaces in,
             // where neither opens, and their markers showed as text.
@@ -2364,7 +2364,7 @@ describe('RichTextMarkdownService', () => {
             ['a quote under a number', '1. a\n\n     > q\n     > r', 'li > blockquote', 'qr', 1],
             ['two headings', '- a\n\n    ## h\n    ## g', 'li > h2', 'h', 2],
             ['a details block', '- a\n\n    :::details X\n    body\n    :::', 'li > details > summary', 'X', 1],
-        ])('reads %s indented past the item\'s content column as blocks of the item', (name, markdown, selector, text, count) => {
+        ])('reads %s indented past the item\'s content column as blocks of the item', (...[, markdown, selector, text, count]) => {
             // Capped at the column, the dedent left extra spaces the trim took off
             // the first line only, so later quote lines, headings and closers were text.
             const out = readMarkdown(markdown);
@@ -2384,7 +2384,7 @@ describe('RichTextMarkdownService', () => {
             ['a "<" in an image target', '![p](https://a.test/<b>.png)', 'img', '/%3Cb%3E.png'],
             ['a named reference in a link target', '[a](https://e.com/?x=1&amp;y=2)', 'a', '?x=1&y=2'],
             ['a numeric reference in an image target', '![p](https://a.test/a&#38;b.png)', 'img', '/a&b.png'],
-        ])('reads %s as the characters typed, and settles', (name, markdown, element, ending) => {
+        ])('reads %s as the characters typed, and settles', (...[, markdown, element, ending]) => {
             // CommonMark reads a target from its characters. A parked code span made
             // it text, and an escaped "<" was escaped again into "&lt;" in the address.
             const out = readMarkdown(markdown);
@@ -2401,7 +2401,7 @@ describe('RichTextMarkdownService', () => {
             ['a raw tag in a link target', '[x](https://a.test/<span title="q">y</span>)', 'a'],
             ['a raw tag in an image target', '![p](https://a.test/<span title="q">y</span>.png)', 'img'],
             ['a code span with a space in a link target', '[x](https://a.test/`b c`)', 'a'],
-        ])('reads %s holding a space as text, not a link or image, and settles', (name, markdown, element) => {
+        ])('reads %s holding a space as text, not a link or image, and settles', (...[, markdown, element]) => {
             // A target with a space is no target. Taken as one, the parked token was
             // restored inside the attribute, breaking it.
             const out = readMarkdown(markdown);

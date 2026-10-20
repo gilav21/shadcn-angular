@@ -66,7 +66,7 @@ function resolveEntityTemplate(template: string, context: RichTextEntityRenderCo
         query: context.query, type: context.type, userId: context.userId, tagId: context.tagId,
     };
     return template
-        .replaceAll(/@@([a-zA-Z0-9_-]+)@@/g, (match, token: string) => values[token] ?? '')
+        .replaceAll(/@@([a-zA-Z0-9_-]+)@@/g, (...[, token]: [unknown, string]) => values[token] ?? '')
         .replaceAll(/:([a-zA-Z][a-zA-Z0-9_-]*)/g, (match, token: string) => values[token] ?? match);
 }
 

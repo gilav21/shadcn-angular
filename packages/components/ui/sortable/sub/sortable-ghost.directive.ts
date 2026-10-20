@@ -21,9 +21,9 @@ import { Directive } from '@angular/core';
 })
 export class SortableGhostTemplateDirective {
     static ngTemplateContextGuard<T>(
-        dir: SortableGhostTemplateDirective,
-        ctx: unknown,
-    ): ctx is { readonly $implicit: T; readonly index: number } {
+        _dir: SortableGhostTemplateDirective,
+        _ctx: unknown,
+    ): _ctx is { readonly $implicit: T; readonly index: number } {
         return true;
     }
 }

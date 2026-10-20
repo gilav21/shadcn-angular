@@ -22,7 +22,7 @@ import {
     imports: [CommandComponent, CommandInputComponent, CommandListComponent, CommandItemComponent],
 })
 class LongListHost {
-    readonly files = Array.from({ length: 30 }, (_, i) => `src/app/feature-${i + 1}.component.ts`);
+    readonly files = Array.from({ length: 30 }, (...[, i]) => `src/app/feature-${i + 1}.component.ts`);
 }
 
 /** Real-layout case: whether the highlight stays visible depends on scrolling, which jsdom does not do. */

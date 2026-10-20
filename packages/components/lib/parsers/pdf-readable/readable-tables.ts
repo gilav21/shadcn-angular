@@ -211,7 +211,7 @@ const COMPONENT_GAP = 4;
  * tables and must not share a grid.
  */
 function connectedComponents(rects: readonly PathRect[]): PathRect[][] {
-    const parent = rects.map((_, i) => i);
+    const parent = rects.map((...[, i]) => i);
     const find = (i: number): number => {
         let root = i;
         while (parent[root] !== root) root = parent[root];

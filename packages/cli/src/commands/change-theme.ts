@@ -23,7 +23,7 @@ function escapeRegex(text: string): string {
 function replaceColorVar(block: string, varName: string, value: string): string {
     return block.replace(
         new RegExp(String.raw`(${escapeRegex(varName)}\s*:\s*)[^;]*(;)`, 'g'),
-        (match, prefix, semi) => `${prefix}${value}${semi}`,
+        (...[, prefix, semi]) => `${prefix}${value}${semi}`,
     );
 }
 

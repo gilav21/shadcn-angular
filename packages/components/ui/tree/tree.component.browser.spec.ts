@@ -45,9 +45,9 @@ const explorer: TreeNode[] = [
     {
         key: 'src',
         label: 'src',
-        children: Array.from({ length: 12 }, (_, i) => ({ key: `src/file-${i + 1}.ts`, label: `file-${i + 1}.ts` })),
+        children: Array.from({ length: 12 }, (...[, i]) => ({ key: `src/file-${i + 1}.ts`, label: `file-${i + 1}.ts` })),
     },
-    ...Array.from({ length: 16 }, (_, i) => ({ key: `doc-${i + 1}.md`, label: `doc-${i + 1}.md` })),
+    ...Array.from({ length: 16 }, (...[, i]) => ({ key: `doc-${i + 1}.md`, label: `doc-${i + 1}.md` })),
 ];
 
 @Component({

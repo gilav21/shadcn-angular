@@ -82,9 +82,9 @@ export interface VirtualScrollWindow2D {
 export class VirtualItemDirective {
    
   static ngTemplateContextGuard<T>(
-    dir: VirtualItemDirective,
-    ctx: unknown
-  ): ctx is { $implicit: T; index: number } {
+    _dir: VirtualItemDirective,
+    _ctx: unknown
+  ): _ctx is { $implicit: T; index: number } {
     return true;
   }
    

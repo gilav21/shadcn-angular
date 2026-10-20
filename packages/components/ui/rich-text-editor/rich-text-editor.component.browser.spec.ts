@@ -326,7 +326,7 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
             probe.setEnd(text, Math.min(offset + 1, text.data.length));
             return Math.round(probe.getBoundingClientRect().top);
         };
-        const lines = [...new Set(Array.from({ length: text.data.length }, (_, i) => topAt(i)))].sort((a, b) => a - b);
+        const lines = [...new Set(Array.from({ length: text.data.length }, (...[, i]) => topAt(i)))].sort((a, b) => a - b);
         expect(lines.length).toBeGreaterThan(2);
         caretIn(text, 0);
 

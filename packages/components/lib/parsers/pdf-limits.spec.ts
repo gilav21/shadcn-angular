@@ -180,7 +180,7 @@ function mutuallyRecursiveFormPdf(): ArrayBuffer {
  */
 function sharedFormDagPdf(fanOut: number, depth: number, pages = 1): ArrayBuffer {
     const firstForm = 10;
-    const pageNums = Array.from({ length: pages }, (_, i) => 50 + i * 2);
+    const pageNums = Array.from({ length: pages }, (...[, i]) => 50 + i * 2);
     const pdf = new RawPdf()
         .obj(1, '/Type /Catalog /Pages 2 0 R')
         .obj(2, `/Type /Pages /Kids [${pageNums.map(n => String(n) + ' 0 R').join(' ')}] /Count ${pages}`)
@@ -198,7 +198,7 @@ function sharedFormDagPdf(fanOut: number, depth: number, pages = 1): ArrayBuffer
         const step = 40 * fanOut ** (depth - level - 2);
         const body = isLeaf
             ? 'BT /F1 9 Tf 0 0 Td (Leaf) Tj ET'
-            : Array.from({ length: fanOut }, (_, i) => `q 1 0 0 1 ${i * step} ${i * 3} cm /L Do Q`).join(' ');
+            : Array.from({ length: fanOut }, (...[, i]) => `q 1 0 0 1 ${i * step} ${i * 3} cm /L Do Q`).join(' ');
         pdf.streamObj(num, `/Type /XObject /Subtype /Form /BBox [0 0 10000 10000] /Resources << ${resources} >>`, latin1Bytes(body));
     }
     return pdf.build();
@@ -483,7 +483,7 @@ describe('PDF decode budget — R1 bounded by bytes', () => {
         // has no CMap, so a parse that stops decoding still renders the page.
         const compressed = await deflate(new Uint8Array(MIB));
         const fonts = 1500;
-        const fontRefs = Array.from({ length: fonts }, (_, i) => `/C${i} ${10 + i} 0 R`).join(' ');
+        const fontRefs = Array.from({ length: fonts }, (...[, i]) => `/C${i} ${10 + i} 0 R`).join(' ');
         const pdf = onePagePdf('BT /F1 12 Tf 72 700 Td (Budgeted) Tj ET', `/Font << /F1 5 0 R ${fontRefs} >>`)
             .obj(5, HELVETICA)
             .streamObj(6, '/Filter /FlateDecode', compressed);
@@ -502,8 +502,8 @@ describe('PDF decode budget — R1 bounded by bytes', () => {
         // sixth has no budget left, so its font shows the unmapped byte. Caching
         // alone cannot pass this: every stream here is distinct.
         const letters = ['Q', 'R', 'S', 'T', 'U', 'V'];
-        const lines = letters.map((_, i) => `BT /F${i} 12 Tf 72 ${700 - i * 30} Td (A) Tj ET`).join(' ');
-        const fontRefs = letters.map((_, i) => `/F${i} ${10 + i} 0 R`).join(' ');
+        const lines = letters.map((...[, i]) => `BT /F${i} 12 Tf 72 ${700 - i * 30} Td (A) Tj ET`).join(' ');
+        const fontRefs = letters.map((...[, i]) => `/F${i} ${10 + i} 0 R`).join(' ');
         const pdf = onePagePdf(lines, `/Font << ${fontRefs} >>`);
         for (const [i, letter] of letters.entries()) {
             const cmap = `1 begincmap\n1 beginbfchar\n<41> <00${(letter.codePointAt(0) ?? 0).toString(16)}>\nendbfchar\nendcmap\n`;
@@ -570,7 +570,7 @@ describe('PDF shared document structure — R2 visit once', () => {
     it('T-18 readable font resources visit a shared form XObject once', async () => {
         const fanOut = 260;
         const names = (num: number): string =>
-            Array.from({ length: fanOut }, (_, i) => `/X${i} ${num} 0 R`).join(' ');
+            Array.from({ length: fanOut }, (...[, i]) => `/X${i} ${num} 0 R`).join(' ');
         const pdf = onePagePdf('BT /F1 12 Tf 72 700 Td (Fonts) Tj ET', `/Font << /F1 5 0 R >> /XObject << ${names(10)} >>`)
             .obj(5, HELVETICA)
             .streamObj(10, `/Type /XObject /Subtype /Form /BBox [0 0 1 1] /Resources << /Font << /F1 5 0 R >> /XObject << ${names(11)} >> >>`, latin1Bytes(''))

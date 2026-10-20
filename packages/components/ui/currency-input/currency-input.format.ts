@@ -67,7 +67,7 @@ export function currencyParts(locale: string, currency: string): CurrencyParts {
     decimal: parts.find(part => part.type === 'decimal')?.value ?? '.',
     // Formatting each digit alone is the only reliable way to learn a
     // locale's numerals; there is no `Intl` API that lists them.
-    digits: Array.from({ length: 10 }, (_, digit) => plain.format(digit)),
+    digits: Array.from({ length: 10 }, (...[, digit]) => plain.format(digit)),
     symbol: parts.find(part => part.type === 'currency')?.value ?? '',
     scale: currencyScale(locale, currency),
   };

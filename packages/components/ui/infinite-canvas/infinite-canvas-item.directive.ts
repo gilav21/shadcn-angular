@@ -50,9 +50,9 @@ export class InfiniteCanvasItemDirective<T extends CanvasItem = CanvasItem> {
 
    
   static ngTemplateContextGuard<T extends CanvasItem>(
-    dir: InfiniteCanvasItemDirective<T>,
-    ctx: unknown,
-  ): ctx is CanvasItemContext<T> {
+    _dir: InfiniteCanvasItemDirective<T>,
+    _ctx: unknown,
+  ): _ctx is CanvasItemContext<T> {
     return true;
   }
    

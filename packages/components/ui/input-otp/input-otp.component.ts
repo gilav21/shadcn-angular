@@ -143,7 +143,7 @@ export class InputOTPComponent implements ControlValueAccessor {
   /** Index of the highlighted slot — the one the next character replaces or fills — or `-1` while the field is not focused. */
   readonly activeIndex = computed(() => (this.focused() ? Math.min(this.caret(), this.slotCount() - 1) : -1));
 
-  slots = computed(() => Array.from({ length: this.slotCount() }, (_, i) => i));
+  slots = computed(() => Array.from({ length: this.slotCount() }, (...[, i]) => i));
   separatorAfter = computed(() => this.separator());
 
   containerClasses = computed(() => cn(

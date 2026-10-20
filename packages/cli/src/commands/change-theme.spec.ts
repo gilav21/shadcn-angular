@@ -22,7 +22,7 @@ vi.mock('../utils/config.js', () => ({
 }));
 
 vi.mock('../utils/paths.js', () => ({
-    resolveProjectPath: vi.fn((cwd: string, p: string) => `/project/${p}`),
+    resolveProjectPath: vi.fn((...[, p]: [string, string]) => `/project/${p}`),
     aliasToProjectPath: vi.fn((p: string) => p),
 }));
 

@@ -41,7 +41,7 @@ function respond(step: Step, res: http.ServerResponse): void {
 /** Request `n` (0-based) gets `script[n]`; past the end, the last step repeats. */
 export async function startServer(script: readonly Step[]): Promise<TestServer> {
     let received = 0;
-    const server = http.createServer((req, res) => {
+    const server = http.createServer((...[, res]) => {
         const step = script[Math.min(received, script.length - 1)];
         received++;
         respond(step, res);

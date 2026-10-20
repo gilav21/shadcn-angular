@@ -20,5 +20,5 @@ import { ScrollAreaComponent } from '@/components/ui/scroll-area';
     `,
 })
 export class ScrollAreaDemoComponent {
-    readonly rows = Array.from({ length: 30 }, (_, i) => i);
+    readonly rows = Array.from({ length: 30 }, (...[, i]) => i);
 }

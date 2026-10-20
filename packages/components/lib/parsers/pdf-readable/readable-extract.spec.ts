@@ -16,7 +16,7 @@ function makeItem(overrides: Partial<TextItem>): TextItem {
 /** Registry stub returning a fixed advance (in thousandths of an em) per code point. */
 function source(advances: Record<string, number | null>): GlyphAdvanceSource {
     return {
-        getGlyphAdvance: (font, code, unicode) => {
+        getGlyphAdvance: (...[, code, unicode]) => {
             const key = code === 32 ? ' ' : unicode ?? '';
             return key in advances ? advances[key] : 500;
         },

@@ -1599,7 +1599,7 @@ export class RichTextSanitizerService {
     private normalizeStyleQuotes(html: string): string {
         return html.replaceAll(
             /style="([^"]*)"/g,
-            (match: string, styleContent: string) =>
+            (...[, styleContent]: [string, string]) =>
                 `style="${styleContent.replaceAll('&quot;', "'")}"`,
         );
     }

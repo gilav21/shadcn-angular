@@ -159,7 +159,7 @@ describe('extent', () => {
     it('returns min and max in one pass and skips non-finite values', () => {
         const rng = mulberry32(SEED);
         const junk = [Number.NaN, null, undefined, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY];
-        const values = Array.from({ length: 1_000_000 }, (_, i) =>
+        const values = Array.from({ length: 1_000_000 }, (...[, i]) =>
             i % 997 === 0 ? junk[i % junk.length] : (rng() - 0.5) * 1e6);
         const finite = values.filter((v): v is number => Number.isFinite(v));
         const reference = finite.reduce<[number, number]>(
@@ -186,7 +186,7 @@ describe('extent', () => {
     });
 
     it('lets getDataRange measure 150,000 points without a stack overflow', () => {
-        const data = Array.from({ length: 150_000 }, (_, i) => ({ value: (i % 1000) - 250 }));
+        const data = Array.from({ length: 150_000 }, (...[, i]) => ({ value: (i % 1000) - 250 }));
         expect(getDataRange(data)).toEqual({ min: -250, max: 749 });
         expect(getDataRange([])).toEqual({ min: 0, max: 0 });
     });
@@ -237,7 +237,7 @@ describe('formatChartValue', () => {
             { locale: 'ja-JP', compact: false, decimals: 2 },
         ];
         const Original = Intl.NumberFormat;
-        const want = Array.from({ length: 1000 }, (_, i) => expected(i * 7.25, counted[i % counted.length]));
+        const want = Array.from({ length: 1000 }, (...[, i]) => expected(i * 7.25, counted[i % counted.length]));
         let constructions = 0;
         // A bare spy does not construct a real formatter under `new`, so count
         // and delegate to the original constructor.
@@ -247,7 +247,7 @@ describe('formatChartValue', () => {
             constructions++;
             return new Original(...args);
         });
-        const outputs = Array.from({ length: 1000 }, (_, i) =>
+        const outputs = Array.from({ length: 1000 }, (...[, i]) =>
             formatChartValue(i * 7.25, counted[i % counted.length]));
         // The compact set formats values both below and above 1,000, so it needs
         // a compact and a standard formatter: 2 + 1 + 1. Sets that differ only
@@ -440,7 +440,7 @@ describe('describeArc terminates and stays finite for every sweep', () => {
         ['several turns', 0, Math.PI * 6],
         ['a negative full sweep', 0, -Math.PI * 2],
         ['a negative sweep past a turn', 1, 1 - Math.PI * 3],
-    ])('%s', (label, start, end) => {
+    ])('%s', (...[, start, end]) => {
         for (const innerRadius of [0, 40]) {
             const path = describeArc(0, 0, 100, innerRadius, start, end);
             expect(path).not.toMatch(/NaN|Infinity/);

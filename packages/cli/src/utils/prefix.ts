@@ -50,7 +50,7 @@ export function assertValidPrefix(value: string): void {
 function rewriteSelectorMetadata(content: string, newPrefix: string): string {
     return content.replaceAll(
         /(selector\s*:\s*)(['"])([^'"]*)\2/g,
-        (match, prefix: string, quote: string, value: string) => {
+        (...[, prefix, quote, value]: [unknown, string, string, string]) => {
             const rewritten = value.replaceAll(
                 /\bui-([a-z][a-z0-9-]*)/g,
                 `${newPrefix}-$1`,
@@ -106,7 +106,7 @@ const SELECT_ELEMENT_TOKEN = /(^|[\s,(])ui-([a-z][a-z0-9-]*)(?=$|[\s,.[:)#])/g;
 function rewriteContentSelects(content: string, newPrefix: string): string {
     return content.replaceAll(
         NG_CONTENT_SELECT,
-        (match, head: string, doubleQuoted: string | undefined, singleQuoted: string | undefined) => {
+        (...[, head, doubleQuoted, singleQuoted]: [unknown, string, string | undefined, string | undefined]) => {
             const quote = doubleQuoted === undefined ? "'" : '"';
             const value = (doubleQuoted ?? singleQuoted ?? '').replaceAll(SELECT_ELEMENT_TOKEN, `$1${newPrefix}-$2`);
             return `${head}${quote}${value}${quote}`;
@@ -139,7 +139,7 @@ export function neutralizePrefix(content: string, prefix: string): string {
     const neutralizeSegment = (value: string): string => value.replaceAll(segment, `${NEUTRAL_PREFIX}$1`);
     const inSelectors = content.replaceAll(
         /(selector\s*:\s*)(['"])([^'"]*)\2/g,
-        (match, key: string, quote: string, value: string) =>
+        (...[, key, quote, value]: [unknown, string, string, string]) =>
             `${key}${quote}${neutralizeSegment(value)}${quote}`,
     );
     const tag = new RegExp(String.raw`(<\/?)${prefix}-([a-z][a-z0-9-]*)(?=[\s/>])`, 'g');

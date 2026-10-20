@@ -27,7 +27,7 @@ interface DemoNode extends CanvasItem {
   label: string;
 }
 
-const NODES: DemoNode[] = Array.from({ length: 12 }, (_, i) => ({
+const NODES: DemoNode[] = Array.from({ length: 12 }, (...[, i]) => ({
   id: i,
   x: (i % 4) * 200,
   y: Math.floor(i / 4) * 140,

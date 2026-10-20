@@ -18,9 +18,9 @@ import type { FieldMapperLinkLabelContext } from '../field-mapper.types';
 })
 export class FieldMapperLinkLabelDirective {
     static ngTemplateContextGuard(
-        dir: FieldMapperLinkLabelDirective,
-        ctx: unknown,
-    ): ctx is FieldMapperLinkLabelContext {
+        _dir: FieldMapperLinkLabelDirective,
+        _ctx: unknown,
+    ): _ctx is FieldMapperLinkLabelContext {
         return true;
     }
 }

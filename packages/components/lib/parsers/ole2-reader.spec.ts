@@ -631,7 +631,7 @@ describe('readOle2 — resource limits', () => {
         const size = (tailSectors + 1) * SECTOR;
         const specs = [
             { name: 'Root Entry', type: 5, startSector: END_OF_CHAIN, size: 0 },
-            ...Array.from({ length: streamCount }, (_, i) => ({ name: `S${i}`, type: 2, startSector: firstHead + i, size })),
+            ...Array.from({ length: streamCount }, (...[, i]) => ({ name: `S${i}`, type: 2, startSector: firstHead + i, size })),
         ];
         specs.forEach((spec, i) => file.set(makeDirEntry(spec), sectorByteOffset(1) + i * 128));
 

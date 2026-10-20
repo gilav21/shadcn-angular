@@ -31,7 +31,7 @@ export default meta;
 type Story = StoryObj<VirtualScrollComponent<any>>;
 
 const generateItems = (count: number): ExampleItem[] =>
-  Array.from({ length: count }, (_, i) => ({
+  Array.from({ length: count }, (...[, i]) => ({
     id: i + 1,
     title: `Item ${i + 1}`,
     content: `This is the content for item ${i + 1}`,
@@ -100,7 +100,7 @@ export const Basic: Story = {
 export const VariableHeight: Story = {
   name: 'Variable Height Items',
   args: {
-    items: Array.from({ length: 1000 }, (_, i) => {
+    items: Array.from({ length: 1000 }, (...[, i]) => {
       const heights = [60, 80, 100, 120, 150, 200, 300, 500];
       const height = heights[i % heights.length];
       return {

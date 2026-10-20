@@ -2906,7 +2906,7 @@ describe('DataTableComponent - Addon host slots & context', () => {
 
     it('invokes the slot onClick with the row context when a ⋮ button is clicked', () => {
         let captured: RowActionContext<TestData> | undefined;
-        registerCellSlot((event, context) => { captured = context; });
+        registerCellSlot((...[, context]) => { captured = context; });
         fixture.detectChanges();
 
         fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'))[2].nativeElement.click();
@@ -3686,7 +3686,7 @@ describe('DataTableComponent - Row Grouping', () => {
             component.registerCellAction({
                 id: 'menu',
                 ariaLabel: 'Row actions',
-                onClick: (event, context) => clicked.push({ id: context.row.id, index: context.index }),
+                onClick: (...[, context]) => clicked.push({ id: context.row.id, index: context.index }),
             });
             fixture.detectChanges();
 
@@ -4194,7 +4194,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     });
 
     it('PageDown / PageUp move by the number of whole rows that fit in the viewport', () => {
-        const rows: NumRow[] = Array.from({ length: 30 }, (_, i) => ({ id: String(i + 1), name: `Person ${i + 1}`, score: i }));
+        const rows: NumRow[] = Array.from({ length: 30 }, (...[, i]) => ({ id: String(i + 1), name: `Person ${i + 1}`, score: i }));
         fixture.componentRef.setInput('data', rows);
         fixture.componentRef.setInput('paginationState', { pageIndex: 0, pageSize: 50 });
         fixture.detectChanges();
@@ -5346,7 +5346,7 @@ describe('DataTableComponent - Virtual scroll', () => {
         readonly label = input('');
     }
 
-    const V_DATA: VRow[] = Array.from({ length: 1000 }, (_, i) => ({ id: i, name: `Row ${i}` }));
+    const V_DATA: VRow[] = Array.from({ length: 1000 }, (...[, i]) => ({ id: i, name: `Row ${i}` }));
     const V_COLS: ColumnDef<VRow>[] = [
         { accessorKey: 'id', header: 'ID', width: '120px' },
         { accessorKey: 'name', header: 'Name', width: '200px' },
@@ -5656,7 +5656,7 @@ describe('DataTableComponent - scrollToColumn', () => {
         await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
         const fixture = TestBed.createComponent(DataTableComponent<VRow>);
         const component = fixture.componentInstance;
-        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (_, i) => ({ id: i })));
+        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (...[, i]) => ({ id: i })));
         fixture.componentRef.setInput('columns', [
             { accessorKey: 'a', header: 'A', width: '100px' },
             { accessorKey: 'b', header: 'B', width: '150px' },
@@ -5680,7 +5680,7 @@ describe('DataTableComponent - scrollToColumn', () => {
 
 describe('DataTableComponent - scroll-to helpers & container drag', () => {
     interface VRow { id: number; name: string }
-    const V_DATA: VRow[] = Array.from({ length: 800 }, (_, i) => ({ id: i, name: `R${i}` }));
+    const V_DATA: VRow[] = Array.from({ length: 800 }, (...[, i]) => ({ id: i, name: `R${i}` }));
     const V_COLS: ColumnDef<VRow>[] = [
         { accessorKey: 'id', header: 'ID', width: '120px' },
         { accessorKey: 'name', header: 'Name', width: '200px' },
@@ -5908,8 +5908,8 @@ describe('DataTableComponent - built-in control columns on a touch screen', () =
         const listeners = new Set<(event: MediaQueryListEvent) => void>();
         const query = {
             matches: true,
-            addEventListener: (_: string, fn: (event: MediaQueryListEvent) => void) => listeners.add(fn),
-            removeEventListener: (_: string, fn: (event: MediaQueryListEvent) => void) => listeners.delete(fn),
+            addEventListener: (...[, fn]: [string, (event: MediaQueryListEvent) => void]) => listeners.add(fn),
+            removeEventListener: (...[, fn]: [string, (event: MediaQueryListEvent) => void]) => listeners.delete(fn),
         };
         const view = globalThis as { matchMedia?: unknown };
         const original = view.matchMedia;
@@ -5947,7 +5947,7 @@ describe('DataTableComponent - where ResizeObserver does not exist', () => {
         delete (globalThis as ResizeObserverGlobal).ResizeObserver;
         await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
         const fixture = TestBed.createComponent(DataTableComponent<{ id: number }>);
-        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (_, i) => ({ id: i })));
+        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (...[, i]) => ({ id: i })));
         fixture.componentRef.setInput('columns', [{ accessorKey: 'id', header: 'ID', width: '120px' }]);
         fixture.componentRef.setInput('enableVirtualScroll', true);
         fixture.componentRef.setInput('virtualVariableRowHeight', true);
@@ -5955,7 +5955,7 @@ describe('DataTableComponent - where ResizeObserver does not exist', () => {
 
         const { end, paddingBottom } = fixture.componentInstance.virtualRowRange();
         expect(renderedVirtualRows(fixture).map((row) => Number(row.dataset['virtualRowIndex'])))
-            .toEqual(Array.from({ length: end }, (_, i) => i));
+            .toEqual(Array.from({ length: end }, (...[, i]) => i));
         // no virtualRowHeight set: the 40px desktop estimate
         expect(paddingBottom).toBe((600 - end) * 40);
         expect(() => fixture.destroy()).not.toThrow();
@@ -5972,7 +5972,7 @@ describe('DataTableComponent - variable row height virtual scroll', () => {
         await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
         fixture = TestBed.createComponent(DataTableComponent<VRow>);
         component = fixture.componentInstance;
-        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (_, i) => ({ id: i })));
+        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (...[, i]) => ({ id: i })));
         fixture.componentRef.setInput('columns', [{ accessorKey: 'id', header: 'ID', width: '120px' }] as ColumnDef<VRow>[]);
         fixture.componentRef.setInput('enableVirtualScroll', true);
         fixture.componentRef.setInput('virtualVariableRowHeight', true);
@@ -6014,7 +6014,7 @@ describe('DataTableComponent - variable row height virtual scroll', () => {
         const rendered = renderedVirtualRows(fixture);
         // 20000 / 40px = row 500; a 200px viewport shows 5 rows; 5 rows of buffer on each side
         expect(rendered.map((row) => Number(row.dataset['virtualRowIndex']))).toEqual(
-            Array.from({ length: 15 }, (_, i) => 495 + i),
+            Array.from({ length: 15 }, (...[, i]) => 495 + i),
         );
         expect(new Set(rowObserver.observed)).toEqual(new Set(rendered));
         expect(rowObserver.observed).not.toContain(firstWindowRow);
@@ -6037,7 +6037,7 @@ describe('DataTableComponent - ResizeObserver constructor/viewport callbacks', (
     });
 
     it('re-windows the rendered rows when the row observer reports taller rows', () => {
-        fixture.componentRef.setInput('data', Array.from({ length: 50 }, (_, i) => ({ id: String(i), name: `User ${i}`, role: 'User' })));
+        fixture.componentRef.setInput('data', Array.from({ length: 50 }, (...[, i]) => ({ id: String(i), name: `User ${i}`, role: 'User' })));
         fixture.componentRef.setInput('enableVirtualScroll', true);
         fixture.componentRef.setInput('virtualVariableRowHeight', true);
         fixture.componentRef.setInput('showPagination', false);
@@ -6756,7 +6756,7 @@ describe('DataTableComponent smart paste (B2)', () => {
                 ["'=total", "'- item", "'@user", '-12', "'plain apostrophe text", "''=x"],
             );
 
-            fixture.componentRef.setInput('data', labels.map((_, i) => ({ id: String(i + 1), n: 0, label: '' })));
+            fixture.componentRef.setInput('data', labels.map((...[, i]) => ({ id: String(i + 1), n: 0, label: '' })));
             fixture.detectChanges();
             component.cellRange.set(null);
             component.focusedCell.set({ rowIndex: 0, columnKey: 'n' });
@@ -6954,9 +6954,9 @@ describe('DataTableComponent - paging only what a pager can reach', () => {
         { accessorKey: 'team', header: 'Team' },
     ];
     const member = (i: number): Member => ({ id: `m${i}`, name: `Member ${i}`, team: ['Design', 'Platform', 'Sales'][i % 3] });
-    const flatMembers = Array.from({ length: 60 }, (_, i) => member(i));
+    const flatMembers = Array.from({ length: 60 }, (...[, i]) => member(i));
     // 30 leads with one report each: 60 rows once every node is expanded
-    const treeMembers = Array.from({ length: 30 }, (_, i) => ({ ...member(i), children: [member(100 + i)] }));
+    const treeMembers = Array.from({ length: 30 }, (...[, i]) => ({ ...member(i), children: [member(100 + i)] }));
 
     async function render(data: Member[], inputs: Record<string, unknown>): Promise<ComponentFixture<DataTableComponent<Member>>> {
         await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();

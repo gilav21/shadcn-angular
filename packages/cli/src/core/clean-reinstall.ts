@@ -210,7 +210,7 @@ function toUiRel(projectRoot: string, uiDir: string, projectRel: string): string
 export function rewriteMovedImport(content: string, move: ComponentMove): { content: string; changed: boolean } {
     const re = new RegExp(String.raw`(from\s*['"][^'"]*?)${escapeRegExp(move.fromImport)}(['"])`, 'g');
     let changed = false;
-    const next = content.replaceAll(re, (full, pre: string, quote: string) => {
+    const next = content.replaceAll(re, (...[, pre, quote]: [unknown, string, string]) => {
         changed = true;
         return `${pre}${move.toImport}${quote}`;
     });

@@ -88,7 +88,7 @@ describe('quantizePixels — median-cut', () => {
         // nearest-colour read-back cannot tell a median split from a midpoint one,
         // while here the two halves are exactly 50 px under the median and 98/2
         // under the midpoint.
-        const spread = Array.from({ length: 98 }, (_, i) => ({ r: 20 + i, g: 0, b: 0, a: 1 }));
+        const spread = Array.from({ length: 98 }, (...[, i]) => ({ r: 20 + i, g: 0, b: 0, a: 1 }));
         const outliers = [{ r: 250, g: 0, b: 0, a: 1 }, { r: 251, g: 0, b: 0, a: 1 }];
         const palette = quantizePixels([...spread, ...outliers], { count: 2, algorithm: 'median-cut' })
             .map(c => c.r)

@@ -25,5 +25,5 @@ import { HistogramComponent } from '@/components/ui/histogram';
     `,
 })
 export class HistogramDemoComponent {
-    readonly values: number[] = Array.from({ length: 100 }, (_, i) => i);
+    readonly values: number[] = Array.from({ length: 100 }, (...[, i]) => i);
 }

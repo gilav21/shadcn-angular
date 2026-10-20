@@ -78,7 +78,7 @@ export class BreadcrumbListComponent {
   readonly skeletonCount = input(3);
 
   readonly skeletonItems = computed(() =>
-    Array.from({ length: this.skeletonCount() }, (_, i) => i)
+    Array.from({ length: this.skeletonCount() }, (...[, i]) => i)
   );
 
   classes = computed(() => cn(

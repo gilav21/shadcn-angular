@@ -1766,7 +1766,7 @@ class TextLine {
      *   <span class="[diff classes]">styled text</span>
      * </div>
      */
-    dumpText(mgr: AllStateManager, fontRegistry: FontRegistry, hEps: number, spaceThreshold: number, z: number): string {
+    dumpText(...[mgr, , hEps, spaceThreshold, z]: [AllStateManager, FontRegistry, number, number, number]): string {
         if (this.text.length === 0 && this.states.length === 0) return '';
 
         const mId = mgr.transformMatrix.install(this.transformMatrix);
@@ -2001,7 +2001,6 @@ class TextLine {
 // ── Content Stream Processor (mirrors pdf2htmlEX HTMLRenderer) ───────
 
 type OperatorHandler = (
-    op: string,
     operands: ReadonlyArray<string>,
     resources: Record<string, PdfObject>,
     pageWidth: number,
@@ -2571,52 +2570,52 @@ class PixelPerfectProcessor {
     private registerGraphicsStateOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
         m.set('q', () => this.saveState());
         m.set('Q', () => this.restoreState());
-        m.set('cm', (op, ops) => this.opCm(ops));
-        m.set('w', (op, ops) => { if (ops.length >= 1) this.lineWidth = Number.parseFloat(ops[0]); });
-        m.set('g', (op, ops) => { this.fillColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.fillColorChanged = true; });
-        m.set('G', (op, ops) => { this.strokeColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.strokeColorChanged = true; });
-        m.set('rg', (op, ops) => this.opRg(ops, true));
-        m.set('RG', (op, ops) => this.opRg(ops, false));
-        m.set('k', (op, ops) => this.opK(ops, true));
-        m.set('K', (op, ops) => this.opK(ops, false));
-        m.set('cs', (op, ops) => this.opCs(ops));
-        m.set('CS', (op, ops) => this.opCs(ops));
-        m.set('sc', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
-        m.set('SC', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
-        m.set('scn', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
-        m.set('SCN', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
-        m.set('Do', (op, ops, res, pw, ph) => this.opDo(ops, res, pw, ph));
-        m.set('gs', (op, ops, res) => this.opGs(ops, res));
+        m.set('cm', (ops) => this.opCm(ops));
+        m.set('w', (ops) => { if (ops.length >= 1) this.lineWidth = Number.parseFloat(ops[0]); });
+        m.set('g', (ops) => { this.fillColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.fillColorChanged = true; });
+        m.set('G', (ops) => { this.strokeColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.strokeColorChanged = true; });
+        m.set('rg', (ops) => this.opRg(ops, true));
+        m.set('RG', (ops) => this.opRg(ops, false));
+        m.set('k', (ops) => this.opK(ops, true));
+        m.set('K', (ops) => this.opK(ops, false));
+        m.set('cs', (ops) => this.opCs(ops));
+        m.set('CS', (ops) => this.opCs(ops));
+        m.set('sc', (ops, res) => this.opSc(ops, true, res));
+        m.set('SC', (ops, res) => this.opSc(ops, false, res));
+        m.set('scn', (ops, res) => this.opSc(ops, true, res));
+        m.set('SCN', (ops, res) => this.opSc(ops, false, res));
+        m.set('Do', (ops, res, pw, ph) => this.opDo(ops, res, pw, ph));
+        m.set('gs', (ops, res) => this.opGs(ops, res));
         for (const name of ['BMC', 'BDC', 'EMC', 'MP', 'DP', 'BI']) m.set(name, noop);
     }
 
     private registerTextOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
-        m.set('Tf', (op, ops) => this.opTf(ops));
-        m.set('Tc', (op, ops) => { this.charSpace = Number.parseFloat(ops[0] ?? '0'); this.letterSpaceChanged = true; });
-        m.set('Tw', (op, ops) => { this.wordSpace = Number.parseFloat(ops[0] ?? '0'); this.wordSpaceChanged = true; });
-        m.set('Tz', (op, ops) => { this.horizScaling = Number.parseFloat(ops[0] ?? '100') / 100; this.horizScaleChanged = true; });
-        m.set('TL', (op, ops) => { this.leading = Number.parseFloat(ops[0] ?? '0'); });
-        m.set('Tr', (op, ops) => { this.renderMode = Number.parseInt(ops[0] ?? '0', 10); this.fillColorChanged = true; this.strokeColorChanged = true; });
-        m.set('Ts', (op, ops) => { this.rise = Number.parseFloat(ops[0] ?? '0'); this.riseChanged = true; });
+        m.set('Tf', (ops) => this.opTf(ops));
+        m.set('Tc', (ops) => { this.charSpace = Number.parseFloat(ops[0] ?? '0'); this.letterSpaceChanged = true; });
+        m.set('Tw', (ops) => { this.wordSpace = Number.parseFloat(ops[0] ?? '0'); this.wordSpaceChanged = true; });
+        m.set('Tz', (ops) => { this.horizScaling = Number.parseFloat(ops[0] ?? '100') / 100; this.horizScaleChanged = true; });
+        m.set('TL', (ops) => { this.leading = Number.parseFloat(ops[0] ?? '0'); });
+        m.set('Tr', (ops) => { this.renderMode = Number.parseInt(ops[0] ?? '0', 10); this.fillColorChanged = true; this.strokeColorChanged = true; });
+        m.set('Ts', (ops) => { this.rise = Number.parseFloat(ops[0] ?? '0'); this.riseChanged = true; });
         m.set('BT', () => this.opBT());
         m.set('ET', noop);
-        m.set('Td', (op, ops) => this.opTd(ops));
-        m.set('TD', (op, ops) => this.opTD(ops));
-        m.set('Tm', (op, ops) => this.opTm(ops));
+        m.set('Td', (ops) => this.opTd(ops));
+        m.set('TD', (ops) => this.opTD(ops));
+        m.set('Tm', (ops) => this.opTm(ops));
         m.set('T*', () => this.opTStar());
-        m.set('Tj', (op, ops) => this.opTj(ops));
-        m.set('TJ', (op, ops) => this.opTJ(ops));
-        m.set('\'', (op, ops) => { this.opTStar(); this.opTj(ops); });
-        m.set('"', (op, ops) => this.opQuoteDbl(ops));
+        m.set('Tj', (ops) => this.opTj(ops));
+        m.set('TJ', (ops) => this.opTJ(ops));
+        m.set('\'', (ops) => { this.opTStar(); this.opTj(ops); });
+        m.set('"', (ops) => this.opQuoteDbl(ops));
     }
 
     private registerPathOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
-        m.set('re', (op, ops) => this.opRe(ops));
-        m.set('m', (op, ops) => this.opPathMove(ops));
-        m.set('l', (op, ops) => this.opPathLine(ops));
-        m.set('c', (op, ops) => this.opPathCurve(ops));
-        m.set('v', (op, ops) => this.opPathCurve2Points(ops));
-        m.set('y', (op, ops) => this.opPathCurve2Points(ops));
+        m.set('re', (ops) => this.opRe(ops));
+        m.set('m', (ops) => this.opPathMove(ops));
+        m.set('l', (ops) => this.opPathLine(ops));
+        m.set('c', (ops) => this.opPathCurve(ops));
+        m.set('v', (ops) => this.opPathCurve2Points(ops));
+        m.set('y', (ops) => this.opPathCurve2Points(ops));
         m.set('h', noop);
         m.set('S', () => this.paintPath(true, false));
         m.set('s', () => this.paintPath(true, false));
@@ -2649,7 +2648,7 @@ class PixelPerfectProcessor {
         pageHeight: number,
     ): void {
         const handler = this.getOperatorMap().get(op);
-        if (handler) handler(op, operands, resources, pageWidth, pageHeight);
+        if (handler) handler(operands, resources, pageWidth, pageHeight);
     }
 
     // ── Operator implementations ─────────────────────────────────────

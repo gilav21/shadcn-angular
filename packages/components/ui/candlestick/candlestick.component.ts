@@ -314,7 +314,7 @@ export class CandlestickComponent implements AfterViewInit {
 
     private ordinalSlots(): Slot[] {
         const a = this.area();
-        const keys = this.usable().map((_, i) => String(i));
+        const keys = this.usable().map((...[, i]) => String(i));
         const ordered = this.isRtl() ? [...keys].reverse() : keys;
         const scale = bandScale(ordered, [a.left, a.right], BAND_PADDING_INNER, BAND_PADDING_OUTER);
         const bandwidth = Math.abs(scale.bandwidth);
@@ -340,7 +340,7 @@ export class CandlestickComponent implements AfterViewInit {
         const candles = this.candles();
         const stride = Math.max(1, Math.ceil(candles.length / MAX_ORDINAL_TICKS));
         return candles
-            .filter((_, i) => i % stride === 0)
+            .filter((...[, i]) => i % stride === 0)
             .map(c => ({ key: String(c.index), label: c.label, x: c.centre }));
     }
 

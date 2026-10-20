@@ -9,7 +9,7 @@ interface DemoNode extends CanvasItem {
 }
 
 function buildNodes(count: number, columns = 6, spacing = 260): DemoNode[] {
-  return Array.from({ length: count }, (_, i) => ({
+  return Array.from({ length: count }, (...[, i]) => ({
     id: i,
     x: (i % columns) * spacing,
     y: Math.floor(i / columns) * 170,

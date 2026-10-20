@@ -36,7 +36,7 @@ interface WideRow {
     notes: string;
 }
 
-const WIDE_ROWS: WideRow[] = Array.from({ length: 60 }, (_, i) => ({
+const WIDE_ROWS: WideRow[] = Array.from({ length: 60 }, (...[, i]) => ({
     id: `ORD-${1000 + i}`,
     customer: `Customer ${i + 1}`,
     email: `customer${i + 1}@example.com`,
@@ -127,7 +127,7 @@ describe('DataTableComponent (browser)', () => {
     it('activates a sort header and a page button exactly once per Enter or Space press', async () => {
         await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
         const fixture = TestBed.createComponent(DataTableComponent<TestData>);
-        fixture.componentRef.setInput('data', Array.from({ length: 35 }, (_, i) => ({ id: String(i + 1), name: `Person ${i + 1}`, role: 'User' })));
+        fixture.componentRef.setInput('data', Array.from({ length: 35 }, (...[, i]) => ({ id: String(i + 1), name: `Person ${i + 1}`, role: 'User' })));
         fixture.componentRef.setInput('columns', TEST_COLUMNS);
         fixture.detectChanges();
         const sorts: SortDirection[] = [];

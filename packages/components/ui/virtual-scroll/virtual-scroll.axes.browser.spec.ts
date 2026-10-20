@@ -15,7 +15,7 @@ import { VirtualScrollComponent, VirtualItemDirective, type VirtualScrollOrienta
     `,
 })
 class Host {
-    readonly items = Array.from({ length: 50 }, (_, id) => ({ id }));
+    readonly items = Array.from({ length: 50 }, (...[, id]) => ({ id }));
     readonly orientation = signal<VirtualScrollOrientation>('horizontal');
 }
 

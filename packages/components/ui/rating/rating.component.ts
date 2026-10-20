@@ -125,7 +125,7 @@ export class RatingComponent implements ControlValueAccessor {
 
   stars = computed(() => {
     const count = this.resolvedMax();
-    return Array.from({ length: count }, (_, i) => ({
+    return Array.from({ length: count }, (...[, i]) => ({
       index: i,
       value: i + 1,
     }));

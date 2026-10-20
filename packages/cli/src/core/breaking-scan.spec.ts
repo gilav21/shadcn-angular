@@ -178,7 +178,7 @@ describe('printBreakingUsages', () => {
     });
 
     it('caps the listing at 10 usages and reports the remainder as "+N more"', async () => {
-        const lines = Array.from({ length: 13 }, (_, i) => `<ui-data-table [rowActions]="a${i}" />`);
+        const lines = Array.from({ length: 13 }, (...[, i]) => `<ui-data-table [rowActions]="a${i}" />`);
         await writeExternalTemplateComponent(root, 'many', lines.join('\n'));
 
         await printBreakingUsages(['data-table'] as ComponentName[], root, []);

@@ -199,7 +199,7 @@ export class StackedBarChartComponent implements AfterViewInit {
    */
   private readonly stackUnits = computed((): number[][] => {
     const percent = this.stacking() === 'percent';
-    return this.categories().map((_, catIndex) => {
+    return this.categories().map((...[, catIndex]) => {
       const raw = this.rawValues(catIndex);
       if (!percent) return raw;
       const absoluteTotal = raw.reduce((sum, v) => sum + Math.abs(v), 0);

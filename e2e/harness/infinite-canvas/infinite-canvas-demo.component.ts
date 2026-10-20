@@ -14,7 +14,7 @@ const COLUMNS = 100;
 const COUNT = 10_000;
 
 function buildNodes(): HarnessNode[] {
-    return Array.from({ length: COUNT }, (_, i) => ({
+    return Array.from({ length: COUNT }, (...[, i]) => ({
         id: i,
         x: (i % COLUMNS) * 240,
         y: Math.floor(i / COLUMNS) * 160,

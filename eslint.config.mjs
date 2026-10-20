@@ -79,9 +79,8 @@ export default tseslint.config(
       // characters in ordinary strings stay allowed -- the editor legitimately
       // uses them as caret anchors.
       'no-control-regex': 'error',
-      // One standard, no underscore escape hatch. `after-used` flags an unused parameter only when nothing
-      // after it is used, which is exactly the parameter that can simply be removed; a leading one whose
-      // position a callback signature dictates stays, named like any other camelCase parameter.
+      // One standard, no underscore escape hatch. `after-used` flags an unused trailing parameter, which can
+      // simply be removed; tsc's noUnusedParameters (on) covers a leading one, which `...[, used]` skips.
       '@typescript-eslint/no-unused-vars': ['error', { args: 'after-used', caughtErrors: 'all', ignoreRestSiblings: true }],
       'max-lines-per-function': [
         'warn',
@@ -137,11 +136,12 @@ export default tseslint.config(
     },
   },
 
-  // --- Angular template context guards ---
-  // `static ngTemplateContextGuard(dir, ctx: unknown): ctx is Context` names its predicate target with a
-  // parameter that nothing else reads, which the rule reports as type-only use. The signature is Angular's own
-  // idiom, so these files (the only ones with a guard) keep the rule except for that parameter. No eslint-disable
-  // comment: those would ship into consumers' projects.
+  // --- Angular template context guards: the one place a `_` name remains ---
+  // `static ngTemplateContextGuard(_dir, _ctx: unknown): _ctx is Context` names its predicate target with a
+  // parameter nothing else reads. A type predicate cannot point at a skipped (`...[, x]`) parameter, and both
+  // TypeScript's noUnusedParameters and this rule still report a plainly named one, so the underscore is the only
+  // spelling of an unused parameter that passes. These files (the only ones with a guard) are the single
+  // exception to "no underscore names". No eslint-disable comment: those would ship into consumers' projects.
   {
     files: [
       'packages/components/ui/field-mapper/sub/field-mapper-item.directive.ts',
@@ -156,7 +156,7 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',
-        { args: 'after-used', caughtErrors: 'all', ignoreRestSiblings: true, argsIgnorePattern: '^ctx$' },
+        { args: 'after-used', caughtErrors: 'all', ignoreRestSiblings: true, argsIgnorePattern: '^_' },
       ],
     },
   },

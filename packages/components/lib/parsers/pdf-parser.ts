@@ -1912,9 +1912,9 @@ function fixVisualOrderRTL(text: string): string {
 function joinSplitHebrewFragments(text: string): string {
     return text
         .replaceAll(/"([\u0590-\u05FF]+)\s+([\u0590-\u05FF])(?=\s|[^"\u0590-\u05FF]|$)/g,
-            (match, p1: string, p2: string) => p1 + '"' + p2)
+            (...[, p1, p2]: [unknown, string, string]) => p1 + '"' + p2)
         .replaceAll(/(?<![\u0590-\u05FF])([\u0590-\u05FF])\s+([\u0590-\u05FF]+)"(?=\s|[^"\u0590-\u05FF]|$)/g,
-            (match, p1: string, p2: string) => p1 + p2 + '"');
+            (...[, p1, p2]: [unknown, string, string]) => p1 + p2 + '"');
 }
 
 function fixBracketsAroundLtrWords(text: string): string {

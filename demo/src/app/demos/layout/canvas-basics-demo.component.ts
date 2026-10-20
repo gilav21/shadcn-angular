@@ -86,7 +86,7 @@ export class CanvasBasicsDemoComponent {
 }
 
 function buildNodes(count: number, columns: number): DemoCanvasNode[] {
-  return Array.from({ length: count }, (_, i) => ({
+  return Array.from({ length: count }, (...[, i]) => ({
     id: i,
     x: (i % columns) * 260,
     y: Math.floor(i / columns) * 170,

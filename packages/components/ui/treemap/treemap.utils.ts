@@ -87,7 +87,7 @@ export function squarify(values: readonly number[], rect: TreemapRect): TreemapR
     const area = rect.width * rect.height;
     const scaled = usable.map(v => (v / total) * area);
     const order = usable
-        .map((_, i) => i)
+        .map((...[, i]) => i)
         .filter(i => scaled[i] > 0)
         .sort((a, b) => scaled[b] - scaled[a]);
 

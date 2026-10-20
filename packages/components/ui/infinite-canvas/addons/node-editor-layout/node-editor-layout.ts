@@ -125,7 +125,7 @@ function withoutBackEdges(nodes: readonly NodeId[], edges: readonly Edge[]): rea
       }
     }
   }
-  return edges.filter((_, index) => !back.has(index));
+  return edges.filter((...[, index]) => !back.has(index));
 }
 
 /**

@@ -205,7 +205,7 @@ export class HeatmapComponent {
     readonly legendStops = computed(() => {
         const [min, max] = this.valueDomain();
         const steps = 5;
-        return Array.from({ length: steps }, (_, i) => {
+        return Array.from({ length: steps }, (...[, i]) => {
             const value = min + ((max - min) * i) / (steps - 1);
             return { value, color: this.colorFor(value) };
         });

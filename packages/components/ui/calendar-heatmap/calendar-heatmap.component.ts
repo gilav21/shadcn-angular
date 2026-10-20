@@ -173,7 +173,7 @@ export class CalendarHeatmapComponent {
 
     readonly legendStops = computed(() => {
         const [min, max] = this.valueDomain();
-        return Array.from({ length: 5 }, (_, i) => this.colorFor(min + ((max - min) * i) / 4));
+        return Array.from({ length: 5 }, (...[, i]) => this.colorFor(min + ((max - min) * i) / 4));
     });
 
     readonly tooltipRows = computed((): ChartTooltipRow[] => {

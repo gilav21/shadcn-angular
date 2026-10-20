@@ -227,7 +227,7 @@ export class ComboChartComponent implements AfterViewInit {
         const a = this.area();
         const range: [number, number] = a.rtl ? [a.right, a.left] : [a.left, a.right];
         // Categories are keyed by position, not name: two categories may share a label.
-        return bandScale(this.categories().map((_, i) => String(i)), range, 0.3, 0.15);
+        return bandScale(this.categories().map((...[, i]) => String(i)), range, 0.3, 0.15);
     });
 
     private readonly yPrimary = computed(() => {

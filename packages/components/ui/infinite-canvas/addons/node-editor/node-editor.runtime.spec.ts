@@ -22,7 +22,7 @@ const SOURCE: NodeTypeDefinition = {
     label: 'Source',
     ports: [{ id: 'out', direction: 'out', label: 'Out' }],
     initialState: () => 'seed',
-    compute: (inputs, ctx) => ({ out: ctx.state }),
+    compute: (...[, ctx]) => ({ out: ctx.state }),
 };
 
 const PASSTHROUGH: NodeTypeDefinition = {
@@ -211,7 +211,7 @@ describe('RT-4 async runs and staleness', () => {
             id: 'slow',
             label: 'Slow',
             ports: [{ id: 'out', direction: 'out', label: 'Out' }],
-            compute: async (inputs, ctx) => {
+            compute: async (...[, ctx]) => {
                 const value = ctx.state as string;
                 await new Promise(resolve => setTimeout(resolve, delays[value] ?? 0));
                 return { out: value };
@@ -322,7 +322,7 @@ describe('RT-4 async runs and staleness', () => {
             id: 'ticker',
             label: 'Ticker',
             ports: [{ id: 'out', direction: 'out', label: 'Out' }],
-            compute: (inputs, ctx) => {
+            compute: (...[, ctx]) => {
                 const label = ctx.state as string;
                 ctx.signal.addEventListener('abort', () => aborted.push(label));
                 return (async function* () {
@@ -514,7 +514,7 @@ describe('RT-8 remote batching', () => {
         const runtime = new NodeGraphRuntime();
         runtime.setDefinitions(DEFS);
         runtime.setGraph(
-            Array.from({ length: 12 }, (_, i) => node(`r${i}`, 'remote')),
+            Array.from({ length: 12 }, (...[, i]) => node(`r${i}`, 'remote')),
             [],
         );
 

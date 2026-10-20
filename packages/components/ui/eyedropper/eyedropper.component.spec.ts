@@ -30,7 +30,7 @@ function installFakeEyeDropper(response: { sRGBHex?: string; reject?: boolean })
             // trips zone.js's unhandled-rejection tracking and a throw inside
             // a .then callback trips its task-error reporting under the jest leg.
             if (response.reject) {
-                return new Promise((resolve, reject) => setTimeout(() => reject(new Error('cancelled')), 0));
+                return new Promise((...[, reject]) => setTimeout(() => reject(new Error('cancelled')), 0));
             }
             return Promise.resolve({ sRGBHex: response.sRGBHex ?? '#000000' });
         }

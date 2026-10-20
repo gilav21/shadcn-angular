@@ -185,7 +185,7 @@ describe('FieldMapperComponent (browser)', () => {
     });
 
     it('keeps every line on its two handles after the lists scroll, the container resizes, and an item grows', async () => {
-        const many = Array.from({ length: 30 }, (_, i) => ({ id: `col_${i}`, label: `column_${i}` }));
+        const many = Array.from({ length: 30 }, (...[, i]) => ({ id: `col_${i}`, label: `column_${i}` }));
         const links = [
             { startId: 'col_2', endId: 'col_20' },
             { startId: 'col_14', endId: 'col_3' },

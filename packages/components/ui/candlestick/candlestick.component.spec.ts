@@ -225,7 +225,7 @@ describe('CandlestickComponent', () => {
         });
 
         it('thins the ordinal axis labels on a long series', async () => {
-            const many: OhlcPoint[] = Array.from({ length: 40 }, (_, i) => ({
+            const many: OhlcPoint[] = Array.from({ length: 40 }, (...[, i]) => ({
                 date: `d${i}`, open: 1, high: 2, low: 0, close: 1,
             }));
             await createFixture(many);

@@ -225,7 +225,7 @@ export class ChipListComponent implements ControlValueAccessor {
   removeChip(index: number, event: Event): void {
     event.stopPropagation();
     const removed = this.chips()[index];
-    this.chips.update(chips => chips.filter((_, i) => i !== index));
+    this.chips.update(chips => chips.filter((...[, i]) => i !== index));
     this.onChange(this.chips());
     this.chipRemoved.emit(removed);
     this.focusInput();

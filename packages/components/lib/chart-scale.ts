@@ -227,6 +227,6 @@ export function niceTimeTicks(min: number, max: number, count = 5): number[] {
     const interval = cappedTimeInterval(pickTimeInterval(range, n), range, 2 * n + 3);
     const first = Math.ceil(min / interval);
     const last = Math.floor(max / interval);
-    const ticks = Array.from({ length: Math.max(0, last - first + 1) }, (_, k) => (first + k) * interval);
+    const ticks = Array.from({ length: Math.max(0, last - first + 1) }, (...[, k]) => (first + k) * interval);
     return ticks.length > 1 ? ticks : [min, max];
 }

@@ -22,7 +22,7 @@ const SOURCE: NodeTypeDefinition = {
     label: 'Source',
     ports: [{ id: 'out', direction: 'out', label: 'Out' }],
     initialState: () => 0,
-    compute: (inputs, ctx) => ({ out: ctx.state }),
+    compute: (...[, ctx]) => ({ out: ctx.state }),
 };
 
 const PASSTHROUGH: NodeTypeDefinition = {

@@ -508,7 +508,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
         maxRow += 2;
 
         const totalCells = this.cols() * maxRow;
-        return new Array(totalCells).fill(0).map((_, i) => ({
+        return new Array(totalCells).fill(0).map((...[, i]) => ({
             id: i,
         }));
     });

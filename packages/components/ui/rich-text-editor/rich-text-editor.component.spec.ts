@@ -210,7 +210,7 @@ const clearFormatting = (): boolean => {
 };
 
 /** Minimal `document.execCommand` covering the commands the editor issues. */
-function execCommandShim(commandId: string, showUi?: boolean, value?: string): boolean {
+function execCommandShim(...[commandId, , value]: [string, boolean?, string?]): boolean {
     switch (commandId) {
         case 'bold':
             return wrapSelectionWith(() => document.createElement('b'));
@@ -2991,7 +2991,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             ['an empty numbered item', '<ol><li><br></li></ol>', ['OL']],
             ['a blank paragraph', '<p><br></p>', ['P', 'P']],
             ['an empty code block', '<pre><code></code></pre>', ['P', 'PRE']],
-        ])('outdenting the last item of a sub-list carries %s after it, which is a line though it shows nothing', (name, trailing, children) => {
+        ])('outdenting the last item of a sub-list carries %s after it, which is a line though it shows nothing', (...[, trailing, children]) => {
             // Taken for nothing, the empty line stayed in the parent, above the item.
             component.writeValue(`<ul><li><p>G</p><ul><li>X</li></ul>${trailing}</li></ul>`);
             fixture.detectChanges();
@@ -3009,7 +3009,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             ['a code block', 'indent', '<ul><li>A</li><li><p>W</p><pre><code>Xray</code></pre></li></ul>', 'code'],
             ['a table cell', 'indent', '<ul><li>A</li><li><p>W</p><table><tbody><tr><td>Xray</td></tr></tbody></table></li></ul>', 'td'],
             ['a second paragraph, outdenting', 'outdent', '<ul><li>A<ul><li><p>W</p><p>Xray</p></li></ul></li></ul>', 'p'],
-        ])('keeps the caret in a later line of the moved item: %s', (name, command, html, tag) => {
+        ])('keeps the caret in a later line of the moved item: %s', (...[, command, html, tag]) => {
             // A fix that put the caret back in the item's first line would pass every
             // case whose caret starts in that line.
             component.writeValue(html);
@@ -3029,7 +3029,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
             ['indenting an item of a loose list', 'indent', '<ul><li><p>A</p></li><li><p>X</p></li></ul>'],
             ['outdenting an item holding a code block', 'outdent', '<ul><li>A<ul><li><p>G</p><ul><li><p>X</p><pre><code>c</code></pre></li></ul></li></ul></li></ul>'],
             ['outdenting an item holding blocks that carries loose text', 'outdent', '<ul><li><p>G</p><ul><li><p>X</p><pre><code>c</code></pre></li></ul>tail</li></ul>'],
-        ])('%s keeps the caret in the line it was in', (name, command, html) => {
+        ])('%s keeps the caret in the line it was in', (...[, command, html]) => {
             // The caret went back to the line found from the item, and an item
             // holding blocks is no line: the lookup climbed to an ancestor's line,
             // so the caret landed in another item, or was lost.
@@ -3062,7 +3062,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         it.each([
             ['a list', '<ul><li>Z</li></ul>', 'XZ', null],
             ['a list, then a paragraph', '<ul><li>Z</li></ul><p>t</p>', 'XZ', 't'],
-        ])('outdenting a task row keeps %s after its list under the row, with no empty item', (name, trailing, rowText, itemText) => {
+        ])('outdenting a task row keeps %s after its list under the row, with no empty item', (...[, trailing, rowText, itemText]) => {
             // All of it went into a new item after the row, so a leading list gave
             // that item no line of its own: an empty bullet nobody typed.
             component.writeValue('<ul><li><p>G</p><ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>X</span></li></ul>'
@@ -3270,7 +3270,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
                 + '<span>t</span></li></ul></li><li>y</li></ul></li></ul>', 'Pxty'],
             ['holding a plain and a task sub-list', '<ul><li>P<ul><li>x<ul><li>s</li></ul><ul data-task-list><li data-task data-checked="false">'
                 + '<input type="checkbox"><span>t</span></li></ul></li><li>y</li></ul></li></ul>', 'Pxsty'],
-        ])('Shift+Tab on an item %s carries the plain item after it in order, in a plain list', (name, html, text) => {
+        ])('Shift+Tab on an item %s carries the plain item after it in order, in a plain list', (...[, html, text]) => {
             component.writeValue(html);
             fixture.detectChanges();
             caretIn(editor.querySelector('ul ul > li')!.firstChild as Text, 1);
@@ -5726,7 +5726,7 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         ['a table cell', '<table><tbody><tr><td>text</td></tr></tbody></table>', 'td', false],
         ['a summary', '<details><summary>text</summary><p>body</p></details>', 'summary', false],
         ['a code block', '<pre><code>text</code></pre>', 'code', false],
-    ] as const)('the text style select is enabled in %s exactly when a heading applies there', (name, html, selector, applies) => {
+    ] as const)('the text style select is enabled in %s exactly when a heading applies there', (...[, html, selector, applies]) => {
         component.writeValue(html);
         fixture.detectChanges();
         placeForTextStyle(selector);
@@ -5750,7 +5750,7 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         ['a paragraph in a details body', '<details><summary>head</summary><p>text</p></details>', 'details > p', undefined],
         ['a selection from a paragraph into a list', '<p>text</p><ul><li>item</li></ul>', 'p', 'li'],
         ['a selection from a list into a paragraph', '<ul><li>text</li></ul><p>after</p>', 'li', 'p'],
-    ] as const)('the text style select agrees with the heading command in %s', (name, html, selector, endSelector) => {
+    ] as const)('the text style select agrees with the heading command in %s', (...[, html, selector, endSelector]) => {
         component.writeValue(html);
         fixture.detectChanges();
         placeForTextStyle(selector, endSelector);
@@ -6515,7 +6515,7 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
             undone.push(editor.innerHTML);
         }
         expect(undone).toEqual([
-            ...Array.from({ length: 9 }, (_, k) => `<p>entry ${13 - k}</p>`),
+            ...Array.from({ length: 9 }, (...[, k]) => `<p>entry ${13 - k}</p>`),
             '<p>entry 5</p>',
         ]);
     });
@@ -9698,7 +9698,7 @@ describe('RichTextEditorComponent markdown input rules', () => {
             ['a table header cell', '<table><thead><tr><th><p><br></p></th></tr></thead></table>'],
             ['a pre', '<pre><p><br></p></pre>'],
             ['a summary', '<details><summary><p><br></p></summary><p>body</p></details>'],
-        ])('does not fire in a paragraph inside %s', (where, html) => {
+        ])('does not fire in a paragraph inside %s', (...[, html]) => {
             const paragraph = seed(html).querySelector('p') as HTMLElement;
             typeInto(paragraph, '# ');
 

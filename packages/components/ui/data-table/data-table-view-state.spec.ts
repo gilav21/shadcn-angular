@@ -28,7 +28,7 @@ const COLUMNS: ColumnDef<Row>[] = [
     { accessorKey: 'due', header: 'Due', editable: true, editType: 'date' },
 ];
 
-const DATA: Row[] = Array.from({ length: 40 }, (_, i) => ({
+const DATA: Row[] = Array.from({ length: 40 }, (...[, i]) => ({
     id: i + 1,
     name: `Person ${i + 1}`,
     due: '2026-03-04',

@@ -32,7 +32,7 @@ const COLUMNS: ColumnDef<Row>[] = [
  * query faithfully reports that as a second change, which looks like a double
  * emission until you read the page numbers.
  */
-const DATA: Row[] = Array.from({ length: 100 }, (_, i) => ({
+const DATA: Row[] = Array.from({ length: 100 }, (...[, i]) => ({
     id: i + 1,
     name: i === 1 ? 'Bob' : `Person ${i + 1}`,
 }));

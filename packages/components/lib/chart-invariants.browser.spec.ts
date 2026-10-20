@@ -75,8 +75,8 @@ const round2 = (n: number): number => Math.round(n * 100) / 100;
 function dataClasses(seed: number): DataClass[] {
     const rand = mulberry32(seed);
     const count = 3 + Math.floor(rand() * 4);
-    const range = (make: (i: number) => number): number[] => Array.from({ length: count }, (_, i) => make(i));
-    const labels = (n: number): string[] => Array.from({ length: n }, (_, i) => `C${i + 1}`);
+    const range = (make: (i: number) => number): number[] => Array.from({ length: count }, (...[, i]) => make(i));
+    const labels = (n: number): string[] => Array.from({ length: n }, (...[, i]) => `C${i + 1}`);
     return [
         { id: 'positive-fractional', names: labels(count), values: range(() => round2(1 + rand() * 9)) },
         { id: 'all-negative', names: labels(count), values: range(() => -round2(0.5 + rand() * 60)) },
@@ -591,7 +591,7 @@ describe('duplicate labels and values give one mark per point at its own positio
                     // RTL mirrors a category axis that runs along x; a vertical one still runs top to bottom.
                     const rtl = chart.label.includes('RTL') && chart.categoryAxis !== 'y';
                     const centres = marks
-                        .filter((_, i) => i % perCategory === 0)
+                        .filter((...[, i]) => i % perCategory === 0)
                         .map(m => centerOf(rootBox(m, svg)))
                         .map(c => (chart.categoryAxis === 'y' ? c.y : c.x));
                     for (let i = 1; i < centres.length; i++) {
@@ -607,7 +607,7 @@ describe('duplicate labels and values give one mark per point at its own positio
         ['radar', RadarChartComponent, (c: DataClass) => ({ series: seriesOf(c) })],
         ['funnel', FunnelChartComponent, (c: DataClass) => ({ data: points(c) })],
         // Two equal outliers per group: boxplot keys its outlier circles by value.
-        ['boxplot', BoxplotComponent, (c: DataClass) => ({ groups: c.values.map((_, i) => ({ label: c.names[i], values: [10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 100, 100] })) })],
+        ['boxplot', BoxplotComponent, (c: DataClass) => ({ groups: c.values.map((...[, i]) => ({ label: c.names[i], values: [10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 100, 100] })) })],
         ['heatmap', HeatmapComponent, (c: DataClass) => ({ data: c.values.map((v, i) => ({ row: 'r', col: c.names[i], value: v })) })],
         ['combo', ComboChartComponent, (c: DataClass) => ({ barSeries: [seriesOf(c)[0]] })],
     ] as [string, Type<unknown>, (c: DataClass) => Record<string, unknown>][]) {

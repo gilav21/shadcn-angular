@@ -217,7 +217,7 @@ export class BoxplotComponent implements AfterViewInit {
 
     private readonly categoryScale = computed(() => {
         const a = this.area();
-        const keys = this.resolved().map((_, i) => String(i));
+        const keys = this.resolved().map((...[, i]) => String(i));
         const vertical = this.isVertical();
         const ordered = vertical && this.isRtl() ? [...keys].reverse() : keys;
         const range: [number, number] = vertical ? [a.left, a.right] : [a.top, a.bottom];

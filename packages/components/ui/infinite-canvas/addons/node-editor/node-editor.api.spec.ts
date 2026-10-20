@@ -17,7 +17,7 @@ const SOURCE: NodeTypeDefinition = {
     label: 'Source',
     ports: [{ id: 'out', direction: 'out', label: 'Out' }],
     initialState: () => 'seed',
-    compute: (inputs, ctx) => ({ out: ctx.state }),
+    compute: (...[, ctx]) => ({ out: ctx.state }),
 };
 
 const SINK: NodeTypeDefinition = {

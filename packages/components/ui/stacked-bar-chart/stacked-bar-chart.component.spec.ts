@@ -387,7 +387,7 @@ describe('StackedBarChartComponent diverging stacks', () => {
 
     function build(values: number[][], stacking: 'absolute' | 'percent'): StackedBarChartComponent {
         const fixture = TestBed.createComponent(StackedBarChartComponent);
-        const categories = values[0].map((_, i) => `Q${i + 1}`);
+        const categories = values[0].map((...[, i]) => `Q${i + 1}`);
         fixture.componentRef.setInput(
             'series',
             values.map((row, s) => ({ name: `S${s}`, data: row.map((value, i) => ({ name: categories[i], value })) })),
