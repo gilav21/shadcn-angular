@@ -6984,7 +6984,7 @@
       "lines": 2141
     },
     "parsers/pdf-pixel-perfect.ts": {
-      "bytes": 140042,
+      "bytes": 139963,
       "lines": 3490
     },
     "parsers/pdf-readable/pdf-readable.spec.ts": {

@@ -1766,7 +1766,7 @@ class TextLine {
      *   <span class="[diff classes]">styled text</span>
      * </div>
      */
-    dumpText(...[mgr, , hEps, spaceThreshold, z]: [AllStateManager, FontRegistry, number, number, number]): string {
+    dumpText(mgr: AllStateManager, hEps: number, spaceThreshold: number, z: number): string {
         if (this.text.length === 0 && this.states.length === 0) return '';
 
         const mId = mgr.transformMatrix.install(this.transformMatrix);
@@ -3353,7 +3353,7 @@ function fixYFlippedCoordinates(result: ProcessedPage): void {
 
 function buildPageContentHtml(
     result: ProcessedPage, pageIndex: number,
-    mgr: AllStateManager, fontRegistry: FontRegistry, z: number,
+    mgr: AllStateManager, z: number,
     scaledWidth: number, scaledHeight: number,
 ): string {
     const htmlParts: string[] = [];
@@ -3368,7 +3368,7 @@ function buildPageContentHtml(
     }
     for (const img of result.imageItems) htmlParts.push(renderImage(img, z));
     for (const line of result.lines) {
-        const lineHtml = line.dumpText(mgr, fontRegistry, H_EPS, SPACE_THRESHOLD, z);
+        const lineHtml = line.dumpText(mgr, H_EPS, SPACE_THRESHOLD, z);
         if (lineHtml) htmlParts.push(lineHtml);
     }
     for (const ann of result.annotations) {
@@ -3399,7 +3399,7 @@ function assemblePageHtml(
     }
 
     return {
-        html: buildPageContentHtml(result, pageIndex, mgr, fontRegistry, z, scaledWidth, scaledHeight),
+        html: buildPageContentHtml(result, pageIndex, mgr, z, scaledWidth, scaledHeight),
         text,
         pageIndex,
         pageWidth: scaledWidth,

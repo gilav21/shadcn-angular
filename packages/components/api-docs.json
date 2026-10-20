@@ -15744,7 +15744,7 @@
           "name": "ariaItemLabel",
           "type": "(item: T, index: number) => string",
           "description": "Builds the spoken name of an item for the \"picked up\" announcement — override it to say something meaningful (e.g. `(task) => task.title`) instead of the default `item 1`, `item 2`, …",
-          "default": "(_, i) => `item ${i + 1}`"
+          "default": "(...[, i]) => `item ${i + 1}`"
         },
         {
           "name": "ariaLabel",

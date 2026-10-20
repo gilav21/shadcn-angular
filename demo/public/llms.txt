@@ -1570,7 +1570,7 @@ Drag-and-drop sortable list with reordering, auto-scroll, and FLIP animation.
 - Category: editor
 - Depends on: none
 - npm dependencies: none
-- Inputs: `accepts: SortableAccepts<T> = true`, `ariaItemLabel: (item: T, index: number) => string = (_, i) => `item ${i + 1}``, `ariaLabel: string = 'list'`, `autoScroll: boolean = true`, `class: string = ''`, `disabled: boolean = false`, `group: string = ''`, `handleOnly: boolean = false`, `items: T[]` (required), `landEffect: SortableLandEffectFn<T> = () => null`, `listId: string = ''`, `locale: LocaleInput<SortableLocale>`, `orientation: SortableOrientation = 'vertical'`, `positionClass: SortablePositionClassFn<T> = () => ''`, `trackBy: SortableTrackByFn<T> = (item) => item`
+- Inputs: `accepts: SortableAccepts<T> = true`, `ariaItemLabel: (item: T, index: number) => string = (...[, i]) => `item ${i + 1}``, `ariaLabel: string = 'list'`, `autoScroll: boolean = true`, `class: string = ''`, `disabled: boolean = false`, `group: string = ''`, `handleOnly: boolean = false`, `items: T[]` (required), `landEffect: SortableLandEffectFn<T> = () => null`, `listId: string = ''`, `locale: LocaleInput<SortableLocale>`, `orientation: SortableOrientation = 'vertical'`, `positionClass: SortablePositionClassFn<T> = () => ''`, `trackBy: SortableTrackByFn<T> = (item) => item`
 - Outputs: `dropRejected: SortableDropRejectedEvent<T>`, `itemEnter: SortableForeignHoverEvent<T>`, `itemLeave: SortableForeignHoverEvent<T>`, `items: T[]`, `reorder: SortableReorderEvent<T>`
 
 ```html
