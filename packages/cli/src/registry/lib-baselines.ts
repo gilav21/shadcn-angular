@@ -627,7 +627,8 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   ],
   "testing/vitest-compat.ts": [
     "07f6da8b90f97f1ac11d566512514a69039431fff407ee625ab9df7d5523ed4a",
-    "5ff79935ad7e2d535051a4123acb11108cea461dc3428bd0d99259cd7cd409ef"
+    "5ff79935ad7e2d535051a4123acb11108cea461dc3428bd0d99259cd7cd409ef",
+    "99017fe522293c4edd699e9dfdb8e0e6934fd550834c678becc0d35eb8eb4006"
   ],
   "theme-presets.ts": [
     "b588ac1a2f2b979134c447ae7573b4f57a68c879dc7d1921e90d1d24f1342c1e",

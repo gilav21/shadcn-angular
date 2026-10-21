@@ -1334,16 +1334,16 @@
       "lines": 284
     },
     "context-menu/context-menu.component.spec.ts": {
-      "bytes": 28625,
-      "lines": 666
+      "bytes": 28858,
+      "lines": 668
     },
     "context-menu/context-menu.component.ts": {
       "bytes": 7012,
       "lines": 173
     },
     "context-menu/context-menu.coverage.spec.ts": {
-      "bytes": 19235,
-      "lines": 511
+      "bytes": 20122,
+      "lines": 530
     },
     "context-menu/context-menu.stories.ts": {
       "bytes": 13053,
@@ -1838,7 +1838,7 @@
       "lines": 34
     },
     "dock/dock.component.spec.ts": {
-      "bytes": 15157,
+      "bytes": 15167,
       "lines": 337
     },
     "dock/dock.component.ts": {
@@ -4942,8 +4942,8 @@
       "lines": 302
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 536726,
-      "lines": 11912
+      "bytes": 536848,
+      "lines": 11915
     },
     "rich-text-editor/rich-text-editor.component.ts": {
       "bytes": 386176,
@@ -7176,8 +7176,8 @@
       "lines": 49
     },
     "testing/vitest-compat.ts": {
-      "bytes": 3910,
-      "lines": 97
+      "bytes": 6494,
+      "lines": 146
     },
     "theme-presets.spec.ts": {
       "bytes": 3610,
