@@ -105,6 +105,7 @@ import {
   computeVariableRowRange,
   buildPrefixSums,
   partitionIntoGroups,
+  renumberDataRows,
   computeAggregateValue,
   buildFillValues,
   parseClipboardGrid,
@@ -1533,6 +1534,8 @@ export class DataTableComponent<T>
   }
 
   readonly processedData = computed(() => {
+    // Grouping reorders the rows on screen, so the drawn order is the rendered order.
+    if (this.groupingActive()) return this.groupedDataRows();
     if (this.enableSubRows()) {
       const visible = this.visibleTreeRows();
       if (!this.pagesLocally()) return visible.map((tr) => tr.row);
@@ -1600,27 +1603,36 @@ export class DataTableComponent<T>
    * grouping is not active.
    */
   readonly groupedDisplayRows = computed<DataTableDisplayRow<T>[]>(() => {
-    if (!this.groupingActive()) return [];
-    const key = this.groupBy();
-    if (!key) return [];
-
-    const column = this.groupByColumn();
     const collapsedMap = this.collapsedGroups();
-    const groups = partitionIntoGroups(this.sortedData(), (row) =>
-      this.getCellValue(row, key, column),
-    );
+    const groups = this.rowGroups();
 
     const result: DataTableDisplayRow<T>[] = [];
+    let index = 0;
     for (const group of groups) {
       const collapsed = collapsedMap[group.groupKey] === true;
       result.push(this.buildGroupRow(group.groupKey, group.groupValue, group.rows, collapsed));
       if (!collapsed) {
         for (const row of group.rows) {
-          result.push({ kind: 'data', row });
+          result.push({ kind: 'data', row, index });
+          index += 1;
         }
       }
     }
     return result;
+  });
+
+  /**
+   * Every row of the sorted data partitioned by the group column, in the order
+   * the groups are drawn, collapsed groups included. Empty when grouping is not
+   * active.
+   */
+  private readonly rowGroups = computed(() => {
+    const key = this.groupBy();
+    if (!this.groupingActive() || !key) return [];
+    const column = this.groupByColumn();
+    return partitionIntoGroups(this.sortedData(), (row) =>
+      this.getCellValue(row, key, column),
+    );
   });
 
   private buildGroupRow(
@@ -1662,8 +1674,15 @@ export class DataTableComponent<T>
   readonly pagedGroupedDisplayRows = computed<DataTableDisplayRow<T>[]>(() => {
     const rows = this.groupedDisplayRows();
     if (!this.pagesLocally()) return rows;
-    return this.slicePage(rows);
+    return renumberDataRows(this.slicePage(rows));
   });
+
+  /** The data rows of {@link pagedGroupedDisplayRows}, in the order they are drawn. */
+  private readonly groupedDataRows = computed<T[]>(() =>
+    this.pagedGroupedDisplayRows().flatMap((displayRow) =>
+      displayRow.kind === 'data' ? [displayRow.row] : [],
+    ),
+  );
 
   private readonly filteredRowIds = computed(() => {
     if (this.enableSubRows()) {
@@ -2849,6 +2868,73 @@ export class DataTableComponent<T>
     this.enhancedColumns();
     this.virtualTotalRows();
     this.stampGridSemantics();
+  });
+
+  /** Id of the row the open editor belongs to; {@link editingCell} only holds where that row was drawn. */
+  private editingRowId: string | undefined;
+
+  /**
+   * Rendered indexes move when rows are collapsed, paged away, sorted or
+   * replaced. The editor holds a pending draft for one row, so it follows that
+   * row (or is dropped when the row is no longer drawn) instead of committing
+   * into whichever row now sits at the old index. Focus and range are drawn by
+   * index, so they stay where they are on screen; they only must not point past
+   * the last row.
+   */
+  private reconcileIndexedState(rows: readonly T[]): void {
+    // An empty list is the loading or filtered-out state: nothing is drawn, so nothing is stale, and a
+    // server-paged table that blanks while fetching must not lose its focus, range or open editor.
+    if (rows.length === 0) return;
+    this.keepEditorOnItsRow(rows);
+    this.keepSelectionWithin(rows.length);
+  }
+
+  private keepEditorOnItsRow(rows: readonly T[]): void {
+    const editing = this.editingCell();
+    if (editing === null || this.editingRowId === undefined) return;
+    const getId = this.getRowId();
+    const drawn = rows[editing.rowIndex];
+    if (drawn !== undefined && getId(drawn) === this.editingRowId) return;
+
+    const moved = rows.findIndex((row) => getId(row) === this.editingRowId);
+    if (moved === -1) {
+      // Not cancelEdit(): handing focus to the grid would steal it from wherever the user is now.
+      this.dropEdit();
+      return;
+    }
+    this.editingCell.set({ ...editing, rowIndex: moved });
+    // Tab continues from the focused cell, which is the edited cell unless the user has focused another.
+    const focused = this.focusedCell();
+    if (focused?.rowIndex === editing.rowIndex && focused.columnKey === editing.columnKey) {
+      this.focusedCell.set({ ...focused, rowIndex: moved });
+    }
+    this.cellEditError.update((error) =>
+      error?.rowIndex === editing.rowIndex ? { ...error, rowIndex: moved } : error,
+    );
+  }
+
+  private keepSelectionWithin(rowCount: number): void {
+    const focused = this.focusedCell();
+    if (focused !== null && focused.rowIndex >= rowCount) this.focusedCell.set(null);
+
+    const range = this.cellRange();
+    if (range === null) return;
+    const last = rowCount - 1;
+    if (Math.min(range.startRow, range.endRow) > last) {
+      this.cellRange.set(null);
+    } else if (Math.max(range.startRow, range.endRow) > last) {
+      this.cellRange.set({
+        ...range,
+        startRow: Math.min(range.startRow, last),
+        endRow: Math.min(range.endRow, last),
+      });
+    }
+  }
+
+  // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+  protected readonly _renderedRowsEffect = effect(() => {
+    const rows = this.processedData();
+    untracked(() => this.reconcileIndexedState(rows));
   });
 
   // protected, not private: nothing reads this handle; the field only creates the effect in field order.
@@ -4154,7 +4240,11 @@ export class DataTableComponent<T>
         col.accessorKey !== "_actions",
     );
     const selectedIds = this.rowSelection();
-    const rows = this.sortedData().filter(
+    // Grouping reorders the rows on screen; the copy follows the screen, collapsed groups included.
+    const inDrawnOrder = this.groupingActive()
+      ? this.rowGroups().flatMap((group) => group.rows)
+      : this.sortedData();
+    const rows = inDrawnOrder.filter(
       (row) => selectedIds[this.getRowId()(row)],
     );
     if (rows.length === 0) return;
@@ -4590,6 +4680,7 @@ export class DataTableComponent<T>
     const currentValue = this.getCellValue(row, col.accessorKey, col);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
+    this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
   }
@@ -4610,9 +4701,16 @@ export class DataTableComponent<T>
    * message and emits {@link editError} instead. On success {@link cellEdit} is
    * emitted and the column's `valueSetter` writes a new row into {@link data} —
    * a column without a `valueSetter` emits the event but changes nothing.
-   * Recorded as one undo command when {@link enableEditHistory} is on.
+   * Recorded as one undo command when {@link enableEditHistory} is on. If the
+   * rows moved since the editor opened, the edit follows its row; if that row is
+   * no longer drawn the draft is discarded without an event rather than written
+   * into another row.
    */
   commitEdit(): void {
+    // The reconciling effect only runs on the next change-detection pass; rows may have moved since. With no
+    // rows drawn there is nothing to commit into, and the commit below cancels the edit as it always did.
+    const rows = this.processedData();
+    if (rows.length > 0) this.keepEditorOnItsRow(rows);
     const editing = this.editingCell();
     if (!editing) return;
 
@@ -4829,10 +4927,15 @@ export class DataTableComponent<T>
    * value and no output is emitted.
    */
   cancelEdit(): void {
+    this.dropEdit();
+    this.refocusTable();
+  }
+
+  private dropEdit(): void {
     this.editingCell.set(null);
+    this.editingRowId = undefined;
     this.editValue.set(null);
     this.cellEditError.set(null);
-    this.refocusTable();
   }
 
   /** Returns the inline validation message for a cell, or `null` if valid. */

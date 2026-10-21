@@ -10,7 +10,7 @@ import type { DataTableHeaderContextMenuEvent, DataTableRowContextMenuEvent } fr
 /**
  * The directive on a REAL `<ui-data-table>`. Its other spec hand-builds the DOM; that is how the old flat
  * directive passed its tests while a header right-click reported row 0 and a grouped row reported row 0:
- * the header row, a detail row, the footer and every grouped row are `table-row`s without a `data-row-index`.
+ * the header row, a detail row, the footer and every group header are `table-row`s without a `data-row-index`.
  */
 
 interface Row {
@@ -23,6 +23,7 @@ const ROWS: Row[] = [
   { id: '1', name: 'Alice', grp: 'A' },
   { id: '2', name: 'Bob', grp: 'A' },
   { id: '3', name: 'Cy', grp: 'B' },
+  { id: '4', name: 'Di', grp: 'A' },
 ];
 
 const COLUMNS: ColumnDef<Row>[] = [
@@ -123,18 +124,30 @@ describe('DataTableContextMenuDirective on a real data table', () => {
     expect(footer.defaultPrevented).toBe(false);
   });
 
-  // A grouped table has no rendered row index (grouping partitions the sorted data), so rather than guess one
-  // the gesture falls through to the browser. The old directive reported row 0's data for every grouped row.
-  it('leaves a grouped row to the browser instead of reporting the wrong row', async () => {
-    const { host, root } = await render(true);
-    const groupedCells = Array.from(root.querySelectorAll<HTMLElement>('[data-slot="table-cell"]'));
-    expect(groupedCells.length).toBeGreaterThan(0);
+  // Grouping draws A: Alice, Bob, Di then B: Cy, while the data stays in source order, so the rendered index of
+  // Di (2) and Cy (3) differs from their position in the data (3 and 2). The old directive reported row 0's data
+  // for every grouped row.
+  it('emits the grouped row that was right-clicked, indexed as drawn, and focuses its cell', async () => {
+    const { host, root, table } = await render(true);
 
-    const events = groupedCells.map(cell => rightClick(cell));
+    rightClick(bodyCell(root, 2, 'name'));
+    rightClick(bodyCell(root, 3, 'name'));
+
+    expect(host.rowEvents.map(event => [event.row, event.index])).toEqual([[ROWS[3], 2], [ROWS[2], 3]]);
+    expect(host.menu.show).toHaveBeenLastCalledWith(30, 40, ROWS[2]);
+    expect(table.focusedCell()).toEqual({ rowIndex: 3, columnKey: 'name' });
+  });
+
+  it('leaves a group header to the browser', async () => {
+    const { host, root } = await render(true);
+    // The chevron button is where a right-click on a group header usually lands.
+    const chevron = root.querySelector('[data-group-key] button') as HTMLElement;
+
+    const event = rightClick(chevron);
 
     expect(host.rowEvents).toHaveLength(0);
     expect(host.menu.show).not.toHaveBeenCalled();
-    expect(events.every(event => !event.defaultPrevented)).toBe(true);
+    expect(event.defaultPrevented).toBe(false);
   });
 
   // The table's range handler and the directive both act on the same 500 ms hold. On a real table, with a real

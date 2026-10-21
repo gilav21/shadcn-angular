@@ -3291,10 +3291,412 @@ describe('DataTableComponent - Row Grouping', () => {
         expect((page2[1] as { row: OrderData }).row.id).toBe('o4');
     });
 
-    it('pagedGroupedDisplayRows returns every row unsliced when localPagination is off', () => {
-        fixture.componentRef.setInput('localPagination', false);
-        fixture.detectChanges();
-        expect(component.pagedGroupedDisplayRows()).toEqual(component.groupedDisplayRows());
+    // The rendered index is the contract every callback, event and addon reads through getRenderedRowAt: the row
+    // in the element stamped data-row-index="i" must be getRenderedRowAt(i). Grouping reorders the rows on screen
+    // (pending: o1, o3 · shipped: o2, o5 · delivered: o4) while the sorted data stays o1..o5.
+    describe('rendered row index', () => {
+        const renderedIds = (): { index: string | undefined; id: string }[] =>
+            Array.from(fixture.nativeElement.querySelectorAll('[data-row-index]') as NodeListOf<HTMLElement>)
+                .map((row) => ({ index: row.dataset['rowIndex'], id: row.querySelector('[data-column="id"]')!.textContent!.trim() }));
+
+        it('numbers the data rows in the order they are drawn, group headers not counted', () => {
+            expect(renderedIds()).toEqual([
+                { index: '0', id: 'o1' }, { index: '1', id: 'o3' },
+                { index: '2', id: 'o2' }, { index: '3', id: 'o5' },
+                { index: '4', id: 'o4' },
+            ]);
+            expect(renderedIds().every(({ index, id }) => component.getRenderedRowAt(Number(index))?.id === id)).toBe(true);
+        });
+
+        it('restarts at 0 on every page', () => {
+            fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
+            fixture.detectChanges();
+
+            expect(renderedIds()).toEqual([{ index: '0', id: 'o2' }, { index: '1', id: 'o5' }]);
+            expect(component.getRenderedRowAt(0)?.id).toBe('o2');
+            expect(component.getRenderedRowAt(2)).toBeUndefined();
+        });
+
+        it('numbers a page that opens on data rows whose group header is on the previous page', () => {
+            fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 2 });
+            fixture.detectChanges();
+
+            expect(renderedIds()).toEqual([{ index: '0', id: 'o3' }]);
+            expect(component.getRenderedRowAt(0)?.id).toBe('o3');
+            expect(component.getRenderedRowAt(1)).toBeUndefined();
+        });
+
+        it('skips the rows of a collapsed group, on a later page too', () => {
+            fixture.componentRef.setInput('collapsedGroups', { pending: true });
+            fixture.componentRef.setInput('paginationState', { pageIndex: 2, pageSize: 2 });
+            fixture.detectChanges();
+
+            expect(renderedIds()).toEqual([{ index: '0', id: 'o4' }]);
+            expect(component.getRenderedRowAt(0)?.id).toBe('o4');
+            expect(component.getRenderedRowAt(1)).toBeUndefined();
+        });
+
+        it('skips the rows of a collapsed group when nothing is paged', () => {
+            fixture.componentRef.setInput('collapsedGroups', { pending: true });
+            fixture.componentRef.setInput('showPagination', false);
+            fixture.detectChanges();
+
+            expect(renderedIds()).toEqual([{ index: '0', id: 'o2' }, { index: '1', id: 'o5' }, { index: '2', id: 'o4' }]);
+            expect(component.getRenderedRowAt(0)?.id).toBe('o2');
+            expect(component.getRenderedRowAt(3)).toBeUndefined();
+        });
+
+        // A small page size, so that wrongly slicing the list drops rows (the default size 10 holds the whole list).
+        it('numbers the whole list again when paging is switched off after a page was visited', () => {
+            const everyRow = [
+                { index: '0', id: 'o1' }, { index: '1', id: 'o3' }, { index: '2', id: 'o2' }, { index: '3', id: 'o5' }, { index: '4', id: 'o4' },
+            ];
+            fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 2 });
+            fixture.detectChanges();
+            expect(renderedIds()).toEqual([{ index: '0', id: 'o3' }]);
+
+            fixture.componentRef.setInput('showPagination', false);
+            fixture.detectChanges();
+            expect(renderedIds()).toEqual(everyRow);
+
+            // Rows supplied a page at a time (server-side paging): nothing is sliced here either.
+            fixture.componentRef.setInput('showPagination', true);
+            fixture.componentRef.setInput('localPagination', false);
+            fixture.detectChanges();
+            expect(renderedIds()).toEqual(everyRow);
+            expect(component.getRenderedRowAt(1)?.id).toBe('o3');
+        });
+
+        it('leaves the rendered rows to the sub-rows path when groupBy is set together with enableSubRows', () => {
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            fixture.componentRef.setInput('enableSubRows', true);
+            fixture.detectChanges();
+
+            expect(component.groupingActive()).toBe(false);
+            expect(renderedIds().map(({ id }) => id)).toEqual(['o1', 'o2', 'o3', 'o4', 'o5']);
+            expect(component.getRenderedRowAt(1)?.id).toBe('o2');
+            errorSpy.mockRestore();
+        });
+
+        it('leaves the rendered rows to the virtual list when groupBy is set together with enableVirtualScroll', () => {
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            fixture.componentRef.setInput('enableVirtualScroll', true);
+            fixture.detectChanges();
+
+            expect(component.groupingActive()).toBe(false);
+            expect(renderedIds().length).toBeGreaterThan(0);
+            expect(renderedIds().every(({ index, id }) => component.getRenderedRowAt(Number(index))?.id === id)).toBe(true);
+            errorSpy.mockRestore();
+        });
+
+        // The test runner loads no Tailwind, so the focus ring and the range tint are read from the classes that carry them.
+        it('selects a range across a group boundary by rendered index', () => {
+            fixture.componentRef.setInput('enableCellRangeSelection', true);
+            fixture.detectChanges();
+            const cell = (row: number, column: string): HTMLElement =>
+                fixture.nativeElement.querySelector(`[data-row-index="${row}"] [data-column="${column}"]`);
+
+            cell(1, 'id').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+            (document as Document & { elementFromPoint?: () => Element | null }).elementFromPoint = () => cell(2, 'status');
+            document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 1, clientY: 1 }));
+            document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(component.cellRange()).toEqual({ startRow: 1, startCol: 'id', endRow: 2, endCol: 'status' });
+            const tintedRows = new Set(Array.from(fixture.nativeElement.querySelectorAll('[data-row-index] [data-column].bg-primary\\/15') as NodeListOf<HTMLElement>)
+                .map((c) => c.closest<HTMLElement>('[data-row-index]')!.dataset['rowIndex']));
+            expect([...tintedRows].sort((a, b) => Number(a) - Number(b))).toEqual(['1', '2']);
+        });
+
+        it('draws the focus ring on the cell at the focused rendered index', () => {
+            component.focusCell(3, 'id');
+            fixture.detectChanges();
+
+            const ringed = Array.from(fixture.nativeElement.querySelectorAll('[data-row-index] [data-column="id"].ring-2') as NodeListOf<HTMLElement>)
+                .map((cell) => cell.textContent!.trim());
+            expect(ringed).toEqual(['o5']);
+        });
+
+        // What an index points at moves when rows are collapsed, paged away or reordered. The editor holds a pending
+        // draft for one row, so it must stay on that row; focus and range are drawn by index (ring and tint), so
+        // they stay put on screen but must never point past the last row.
+        describe('state addressed by rendered index', () => {
+            const AMOUNT_EDITABLE: ColumnDef<OrderData>[] = [
+                { accessorKey: 'id', header: 'ID' },
+                { accessorKey: 'status', header: 'Status' },
+                {
+                    accessorKey: 'amount', header: 'Amount', editable: true,
+                    valueSetter: (row, value) => ({ ...row, amount: Number(value) }),
+                    editValidator: (value) => (Number(value) >= 0 ? true : 'Must not be negative'),
+                },
+            ];
+            const amountOf = (id: string): number | undefined => component.data().find((row) => row.id === id)?.amount;
+
+            it('keeps the editor on its row when a group above it collapses', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.startEditing(3, 'amount');
+                expect(component.getRenderedRowAt(3)?.id).toBe('o5');
+
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+                expect(component.editingCell()).toEqual({ rowIndex: 1, columnKey: 'amount' });
+                component.onEditValueChange('99');
+                component.commitEdit();
+
+                expect([amountOf('o5'), amountOf('o2'), amountOf('o4')]).toEqual([99, 20, 40]);
+            });
+
+            it('moves the focus with the editor when the focused cell is the one being edited', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.focusCell(3, 'amount');
+                component.startEditing(3, 'amount');
+
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+
+                expect(component.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'amount' });
+            });
+
+            it('leaves the focus where it is when another cell is focused', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.focusCell(2, 'id');
+                component.startEditing(3, 'amount');
+
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+
+                expect(component.focusedCell()).toEqual({ rowIndex: 2, columnKey: 'id' });
+            });
+
+            it('cancels, as it always did, when a commit finds no rows drawn at all', async () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.startEditing(3, 'amount');
+                component.onEditValueChange('99');
+
+                component.collapseAllGroups();
+                fixture.detectChanges();
+                expect(component.editingCell()).toEqual({ rowIndex: 3, columnKey: 'amount' });
+                component.commitEdit();
+                await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+                expect(component.editingCell()).toBeNull();
+                expect(component.data()).toEqual(ORDER_DATA);
+                // Cancelling hands the keyboard back to the grid.
+                expect(document.activeElement).toBe(fixture.nativeElement.querySelector('[tabindex="0"]'));
+            });
+
+            it('trims a range whose first row is the last one still drawn, without dropping it', () => {
+                component.cellRange.set({ startRow: 2, startCol: 'id', endRow: 4, endCol: 'amount' });
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+
+                expect(component.cellRange()).toEqual({ startRow: 2, startCol: 'id', endRow: 2, endCol: 'amount' });
+            });
+
+            it('keeps the editor on its row when the rows are reordered', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.componentRef.setInput('groupBy', undefined);
+                fixture.detectChanges();
+                component.startEditing(0, 'amount');
+                expect(component.getRenderedRowAt(0)?.id).toBe('o1');
+
+                fixture.componentRef.setInput('data', [...ORDER_DATA].reverse());
+                fixture.detectChanges();
+                expect(component.editingCell()).toEqual({ rowIndex: 4, columnKey: 'amount' });
+            });
+
+            it('drops the edit, writing nothing, when its row leaves the page', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.startEditing(4, 'amount');
+                component.onEditValueChange('-5');
+                component.commitEdit();
+                expect(component.cellEditError()).not.toBeNull();
+
+                fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
+                fixture.detectChanges();
+
+                expect(component.editingCell()).toBeNull();
+                expect(component.editValue()).toBeNull();
+                expect(component.cellEditError()).toBeNull();
+                expect(component.data()).toEqual(ORDER_DATA);
+            });
+
+            it('moves a validation message along with the editor, and reports a repeated rejection only once', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                const reported: number[] = [];
+                component.editError.subscribe((event) => reported.push(event.rowIndex));
+                component.startEditing(3, 'amount');
+                component.onEditValueChange('-5');
+                component.commitEdit();
+                expect(component.cellEditError()?.rowIndex).toBe(3);
+
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+                expect(component.editingCell()?.rowIndex).toBe(1);
+                expect(component.cellEditError()?.rowIndex).toBe(1);
+                component.commitEdit();
+
+                expect(reported).toEqual([3]);
+            });
+
+            it('commits into the row the editor was opened on even before the table has re-rendered', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.startEditing(3, 'amount');
+                component.onEditValueChange('99');
+
+                component.toggleGroupCollapsed('pending');
+                component.commitEdit();
+
+                expect([amountOf('o5'), amountOf('o2')]).toEqual([99, 20]);
+            });
+
+            it('does not take focus from elsewhere when it drops an edit', async () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                const elsewhere = document.createElement('input');
+                document.body.append(elsewhere);
+                try {
+                    component.startEditing(4, 'amount');
+                    elsewhere.focus();
+
+                    fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
+                    fixture.detectChanges();
+                    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+                    expect(component.editingCell()).toBeNull();
+                    expect(document.activeElement).toBe(elsewhere);
+                } finally {
+                    elsewhere.remove();
+                }
+            });
+
+            it('clears a focused cell that no longer has a row', () => {
+                component.focusCell(1, 'id');
+                component.toggleGroupCollapsed('pending');
+                component.toggleGroupCollapsed('shipped');
+                fixture.detectChanges();
+
+                expect(component.getRenderedRowAt(1)).toBeUndefined();
+                expect(component.focusedCell()).toBeNull();
+            });
+
+            it('leaves focus, range and the editor alone while the list is empty, as when a server page is loading', () => {
+                fixture.componentRef.setInput('columns', AMOUNT_EDITABLE);
+                fixture.detectChanges();
+                component.focusCell(3, 'id');
+                component.cellRange.set({ startRow: 3, startCol: 'id', endRow: 4, endCol: 'amount' });
+                component.startEditing(3, 'amount');
+
+                component.collapseAllGroups();
+                fixture.detectChanges();
+
+                expect(component.processedData()).toEqual([]);
+                expect(component.focusedCell()).toEqual({ rowIndex: 3, columnKey: 'id' });
+                expect(component.cellRange()).toEqual({ startRow: 3, startCol: 'id', endRow: 4, endCol: 'amount' });
+                expect(component.editingCell()).toEqual({ rowIndex: 3, columnKey: 'amount' });
+            });
+
+            it('keeps a focused cell whose row is still drawn', () => {
+                component.focusCell(1, 'id');
+                component.toggleGroupCollapsed('delivered');
+                fixture.detectChanges();
+
+                expect(component.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
+            });
+
+            it('trims a range that runs past the last row', () => {
+                component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 4, endCol: 'amount' });
+                component.toggleGroupCollapsed('delivered');
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+
+                expect(component.cellRange()).toEqual({ startRow: 0, startCol: 'id', endRow: 1, endCol: 'amount' });
+            });
+
+            it('trims a range that was dragged upwards, so that its start is the larger row', () => {
+                component.cellRange.set({ startRow: 4, startCol: 'id', endRow: 0, endCol: 'amount' });
+                component.toggleGroupCollapsed('delivered');
+                fixture.detectChanges();
+
+                expect(component.cellRange()).toEqual({ startRow: 3, startCol: 'id', endRow: 0, endCol: 'amount' });
+            });
+
+            it('drops a range that begins at the first row that is gone', () => {
+                component.cellRange.set({ startRow: 3, startCol: 'id', endRow: 4, endCol: 'amount' });
+                component.toggleGroupCollapsed('pending');
+                fixture.detectChanges();
+
+                expect(component.getRenderedRowAt(3)).toBeUndefined();
+                expect(component.cellRange()).toBeNull();
+            });
+        });
+
+        it('copies the selected rows in the order they are drawn', async () => {
+            fixture.componentRef.setInput('rowSelection', { o2: true, o3: true, o4: true });
+            fixture.detectChanges();
+            const writeText = vi.fn(async (_text: string) => undefined);
+            vi.stubGlobal('navigator', { clipboard: { writeText } });
+            try {
+                await component.copySelectedToClipboard();
+                expect(writeText.mock.calls[0][0].split('\n').map((line) => line.split('\t')[0])).toEqual(['ID', 'o3', 'o2', 'o4']);
+            } finally {
+                vi.unstubAllGlobals();
+            }
+        });
+
+        it('copies the selected rows in sorted order when groupBy is set together with enableVirtualScroll', async () => {
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            fixture.componentRef.setInput('enableVirtualScroll', true);
+            fixture.componentRef.setInput('rowSelection', { o2: true, o3: true });
+            fixture.detectChanges();
+            const writeText = vi.fn(async (_text: string) => undefined);
+            vi.stubGlobal('navigator', { clipboard: { writeText } });
+            try {
+                await component.copySelectedToClipboard();
+                expect(writeText.mock.calls[0][0].split('\n').map((line) => line.split('\t')[0])).toEqual(['ID', 'o2', 'o3']);
+            } finally {
+                vi.unstubAllGlobals();
+                errorSpy.mockRestore();
+            }
+        });
+
+        it('still copies selected rows that are hidden in a collapsed group', async () => {
+            fixture.componentRef.setInput('rowSelection', { o1: true, o2: true });
+            fixture.componentRef.setInput('collapsedGroups', { pending: true });
+            fixture.detectChanges();
+            const writeText = vi.fn(async (_text: string) => undefined);
+            vi.stubGlobal('navigator', { clipboard: { writeText } });
+            try {
+                await component.copySelectedToClipboard();
+                expect(writeText.mock.calls[0][0].split('\n').map((line) => line.split('\t')[0])).toEqual(['ID', 'o1', 'o2']);
+            } finally {
+                vi.unstubAllGlobals();
+            }
+        });
+
+        it('hands a row action the rendered index of its own row', () => {
+            const clicked: { id: string; index: number }[] = [];
+            component.registerCellAction({
+                id: 'menu',
+                ariaLabel: 'Row actions',
+                onClick: (_event, context) => clicked.push({ id: context.row.id, index: context.index }),
+            });
+            fixture.detectChanges();
+
+            const buttons = Array.from(fixture.nativeElement.querySelectorAll('[aria-label="Row actions"]') as NodeListOf<HTMLElement>);
+            buttons.forEach((button) => button.click());
+
+            expect(clicked).toEqual([
+                { id: 'o1', index: 0 }, { id: 'o3', index: 1 }, { id: 'o2', index: 2 }, { id: 'o5', index: 3 }, { id: 'o4', index: 4 },
+            ]);
+        });
     });
 });
 

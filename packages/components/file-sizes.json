@@ -1506,8 +1506,8 @@
       "lines": 297
     },
     "data-table/addons/context-menu/context-menu.table.spec.ts": {
-      "bytes": 7905,
-      "lines": 178
+      "bytes": 8415,
+      "lines": 191
     },
     "data-table/addons/context-menu/context-menu.types.ts": {
       "bytes": 1413,
@@ -1602,16 +1602,16 @@
       "lines": 132
     },
     "data-table/data-table.component.html": {
-      "bytes": 69552,
+      "bytes": 69611,
       "lines": 1531
     },
     "data-table/data-table.component.spec.ts": {
-      "bytes": 292879,
-      "lines": 6587
+      "bytes": 313990,
+      "lines": 6989
     },
     "data-table/data-table.component.ts": {
-      "bytes": 229549,
-      "lines": 6308
+      "bytes": 234064,
+      "lines": 6411
     },
     "data-table/data-table.coverage.spec.ts": {
       "bytes": 19823,
@@ -1638,12 +1638,12 @@
       "lines": 1939
     },
     "data-table/data-table.types.ts": {
-      "bytes": 14882,
-      "lines": 481
+      "bytes": 15183,
+      "lines": 487
     },
     "data-table/data-table.utils.ts": {
-      "bytes": 27059,
-      "lines": 798
+      "bytes": 27633,
+      "lines": 814
     },
     "data-table/index.ts": {
       "bytes": 675,
