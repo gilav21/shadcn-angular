@@ -515,7 +515,9 @@ describe('ContextMenu as a keyboard menu', () => {
         await TestBed.configureTestingModule({ imports: [host] }).compileComponents();
         const fixture = TestBed.createComponent(host);
         document.body.appendChild(fixture.nativeElement);
-        fixture.detectChanges();
+        // The flyout mounts when the sub-content renders, long after the keydown that opens it. Under zone.js a fixture
+        // not attached to the application only renders on detectChanges, so attach it as an app's root is.
+        fixture.autoDetectChanges();
         target().focus();
         target().dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 120, clientY: 120 }));
         fixture.detectChanges();

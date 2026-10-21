@@ -4000,8 +4000,8 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
     });
 
     it('swallows paste and drop while the form has disabled the control', async () => {
-        const pasteSeen = vi.fn().mockReturnValue(true);
-        const dropSeen = vi.fn().mockReturnValue(true);
+        const pasteSeen = vi.fn<(event: ClipboardEvent) => boolean>().mockReturnValue(true);
+        const dropSeen = vi.fn<(event: DragEvent) => boolean>().mockReturnValue(true);
         component.registerPasteInterceptor(pasteSeen);
         component.registerDropInterceptor(dropSeen);
 
@@ -4584,12 +4584,19 @@ describe('RichTextEditorComponent — tables', () => {
         expect(cell.style.backgroundColor).toBe('');
     });
 
-    /** Each cell's computed [top, right, bottom, left] border styles, row by row. */
+    /**
+     * A cell's computed [top, right, bottom, left] border styles. A side nothing sets computes to the CSS initial value,
+     * 'none'; jsdom 26 (what jest runs) reports '' for it where jsdom 27 and the browsers report 'none'.
+     */
+    const sidesOf = (cell: HTMLTableCellElement): string[] => {
+        const style = getComputedStyle(cell);
+        return [style.borderTopStyle, style.borderRightStyle, style.borderBottomStyle, style.borderLeftStyle]
+            .map((side) => side || 'none');
+    };
+
+    /** Each cell's computed border styles, row by row. */
     const borderStyles = (table: HTMLTableElement): string[][][] =>
-        Array.from(table.rows, (row) => Array.from(row.cells, (cell) => {
-            const style = getComputedStyle(cell);
-            return [style.borderTopStyle, style.borderRightStyle, style.borderBottomStyle, style.borderLeftStyle];
-        }));
+        Array.from(table.rows, (row) => Array.from(row.cells, sidesOf));
 
     // Each border test starts from 'outer', so it has another style's
     // overrides to replace rather than a pristine table.
@@ -4628,11 +4635,7 @@ describe('RichTextEditorComponent — tables', () => {
 
             const [a, b] = Array.from(table.rows[0].cells);
             const c = table.rows[1].cells[0];
-            const sides = (cell: HTMLTableCellElement) => {
-                const style = getComputedStyle(cell);
-                return [style.borderTopStyle, style.borderRightStyle, style.borderBottomStyle, style.borderLeftStyle];
-            };
-            expect({ A: sides(a), B: sides(b), C: sides(c) }).toEqual(frames[dir]);
+            expect({ A: sidesOf(a), B: sidesOf(b), C: sidesOf(c) }).toEqual(frames[dir]);
             for (const inner of Array.from(b.querySelectorAll('td'))) {
                 expect(inner.getAttribute('style')).toBeNull();
             }
@@ -4953,14 +4956,14 @@ describe('RichTextEditorComponent — find and replace', () => {
     // Bounded: advancing by a single UTF-16 unit lands mid-surrogate and the
     // u-flag regex never terminates, so a regression here hangs rather than
     // asserting. The timeout turns that into a fast failure.
-    it('T-13b zero-length regex matches advance by whole code points (astral text)', { timeout: 5000 }, () => {
+    it('T-13b zero-length regex matches advance by whole code points (astral text)', () => {
         load('<p>😀😁 ok</p>');
         component.toggleFindUseRegex();
 
         expect(() => component.onFindQueryChange('x*')).not.toThrow();
 
         expect(component.findMatchCount()).toBe(0);
-    });
+    }, 5000);
 
     it('T-14 regex replace expands capture groups', () => {
         load('<p>jane@acme</p>');

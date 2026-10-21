@@ -172,7 +172,7 @@ describe('DockComponent', () => {
             const rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame');
             const cancelSpy = vi.spyOn(globalThis, 'cancelAnimationFrame');
             dockEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, bubbles: true }));
-            const pending = rafSpy.mock.results[0].value;
+            const pending = rafSpy.mock.results[0].value as number;
             dockEl.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
 
             expect(cancelSpy).toHaveBeenCalledWith(pending);
