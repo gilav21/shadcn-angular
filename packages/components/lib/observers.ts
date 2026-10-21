@@ -16,6 +16,11 @@ export function createResizeObserver(callback: ResizeObserverCallback): ResizeOb
     return typeof globalThis.ResizeObserver === 'function' ? new ResizeObserver(callback) : null;
 }
 
+/** A `MutationObserver` for `callback`, or `null` where the API is unavailable (server rendering). */
+export function createMutationObserver(callback: MutationCallback): MutationObserver | null {
+    return typeof globalThis.MutationObserver === 'function' ? new MutationObserver(callback) : null;
+}
+
 /** An `IntersectionObserver` for `callback`, or `null` where the API is unavailable. */
 export function createIntersectionObserver(
     callback: IntersectionObserverCallback,

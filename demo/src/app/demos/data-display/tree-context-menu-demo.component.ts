@@ -4,7 +4,6 @@ import {
   computed,
   inject,
   signal,
-  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -225,8 +224,6 @@ export class TreeContextMenuDemoComponent {
   readonly t = computed(
     () => TREE_CONTEXT_MENU_DEMO_LOCALES[this.localeId()] ?? TREE_CONTEXT_MENU_DEMO_LOCALES['en'],
   );
-
-  private readonly menu = viewChild.required(ContextMenuComponent);
 
   readonly nodes = signal<TreeNode[]>(structuredClone(INITIAL_TREE));
   readonly disabled = signal(false);

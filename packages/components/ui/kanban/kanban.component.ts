@@ -409,7 +409,8 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     private readonly columnMenuRef = viewChild<ContextMenuComponent>('columnMenu');
     private readonly boardMenuRef = viewChild<ContextMenuComponent>('boardMenu');
     private readonly boardSurface = viewChild<ElementRef<HTMLElement>>('boardSurface');
-    private readonly registerBoardMenu = effect((onCleanup) => {
+    // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+    protected readonly registerBoardMenu = effect((onCleanup) => {
         const surface = this.boardSurface()?.nativeElement;
         if (surface) onCleanup(onContextGesture(surface, (gesture) => this.openBoardMenu(gesture)));
     });

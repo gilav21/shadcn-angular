@@ -1,3 +1,4 @@
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import {
     Component,
     ChangeDetectionStrategy,
@@ -6,6 +7,7 @@ import {
     AfterViewInit,
     OnDestroy,
     NgZone,
+    PLATFORM_ID,
     inject,
     ElementRef,
     ViewChild,
@@ -21,6 +23,8 @@ import { cn } from '../../lib/utils';
 export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly ngZone = inject(NgZone);
+    private readonly document = inject(DOCUMENT);
+    private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
     @ViewChild('bar') barRef!: ElementRef<HTMLElement>;
 
@@ -57,8 +61,8 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
             scrollTop = this.scrollTarget.scrollTop;
             scrollHeight = this.scrollTarget.scrollHeight - this.scrollTarget.clientHeight;
         } else {
-            scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
-            scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            scrollTop = this.document.documentElement.scrollTop || this.document.body.scrollTop;
+            scrollHeight = this.document.documentElement.scrollHeight - this.document.documentElement.clientHeight;
         }
 
         const pct = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
@@ -69,6 +73,8 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
     };
 
     ngAfterViewInit(): void {
+        // A scroll tracker has nothing to track on the server: no scrolling, no computed style.
+        if (!this.isBrowser) return;
         const bar = this.barRef.nativeElement;
         bar.style.height = `${this.height()}px`;
         bar.style.backgroundColor = this.color();
@@ -78,7 +84,7 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
             this.scrollTarget = containerInput;
         } else if (typeof containerInput === 'string') {
             try {
-                this.scrollTarget = document.querySelector<HTMLElement>(containerInput);
+                this.scrollTarget = this.document.querySelector<HTMLElement>(containerInput);
             } catch {
                 this.scrollTarget = null;
             }
@@ -87,7 +93,7 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
         if (!this.scrollTarget) {
             const host = this.el.nativeElement as HTMLElement;
             let parent = host.parentElement;
-            while (parent && parent !== document.body) {
+            while (parent && parent !== this.document.body) {
                 const style = getComputedStyle(parent);
                 if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
                     this.scrollTarget = parent;

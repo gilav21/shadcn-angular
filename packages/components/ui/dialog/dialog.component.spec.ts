@@ -440,3 +440,124 @@ describe('DialogTriggerComponent — keyboard activation', () => {
         expect(dialog.open()).toBe(false);
     });
 });
+
+// --- Accessibility: the panel is a named, modal dialog ----------------------
+
+@Component({
+    template: `
+        <ui-dialog #d>
+            <ui-dialog-content>
+                <ui-dialog-header>
+                    <ui-dialog-title>Projected title</ui-dialog-title>
+                    <ui-dialog-description>Projected description</ui-dialog-description>
+                </ui-dialog-header>
+                Body
+            </ui-dialog-content>
+        </ui-dialog>
+    `,
+    imports: [DialogComponent, DialogContentComponent, DialogHeaderComponent, DialogTitleComponent, DialogDescriptionComponent],
+})
+class ProjectedNamesHost { }
+
+@Component({
+    template: `
+        <ui-dialog>
+            <ui-dialog-content title="Simple title" description="Simple description">Body</ui-dialog-content>
+        </ui-dialog>
+    `,
+    imports: [DialogComponent, DialogContentComponent],
+})
+class SimpleNamesHost { }
+
+@Component({
+    template: `
+        <ui-dialog>
+            <ui-dialog-content>Just text, no title</ui-dialog-content>
+        </ui-dialog>
+    `,
+    imports: [DialogComponent, DialogContentComponent],
+})
+class UnnamedHost { }
+
+// The outer dialog has no title of its own; the inner one does. Both start open, so they render in
+// the same pass and the outer panel's lookup could reach the inner title if it did not stop at its own.
+@Component({
+    template: `
+        <ui-dialog [open]="true">
+            <ui-dialog-content>
+                <ui-dialog [open]="true">
+                    <ui-dialog-content title="Inner title" description="Inner description">Inner body</ui-dialog-content>
+                </ui-dialog>
+            </ui-dialog-content>
+        </ui-dialog>
+    `,
+    imports: [DialogComponent, DialogContentComponent],
+})
+class NestedHost { }
+
+describe('Dialog accessibility', () => {
+    const open = async <T>(host: new () => T): Promise<ComponentFixture<T>> => {
+        await TestBed.configureTestingModule({ imports: [host] }).compileComponents();
+        const fixture = TestBed.createComponent(host);
+        fixture.detectChanges();
+        // A nested dialog only appears once its parent's panel has rendered, so open in rounds until none is left closed.
+        for (let round = 0; round < 3; round++) {
+            for (const d of fixture.debugElement.queryAll(By.directive(DialogComponent))) {
+                (d.componentInstance as DialogComponent).show();
+            }
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+        }
+        return fixture;
+    };
+    const panels = (fixture: ComponentFixture<unknown>): HTMLElement[] =>
+        fixture.debugElement.queryAll(By.css('[data-slot="dialog-content"]')).map(p => p.nativeElement as HTMLElement);
+
+    it('is a modal dialog named by its own projected title and described by its description', async () => {
+        const fixture = await open(ProjectedNamesHost);
+        const [panel] = panels(fixture);
+        const title = fixture.nativeElement.querySelector('[data-slot="dialog-title"]') as HTMLElement;
+        const description = fixture.nativeElement.querySelector('[data-slot="dialog-description"]') as HTMLElement;
+
+        expect(panel?.getAttribute('role')).toBe('dialog');
+        expect(panel?.getAttribute('aria-modal')).toBe('true');
+        expect(title.id).toBeTruthy();
+        expect(description.id).toBeTruthy();
+        expect(panel?.getAttribute('aria-labelledby')).toBe(title.id);
+        expect(panel?.getAttribute('aria-describedby')).toBe(description.id);
+    });
+
+    it('does the same in simple mode, where the title and description come from inputs', async () => {
+        const fixture = await open(SimpleNamesHost);
+        const [panel] = panels(fixture);
+        const title = fixture.nativeElement.querySelector('[data-slot="dialog-title"]') as HTMLElement;
+        const description = fixture.nativeElement.querySelector('[data-slot="dialog-description"]') as HTMLElement;
+
+        expect(panel?.getAttribute('role')).toBe('dialog');
+        expect(panel?.getAttribute('aria-labelledby')).toBe(title.id);
+        expect(panel?.getAttribute('aria-describedby')).toBe(description.id);
+    });
+
+    it('still declares itself a modal dialog when it has no title, and points at nothing', async () => {
+        const fixture = await open(UnnamedHost);
+        const [panel] = panels(fixture);
+
+        expect(panel?.getAttribute('role')).toBe('dialog');
+        expect(panel?.getAttribute('aria-modal')).toBe('true');
+        expect(panel?.hasAttribute('aria-labelledby')).toBe(false);
+        expect(panel?.hasAttribute('aria-describedby')).toBe(false);
+    });
+
+    it('never borrows a nested dialog\'s title: each panel is named by its own, with distinct ids', async () => {
+        const fixture = await open(NestedHost);
+        const [outer, inner] = panels(fixture);
+        const innerTitle = fixture.nativeElement.querySelector('[data-slot="dialog-title"]') as HTMLElement;
+
+        // The outer panel has no title of its own, so it has no name to point at.
+        expect(outer?.hasAttribute('aria-labelledby')).toBe(false);
+        expect(outer?.hasAttribute('aria-describedby')).toBe(false);
+        expect(innerTitle.id).toBeTruthy();
+        expect(inner?.getAttribute('aria-labelledby')).toBe(innerTitle.id);
+    });
+});

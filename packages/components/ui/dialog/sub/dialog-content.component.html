@@ -12,6 +12,10 @@
     <div
       #contentEl
       [class]="classes()"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="titleId()"
+      [attr.aria-describedby]="descriptionId()"
       [attr.data-slot]="'dialog-content'"
       (keydown)="onKeydown($event)"
       tabindex="-1"

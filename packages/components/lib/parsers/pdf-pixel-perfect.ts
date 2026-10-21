@@ -4,6 +4,7 @@ import { TtfFont } from './ttf-parser';
 import { buildTtf } from './ttf-builder';
 import type { TtfBuilderGlyph } from './ttf-builder';
 import { DEFAULT_PARSER_LIMITS, DrawPath, type ParserLimits } from './limits';
+import { safeLinkHref } from './markup-safety';
 
 // Fallback font for glyphs missing from embedded PDF fonts.
 // Loaded lazily from bundled NotoSans-Regular.ttf in Node.js environments.
@@ -293,22 +294,6 @@ function cssQuotedFontName(name: string): string {
         else quoted += ch;
     }
     return `'${quoted}'`;
-}
-
-const SAFE_LINK_PROTOCOLS: ReadonlySet<string> = new Set(['http:', 'https:', 'mailto:']);
-
-/**
- * The link annotation's URI as the browser will parse it when it is an absolute
- * http, https or mailto URL; `undefined` for any other scheme or a relative URI.
- */
-function safeLinkUri(uri: string): string | undefined {
-    try {
-        const url = new URL(uri);
-        return SAFE_LINK_PROTOCOLS.has(url.protocol) ? url.href : undefined;
-    } catch {
-        // Not an absolute URL; a relative URI has no page to resolve against here.
-        return undefined;
-    }
 }
 
 // ── Font Extraction & Registry ────────────────────────────────────────
@@ -1649,7 +1634,7 @@ class TextLine {
     // F5: optimize_normal (HTMLTextLine.cc:363-540) — 1:1 C++ translation
     // Adjusts letter-space and word-space to reduce HTML element count.
     // Builds new_offsets list and swaps at end (C++ line 537).
-    optimizeNormal(mgr: AllStateManager, hEps: number, spaceThreshold: number, z: number): void {
+    optimizeNormal(mgr: AllStateManager, _hEps: number, spaceThreshold: number, z: number): void {
         // C++ line 366-367: remove useless states at end
         let lastSt = this.states.at(-1);
         while (lastSt && (lastSt.installed?.startIdx ?? 0) >= this.text.length) {
@@ -1820,7 +1805,7 @@ class TextLine {
     private emitLineContent(
         parts: string[],
         mgr: AllStateManager,
-        fontRegistry: FontRegistry,
+        _fontRegistry: FontRegistry,
         hEps: number,
         spaceThreshold: number,
         z: number,
@@ -1912,15 +1897,6 @@ class TextLine {
                 }
             }
         }
-    }
-
-    private findStateForIndex(charIdx: number, currentIdx: number): number {
-        for (let si = currentIdx + 1; si < this.states.length; si++) {
-            const stateStart = this.states[si].installed?.startIdx ?? 0;
-            if (stateStart > charIdx) return currentIdx;
-            if (stateStart === charIdx) return si;
-        }
-        return currentIdx;
     }
 
     private emitOffset(
@@ -2020,13 +1996,6 @@ class TextLine {
         return d;
     }
 
-    private getEmSizeForState(stateIdx: number, z: number): number {
-        if (stateIdx < this.states.length) {
-            return this.states[stateIdx].textState.fontSize * z;
-        }
-        return 12 * z;
-    }
-
 }
 
 
@@ -2072,7 +2041,6 @@ class PixelPerfectProcessor {
     private readonly reader: PdfReader;
     private readonly fontRegistry: FontRegistry;
     private readonly zoom: number;
-    private pageHeight = 792;
     // text_scale_factor1/2 from general.cc:326-327
     private readonly textScaleFactor1: number;
     private readonly textScaleFactor2: number;
@@ -2105,8 +2073,6 @@ class PixelPerfectProcessor {
     private curTextTm: number[] = [1, 0, 0, 1, 0, 0];
 
     // State from before current checkStateChange
-    private prevDrawTextScale = 1;
-    private prevTextTm: number[] = [1, 0, 0, 1, 0, 0];
 
     // HTML state (mirrors C++ cur_text_state / cur_line_state)
     private curTransformMatrix: readonly [number, number, number, number] = [1, 0, 0, 1];
@@ -2180,7 +2146,6 @@ class PixelPerfectProcessor {
         const mediaBox = getPageMediaBox(this.reader, pageDict);
         let pageWidth = Math.abs(mediaBox[2] - mediaBox[0]);
         let pageHeight = Math.abs(mediaBox[3] - mediaBox[1]);
-        this.pageHeight = pageHeight;
         this.initialYScale = 0;
 
         const rotation = pageDict['Rotate'] ? this.reader.getNumber(pageDict['Rotate']) : 0;
@@ -2244,8 +2209,6 @@ class PixelPerfectProcessor {
         this.curTy = 0;
         this.curFontSize = 0;
         this.curTextTm = [1, 0, 0, 1, 0, 0];
-        this.prevTextTm = [1, 0, 0, 1, 0, 0];
-        this.prevDrawTextScale = 1;
         this.curTransformMatrix = [1, 0, 0, 1];
         this.prevTransformMatrix = [1, 0, 0, 1];
         this.curLetterSpace = 0;
@@ -2282,8 +2245,6 @@ class PixelPerfectProcessor {
         const oldTm = [...this.curTextTm];
         const oldDrawTextScale = this.drawTextScale;
         this.prevTransformMatrix = this.curTransformMatrix;
-        this.prevTextTm = oldTm;
-        this.prevDrawTextScale = oldDrawTextScale;
 
         // Font change (state.cc:208-239)
         if (this.allChanged || this.fontChanged) {
@@ -3341,7 +3302,9 @@ function renderImage(img: ImageItem, z: number): string {
 }
 
 function renderAnnotation(ann: PdfAnnotation, z: number): string {
-    const href = safeLinkUri(ann.uri);
+    // The shared helper also lets a same-page `#fragment` through; a PDF link annotation never did here
+    // (it would scroll or navigate the host page), so a fragment is dropped before the shared check.
+    const href = ann.uri.startsWith('#') ? undefined : safeLinkHref(ann.uri);
     if (!href) return '';
     const left = round(ann.x * z);
     const bottom = round(ann.y * z);

@@ -9,6 +9,7 @@ import {
   AfterViewInit,
   effect,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
 import { SidebarService } from './sidebar.service';
 
@@ -79,6 +80,7 @@ export class SidebarComponent implements AfterViewInit {
   isMobile = signal(false);
   readonly service = inject(SidebarService);
   private readonly el = inject(ElementRef);
+  private readonly document = inject(DOCUMENT);
 
   private contentEl?: HTMLElement;
   private previousActiveElement?: Element | null;
@@ -95,7 +97,7 @@ export class SidebarComponent implements AfterViewInit {
     effect(() => {
       const isMobileOpen = this.service.isMobile() && this.service.isOpen();
       if (isMobileOpen) {
-        this.previousActiveElement = document.activeElement;
+        this.previousActiveElement = this.document.activeElement;
         setTimeout(() => this.focusFirstElement(), 0);
       } else if (this.previousActiveElement instanceof HTMLElement) {
         this.previousActiveElement.focus();

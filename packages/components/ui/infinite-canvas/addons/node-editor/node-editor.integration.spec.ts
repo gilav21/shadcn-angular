@@ -394,24 +394,38 @@ describe('the drain lets the browser breathe', () => {
          * asserted the frame and flaked exactly that often. The frame leg is
          * what makes the gap paint-aligned; the floor is what stops a hidden
          * tab wedging the drain, and the test below covers that.
+         *
+         * The clock is driven by hand. The real frame and the real 16ms floor
+         * both need the browser to be scheduled promptly, and on a loaded
+         * machine (a full coverage run beside a running game) neither fired
+         * for 15 seconds, so this timed out in the release preflight while
+         * passing alone in under a second. Nothing here needs real time: the
+         * invariant is that the yield is still pending after the microtask
+         * queue drains, and resolves once the timer layer runs.
          */
-        const yieldTo = ctx.editor.runtime.yieldTo;
-        expect(yieldTo).not.toBeNull();
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame'] });
+        try {
+            const yieldTo = ctx.editor.runtime.yieldTo;
+            expect(yieldTo).not.toBeNull();
 
-        let resolved = false;
-        const pending = yieldTo?.().then(() => {
-            resolved = true;
-        });
+            let resolved = false;
+            yieldTo?.().then(() => {
+                resolved = true;
+            });
 
-        // Several turns of the microtask queue: a microtask-based yield would
-        // have resolved in the first.
-        await Promise.resolve();
-        await Promise.resolve();
-        await Promise.resolve();
-        expect(resolved).toBe(false);
+            // Several turns of the microtask queue: a microtask-based yield would
+            // have resolved in the first.
+            await Promise.resolve();
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(resolved).toBe(false);
 
-        await pending;
-        expect(resolved).toBe(true);
+            // The floor (or the frame, whichever the fake clock fires first) lets it through.
+            await vi.advanceTimersByTimeAsync(32);
+            expect(resolved).toBe(true);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('gives up waiting for a frame that never comes', async () => {

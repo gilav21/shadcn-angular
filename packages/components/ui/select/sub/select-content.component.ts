@@ -36,7 +36,6 @@ import { SELECT, revealSelectOption } from '../select.component';
 })
 export class SelectContentComponent implements AfterViewInit {
     readonly select = inject(SELECT, { optional: true });
-    private readonly el = inject(ElementRef);
     private readonly document = inject(DOCUMENT);
 
     /** Extra classes merged onto the popup panel, after the positioning classes so they can override them. */

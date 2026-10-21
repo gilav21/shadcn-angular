@@ -300,6 +300,98 @@ describe('ComboChartComponent', () => {
         expect(rows.at(-1)?.value).toBe('50%');
     });
 
+    describe('values that are missing or not finite', () => {
+        const NaNBars: ChartSeries[] = [
+            { name: 'Defects', data: [{ name: 'A', value: 10 }, { name: 'B', value: Number.NaN }, { name: 'C', value: 20 }] },
+        ];
+        const raggedLines: ChartSeries[] = [
+            // one point where the chart has three categories
+            { name: 'Short', data: [{ name: 'A', value: 7 }] },
+            {
+                name: 'Odd',
+                data: [
+                    { name: 'A', value: 1 },
+                    { name: 'B', value: Number.NaN },
+                    { name: 'C', value: Number.POSITIVE_INFINITY },
+                ],
+            },
+        ];
+
+        it('prints a dash, never 0 or NaN, where a series has no finite value at the hovered category', () => {
+            fixture.componentRef.setInput('barSeries', NaNBars);
+            fixture.componentRef.setInput('lineSeries', raggedLines);
+            fixture.detectChanges();
+
+            const at = (index: number): Record<string, string> => {
+                component.setHover(index);
+                return Object.fromEntries(component.tooltipRows().map((r) => [r.label, r.value]));
+            };
+
+            // A: finite everywhere.
+            expect(at(0)).toEqual({ Defects: '10', Short: '7', Odd: '1' });
+            // B: a NaN bar, a line with no point, a NaN line value.
+            expect(at(1)).toEqual({ Defects: '—', Short: '—', Odd: '—' });
+            // C: an infinite line value.
+            expect(at(2)).toEqual({ Defects: '20', Short: '—', Odd: '—' });
+        });
+
+        it('counts a NaN bar as 0 in the running total, so one bad datum cannot change the rest', () => {
+            fixture.componentRef.setInput('barSeries', NaNBars);
+            fixture.componentRef.setInput('showCumulative', true);
+            fixture.detectChanges();
+
+            // 10, 10 + 0, 10 + 0 + 20 of a total of 30.
+            const percents = component.cumulativePercents();
+            expect(percents.every((p) => Number.isFinite(p))).toBe(true);
+            expect(percents[0]).toBeCloseTo(33.33, 1);
+            expect(percents[1]).toBeCloseTo(33.33, 1);
+            expect(percents[2]).toBeCloseTo(100, 5);
+            // The secondary axis stays 0-100 instead of stretching to a poisoned 1000.
+            expect(component.secondaryDomain()).toEqual([0, 100]);
+            // And the bars themselves have real geometry.
+            expect(component.bars().every((b) => Number.isFinite(b.y) && Number.isFinite(b.height))).toBe(true);
+        });
+
+        it('does not draw a line point that has no category slot', () => {
+            fixture.componentRef.setInput('barSeries', NaNBars);
+            fixture.componentRef.setInput('lineSeries', [
+                { name: 'Long', data: [1, 2, 3, 4, 5, 6].map((value, i) => ({ name: `P${i}`, value })) },
+            ]);
+            fixture.detectChanges();
+
+            // Three categories, six values: three points, none piled onto the left edge at x = 0.
+            const path = component.lines().find((l) => l.name === 'Long')?.path ?? '';
+            expect(path.match(/[ML]/g) ?? []).toHaveLength(3);
+            expect(path).not.toMatch(/[ML]0[ ,]/);
+        });
+    });
+
+    describe('a hover index that no longer names a category', () => {
+        it('shows no tooltip, title, crosshair or dimming for an index past the last category', () => {
+            component.setHover(99);
+            fixture.detectChanges();
+
+            expect(component.hoveredIndex()).toBeNull();
+            expect(component.tooltipRows()).toEqual([]);
+            expect(component.hoverTitle()).toBeUndefined();
+            expect(component.crosshairX()).toBeNull();
+            const opacities = [...fixture.nativeElement.querySelectorAll('rect[opacity]')].map((r: Element) => r.getAttribute('opacity'));
+            expect(opacities.length).toBeGreaterThan(0);
+            expect(opacities.every((o) => o === '1')).toBe(true);
+        });
+
+        it('forgets a hover on a category that a data change removed', () => {
+            component.setHover(3);
+            expect(component.hoveredIndex()).toBe(3);
+
+            fixture.componentRef.setInput('barSeries', [{ name: 'Defects', data: [{ name: 'A', value: 1 }, { name: 'B', value: 2 }] }]);
+            fixture.detectChanges();
+
+            expect(component.hoveredIndex()).toBeNull();
+            expect(component.tooltipRows()).toEqual([]);
+        });
+    });
+
     it('returns no tooltip rows and no hover title when nothing is hovered', () => {
         expect(component.tooltipRows()).toHaveLength(0);
         expect(component.hoverTitle()).toBeUndefined();

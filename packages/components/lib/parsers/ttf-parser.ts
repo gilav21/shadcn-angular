@@ -300,7 +300,7 @@ function scaleSimpleGlyph(srcData: Uint8Array, scaleX: number, scaleY: number): 
 // ── Skip coordinates without modifying (to find offset of next axis) ────
 
 function skipCoordinates(
-    view: DataView, offset: number, flags: Uint8Array, numPoints: number,
+    _view: DataView, offset: number, flags: Uint8Array, numPoints: number,
     shortBit: number, sameBit: number,
 ): number {
     let pos = offset;
@@ -397,7 +397,6 @@ export class TtfFont {
     private readonly unicodeToGid: Map<number, number>;
     private readonly glyphOffsets: readonly number[];
     private readonly glyfOffset: number;
-    private readonly glyfLength: number;
 
     constructor(buffer: ArrayBuffer | ArrayBufferLike) {
         this.data = new DataView(buffer as ArrayBuffer);
@@ -432,7 +431,6 @@ export class TtfFont {
         const locaRec = this.getTableData('loca');
         const glyfRec = this.getTableData('glyf');
         this.glyfOffset = glyfRec?.offset ?? 0;
-        this.glyfLength = glyfRec?.length ?? 0;
         this.glyphOffsets = locaRec && glyfRec
             ? this.parseLoca(locaRec, indexToLocFormat)
             : [];

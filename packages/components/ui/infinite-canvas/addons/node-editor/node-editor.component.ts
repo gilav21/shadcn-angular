@@ -470,7 +470,8 @@ export class NodeEditorComponent {
    * knows the locale and assigns the sentences, re-assigning them if the
    * application's language changes while a graph is on screen.
    */
-  private readonly localiseRuntime = effect(() => {
+  // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+  protected readonly localiseRuntime = effect(() => {
     const text = this.t();
     this.runtime.messages = {
       cycle: title => interpolate(text.problemCycle, { title }),
@@ -1151,7 +1152,8 @@ export class NodeEditorComponent {
    * reason; this side was missed. Keyed on `nodes()`, the same list the cards
    * are rendered from, so an id absent from it has no view left to need one.
    */
-  private readonly pruneNodeInjectors = effect(() => {
+  // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+  protected readonly pruneNodeInjectors = effect(() => {
     // Walk the injectors, not the nodes. There is one injector per MOUNTED
     // card and a hundred thousand nodes, and `new Set(nodes().map(...))`
     // allocated a set and an array of that size on every frame of a drag to
@@ -1862,7 +1864,8 @@ export class NodeEditorComponent {
    * rather than `effect`, so it lands after the engine has taken the new
    * items — putting them back before they arrive would achieve nothing.
    */
-  private readonly keepDraggedCardsUnderThePointer = afterRenderEffect(() => {
+  // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+  protected readonly keepDraggedCardsUnderThePointer = afterRenderEffect(() => {
     const byId = this.nodesById();
     const live = this.drag?.live;
     if (!live || live.size === 0) return;

@@ -12,6 +12,7 @@ import {
     effect,
     untracked,
     inject,
+    OnDestroy,
     PLATFORM_ID,
 } from '@angular/core';
 import { isPlatformBrowser, NgTemplateOutlet } from '@angular/common';
@@ -97,7 +98,7 @@ const DEFAULT_RGBA: RGBA = { r: 0, g: 0, b: 0, a: 1 };
     styleUrl: './color-picker.component.css',
     host: { class: 'inline-block' },
 })
-export class ColorPickerComponent implements ControlValueAccessor {
+export class ColorPickerComponent implements ControlValueAccessor, OnDestroy {
     /** Swatches shown in the preset row. Any CSS colour `parseColor` understands; unparseable entries are ignored on click. Picking one also pushes it into the recents. */
     readonly presets = input<string[]>([]);
     /** Render just the picker panel, without the built-in trigger + popover (for embedding inside another popover). */
@@ -433,6 +434,14 @@ export class ColorPickerComponent implements ControlValueAccessor {
         this.hsvValue.set(nextV);
         this.commitHsv();
         this.onTouched();
+    }
+
+    ngOnDestroy(): void {
+        // A drag still going when the picker is destroyed would keep listening on the window (and
+        // calling into a destroyed picker) until the next pointer-up; the copy badge timer likewise.
+        this.dragCleanup?.();
+        this.dragCleanup = null;
+        if (this.copyTimer) clearTimeout(this.copyTimer);
     }
 
     private startAreaDrag(clientX: number, clientY: number): void {

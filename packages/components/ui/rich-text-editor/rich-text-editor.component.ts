@@ -8439,16 +8439,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return this.sanitizer.stripTags(blockAware);
     }
 
-    private isSelectionInsideEditor(): boolean {
-        const selection = this.document.getSelection();
-        const editor = this.getEditorElement();
-        if (!selection || selection.rangeCount === 0 || !editor) {
-            return false;
-        }
-        const range = selection.getRangeAt(0);
-        return editor.contains(range.startContainer) && editor.contains(range.endContainer);
-    }
-
     private computeDelta(prev: string, current: string): string {
         const prevLines = prev.split('\n');
         const curLines = current.split('\n');

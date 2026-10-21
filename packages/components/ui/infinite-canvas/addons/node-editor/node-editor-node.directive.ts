@@ -55,12 +55,12 @@ export class NodeEditorNodeDirective<T extends EditorNode = EditorNode> {
    */
   readonly ofType = input<readonly T[] | undefined>(undefined);
 
-  /* eslint-disable @typescript-eslint/no-unused-vars -- dir and ctx required by Angular's type-narrowing contract */
+   
   static ngTemplateContextGuard<T extends EditorNode>(
-    dir: NodeEditorNodeDirective<T>,
-    ctx: unknown,
-  ): ctx is NodeEditorNodeContext<T> {
+    _dir: NodeEditorNodeDirective<T>,
+    _ctx: unknown,
+  ): _ctx is NodeEditorNodeContext<T> {
     return true;
   }
-  /* eslint-enable @typescript-eslint/no-unused-vars */
+   
 }

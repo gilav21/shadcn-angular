@@ -14,21 +14,40 @@ import { cssFontFamily, escapeAttribute, safeLinkHref } from './markup-safety';
  */
 export const MAX_DECODED_STREAM_BYTES = 64 * 1024 * 1024;
 
+// ── Hex decoding ────────────────────────────────────────────────────────
+
+/**
+ * The bytes a run of hex digits spells (PDF 32000-1, 7.3.4.3): digits only, a final lone digit read as
+ * if followed by 0. Anything else, white-space and junk alike, is skipped.
+ *
+ * It is the one decoder for hex in object syntax, in content streams and in the ASCIIHexDecode
+ * filter, and it is total: the input is untrusted, so no character sequence may throw (a
+ * `String.fromCodePoint(NaN)` from `<ZZ>` aborted the whole outline, or blanked the whole page) or
+ * be read as a digit it is not (`parseInt('4Z', 16)` is 4, a silent wrong byte).
+ */
+export function decodeHexDigits(raw: string): Uint8Array {
+    const digits = raw.replaceAll(/[^\da-f]/gi, '');
+    const padded = digits.length % 2 === 0 ? digits : `${digits}0`;
+    const bytes = new Uint8Array(padded.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = Number.parseInt(padded.slice(i * 2, i * 2 + 2), 16);
+    }
+    return bytes;
+}
+
+/** A hex string's bytes as the one-byte-per-character string the parser keeps PDF strings in. */
+function hexToByteString(raw: string): string {
+    let str = '';
+    for (const byte of decodeHexDigits(raw)) str += String.fromCodePoint(byte);
+    return str;
+}
+
 // ── Stream filter decoders ──────────────────────────────────────────────
 
 function decodeASCIIHex(data: Uint8Array): Uint8Array {
     const text = new TextDecoder('latin1').decode(data);
-    let hex = '';
-    for (const ch of text) {
-        if (ch === '>') break;
-        if (!' \t\r\n\0\f'.includes(ch)) hex += ch;
-    }
-    if (hex.length % 2 !== 0) hex += '0';
-    const result = new Uint8Array(hex.length / 2);
-    for (let i = 0; i < hex.length; i += 2) {
-        result[i / 2] = Number.parseInt(hex.substring(i, i + 2), 16);
-    }
-    return result;
+    const end = text.indexOf('>');
+    return decodeHexDigits(end < 0 ? text : text.slice(0, end));
 }
 
 function ascii85IsEndMarker(text: string, i: number): boolean {
@@ -1207,8 +1226,10 @@ export class PdfReader {
         while (pos < this.text.length) {
             const c = this.text[pos];
             if (' \t\r\n\0\f/<>[](){}%'.includes(c)) break;
-            if (c === '#' && pos + 2 < this.text.length) {
-                name += String.fromCodePoint(Number.parseInt(this.text.substring(pos + 1, pos + 3), 16));
+            // `#` introduces two hex digits (7.3.5); anything else after it leaves the `#` as written.
+            const escape = c === '#' ? /^[\da-f]{2}/i.exec(this.text.slice(pos + 1, pos + 3)) : null;
+            if (escape) {
+                name += String.fromCodePoint(Number.parseInt(escape[0], 16));
                 pos += 3;
             } else {
                 name += c;
@@ -1276,20 +1297,10 @@ export class PdfReader {
     }
 
     private parseHexString(pos: number): { obj: PdfObject; endPos: number } {
-        pos += 1;
-        let hex = '';
-        while (pos < this.text.length && this.text[pos] !== '>') {
-            const c = this.text[pos];
-            if (!' \t\r\n\0\f'.includes(c)) hex += c;
-            pos++;
-        }
-        if (this.text[pos] === '>') pos++;
-        if (hex.length % 2 !== 0) hex += '0';
-        let str = '';
-        for (let i = 0; i < hex.length; i += 2) {
-            str += String.fromCodePoint(Number.parseInt(hex.substring(i, i + 2), 16));
-        }
-        return { obj: { type: 'string', value: str }, endPos: pos };
+        const start = pos + 1;
+        const close = this.text.indexOf('>', start);
+        const end = close < 0 ? this.text.length : close;
+        return { obj: { type: 'string', value: hexToByteString(this.text.slice(start, end)) }, endPos: close < 0 ? end : end + 1 };
     }
 
     private parseObjectStream(streamObjNum: number): void {
@@ -2202,19 +2213,10 @@ function tokenizeLiteralString(text: string, startPos: number): { token: string;
 }
 
 function tokenizeHexString(text: string, startPos: number): { token: string; endPos: number } {
-    let pos = startPos + 1;
-    let hex = '';
-    while (pos < text.length && text[pos] !== '>') {
-        if (!' \t\r\n\0\f'.includes(text[pos])) hex += text[pos];
-        pos++;
-    }
-    if (pos < text.length) pos++;
-    if (hex.length % 2 !== 0) hex += '0';
-    let str = '';
-    for (let i = 0; i < hex.length; i += 2) {
-        str += String.fromCodePoint(Number.parseInt(hex.substring(i, i + 2), 16));
-    }
-    return { token: '(' + str + ')', endPos: pos };
+    const start = startPos + 1;
+    const close = text.indexOf('>', start);
+    const end = close < 0 ? text.length : close;
+    return { token: '(' + hexToByteString(text.slice(start, end)) + ')', endPos: close < 0 ? end : end + 1 };
 }
 
 function skipComment(text: string, pos: number): number {
@@ -3173,7 +3175,7 @@ const IGNORED_OPERATORS = new Set([
 ]);
 
 function processStrokeColorOperator(
-    token: string, operandStack: string[], gs: GraphicsState,
+    token: string, _operandStack: string[], gs: GraphicsState,
     popNum: () => number,
 ): boolean {
     switch (token) {
@@ -5421,7 +5423,7 @@ function renderLineAsHeading(
 }
 
 function renderLineAsBullet(
-    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, _lineText: string, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     if (state.inNumberedList) { state.html.push('</ol>'); state.inNumberedList = false; }
@@ -5438,7 +5440,7 @@ function renderLineAsBullet(
 }
 
 function renderLineAsNumbered(
-    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, _lineText: string, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     const rtl = isLineRTL(line);
@@ -6123,7 +6125,7 @@ function applyParagraphSpacing(state: HtmlBuilderState, lineSpacing: number, bod
 }
 
 function handleBorderBoxLine(
-    line: TextLine, ctx: HtmlBuilderContext, state: HtmlBuilderState,
+    _line: TextLine, ctx: HtmlBuilderContext, state: HtmlBuilderState,
     renderedBorderBoxes: Set<PathRect>, borderBox: PathRect,
 ): void {
     if (!renderedBorderBoxes.has(borderBox)) {
@@ -6685,7 +6687,12 @@ export interface PdfPageResult {
 
 export interface PdfOutlineItem {
     readonly title: string;
-    readonly pageIndex: number;
+    /**
+     * The zero-based index, into the document's pages, of the page this item opens; `undefined` when it
+     * opens none (no destination, a destination the document does not define, or one that is not a page
+     * of this document). Never an index that is out of range: check for `undefined`, not for a sentinel.
+     */
+    readonly pageIndex: number | undefined;
     readonly children: ReadonlyArray<PdfOutlineItem>;
 }
 
@@ -6814,52 +6821,48 @@ function parseOutline(reader: PdfReader, pdfPages: PdfObject[]): PdfOutlineItem[
         const outlinesDict = reader.getDict(outlinesRef);
         const firstRef = outlinesDict['First'];
         if (!firstRef) return [];
-        const pageMap = buildPageObjNumMap(reader, pdfPages);
-        return parseOutlineItems(reader, firstRef, pageMap, 0, new Set<string>());
+        const pageIndexes = buildPageIndexMap(pdfPages);
+        return parseOutlineItems(reader, firstRef, pageIndexes, 0, new Set<string>());
     } catch {
         return [];
     }
 }
 
-function buildPageObjNumMap(reader: PdfReader, pdfPages: PdfObject[]): Map<string, number> {
-    const map = new Map<string, number>();
-    for (let i = 0; i < pdfPages.length; i++) {
-        const page = pdfPages[i];
-        if (page.type === 'ref') {
-            map.set(page.value as string, i);
-        }
-    }
-    return map;
+/**
+ * Page index by page object. `getPages()` returns the resolved page dictionaries, not references, and
+ * the reader caches every object it resolves, so a destination's reference to a page resolves to the
+ * very object this list holds: identity is the key. (Keying on a reference string matched nothing,
+ * because the list never holds references, and every outline item reported page -1.)
+ */
+function buildPageIndexMap(pdfPages: readonly PdfObject[]): Map<PdfObject, number> {
+    return new Map(pdfPages.map((page, index) => [page, index]));
 }
 
-function resolveRefArrayPageIndex(reader: PdfReader, destObj: PdfObject, pageMap: Map<string, number>): number {
+/** The page an explicit destination array `[page /Fit ...]` names, or undefined when its first entry is not a page of the document. */
+function resolveRefArrayPageIndex(reader: PdfReader, destObj: PdfObject, pageIndexes: Map<PdfObject, number>): number | undefined {
     const resolved = reader.resolveDeep(destObj);
-    if (resolved.type === 'array') {
-        const arr = resolved.value as PdfObject[];
-        if (arr.length > 0 && arr[0].type === 'ref') {
-            return pageMap.get(arr[0].value as string) ?? -1;
-        }
-    }
-    return -1;
+    if (resolved.type !== 'array') return undefined;
+    const target = (resolved.value as PdfObject[])[0];
+    // A page number (a remote destination's form) is not a reference and names no page here.
+    return target?.type === 'ref' ? pageIndexes.get(reader.resolveDeep(target)) : undefined;
 }
 
-function resolveOutlinePageIndex(reader: PdfReader, item: Record<string, PdfObject>, pageMap: Map<string, number>): number {
+function resolveOutlinePageIndex(reader: PdfReader, item: Record<string, PdfObject>, pageIndexes: Map<PdfObject, number>): number | undefined {
     const dest = item['Dest'];
     if (dest) {
-        const resolved = reader.resolveDeep(dest);
-        if (resolved.type === 'string') return -1;
-        const idx = resolveRefArrayPageIndex(reader, dest, pageMap);
-        if (idx >= 0) return idx;
+        if (reader.resolveDeep(dest).type === 'string') return undefined;
+        const index = resolveRefArrayPageIndex(reader, dest, pageIndexes);
+        if (index !== undefined) return index;
     }
     const aObj = item['A'];
-    if (!aObj) return -1;
+    if (!aObj) return undefined;
     try {
         const action = reader.getDict(aObj);
         const s = reader.getString(action['S'] ?? { type: 'null', value: null });
-        if (s !== 'GoTo') return -1;
+        if (s !== 'GoTo') return undefined;
         const d = action['D'];
-        return d ? resolveRefArrayPageIndex(reader, d, pageMap) : -1;
-    } catch { return -1; }
+        return d ? resolveRefArrayPageIndex(reader, d, pageIndexes) : undefined;
+    } catch { return undefined; }
 }
 
 /**
@@ -6867,7 +6870,7 @@ function resolveOutlinePageIndex(reader: PdfReader, item: Record<string, PdfObje
  * pointing at the same child list would otherwise each expand it in full.
  */
 function parseOutlineItems(
-    reader: PdfReader, firstRef: PdfObject, pageMap: Map<string, number>, depth: number, visited: Set<string>,
+    reader: PdfReader, firstRef: PdfObject, pageIndexes: Map<PdfObject, number>, depth: number, visited: Set<string>,
 ): PdfOutlineItem[] {
     if (depth > 10) return [];
     const items: PdfOutlineItem[] = [];
@@ -6881,12 +6884,12 @@ function parseOutlineItems(
         try {
             const itemDict = reader.getDict(currentRef);
             const title = reader.getString(itemDict['Title'] ?? { type: 'string', value: '' });
-            const pageIndex = resolveOutlinePageIndex(reader, itemDict, pageMap);
+            const pageIndex = resolveOutlinePageIndex(reader, itemDict, pageIndexes);
 
             let children: PdfOutlineItem[] = [];
             const childFirst = itemDict['First'];
             if (childFirst) {
-                children = parseOutlineItems(reader, childFirst, pageMap, depth + 1, visited);
+                children = parseOutlineItems(reader, childFirst, pageIndexes, depth + 1, visited);
             }
 
             items.push({ title, pageIndex, children });

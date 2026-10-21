@@ -3430,7 +3430,7 @@
         {
           "name": "barSeries",
           "type": "ChartSeries[]",
-          "description": "The bar half of the chart, read against the **primary** (left) axis, which is nice-rounded over zero and every bar value: bars rise from the zero gridline and negative bars fall below it. The **first** series is privileged: its `data[].name`s define the category axis ({@link categories}) and its values feed {@link cumulativePercents}. Further series are grouped side by side inside each category band and are indexed positionally, so every series must list its values in the same category order; a missing slot is drawn as 0.",
+          "description": "The bar half of the chart, read against the **primary** (left) axis, which is nice-rounded over zero and every bar value: bars rise from the zero gridline and negative bars fall below it. The **first** series is privileged: its `data[].name`s define the category axis ({@link categories}) and its values feed {@link cumulativePercents}. Further series are grouped side by side inside each category band and are indexed positionally, so every series must list its values in the same category order; a missing slot, or a value that is not a finite number, is drawn as 0 and shown as a dash in the tooltip.",
           "required": true
         },
         {

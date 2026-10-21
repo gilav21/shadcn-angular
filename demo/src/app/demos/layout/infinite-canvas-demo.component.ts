@@ -501,7 +501,8 @@ export class InfiniteCanvasDemoComponent {
    * has just been hidden, so nothing could ever release it. Turning a feature
    * off should cost nothing, including the memory it was using.
    */
-  private readonly releaseHistoryWhenOff = effect(() => {
+  // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+  protected readonly releaseHistoryWhenOff = effect(() => {
     if (!this.addons().history) this.history.clear();
   });
 

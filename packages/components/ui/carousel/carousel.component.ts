@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import {
     Component,
     ChangeDetectionStrategy,
@@ -13,7 +14,7 @@ import {
     forwardRef,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
-import { createResizeObserver } from '../../lib/observers';
+import { createMutationObserver, createResizeObserver } from '../../lib/observers';
 
 type CarouselOrientation = 'horizontal' | 'vertical';
 
@@ -49,6 +50,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
      */
     orientation = input<CarouselOrientation>('horizontal');
     private readonly rootEl = inject(ElementRef<HTMLElement>);
+    private readonly document = inject(DOCUMENT);
 
     rtl = signal(false);
     private readonly dirObserver: MutationObserver | null = null;
@@ -66,8 +68,10 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
 
     constructor() {
         this.updateRtlState();
-        this.dirObserver = new MutationObserver(() => this.updateRtlState());
-        this.dirObserver.observe(document.documentElement, {
+        // Watches the document it was given, not the global: this runs in the constructor, which a
+        // server renders too, where neither the global `document` nor `MutationObserver` exists.
+        this.dirObserver = createMutationObserver(() => this.updateRtlState());
+        this.dirObserver?.observe(this.document.documentElement, {
             attributes: true,
             attributeFilter: ['dir']
         });

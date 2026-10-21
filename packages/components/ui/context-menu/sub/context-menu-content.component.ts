@@ -158,7 +158,10 @@ export class ContextMenuContentComponent implements OnDestroy {
 
     /** Opening a menu moves focus to its first enabled item, or to the panel when every item is disabled. */
     private focusInitial(panel: HTMLElement): void {
-        if (panel.contains(this.document.activeElement)) return;
+        // This runs two frames after opening. A flyout is portalled outside the panel, so a user who already
+        // arrowed into one is inside the menu too; stealing their focus would send their next key to the root.
+        const active = this.activeElement();
+        if (panel.contains(active) || active?.closest('[data-context-menu-sub-portal]')) return;
         (this.ringItems(panel)[0] ?? panel).focus({ preventScroll: true });
     }
 
