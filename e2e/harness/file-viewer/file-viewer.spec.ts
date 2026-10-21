@@ -24,7 +24,7 @@ function hostileFormGraphPdf(fanOut: number, depth: number): Buffer {
             : `/Font << /F1 7 0 R >> /XObject << /L ${num + 1} 0 R >>`;
         const body = isLeaf
             ? 'BT /F1 9 Tf 0 0 Td (Leaf) Tj ET'
-            : Array.from({ length: fanOut }, (_, i) => `q 1 0 0 1 ${i * 3} ${i * 3} cm /L Do Q`).join(' ');
+            : Array.from({ length: fanOut }, (...[, i]) => `q 1 0 0 1 ${i * 3} ${i * 3} cm /L Do Q`).join(' ');
         pdf.streamObj(num, `/Type /XObject /Subtype /Form /BBox [0 0 10000 10000] /Resources << ${resources} >>`, latin1Bytes(body));
     }
     return Buffer.from(pdf.build());

@@ -149,7 +149,7 @@ export class TextareaComponent implements ControlValueAccessor {
     }
 
     /** Intentionally ignores the form's disabled state — use the {@link disabled} input instead. */
-    setDisabledState(_isDisabled: boolean): void { /* ControlValueAccessor - no-op: disabled state managed by input */ }
+    setDisabledState(): void { /* ControlValueAccessor - no-op: disabled state managed by input */ }
 
     /** Current text, so the component can be interpolated directly in a template or asserted on in tests. */
     toString(): string {

@@ -212,7 +212,7 @@ describe('SplitButtonComponent — coverage', () => {
             const disabledItem = host.debugElement.queryAll(
                 By.directive(SplitButtonItemComponent),
             )[1].componentInstance as SplitButtonItemComponent;
-            disabledItem.onClick(new MouseEvent('click'));
+            disabledItem.onClick();
             expect(itemSpy).not.toHaveBeenCalled();
             expect(split.isOpen()).toBe(true);
         });

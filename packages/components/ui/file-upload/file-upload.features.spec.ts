@@ -51,7 +51,7 @@ function unreadableFileEntry(name: string): FakeEntry {
         isDirectory: false,
         name,
         fullPath: `/${name}`,
-        file: (_ok, err) => err(new Error('unreadable')),
+        file: (...[, err]) => err(new Error('unreadable')),
     };
 }
 
@@ -112,7 +112,7 @@ describe('file-upload.utils — directory enumeration', () => {
     });
 
     it('drains a directory reader that answers in batches', async () => {
-        const children = Array.from({ length: 250 }, (_, i) => fileEntry(`f${i}.txt`));
+        const children = Array.from({ length: 250 }, (...[, i]) => fileEntry(`f${i}.txt`));
         const files = await collectDroppedFiles(fakeDataTransfer([dirEntry('big', children, 100)]), true);
 
         expect(files).toHaveLength(250);

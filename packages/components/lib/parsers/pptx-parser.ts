@@ -1205,7 +1205,7 @@ function parseBullet(
     const buNone = getChildNS(pPr, NS_A, 'buNone');
     if (buNone) return { type: 'none' };
 
-    const extraProps = parseBulletExtras(pPr, mediaRels, files, baseDir);
+    const extraProps = parseBulletExtras(pPr);
 
     const buChar = getChildNS(pPr, NS_A, 'buChar');
     if (buChar) return { ...buildCharBullet(buChar, pPr, themeColors), ...extraProps };
@@ -1226,9 +1226,6 @@ function parseBullet(
 
 function parseBulletExtras(
     pPr: Element,
-    _mediaRels?: Map<string, string>,
-    _files?: Map<string, Uint8Array>,
-    _baseDir?: string,
 ): { sizePoints?: number } {
     const result: { sizePoints?: number } = {};
     const buSzPts = getChildNS(pPr, NS_A, 'buSzPts');
@@ -1676,7 +1673,7 @@ function parseShapeGeometry(
     const rotation = xfrm ? parseRotation(xfrm) : undefined;
 
     // Don't pass internal flags to the output interface
-    const { explicitNoFill: _nf, explicitNoLine: _nl, ...cleanStyling } = styling;
+    const { explicitNoFill, explicitNoLine, ...cleanStyling } = styling;
 
     return {
         type: 'shape',

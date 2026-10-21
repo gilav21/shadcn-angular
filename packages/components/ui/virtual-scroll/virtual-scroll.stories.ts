@@ -9,7 +9,7 @@ interface ListItem extends VirtualItem {
 }
 
 function generateItems(count: number): ListItem[] {
-    return Array.from({ length: count }, (_, i) => ({
+    return Array.from({ length: count }, (...[, i]) => ({
         id: i,
         title: `Item ${i + 1}`,
         description: `Description for item ${i + 1}`,

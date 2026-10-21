@@ -46,7 +46,7 @@ describe('CalendarComponent', () => {
         const cells = [...grid.children].map(c =>
             (c as HTMLElement).dataset['slot'] === 'calendar-filler' ? '' : c.textContent!.trim());
         // 1 Feb 2024 is a Thursday: Monday-first weeks open with three fillers.
-        expect(cells).toEqual(['', '', '', ...Array.from({ length: 29 }, (_, i) => String(i + 1))]);
+        expect(cells).toEqual(['', '', '', ...Array.from({ length: 29 }, (...[, i]) => String(i + 1))]);
     });
 
     describe('Navigation', () => {

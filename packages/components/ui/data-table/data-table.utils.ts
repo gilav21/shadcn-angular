@@ -329,7 +329,7 @@ function fillNumericSeries(nums: number[], count: number): number[] {
     const last = nums.at(-1) ?? 0;
     const prev = nums.at(-2) ?? last;
     const step = nums.length >= 2 ? last - prev : 0;
-    return Array.from({ length: count }, (_, i) => last + step * (i + 1));
+    return Array.from({ length: count }, (...[, i]) => last + step * (i + 1));
 }
 
 function splitTrailingDigits(v: string): { prefix: string; digits: string } | null {
@@ -367,13 +367,13 @@ function fillTrailingNumbers(info: TrailingNumbers, count: number): string[] {
     if (!last) return [];
     const prev = numbers.at(-2) ?? last;
     const step = numbers.length >= 2 ? last.value - prev.value : 1;
-    return Array.from({ length: count }, (_, i) =>
+    return Array.from({ length: count }, (...[, i]) =>
         prefix + padNumber(last.value + step * (i + 1), last.width),
     );
 }
 
 function cycleValues(source: unknown[], count: number): unknown[] {
-    return Array.from({ length: count }, (_, i) => source[i % source.length]);
+    return Array.from({ length: count }, (...[, i]) => source[i % source.length]);
 }
 
 const MS_PER_DAY = 86_400_000;
@@ -481,9 +481,9 @@ function nextYmd(series: DateSeries, i: number): Ymd {
 
 function fillDateSeries(series: DateSeries, count: number): (Date | string)[] {
     if (series.kind === 'date') {
-        return Array.from({ length: count }, (_, i) => ymdToDate(nextYmd(series, i)));
+        return Array.from({ length: count }, (...[, i]) => ymdToDate(nextYmd(series, i)));
     }
-    return Array.from({ length: count }, (_, i) => ymdToIso(nextYmd(series, i)));
+    return Array.from({ length: count }, (...[, i]) => ymdToIso(nextYmd(series, i)));
 }
 
 const WEEKDAY_NAMES = {
@@ -549,7 +549,7 @@ function applyCasing(base: string, casing: NameCasing): string {
 
 function fillNameSeries(series: NameSeries, count: number): string[] {
     const len = series.table.full.length;
-    return Array.from({ length: count }, (_, i) => {
+    return Array.from({ length: count }, (...[, i]) => {
         const index = mod(series.lastIndex + series.step * (i + 1), len);
         const base = series.form === 'abbr' ? series.table.abbr[index] : series.table.full[index];
         return applyCasing(base, series.casing);

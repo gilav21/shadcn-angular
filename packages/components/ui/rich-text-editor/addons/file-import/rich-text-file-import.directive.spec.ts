@@ -509,7 +509,7 @@ describe('RichTextFileImportDirective', () => {
             const families = Array.from(document.head.querySelectorAll('style[data-ui-rte-pdf-fonts]'))
                 .map((style) => /pdfX-f\d+/.exec(style.textContent ?? '')?.[0]);
             // Oldest dropped first: the twelve most recent imports keep their fonts.
-            expect(families).toEqual(Array.from({ length: 12 }, (_, i) => `pdfX-f${i + 8}`));
+            expect(families).toEqual(Array.from({ length: 12 }, (...[, i]) => `pdfX-f${i + 8}`));
         } finally {
             for (const s of Array.from(document.head.querySelectorAll('style[data-ui-rte-pdf-fonts]'))) {
                 s.remove();

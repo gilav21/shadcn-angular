@@ -84,7 +84,7 @@ describe('CodeBlockComponent', () => {
         beforeEach(() => {
             originalClipboard = navigator.clipboard;
             const mockClipboard = {
-                writeText: vi.fn((_text: string) => Promise.resolve()),
+                writeText: vi.fn<(text: string) => Promise<void>>(() => Promise.resolve()),
                 readText: vi.fn(() => Promise.resolve('')),
                 read: vi.fn(),
                 write: vi.fn(),
@@ -590,7 +590,7 @@ describe('CodeBlockComponent', () => {
         });
 
         it('widens the gutter to fit larger line counts', () => {
-            const big = Array.from({ length: 12 }, (_, i) => `row ${i}`).join('\n');
+            const big = Array.from({ length: 12 }, (...[, i]) => `row ${i}`).join('\n');
             fixture.componentRef.setInput('code', big);
             fixture.detectChanges();
             expect(component.lineNumberWidth()).toBe('2ch');

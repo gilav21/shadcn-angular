@@ -331,7 +331,7 @@ describe('AreaChartComponent negative values', () => {
     /** Every y coordinate of a path: its numbers come in x, y pairs. */
     function pathYs(d: string): number[] {
         const numbers = (d.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi) ?? []).map(Number);
-        return numbers.filter((_, i) => i % 2 === 1);
+        return numbers.filter((...[, i]) => i % 2 === 1);
     }
 
     function build(values: number[][], inputs: Record<string, unknown>): AreaChartComponent {

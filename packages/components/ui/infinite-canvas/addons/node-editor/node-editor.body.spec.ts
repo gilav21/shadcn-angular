@@ -60,7 +60,7 @@ const ROW_COUNT = 6;
 class HostComponent {
   readonly rowHeight = ROW_HEIGHT;
   readonly rows = signal<readonly string[]>(
-    Array.from({ length: ROW_COUNT }, (_, i) => 'row ' + i),
+    Array.from({ length: ROW_COUNT }, (...[, i]) => 'row ' + i),
   );
   readonly nodes = signal<readonly EditorNode[]>([
     {
@@ -427,7 +427,7 @@ describe('revisiting measured bodies re-renders nothing', () => {
 
   const COLUMNS = 20;
   const board = (): EditorNode[] =>
-    Array.from({ length: 300 }, (_, i) => ({
+    Array.from({ length: 300 }, (...[, i]) => ({
       id: 'n' + i,
       x: (i % COLUMNS) * 300,
       y: Math.floor(i / COLUMNS) * 300,

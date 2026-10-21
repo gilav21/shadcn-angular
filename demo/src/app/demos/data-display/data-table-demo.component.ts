@@ -11,7 +11,6 @@ import {
   CellIcon,
   ColumnDef,
   DataTableRangeChartComponent,
-  ColumnResizeEvent,
   ContextMenuComponent,
   ContextMenuContentComponent,
   ContextMenuItemComponent,
@@ -450,7 +449,7 @@ function generateVDemoData(rowCount: number, colCount: number): VDemoRow[] {
     const rowH = 40 + Math.floor(randomFraction() * 960);
     row['rowHeight'] = rowH;
     const lineCount = Math.max(1, Math.floor(rowH / 20));
-    row['notes'] = Array.from({ length: lineCount }, (_, i) =>
+    row['notes'] = Array.from({ length: lineCount }, (...[, i]) =>
       `Line ${i + 1}: Sample note text for row ${r + 1} with some content to fill the variable height.`
     ).join('\n');
     data.push(row);
@@ -895,7 +894,7 @@ export class DataTableDemoComponent {
     "];",
   ].join('\n');
 
-  onColumnResize(_event: ColumnResizeEvent): void {
+  onColumnResize(): void {
     // Column resize handled by data table internally
   }
 
@@ -1080,7 +1079,7 @@ export class DataTableDemoComponent {
     ];
   });
 
-  onTreeTableContextMenu(_event: unknown): void {
+  onTreeTableContextMenu(): void {
     // Context menu handled by data table internally
   }
 
@@ -1345,7 +1344,7 @@ export class DataTableDemoComponent {
     const clientNames = ['Acme Corp', 'TechStart Inc', 'Global Solutions', 'Innovation Labs', 'Digital Ventures'];
     const roles = ['Admin', 'User', 'Manager', 'Developer', 'Designer'];
 
-    const data: Payment[] = Array.from({ length: 100 }, (_, i) => ({
+    const data: Payment[] = Array.from({ length: 100 }, (...[, i]) => ({
       id: `PAY-${i + 1}`,
       amount: Math.floor(randomFraction() * 500) + 50,
       status: (['pending', 'processing', 'success', 'failed'] as const)[Math.floor(randomFraction() * 4)],
@@ -1441,7 +1440,7 @@ export class DataTableDemoComponent {
     const priorities: OpsTicket['priority'][] = ['P1', 'P2', 'P3', 'P4'];
     const statuses: OpsTicket['status'][] = ['Open', 'Investigating', 'Mitigated', 'Resolved'];
 
-    const data: OpsTicket[] = Array.from({ length: 240 }, (_, i) => {
+    const data: OpsTicket[] = Array.from({ length: 240 }, (...[, i]) => {
       const created = new Date(Date.now() - (i + 1) * 1000 * 60 * 60 * 6);
       const updated = new Date(created.getTime() + (Math.floor(randomFraction() * 18) + 1) * 1000 * 60 * 30);
       const priority = priorities[Math.floor(randomFraction() * priorities.length)];

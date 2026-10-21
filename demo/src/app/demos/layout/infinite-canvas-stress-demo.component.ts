@@ -81,7 +81,7 @@ const CONNECTION: NodeTypeDefinition = {
   accent: '#0e7c86',
   ports: [{ id: 'schema', direction: 'out', label: 'Schema' }],
   initialState: () => 1,
-  compute: (_inputs, ctx) => ({ schema: think(Number(ctx.state) || 1) }),
+  compute: (...[, ctx]) => ({ schema: think(Number(ctx.state) || 1) }),
 };
 
 const TABLE: NodeTypeDefinition = {

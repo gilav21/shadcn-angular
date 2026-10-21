@@ -642,7 +642,7 @@ describe('KanbanComponent', () => {
             card.onDragStart(new DragEvent('dragstart'));
             expect(kanban.draggedCardId()).toBeNull();
 
-            const setData = vi.fn((_type: string, _value: string) => { /* noop */ });
+            const setData = vi.fn<(type: string, value: string) => void>(() => { /* noop */ });
             const ev = new DragEvent('dragstart');
             Object.defineProperty(ev, 'dataTransfer', { value: { effectAllowed: '', setData } });
             card.onDragStart(ev);

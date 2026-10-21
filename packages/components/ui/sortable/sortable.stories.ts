@@ -299,7 +299,7 @@ export const WithAccepts: Story = {
                 { id: 3, name: 'Triaged ticket #11' },
             ]),
             triaged: signal([{ id: 10, name: 'Triaged earlier' }]),
-            wipLimit: (limit: number) => (_item: { id: number; name: string }, ctx: { toIndex: number }): { ok: boolean; reason?: string } => {
+            wipLimit: (limit: number) => (...[, ctx]: [{ id: number; name: string }, { toIndex: number }]): { ok: boolean; reason?: string } => {
                 return ctx.toIndex < limit
                     ? { ok: true }
                     : { ok: false, reason: 'WIP limit reached' };
@@ -396,7 +396,7 @@ export const PositionClass: Story = {
                 { id: 3, name: 'Middle 2' },
                 { id: 4, name: 'Low priority' },
             ]),
-            posFn: (_row: { id: number; name: string }, i: number, total: number): string => {
+            posFn: (...[, i, total]: [{ id: number; name: string }, number, number]): string => {
                 if (i === 0) return 'is-first';
                 if (i === total - 1) return 'is-last';
                 return 'is-middle';

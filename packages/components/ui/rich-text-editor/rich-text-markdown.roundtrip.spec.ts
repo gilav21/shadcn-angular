@@ -64,13 +64,13 @@ describe('RichTextMarkdownService - round-trip fixed point', () => {
         ['fence opened on a list marker line', '- ```\n  <div>\n  ```\n  after'],
     ];
 
-    it.each(corpus)('%s is stable after one normalising cycle', (_name, md) => {
+    it.each(corpus)('%s is stable after one normalising cycle', (...[, md]) => {
         const once = cycle(md);
         const twice = cycle(once);
         expect(twice).toBe(once);
     });
 
-    it.each(corpus)('%s keeps its visible text through the round trip', (_name, md) => {
+    it.each(corpus)('%s keeps its visible text through the round trip', (...[, md]) => {
         // A weaker property, but one that also holds on the FIRST cycle: no
         // words are lost or invented. Markup characters are stripped from both
         // sides so only the prose is compared.
@@ -242,7 +242,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a table', '<ol><li><table><tbody><tr><td>a</td><td>b</td></tr></tbody></table></li></ol>', 'li table'],
         ['a rule', '<ul><li><hr></li><li>next</li></ul>', 'li > hr'],
         ['a quote', '<ul><li><blockquote><p>q</p></blockquote></li></ul>', 'li > blockquote'],
-    ])('keeps an item that opens with %s inside its list', (_name, html, selector) => {
+    ])('keeps an item that opens with %s inside its list', (...[, html, selector]) => {
         // Written on the marker line, none of these read back: the heading,
         // fence and table became literal characters and a rule left the list.
         const once = saved(html);
@@ -294,7 +294,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['italic', '<p>a<i> x</i> b</p>', 'em, i'],
         ['bold', '<p>a <b>x </b>b</p>', 'strong, b'],
         ['strikethrough', '<p>a<s> x </s>b</p>', 'del, s'],
-    ])('keeps %s that starts or ends with a space as that emphasis, with no stray delimiters', (_name, html, selector) => {
+    ])('keeps %s that starts or ends with a space as that emphasis, with no stray delimiters', (...[, html, selector]) => {
         // Markdown opens emphasis only before a non-space: the delimiters were
         // written around the space and read back as literal characters.
         const out = read(saved(html));
@@ -343,7 +343,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a quote, in a numbered item', '<ol><li>a<ol><li>b</li></ol><blockquote><p>c</p></blockquote></li><li>d</li></ol>', 'b', 'abcd'],
         ['a paragraph and a second sub-list', '<ul><li>a<ul><li>b</li></ul><p>c</p><ol><li>d</li></ol></li></ul>', 'b', 'abcd'],
         ['a paragraph, a level down', '<ul><li>a<ul><li>b<ul><li>c</li></ul><p>d</p></li></ul><p>e</p></li></ul>', 'bcd', 'abcde'],
-    ])('keeps %s that follows a sub-list after it, in the item holding the sub-list', (_name, html, subItem, words) => {
+    ])('keeps %s that follows a sub-list after it, in the item holding the sub-list', (...[, html, subItem, words]) => {
         // Sub-lists were written after all of an item's content, and a line after
         // one was read as the sub-list's last item's, so the content moved ahead
         // of the sub-list or into it.
@@ -359,7 +359,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['after a task list', '<ol><li><blockquote><ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span><code>a</code></span></li></ul><pre><code>b</code></pre></blockquote></li></ol>', 1],
         ['after a code block and a task list', '<ol><li><blockquote><pre><code>x</code></pre><ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a</span></li></ul><pre><code>b\n\nc</code></pre></blockquote></li></ol>', 2],
         ['after a bullet list', '<ul><li><blockquote><ul><li>a</li></ul><pre><code>b</code></pre></blockquote></li></ul>', 1],
-    ])('keeps a code block in a quote in a list item a block of the quote %s, and settles', (_name, html, blocks) => {
+    ])('keeps a code block in a quote in a list item a block of the quote %s, and settles', (...[, html, blocks]) => {
         // The code block took the list item's indent although the quote held it,
         // so inside the quote its fence read as the quoted list item's
         // continuation: code in a task row became inline code in the row's text.
@@ -377,7 +377,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
             '<ol><li><p>a</p><details><summary>s</summary><ol><li><p>b</p><details><summary>t</summary><p>c</p></details></li></ol></details></li></ol>'],
         ['two paragraphs of a bullet in a details block in a numbered item', '<ol><li>a<details><summary>s</summary><ul><li><p>b</p><p>c</p></li></ul></details></li></ol>'],
         ['a quote in a bullet in a details block in item ten', '<ol start="10"><li>a<details><summary>s</summary><ul><li><p>b</p><blockquote><p>c</p></blockquote></li></ul></details></li></ol>'],
-    ])('keeps %s at its level through a save, and settles', (_name, html) => {
+    ])('keeps %s at its level through a save, and settles', (...[, html]) => {
         // Each line of a numbered item's block was dedented by its own width, so
         // lines at different indents lost different amounts and moved a level.
         const levels = (root: HTMLElement): string[] => {
@@ -403,7 +403,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['a space', '<p>a<a href="https://x.test"> </a>b</p>', 'a b', null],
         ['a break', '<p>a<a href="https://x.test"><br></a>b</p>', 'ab', 'br'],
-    ])('keeps %s held by a link with no text, and settles', (_name, html, text, kept) => {
+    ])('keeps %s held by a link with no text, and settles', (...[, html, text, kept]) => {
         // Written as an empty tag, the space or break inside was dropped and the
         // words on either side fused.
         const once = saved(html);
@@ -420,7 +420,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['alone', '<p>x <code><img src="https://x.test/i.png" alt="pic"></code> y</p>', ''],
         ['in a heading', '<h2><code>a<img src="https://x.test/i.png" alt="pic">b</code></h2>', 'ab'],
         ['beside a break', '<p><code>a<br><img src="https://x.test/i.png" alt="pic">b</code></p>', 'ab'],
-    ])('keeps an image inside inline code %s, and settles', (_name, html, codeText) => {
+    ])('keeps an image inside inline code %s, and settles', (...[, html, codeText]) => {
         // The code span was written from its text, which an image does not have:
         // the image was dropped, and code holding only an image vanished.
         const once = saved(html);
@@ -435,7 +435,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['an empty code element before', '<p>a <code></code><code>x</code> b</p>', 'x'],
         ['an empty code element after', '<p>a <code>x</code><code></code> b</p>', 'x'],
         ['an empty code element between two', '<p>a <code>x</code><code></code><code>y</code> b</p>', 'xy'],
-    ])('settles inline code with %s', (_name, html, codeText) => {
+    ])('settles inline code with %s', (...[, html, codeText]) => {
         // An empty code element, written as nothing, counted as touching the code
         // beside it, so the first save wrote the tag form and the second a span.
         // Both read back as the same HTML, so the markdown itself is compared.
@@ -450,7 +450,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['between words in inline code', '<p><code>a<img alt="q">b</code></p>', 'ab'],
         ['in a paragraph', '<p>a <img alt="q"> b</p>', 'a b'],
         ['opening a paragraph', '<p><img alt="q"> t</p>', 't'],
-    ])('leaves an image with no address out of the save %s, and settles', (_name, html, text) => {
+    ])('leaves an image with no address out of the save %s, and settles', (...[, html, text]) => {
         // Written as "![alt]()", it came back as that text; written as nothing in
         // place, the spaces around it stayed and the next save collapsed them.
         const once = saved(html);
@@ -471,7 +471,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a blank loose element between blocks', '<p>a</p><b> </b><p>b</p>'],
         ['a loose checkbox between blocks', '<p>a</p><input type="checkbox"><p>b</p>'],
         ['a loose image between blocks', '<p>a</p><img src="https://x.test/i.png" alt="pic"><p>b</p>'],
-    ])('writes %s so the second save equals the first', (_name, html) => {
+    ])('writes %s so the second save equals the first', (...[, html]) => {
         // A space ending a line shows nothing but was written, and the next save
         // dropped it; loose text after a rule went on the rule's next line, and the
         // next save, reading it as a paragraph, added a blank line.
@@ -484,7 +484,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['text directly before a heading', 'word\n# h'],
         ['text directly after a rule', '```\nx\n```\n---\ntext'],
-    ])('settles hand-written markdown with %s from its first save', (_name, markdown) => {
+    ])('settles hand-written markdown with %s from its first save', (...[, markdown]) => {
         const first = service.toMarkdown(service.toHtml(markdown));
 
         expect(service.toMarkdown(service.toHtml(first))).toBe(first);
@@ -541,7 +541,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['a rule', '<ul><li><p>a</p><hr><p>b</p></li></ul>'],
         ['a table after two paragraphs', '<ul><li><p>a</p><p>x</p><table><tbody><tr><td>c</td></tr></tbody></table></li></ul>'],
-    ])('keeps an item holding %s whole, with no empty paragraph inside or after it', (_name, html) => {
+    ])('keeps an item holding %s whole, with no empty paragraph inside or after it', (...[, html]) => {
         const once = saved(html);
         const out = read(once);
 
@@ -633,7 +633,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['bold', '<ul><li><strong>a<br>b</strong> c</li></ul>', 'li > strong', 'ab c'],
         ['italic beside a link', '<ol><li><a href="https://example.com/">l</a> <em>x<br>y</em></li></ol>', 'li > em', 'l xy'],
         ['italic before a sub-list', '<ul><li><em>a<br>b</em> c<ul><li>d</li></ul></li></ul>', 'li > em', 'ab cd'],
-    ])('keeps a line break inside %s on the line of a list item, and settles', (_name, html, selector, text) => {
+    ])('keeps a line break inside %s on the line of a list item, and settles', (...[, html, selector, text]) => {
         // Written as a hard break, the second half read back as a paragraph of
         // the item, splitting the emphasis and losing the space beside it.
         const once = saved(html);
@@ -648,7 +648,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['inside emphasis', '<ol><li><p><em>a<br>b</em> c</p></li><li>d</li></ol>', 'abcd'],
         ['between runs, before a second paragraph', '<ul><li><p>a<br>b</p><p>c</p></li></ul>', 'abc'],
-    ])('keeps a line break in the first paragraph of a list item, %s, and settles', (_name, html, text) => {
+    ])('keeps a line break in the first paragraph of a list item, %s, and settles', (...[, html, text]) => {
         // The first paragraph is written on the marker line, where a hard break
         // ended the line and the rest read back as a paragraph of its own.
         const once = saved(html);
@@ -683,7 +683,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['only text', '<blockquote><p><strong>a<br>b</strong> c</p></blockquote>'],
         ['a code block too', '<blockquote><p><strong>a<br>b</strong> c</p><pre><code>x  \n\ny</code></pre></blockquote>'],
         ['a nested quote too', '<blockquote><p><strong>a<br>b</strong> c</p><blockquote><p>d</p></blockquote></blockquote>'],
-    ])('keeps a line break inside bold in a quote holding %s, and settles', (_name, html) => {
+    ])('keeps a line break inside bold in a quote holding %s, and settles', (...[, html]) => {
         // Written as a line ending, which bold cannot close across. Beside a
         // block the bold came back as literal asterisks.
         const once = saved(html);
@@ -701,7 +701,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
             + '<input type="checkbox"><span>x</span><ul data-task-list=""><li data-task="" data-checked="false">'
             + '<input type="checkbox"><span>y</span></li></ul></li></ul><p>b<br>c</p></blockquote>', 'xybc'],
         ['in a span inside a details block', '<blockquote><details><summary>s</summary><p>a <span>b<br>c</span></p></details></blockquote>', 'sabc'],
-    ])('keeps every word of a quoted paragraph with a break between runs, %s, and settles after one save', (_name, html, text) => {
+    ])('keeps every word of a quoted paragraph with a break between runs, %s, and settles after one save', (...[, html, text]) => {
         // A quote reads each of its lines as a line of its own. Written as the
         // tag, a break between runs read back as two lines, and the next save
         // wrote something else. A span is no formatting: it is written as its
@@ -715,7 +715,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['after it', '<p>c <span><em>x y</em></span>z</p>', 'c x yz'],
         ['before it', '<p>c<span><u><em>x</em></u></span> z</p>', 'cx z'],
-    ])('keeps emphasis inside a wrapper that touches a word %s as emphasis, and settles', (_name, html, text) => {
+    ])('keeps emphasis inside a wrapper that touches a word %s as emphasis, and settles', (...[, html, text]) => {
         const once = saved(html);
         const out = read(once);
 
@@ -727,7 +727,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['italic before bold', '<p><em>x</em><b>y</b> z</p>', 'em, i', 'strong, b'],
         ['bold before italic', '<p><strong>x</strong><i>y</i> z</p>', 'strong, b', 'em, i'],
-    ])('keeps emphasis against another emphasis with no space between, %s, and settles', (_name, html, first, second) => {
+    ])('keeps emphasis against another emphasis with no space between, %s, and settles', (...[, html, first, second]) => {
         // Only a text neighbour counted as a word, so the two runs were written
         // as `*x***y**`, whose asterisks the reader paired the wrong way.
         const once = saved(html);
@@ -754,7 +754,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a pretty-printed heading', '<h2>\n  Title\n</h2>', 'h2', 'Title'],
         ['a task row', '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>a\nb</span></li></ul>', 'li[data-task] > span', 'a b'],
         ['bold in a quote beside a list', '<blockquote><p><strong>a\nb</strong></p><ul><li>x</li></ul></blockquote>', 'blockquote strong', 'a b'],
-    ])('reads a newline inside the text of %s as the space it shows, and settles', (_name, html, selector, text) => {
+    ])('reads a newline inside the text of %s as the space it shows, and settles', (...[, html, selector, text]) => {
         const once = saved(html);
         const out = read(once);
 
@@ -773,7 +773,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a bare table written as text', '<p>a|b<br>-|-</p>', 'a|b-|-'],
         ['a separator split by a span', '<p>| a |<br>|<span>---</span>|</p>', '| a ||---|'],
         ['entity-shaped text', '<p>Use &amp;lt; and &amp;copy; and &amp;#169;</p>', 'Use &lt; and &copy; and &#169;'],
-    ])('keeps %s as text through a save, and settles', (_name, html, text) => {
+    ])('keeps %s as text through a save, and settles', (...[, html, text]) => {
         // Each is syntax the reader recognises only across element boundaries,
         // or a shape no single-node escape covered.
         const once = saved(html);
@@ -796,7 +796,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['inline code holding a backtick run', '<blockquote><p><code>a``b</code></p><p>c</p></blockquote>'],
         ['strikethrough that starts with a tilde', '<blockquote><p><del>~x</del></p><p>c</p></blockquote>'],
-    ])('keeps a quote holding %s to its two lines, and settles', (_name, html) => {
+    ])('keeps a quote holding %s to its two lines, and settles', (...[, html]) => {
         // Taken for a fence, the quote kept its blank lines and grew on every save.
         const once = saved(html);
         const out = read(once);
@@ -818,7 +818,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['at the top', '<blockquote><table><tbody><tr><td>a</td></tr></tbody></table><p>x</p></blockquote>'],
         ['in a list item', '<ul><li><p>a</p><blockquote><table><tbody><tr><td>a</td></tr></tbody></table><p>x</p></blockquote></li></ul>'],
         ['in a details block', '<details><summary>s</summary><blockquote><table><tbody><tr><td>a</td></tr></tbody></table><p>x</p></blockquote></details>'],
-    ])('leaves no empty paragraph after a quoted table followed by text, %s, and settles', (_name, html) => {
+    ])('leaves no empty paragraph after a quoted table followed by text, %s, and settles', (...[, html]) => {
         // The quote returned its loose text bare, and the paragraph pass split
         // the quote's markup at the blank line that ends the table.
         const once = saved(html);
@@ -841,7 +841,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['bold inside a word', '<p>a<strong>b<br><br>c</strong>d</p>', 'strong'],
         ['an underline', '<p>a <u>b<br><br>c</u> d</p>', 'u'],
         ['a styled span', '<p>a <span style="color: red">b<br><br>c</span> d</p>', 'span[style]'],
-    ])('keeps two line breaks inside %s written as tags, and settles', (_name, html, selector) => {
+    ])('keeps two line breaks inside %s written as tags, and settles', (...[, html, selector]) => {
         // A blank line between the breaks put the two tags in different blocks,
         // so neither counted as paired and both came back as text.
         const once = saved(html);
@@ -863,7 +863,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['a heading', '<h2>one<br><br>two</h2>', 'h2'],
         ['a task row', '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>one<br><br>two</span></li></ul>', 'li[data-task] > span'],
-    ])('keeps two line breaks in a row inside %s, and settles', (_name, html, selector) => {
+    ])('keeps two line breaks in a row inside %s, and settles', (...[, html, selector]) => {
         // The blanks after the first break were taken with it, so the second was
         // written as a newline that ended the line.
         const once = saved(html);
@@ -916,7 +916,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['an empty span', '<p><em>x</em><span></span>y</p>'],
         ['an empty underline', '<p><em>x</em><u></u>y</p>'],
-    ])('keeps emphasis that touches a word past %s as emphasis, and settles', (_name, html) => {
+    ])('keeps emphasis that touches a word past %s as emphasis, and settles', (...[, html]) => {
         const once = saved(html);
         const out = read(once);
 
@@ -929,7 +929,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a fence split by spans', '<p>~<span>~</span>~</p><p>code</p><p>~<span>~</span>~</p>', '~~~code~~~', 'pre'],
         ['an entity split by a span', '<p>a <span>&amp;</span>lt; b</p>', 'a &lt; b', 'b, strong'],
         ['a tag split by spans', '<p><span>&lt;</span>b&gt;x<span>&lt;</span>/b&gt; y</p>', '<b>x</b> y', 'b, strong'],
-    ])('keeps %s, whose text nodes each looked harmless, as text, and settles', (_name, html, text, selector) => {
+    ])('keeps %s, whose text nodes each looked harmless, as text, and settles', (...[, html, text, selector]) => {
         // Escaped one text node at a time, the syntax only formed once the
         // nodes were written next to each other.
         const once = saved(html);
@@ -957,7 +957,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['blanks in a span before a newline', '<p><span>a  </span>\nb</p>', 'a b', 0],
         ['a blank after bold beside a newline', '<p><b>a </b> \nb</p>', 'a b', 0],
         ['a newline after a line break', '<p>a<br>\nb</p>', 'ab', 1],
-    ])('writes %s as the page shows it, and settles', (_name, html, text, breaks) => {
+    ])('writes %s as the page shows it, and settles', (...[, html, text, breaks]) => {
         // Trimmed one text node at a time, blanks from another node invented a
         // line break, or the second save differed from the first.
         const once = saved(html);
@@ -985,7 +985,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a heading and two paragraphs', '<blockquote><h2>h</h2><p>x</p><p>y</p></blockquote>', 2],
         ['two paragraphs and a list', '<blockquote><p>x</p><p>y</p><ul><li>a</li></ul></blockquote>', 2],
         ['a paragraph with a break beside a list', '<blockquote><ul><li>a</li></ul><p>b<br>c</p></blockquote>', 2],
-    ])('keeps every paragraph of a quote holding %s apart, with no empty line, and settles', (_name, html, paragraphs) => {
+    ])('keeps every paragraph of a quote holding %s apart, with no empty line, and settles', (...[, html, paragraphs]) => {
         // The quote wrote its blocks with no blank line between them: beside a
         // block, two paragraphs read back as one, or an empty line was added.
         const once = saved(html);
@@ -1008,7 +1008,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a sibling item', '- a\n  :::details T\n  body\n\n- b\n  :::', ':scope > ul > li', 2],
         ['a sibling item with no blank line before it', '- a\n  :::details T\n  body\n- b\n  :::', ':scope > ul > li', 2],
         ['a paragraph after a blank line', '- a\n  :::details T\n  body\n\npara\n\n:::', ':scope > p', 2],
-    ])('keeps an unclosed details opener in a list item as text when a closer follows %s', (_name, markdown, selector, count) => {
+    ])('keeps an unclosed details opener in a list item as text when a closer follows %s', (...[, markdown, selector, count]) => {
         // Paired across the item's end, the block took in a sibling item or a
         // top-level paragraph.
         const out = read(service.toHtml(markdown));
@@ -1021,7 +1021,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['after a period', '<p><i><b>x.</b></i><i>.y</i></p>', 'x..y'],
         ['after an exclamation mark', '<p><i><b>x!</b></i><i>(y)</i></p>', 'x!(y)'],
-    ])('keeps two italic runs side by side %s as italic, with no stray asterisks', (_name, html, text) => {
+    ])('keeps two italic runs side by side %s as italic, with no stray asterisks', (...[, html, text]) => {
         const once = saved(html);
         const out = read(once);
 
@@ -1033,7 +1033,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['a heading', '<h2><code>a  \nb</code></h2>', 'h2 code'],
         ['a paragraph, across a blank line', '<p>x <code>a\n\nb</code> y</p>', 'p code'],
-    ])('keeps the spaces and newlines of code written as a tag inside %s, and settles', (_name, html, selector) => {
+    ])('keeps the spaces and newlines of code written as a tag inside %s, and settles', (...[, html, selector]) => {
         const source = read(html).querySelector('code')!.textContent;
         const once = saved(html);
         const out = read(once);
@@ -1059,7 +1059,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['a closing bracket', 'a]b'],
         ['brackets and a backslash', 'x\\y [z]'],
-    ])('keeps an image whose alt text holds %s', (_name, alt) => {
+    ])('keeps an image whose alt text holds %s', (...[, alt]) => {
         const holder = document.createElement('p');
         const image = document.createElement('img');
         image.setAttribute('alt', alt);
@@ -1074,7 +1074,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['alone in the quote', '<blockquote><p><span style="background-color: yellow">one<br>two</span></p></blockquote>'],
         ['beside a list', '<blockquote><ul><li>x</li></ul><p>a <span style="color: red">b<br>c</span> d</p></blockquote>'],
-    ])('keeps a styled span holding a line break in a quote %s one span, and settles', (_name, html) => {
+    ])('keeps a styled span holding a line break in a quote %s one span, and settles', (...[, html]) => {
         // Taken for unformatted text, the span had the break end the quote
         // paragraph inside its tag pair, and the second line lost its style.
         const once = saved(html);
@@ -1095,7 +1095,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['after a paragraph', '<blockquote><p>a</p><pre><code>if (x) {\n    y();\n}</code></pre></blockquote>', 'if (x) {\n    y();\n}'],
         ['alone', '<blockquote><pre><code>  x</code></pre></blockquote>', '  x'],
-    ])('keeps the indentation of a quoted code block %s', (_name, html, code) => {
+    ])('keeps the indentation of a quoted code block %s', (...[, html, code]) => {
         // The space after ">" was stripped twice, one of the code's own spaces
         // lost on every save.
         const once = saved(html);
@@ -1107,7 +1107,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['an entity', '<p>&amp;<span dir="rtl">lt;</span></p>', '&lt;'],
         ['a tilde run', '<p>~<span dir="rtl">~~</span></p>', '~~~'],
-    ])('keeps %s split across a span carrying only dir as text, and settles', (_name, html, text) => {
+    ])('keeps %s split across a span carrying only dir as text, and settles', (...[, html, text]) => {
         // The span is written as its text, but only spans with no attributes at
         // all were unwrapped before escaping.
         const once = saved(html);
@@ -1120,7 +1120,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['an escaped underscore beside other code', '<p><code>x\\_y</code><code>z</code></p>', 'x\\_y'],
         ['asterisks across a newline', '<p><code>a *b* c\nd</code></p>', 'a *b* c\nd'],
         ['backticks across a newline', '<p><code>`a`\nb</code></p>', '`a`\nb'],
-    ])('keeps code written as a tag holding %s as written, and settles', (_name, html, code) => {
+    ])('keeps code written as a tag holding %s as written, and settles', (...[, html, code]) => {
         // The tags are raw markup, so their content went through the emphasis,
         // link and inline-code passes.
         const once = saved(html);
@@ -1137,7 +1137,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['backticks and asterisks', 'x `y` *z*', 'p', 'x `y` *z*'],
         ['a tag, an entity and a bare angle bracket', 'use <i> &copy; & <', 'p', 'use <i> &copy; & <'],
         ['a quote', 'say "hi"', 'p', 'say "hi"'],
-    ])('keeps an image whose alt text holds %s one image, and settles', (_name, alt, wrap, kept) => {
+    ])('keeps an image whose alt text holds %s one image, and settles', (...[, alt, wrap, kept]) => {
         const holder = document.createElement(wrap);
         const image = document.createElement('img');
         image.setAttribute('alt', alt);
@@ -1173,7 +1173,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
     it.each([
         ['with a space after its marker', '## \n\nPara'],
         ['with nothing after its marker', '##\n\nPara'],
-    ])('reads a hand-written empty heading %s as empty, leaving the paragraph after it', (_name, markdown) => {
+    ])('reads a hand-written empty heading %s as empty, leaving the paragraph after it', (...[, markdown]) => {
         // The editor writes an empty heading with a break tag, so only markdown
         // typed by hand has a marker with nothing after it.
         const out = read(service.toHtml(markdown));
@@ -1208,7 +1208,7 @@ describe('RichTextMarkdownService - a nested block keeps what it holds through a
         ['a heading', '<h2>one<br>two</h2>', 'h2'],
         ['a task row', '<ul data-task-list><li data-task data-checked="false"><input type="checkbox"><span>one<br>two</span></li></ul>', 'li[data-task] > span'],
         ['a summary', '<details><summary>one<br>two</summary><p>body</p></details>', 'summary'],
-    ])('keeps a line break inside %s, which is one line in markdown', (_name, html, selector) => {
+    ])('keeps a line break inside %s, which is one line in markdown', (...[, html, selector]) => {
         const once = saved(html);
         const out = read(once);
 

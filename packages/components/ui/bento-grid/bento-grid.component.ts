@@ -508,7 +508,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
         maxRow += 2;
 
         const totalCells = this.cols() * maxRow;
-        return new Array(totalCells).fill(0).map((_, i) => ({
+        return new Array(totalCells).fill(0).map((...[, i]) => ({
             id: i,
         }));
     });
@@ -536,7 +536,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
 
 
     /** Template handler that marks a widget as a valid HTML5 drop target (`dropEffect = 'move'`). The drop preview itself is computed by {@link onContainerDragOver}. */
-    onDragOver(event: DragEvent, _targetItem: DashboardItem): void {
+    onDragOver(event: DragEvent): void {
         if (!this.editable()) return;
         event.preventDefault();
 
@@ -572,7 +572,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
     }
 
     /** Template hook for the canvas `dragleave`. Deliberately empty: the preview is kept while the pointer crosses child elements, and is cleared on drop or drag-end instead. */
-    onContainerDragLeave(_event: DragEvent): void {
+    onContainerDragLeave(): void {
     }
 
     /**
@@ -685,7 +685,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
     private getGridCoordinates(event: DragEvent | MouseEvent): { x: number; y: number } {
         const container = (event.currentTarget as HTMLElement);
         const rect = container.getBoundingClientRect();
-        const _isRtl = isRtl(this.el.nativeElement);
+        const isRightToLeft = isRtl(this.el.nativeElement);
 
         // Calculate click/drag position relative to container
         let clientX = event.clientX;
@@ -699,7 +699,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
         }
 
         let x = clientX - rect.left;
-        if (_isRtl) {
+        if (isRightToLeft) {
             x = rect.right - clientX;
         }
 
@@ -818,14 +818,14 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
         const state = this.initialResizeState;
         if (!state) return { deltaX: 0, deltaY: 0, direction: rawDirection };
 
-        const _isRtl = isRtl(this.el.nativeElement);
+        const isRightToLeft = isRtl(this.el.nativeElement);
         let deltaX = clientX - state.x;
         const deltaY = clientY - state.y;
 
-        if (_isRtl) {
+        if (isRightToLeft) {
             deltaX = -deltaX;
         }
-        const direction = _isRtl ? this.flipResizeDirectionForRtl(rawDirection) : rawDirection;
+        const direction = isRightToLeft ? this.flipResizeDirectionForRtl(rawDirection) : rawDirection;
         return { deltaX, deltaY, direction };
     }
 
@@ -1011,7 +1011,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
     }
 
     /** Clears the drag state and preview when a mouse drag ends, including a drag cancelled outside the grid — no {@link itemsChange} is emitted in that case. */
-    onDragEnd(_event: DragEvent): void {
+    onDragEnd(): void {
         this.draggedItemId.set(null);
         this.dropPreview.set(null);
         this.dragOffset.set(null);
@@ -1076,7 +1076,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
 
     private getGridCoordinatesFromPoint(clientX: number, clientY: number, container: HTMLElement): { x: number; y: number } {
         const rect = container.getBoundingClientRect();
-        const _isRtl = isRtl(this.el.nativeElement);
+        const isRightToLeft = isRtl(this.el.nativeElement);
 
         let adjustedX = clientX;
         let adjustedY = clientY;
@@ -1088,7 +1088,7 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
         }
 
         let x = adjustedX - rect.left;
-        if (_isRtl) {
+        if (isRightToLeft) {
             x = rect.right - adjustedX;
         }
 

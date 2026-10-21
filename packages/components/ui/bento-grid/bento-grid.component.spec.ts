@@ -570,7 +570,7 @@ describe('BentoGridComponent', () => {
             grid.draggedItemId.set('1');
             grid.dropPreview.set({ x: 1, y: 1, cols: 1, rows: 1 });
             grid.dragOffset.set({ x: 1, y: 1 });
-            grid.onDragEnd(new Event('dragend') as DragEvent);
+            grid.onDragEnd();
             expect(grid.draggedItemId()).toBeNull();
             expect(grid.dropPreview()).toBeNull();
             expect(grid.dragOffset()).toBeNull();
@@ -578,20 +578,19 @@ describe('BentoGridComponent', () => {
 
         it('onDragOver sets dropEffect move only when editable, and tolerates a missing dataTransfer', () => {
             const grid = getGrid();
-            const target: DashboardItem = { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' };
             const notEditable = makeDragEvent('dragover');
-            grid.onDragOver(notEditable, target);
+            grid.onDragOver(notEditable);
             expect(notEditable.dataTransfer!.dropEffect).toBe('');
 
             component.editable.set(true);
             fixture.detectChanges();
             const ev = makeDragEvent('dragover');
-            grid.onDragOver(ev, target);
+            grid.onDragOver(ev);
             expect(ev.dataTransfer!.dropEffect).toBe('move');
 
             const bare = new Event('dragover') as DragEvent;
             Object.defineProperty(bare, 'dataTransfer', { value: null });
-            expect(() => grid.onDragOver(bare, target)).not.toThrow();
+            expect(() => grid.onDragOver(bare)).not.toThrow();
         });
 
         it('onContainerDragOver sets copy for external and updates dropPreview for internal', () => {

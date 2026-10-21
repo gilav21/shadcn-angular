@@ -176,7 +176,7 @@ export class WaterfallChartComponent implements AfterViewInit {
         const a = this.area();
         const range: [number, number] = this.isRtl() ? [a.right, a.left] : [a.left, a.right];
         // Bars are keyed by position, not name: two bars may share a label.
-        return bandScale(this.data().map((_, i) => String(i)), range, 0.3, 0.15);
+        return bandScale(this.data().map((...[, i]) => String(i)), range, 0.3, 0.15);
     });
 
     readonly yTicks = computed(() => {

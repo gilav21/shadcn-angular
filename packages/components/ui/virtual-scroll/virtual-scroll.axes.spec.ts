@@ -185,7 +185,7 @@ describe('VirtualScrollComponent — horizontal orientation', () => {
         await TestBed.configureTestingModule({ imports: [AxesHostComponent] }).compileComponents();
         fixture = TestBed.createComponent(AxesHostComponent);
         host = fixture.componentInstance;
-        host.items.set(Array.from({ length: 500 }, (_, id) => ({ id })));
+        host.items.set(Array.from({ length: 500 }, (...[, id]) => ({ id })));
         host.orientation.set('horizontal');
         fixture.detectChanges();
 
@@ -287,7 +287,7 @@ describe('VirtualScrollComponent — 2D (both axes)', () => {
         await TestBed.configureTestingModule({ imports: [AxesHostComponent] }).compileComponents();
         fixture = TestBed.createComponent(AxesHostComponent);
         host = fixture.componentInstance;
-        host.items.set(Array.from({ length: 100 * 40 }, (_, id) => ({ id })));
+        host.items.set(Array.from({ length: 100 * 40 }, (...[, id]) => ({ id })));
         host.orientation.set('both');
         host.columnCount.set(40);
         fixture.detectChanges();
@@ -351,7 +351,7 @@ describe('VirtualScrollComponent — 2D (both axes)', () => {
     });
 
     it('omits the holes of a ragged final row rather than rendering undefined cells', () => {
-        host.items.set(Array.from({ length: 42 }, (_, id) => ({ id })));
+        host.items.set(Array.from({ length: 42 }, (...[, id]) => ({ id })));
         fixture.detectChanges();
 
         expect(vs.gridRows()).toBe(2);

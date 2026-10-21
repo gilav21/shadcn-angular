@@ -271,7 +271,7 @@ describe('rich-text-slash-commands.utils', () => {
             ['a table cell', '<table><tbody><tr><td>first</td><td>second</td></tr><tr><td>last</td></tr></tbody></table>', 'td', 'TD'],
             ['a cell of a table in a list item', '<ul><li>item<table><tbody><tr><td>cell</td></tr></tbody></table></li></ul>', 'td', 'TD'],
             ['a level-five heading in a quote', '<blockquote><h5>deep</h5></blockquote>', 'h5', 'H5'],
-        ])('anchors to the line the caret sits in: %s', (_name, html, selector, tag) => {
+        ])('anchors to the line the caret sits in: %s', (...[, html, selector, tag]) => {
             // The addon's own tag list had none of these, so the anchor was the
             // details block, the table or the quote around them.
             const root = makeRoot(html);
@@ -507,7 +507,7 @@ describe('rich-text-slash-commands.utils', () => {
             ['a table', '<ul><li>text<table><tbody><tr><td>cell</td></tr></tbody></table></li></ul>', 'text'],
             ['a code block and blank text', '<ul><li>line<pre><code>x</code></pre>\n</li></ul>', 'line'],
             ['a sub-list after a blank line of its own', '<ul><li>\u00a0<ul><li>child</li></ul></li></ul>', '\u00a0'],
-        ])('places the caret at the end of the item own text, not in %s nested at its end', (_name, html, text) => {
+        ])('places the caret at the end of the item own text, not in %s nested at its end', (...[, html, text]) => {
             const root = makeRoot(html);
             placeCaretAtEndOfBlock(document, root.querySelector('li')!);
 

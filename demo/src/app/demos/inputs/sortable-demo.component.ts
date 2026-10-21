@@ -475,13 +475,13 @@ export class SortableDemoComponent {
         });
     }
 
-    readonly wipLimit = (_item: Card, ctx: { toIndex: number }): { ok: boolean; reason?: string } => {
+    readonly wipLimit = (...[, ctx]: [Card, { toIndex: number }]): { ok: boolean; reason?: string } => {
         return ctx.toIndex < 2
             ? { ok: true }
             : { ok: false, reason: 'WIP limit reached (2)' };
     };
 
-    readonly posFn = (_item: Card, i: number, total: number): string => {
+    readonly posFn = (...[, i, total]: [Card, number, number]): string => {
         if (i === 0) return 'bg-green-100 dark:bg-green-900/40 border-green-300';
         if (i === total - 1) return 'bg-red-100 dark:bg-red-900/40 border-red-300';
         return 'bg-card';

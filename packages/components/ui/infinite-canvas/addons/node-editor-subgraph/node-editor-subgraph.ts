@@ -55,7 +55,7 @@ export const SUBGRAPH_INPUT: NodeTypeDefinition<unknown> = {
   category: 'Boundary',
   accent: '#22c55e',
   ports: [{ id: 'value', direction: 'out', label: 'Value' }],
-  compute: (_inputs, ctx) => ({ value: ctx.state }),
+  compute: (...[, ctx]) => ({ value: ctx.state }),
 };
 
 /**

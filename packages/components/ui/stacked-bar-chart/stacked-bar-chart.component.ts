@@ -199,7 +199,7 @@ export class StackedBarChartComponent implements AfterViewInit {
    */
   private readonly stackUnits = computed((): number[][] => {
     const percent = this.stacking() === 'percent';
-    return this.categories().map((_, catIndex) => {
+    return this.categories().map((...[, catIndex]) => {
       const raw = this.rawValues(catIndex);
       if (!percent) return raw;
       const absoluteTotal = raw.reduce((sum, v) => sum + Math.abs(v), 0);
@@ -368,7 +368,7 @@ export class StackedBarChartComponent implements AfterViewInit {
    * to Enter/Space so mouse and keyboard behave identically; the originating
    * `event` is not forwarded on the payload.
    */
-  onSegmentClick(_event: Event, segment: StackedSegment, bar: StackedBar): void {
+  onSegmentClick(segment: StackedSegment, bar: StackedBar): void {
     this.segmentClick.emit({
       series: segment.seriesName,
       category: bar.category,

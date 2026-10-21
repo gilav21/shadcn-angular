@@ -36,8 +36,8 @@ const COVERAGE: Record<string, number> = { 'customer_id>id': 94, 'region>area': 
 const FILE_COLUMNS: FieldMapperItem[] = ['E-mail', 'First name', 'Surname', 'Phone (mobile)', 'שם החברה'].map(label => ({ id: label, label }));
 const CONTACT_FIELDS: FieldMapperItem[] = ['email', 'firstName', 'lastName', 'phone', 'company', 'notes'].map(label => ({ id: label, label }));
 
-const WIDE_START: FieldMapperItem[] = Array.from({ length: 40 }, (_, i) => ({ id: `src_${i}`, label: `source_column_${String(i + 1).padStart(2, '0')}` }));
-const WIDE_END: FieldMapperItem[] = Array.from({ length: 40 }, (_, i) => ({ id: `dst_${i}`, label: `target_field_${String(i + 1).padStart(2, '0')}` }));
+const WIDE_START: FieldMapperItem[] = Array.from({ length: 40 }, (...[, i]) => ({ id: `src_${i}`, label: `source_column_${String(i + 1).padStart(2, '0')}` }));
+const WIDE_END: FieldMapperItem[] = Array.from({ length: 40 }, (...[, i]) => ({ id: `dst_${i}`, label: `target_field_${String(i + 1).padStart(2, '0')}` }));
 
 @Component({
   selector: 'app-field-mapper-demo',

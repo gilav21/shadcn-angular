@@ -282,7 +282,7 @@ describe('description escaping (template-literal context)', () => {
     it.each([
         ['demo', renderDemo],
         ['component', renderComponentTs],
-    ] as const)('emits an escaped description into the %s file', (_label, render) => {
+    ] as const)('emits an escaped description into the %s file', (...[, render]) => {
         const source = render(tricky);
         expect(source).toContain('\\`code\\`');
         expect(source).toContain('\\${interpolated}');

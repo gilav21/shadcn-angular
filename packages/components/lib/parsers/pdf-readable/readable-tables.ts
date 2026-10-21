@@ -50,7 +50,7 @@ export function findTableInBand(
     modes: TableDetectionModes = {},
 ): BandTableSplit | null {
     const rows = groupByBaseline(band);
-    const ruled = (modes.ruled ?? true) ? findRuledTable(band, rows, rects, pageIndex) : null;
+    const ruled = (modes.ruled ?? true) ? findRuledTable(band, rects, pageIndex) : null;
     if (ruled) return applyTableSpan(ruled, ctx);
     const unruled = modes.unruled ?? true;
     if (unruled === false) return null;
@@ -133,7 +133,6 @@ interface RuledGrid {
 
 function findRuledTable(
     band: readonly Line[],
-    _rows: readonly Line[][],
     rects: readonly PathRect[],
     pageIndex: number,
 ): BandTableSplit | null {
@@ -212,7 +211,7 @@ const COMPONENT_GAP = 4;
  * tables and must not share a grid.
  */
 function connectedComponents(rects: readonly PathRect[]): PathRect[][] {
-    const parent = rects.map((_, i) => i);
+    const parent = rects.map((...[, i]) => i);
     const find = (i: number): number => {
         let root = i;
         while (parent[root] !== root) root = parent[root];

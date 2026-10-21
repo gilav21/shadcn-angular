@@ -150,7 +150,7 @@ export class RadarChartComponent {
         for (let level = 1; level <= levels; level++) {
             const r = (this.radius() * level) / levels;
             const points = this.axes()
-                .map((_, i) => radarPoint(this.center(), this.center(), r, i, axisCount, 1, UNIT_SCALE))
+                .map((...[, i]) => radarPoint(this.center(), this.center(), r, i, axisCount, 1, UNIT_SCALE))
                 .map(p => `${p.x},${p.y}`)
                 .join(' ');
             result.push(points);

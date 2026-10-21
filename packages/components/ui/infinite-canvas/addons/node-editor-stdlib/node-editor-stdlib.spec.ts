@@ -402,7 +402,7 @@ describe('a transformer nobody wrote', () => {
         id: 'test-source',
         label: 'Value',
         ports: [{ id: 'out', direction: 'out', label: 'Value' }],
-        compute: (_inputs, ctx) => ({ out: ctx.state }),
+        compute: (...[, ctx]) => ({ out: ctx.state }),
     };
 
     const GRAPH: readonly NodeConnection[] = [

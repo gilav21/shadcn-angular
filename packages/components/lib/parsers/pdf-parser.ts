@@ -1912,9 +1912,9 @@ function fixVisualOrderRTL(text: string): string {
 function joinSplitHebrewFragments(text: string): string {
     return text
         .replaceAll(/"([\u0590-\u05FF]+)\s+([\u0590-\u05FF])(?=\s|[^"\u0590-\u05FF]|$)/g,
-            (_m, p1: string, p2: string) => p1 + '"' + p2)
+            (...[, p1, p2]: [unknown, string, string]) => p1 + '"' + p2)
         .replaceAll(/(?<![\u0590-\u05FF])([\u0590-\u05FF])\s+([\u0590-\u05FF]+)"(?=\s|[^"\u0590-\u05FF]|$)/g,
-            (_m, p1: string, p2: string) => p1 + p2 + '"');
+            (...[, p1, p2]: [unknown, string, string]) => p1 + p2 + '"');
 }
 
 function fixBracketsAroundLtrWords(text: string): string {
@@ -3175,7 +3175,7 @@ const IGNORED_OPERATORS = new Set([
 ]);
 
 function processStrokeColorOperator(
-    token: string, _operandStack: string[], gs: GraphicsState,
+    token: string, gs: GraphicsState,
     popNum: () => number,
 ): boolean {
     switch (token) {
@@ -3973,7 +3973,7 @@ function dispatchContentOperator(token: string, ctx: ContentExtractionContext): 
     if (processTextShowToken(token, ctx)) return true;
     if (processColorSpaceOperator(token, ctx)) return true;
     if (processColorOperator(token, ctx, () => popNumber(ctx))) return true;
-    if (processStrokeColorOperator(token, ctx.operandStack, ctx.gs, () => popNumber(ctx))) return true;
+    if (processStrokeColorOperator(token, ctx.gs, () => popNumber(ctx))) return true;
     if (processStrokeColorSpaceOperator(token, ctx)) return true;
     if (processPathBuildOperator(token, ctx, () => popNumber(ctx))) return true;
     if (processPathPaintOperator(token, ctx)) return true;
@@ -5399,7 +5399,6 @@ function insertImagesBeforeY(state: HtmlBuilderState, sortedImages: ImageItem[],
 
 function renderLineAsHeading(
     state: HtmlBuilderState, line: TextLine, headingLevel: number, bodyFont: string, bodySize: number,
-    _lineSpacing = 0,
 ): void {
     flushParagraph(state);
     closeList(state);
@@ -5423,7 +5422,7 @@ function renderLineAsHeading(
 }
 
 function renderLineAsBullet(
-    state: HtmlBuilderState, line: TextLine, _lineText: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     if (state.inNumberedList) { state.html.push('</ol>'); state.inNumberedList = false; }
@@ -5440,7 +5439,7 @@ function renderLineAsBullet(
 }
 
 function renderLineAsNumbered(
-    state: HtmlBuilderState, line: TextLine, _lineText: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     const rtl = isLineRTL(line);
@@ -5508,17 +5507,17 @@ function processHtmlLine(
     const primaryFontSize = line.items.reduce((max, item) => Math.max(max, item.fontSize), 0);
     const headingLevel = structHeading > 0 ? structHeading : getHeadingLevel(primaryFontSize, bodySize);
     if (headingLevel > 0) {
-        renderLineAsHeading(state, line, headingLevel, bodyFont, bodySize, options.lineSpacing);
+        renderLineAsHeading(state, line, headingLevel, bodyFont, bodySize);
         return;
     }
 
     const isStructList = structType !== null && isStructureListItem(structType);
     if (isStructList || BULLET_PATTERN.test(lineText)) {
-        renderLineAsBullet(state, line, lineText, bodyFont, bodySize);
+        renderLineAsBullet(state, line, bodyFont, bodySize);
         return;
     }
     if (isNumberedLine(lineText, rtl)) {
-        renderLineAsNumbered(state, line, lineText, bodyFont, bodySize);
+        renderLineAsNumbered(state, line, bodyFont, bodySize);
         return;
     }
 
@@ -6125,7 +6124,7 @@ function applyParagraphSpacing(state: HtmlBuilderState, lineSpacing: number, bod
 }
 
 function handleBorderBoxLine(
-    _line: TextLine, ctx: HtmlBuilderContext, state: HtmlBuilderState,
+    ctx: HtmlBuilderContext, state: HtmlBuilderState,
     renderedBorderBoxes: Set<PathRect>, borderBox: PathRect,
 ): void {
     if (!renderedBorderBoxes.has(borderBox)) {
@@ -6163,7 +6162,7 @@ function processRegularLine(
     const { underlinedItems, structureMap, allBorderBoxes, bodySize, bodyFont, pageWidth, leftMargin, rightMargin } = ctx;
     const borderBox = isLineInsideBorderBox(line, allBorderBoxes);
     if (borderBox) {
-        handleBorderBoxLine(line, ctx, state, renderedBorderBoxes, borderBox);
+        handleBorderBoxLine(ctx, state, renderedBorderBoxes, borderBox);
         return;
     }
 

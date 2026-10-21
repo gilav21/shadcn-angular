@@ -42,7 +42,7 @@ export class TableBodyComponent {
     readonly skeletonRows = input(5);
 
     readonly skeletonRowItems = computed(() =>
-        Array.from({ length: this.skeletonRows() }, (_, i) => i)
+        Array.from({ length: this.skeletonRows() }, (...[, i]) => i)
     );
 
     classes = computed(() => cn('', this.class()));

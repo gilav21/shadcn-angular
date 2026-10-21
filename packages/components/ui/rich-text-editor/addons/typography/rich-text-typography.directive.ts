@@ -54,7 +54,7 @@ export const DEFAULT_FONT_FAMILIES: string[] = [
 export type FontFamilyStrategy = 'append' | 'replace';
 
 /** Font sizes (px) offered by the font-size dropdown: 8px…72px in 2px steps. */
-const FONT_SIZE_STEPS = Array.from({ length: 33 }, (_, i) => 8 + i * 2);
+const FONT_SIZE_STEPS = Array.from({ length: 33 }, (...[, i]) => 8 + i * 2);
 
 /**
  * Opt-in typography addon for `<ui-rich-text-editor>`. Attaches via DI to the

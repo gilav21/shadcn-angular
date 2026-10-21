@@ -12,7 +12,6 @@ import {
     DataTableLoadingVisibility,
     RowActionContext,
     CellIcon,
-    RowDragPosition,
     RowReorderEvent,
 } from './data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
@@ -159,7 +158,7 @@ class EnterpriseOpsTableStoryComponent {
         { accessorKey: 'summary', header: 'Summary', width: 'auto', enableSorting: false, enableGlobalFilter: false },
     ];
 
-    private readonly source: OpsTicket[] = Array.from({ length: 120 }, (_, i) => ({
+    private readonly source: OpsTicket[] = Array.from({ length: 120 }, (...[, i]) => ({
         id: `INC-${(1000 + i).toString()}`,
         account: ['Acme Retail', 'Helios Health', 'Nova Bank', 'Orbit Logistics'][i % 4],
         service: ['Checkout API', 'Billing Engine', 'Ledger Sync', 'Route Optimizer'][i % 4],
@@ -643,7 +642,7 @@ export const LargeDataset: Story = {
         `,
     }),
     args: {
-        data: Array.from({ length: 100 }, (_, i) => ({
+        data: Array.from({ length: 100 }, (...[, i]) => ({
             id: `${i + 1}`,
             name: `User ${i + 1}`,
             email: `user${i + 1}@example.com`,
@@ -928,7 +927,7 @@ export const AutoSizing: Story = {
     },
 };
 
-const manyUsers: User[] = Array.from({ length: 60 }, (_, i) => ({
+const manyUsers: User[] = Array.from({ length: 60 }, (...[, i]) => ({
     id: `${i + 1}`,
     name: `User ${i + 1}`,
     email: `user${i + 1}@example.com`,
@@ -998,7 +997,7 @@ export const ResizableColumns: Story = {
     render: (args) => ({
         props: {
             ...args,
-            onColumnResize: (_event: unknown) => { /* resize handled externally */ },
+            onColumnResize: () => { /* resize handled externally */ },
         },
         template: `
             <div class="h-[600px] w-full p-4">
@@ -1204,7 +1203,7 @@ interface Order {
 
 type OrderStory = StoryObj<DataTableComponent<Order>>;
 
-const orderData: Order[] = Array.from({ length: 20 }, (_, i) => ({
+const orderData: Order[] = Array.from({ length: 20 }, (...[, i]) => ({
     id: `ORD-${String(i + 1).padStart(3, '0')}`,
     customer: ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve'][i % 5],
     createdAt: new Date(Date.now() - i * 1000 * 60 * 60 * 24),
@@ -1443,7 +1442,7 @@ export const RowDragReorderTree: StoryObj<DataTableComponent<OrgRow>> = {
     render: (args) => ({
         props: {
             ...args,
-            allowDrop: (_dragRow: OrgRow, _targetRow: OrgRow, _position: RowDragPosition) => true,
+            allowDrop: () => true,
         },
         template: `
             <div class="h-[460px] w-full p-4">
@@ -1826,7 +1825,7 @@ function generateVirtualColumns(colCount: number): ColumnDef<VirtualRow>[] {
                 accessorKey: `col${c}`,
                 header: `Image ${c}`,
                 width: '80px',
-                cell: (_row: VirtualRow) => '🖼️',
+                cell: () => '🖼️',
             });
         } else {
             cols.push({

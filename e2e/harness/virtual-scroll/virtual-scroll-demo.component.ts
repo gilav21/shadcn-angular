@@ -35,5 +35,5 @@ interface Row { readonly id: number; readonly label: string; }
     `,
 })
 export class VirtualScrollDemoComponent {
-    readonly rows: Row[] = Array.from({ length: 500 }, (_, i) => ({ id: i, label: `Row ${i}` }));
+    readonly rows: Row[] = Array.from({ length: 500 }, (...[, i]) => ({ id: i, label: `Row ${i}` }));
 }

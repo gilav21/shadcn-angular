@@ -129,7 +129,7 @@ describe('rich text line model — the shape table', () => {
         ['nothing of its own, only a list', '<li><ul><li>x</li></ul></li>', null],
         ['only a blank line of its own before a sub-list', '<li>\u00a0<ul><li>child</li></ul></li>', '\u00a0'],
         ['blank text before and after a sub-list', '<li>\u00a0<ul><li>child</li></ul>\n</li>', '\u00a0'],
-    ])('finds the last node of a block holding %s', (_name, html, text) => {
+    ])('finds the last node of a block holding %s', (...[, html, text]) => {
         const root = document.createElement('ul');
         root.innerHTML = html;
 
@@ -142,7 +142,7 @@ describe('rich text line model — the shape table', () => {
         ['a padding break at the end', '<p>one<br></p>', 'one'],
         ['a break then a padding break', '<p>one<br><br></p>', 'one\n'],
         ['a padding break at the end of emphasis', '<p><em>one<br></em></p>', 'one'],
-    ])('reads %s as the author sees the line', (_name, html, text) => {
+    ])('reads %s as the author sees the line', (...[, html, text]) => {
         const root = document.createElement('div');
         root.innerHTML = html;
 
@@ -153,7 +153,7 @@ describe('rich text line model — the shape table', () => {
         expect(actualLines(html)).toEqual(EXPECTED[name].map((row) => [...row]));
     });
 
-    it.each(LINE_SHAPE_FIXTURES)('%s — above and below are exact inverses', (_name, html) => {
+    it.each(LINE_SHAPE_FIXTURES)('%s — above and below are exact inverses', (...[, html]) => {
         const root = rootOf(html);
         const index = buildLineIndex(root);
         for (const line of index.lines) {
@@ -164,7 +164,7 @@ describe('rich text line model — the shape table', () => {
         }
     });
 
-    it.each(LINE_SHAPE_FIXTURES)('%s — the first line has nothing above and the last nothing below', (_name, html) => {
+    it.each(LINE_SHAPE_FIXTURES)('%s — the first line has nothing above and the last nothing below', (...[, html]) => {
         const root = rootOf(html);
         const index = buildLineIndex(root);
         expect(index.lines.length).toBeGreaterThan(0);
@@ -172,7 +172,7 @@ describe('rich text line model — the shape table', () => {
         expect(lineBelow(index, index.lines[index.lines.length - 1])).toBeNull();
     });
 
-    it.each(LINE_SHAPE_FIXTURES)('%s — every line resolves to itself from its own text', (_name, html) => {
+    it.each(LINE_SHAPE_FIXTURES)('%s — every line resolves to itself from its own text', (...[, html]) => {
         const root = rootOf(html);
         for (const line of buildLineIndex(root).lines) {
             const from = lineOwnNodes(line)[0] ?? line.holder;
@@ -387,7 +387,7 @@ describe('rich text line model — the rules', () => {
         expect(measured.toString()).toHaveLength(2);
     });
 
-    it.each(LINE_SHAPE_FIXTURES)('%s — a caret offset survives the round trip', (_name, html) => {
+    it.each(LINE_SHAPE_FIXTURES)('%s — a caret offset survives the round trip', (...[, html]) => {
         const root = rootOf(html);
         const index = buildLineIndex(root);
         for (const line of index.lines) {
@@ -583,7 +583,7 @@ describe('rich text line model — the task rows a list item makes', () => {
         ['an empty nested task row in a quote after a sub-list',
             '<li>a<ul><li>b</li></ul><blockquote><ul data-task-list><li data-task><input type="checkbox"><span></span></li></ul></blockquote></li>',
             [['a', 1], ['BLOCKQUOTE', 0]]],
-    ])('makes %s into rows split at the content after each nested list', (_name, html, rows) => {
+    ])('makes %s into rows split at the content after each nested list', (...[, html, rows]) => {
         expect(rowsOf(itemOf(html))).toEqual(rows);
     });
 

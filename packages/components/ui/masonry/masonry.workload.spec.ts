@@ -83,7 +83,7 @@ describe('MasonryComponent workload', () => {
     describe('efficiency', () => {
         it('lays out 200 items within the 8ms budget', async () => {
             fixture.componentInstance.cards.set(
-                Array.from({ length: 200 }, (_, index) => ({ id: index + 1, height: 40 + (index % 7) * 25 }))
+                Array.from({ length: 200 }, (...[, index]) => ({ id: index + 1, height: 40 + (index % 7) * 25 }))
             );
             fixture.detectChanges();
             await settle(fixture);

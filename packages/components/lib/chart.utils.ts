@@ -324,7 +324,7 @@ export function calculateAxisTicks(
     const first = firstTickIndex(min, step);
     const last = lastTickIndex(max, step);
     if (!Number.isFinite(tickAt(first, step)) || !Number.isFinite(tickAt(last, step))) return [min, max];
-    return Array.from({ length: last - first + 1 }, (_, k) => tickAt(first + k, step));
+    return Array.from({ length: last - first + 1 }, (...[, k]) => tickAt(first + k, step));
 }
 
 // =============================================================================

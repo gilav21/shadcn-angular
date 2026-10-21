@@ -51,7 +51,7 @@ describe('parsing reads back what formatting wrote', () => {
      * parser rejects its own formatter is broken in the most confusing
      * possible way — it works until you blur it.
      */
-    it.each(LOCALES)('%s / %s — %s', (locale, currency, _why) => {
+    it.each(LOCALES)('%s / %s — %s', (locale, currency) => {
         const scale = currencyScale(locale, currency);
         const amount = Number((12345.6).toFixed(scale));
 

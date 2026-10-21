@@ -1292,7 +1292,7 @@ function columnZoneRatios(columns: readonly Line[][]): number[] {
     const overallX0 = Math.min(...spans.map(s => s.x0));
     const overallX1 = Math.max(...spans.map(s => s.x1));
     const totalWidth = Math.max(1, overallX1 - overallX0);
-    const order = spans.map((_, i) => i).sort((a, b) => spans[a].x0 - spans[b].x0);
+    const order = spans.map((...[, i]) => i).sort((a, b) => spans[a].x0 - spans[b].x0);
     const ratios = new Array<number>(columns.length).fill(0);
     for (let k = 0; k < order.length; k++) {
         const i = order[k];

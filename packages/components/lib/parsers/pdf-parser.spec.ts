@@ -2980,7 +2980,7 @@ describe('PDF hex decoding is total: it never throws and never invents a byte', 
         ['nothing but invalid characters', 'ZZ', []],
         // The tail's own letters count if they happen to be hex digits (an `e` would), so this tail has none.
         ['an unterminated string swallowing tail text', '4865 /Xyz 5 0 R', [0x48, 0x65, 0x50]],
-    ] as const)('%s', (_name, raw, expected) => {
+    ] as const)('%s', (...[, raw, expected]) => {
         expect(bytes(raw)).toEqual(expected);
     });
 

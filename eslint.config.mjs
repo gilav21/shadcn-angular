@@ -79,15 +79,9 @@ export default tseslint.config(
       // characters in ordinary strings stay allowed -- the editor legitimately
       // uses them as caret anchors.
       'no-control-regex': 'error',
-      '@typescript-eslint/no-unused-vars': [
-        'error',
-        {
-          argsIgnorePattern: '^_',
-          varsIgnorePattern: '^_',
-          destructuredArrayIgnorePattern: '^_',
-          caughtErrorsIgnorePattern: '^_',
-        },
-      ],
+      // One standard, no underscore escape hatch. `after-used` flags an unused trailing parameter, which can
+      // simply be removed; tsc's noUnusedParameters (on) covers a leading one, which `...[, used]` skips.
+      '@typescript-eslint/no-unused-vars': ['error', { args: 'after-used', caughtErrors: 'all', ignoreRestSiblings: true }],
       'max-lines-per-function': [
         'warn',
         { max: 50, skipComments: true, skipBlankLines: true },
@@ -139,6 +133,31 @@ export default tseslint.config(
       'sonarjs/no-empty-test-file': 'off',
       // Defer to @typescript-eslint/no-unused-vars (already enforced).
       'sonarjs/no-unused-vars': 'off',
+    },
+  },
+
+  // --- Angular template context guards: the one place a `_` name remains ---
+  // `static ngTemplateContextGuard(_dir, _ctx: unknown): _ctx is Context` names its predicate target with a
+  // parameter nothing else reads. A type predicate cannot point at a skipped (`...[, x]`) parameter, and both
+  // TypeScript's noUnusedParameters and this rule still report a plainly named one, so the underscore is the only
+  // spelling of an unused parameter that passes. These files (the only ones with a guard) are the single
+  // exception to "no underscore names". No eslint-disable comment: those would ship into consumers' projects.
+  {
+    files: [
+      'packages/components/ui/field-mapper/sub/field-mapper-item.directive.ts',
+      'packages/components/ui/field-mapper/sub/field-mapper-link-label.directive.ts',
+      'packages/components/ui/infinite-canvas/addons/node-editor/node-editor-node.directive.ts',
+      'packages/components/ui/infinite-canvas/infinite-canvas-item.directive.ts',
+      'packages/components/ui/sortable/sortable.component.ts',
+      'packages/components/ui/sortable/sub/sortable-ghost.directive.ts',
+      'packages/components/ui/sortable/sub/sortable-placeholder.directive.ts',
+      'packages/components/ui/virtual-scroll/virtual-scroll.component.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { args: 'after-used', caughtErrors: 'all', ignoreRestSiblings: true, argsIgnorePattern: '^_' },
+      ],
     },
   },
 

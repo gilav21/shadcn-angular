@@ -392,7 +392,7 @@
 
   <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
     <ui-data-table #resizableTable [data]="payments()" [columns]="resizableColumns()" [enableColumnResize]="true"
-      (columnResize)="onColumnResize($event)" />
+      (columnResize)="onColumnResize()" />
   </div>
 </section>
 
@@ -741,7 +741,7 @@
       (rowReorder)="onTreeRowReorder($event)"
       uiDtContextMenu
       [contextMenu]="treeContextMenu"
-      (rowContextMenu)="onTreeTableContextMenu($event)"
+      (rowContextMenu)="onTreeTableContextMenu()"
     />
   </div>
 

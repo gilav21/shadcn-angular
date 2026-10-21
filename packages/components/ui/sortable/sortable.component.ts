@@ -353,7 +353,7 @@ export class SortableComponent<T> {
      * override it to say something meaningful (e.g. `(task) => task.title`)
      * instead of the default `item 1`, `item 2`, …
      */
-    readonly ariaItemLabel = input<(item: T, index: number) => string>((_, i) => `item ${i + 1}`);
+    readonly ariaItemLabel = input<(item: T, index: number) => string>((...[, i]) => `item ${i + 1}`);
     /**
      * Per-position class recomputed whenever {@link items} changes and merged
      * into each row's wrapper — for styling that depends on where an item sits

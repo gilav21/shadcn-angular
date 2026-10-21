@@ -238,7 +238,7 @@ export class TableContextMenuDemoComponent {
 
   private deleteRow(): void {
     const index = this.targetIndex();
-    this.invoices.update((list) => list.filter((_, i) => i !== index));
+    this.invoices.update((list) => list.filter((...[, i]) => i !== index));
     this.lastAction.set('actionDeleted');
   }
 

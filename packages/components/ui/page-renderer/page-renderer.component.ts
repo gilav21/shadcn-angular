@@ -124,7 +124,7 @@ export class PageRendererComponent implements OnDestroy {
 
     private updateInstance(inputs: Record<string, unknown> | undefined): void {
         if (!inputs) return;
-        Object.entries(inputs).forEach(([_key, _value]) => {
+        Object.entries(inputs).forEach(() => {
             // Angular inputs are set by the framework via BentoGrid's setInput mechanism.
             // BentoGrid detects dashboardItems() changes and re-renders / updates inputs.
         });

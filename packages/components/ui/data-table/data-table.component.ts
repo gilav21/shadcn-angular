@@ -2620,7 +2620,7 @@ export class DataTableComponent<T>
     if (labelValues) {
       return labelValues.map((v) => stringifyValue(v));
     }
-    return Array.from({ length: rowCount }, (_, i) => `Row ${i + 1}`);
+    return Array.from({ length: rowCount }, (...[, i]) => `Row ${i + 1}`);
   }
 
   /** Emit the chart payload for the selected range. No-op when it has no numeric data. */

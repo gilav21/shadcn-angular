@@ -49,5 +49,5 @@ export const TEXT_INPUT_NODE: NodeTypeDefinition<TextInputState> = {
     initialState: () => ({ value: 'example.com' }),
     view: TextInputNodeComponent,
     bodyHeight: 46,
-    compute: (_inputs, ctx) => ({ text: ctx.state.value }),
+    compute: (...[, ctx]) => ({ text: ctx.state.value }),
 };

@@ -156,7 +156,7 @@ interface Country {
     value: string;
 }
 
-const COUNTRIES: Country[] = Array.from({ length: 30 }, (_, i) => ({ label: `Country ${i + 1}`, value: `c${i + 1}` }));
+const COUNTRIES: Country[] = Array.from({ length: 30 }, (...[, i]) => ({ label: `Country ${i + 1}`, value: `c${i + 1}` }));
 
 @Component({
     template: `

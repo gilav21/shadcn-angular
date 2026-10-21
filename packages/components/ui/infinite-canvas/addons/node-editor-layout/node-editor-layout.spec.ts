@@ -104,7 +104,7 @@ describe('spacing', () => {
     });
 
     it('never overlaps two nodes in the same layer', () => {
-        const nodes = Array.from({ length: 6 }, (_, i) => node(`n${i}`, 100, 60));
+        const nodes = Array.from({ length: 6 }, (...[, i]) => node(`n${i}`, 100, 60));
         nodes.push(node('sink'));
         const positions = layoutGraph(
             nodes,

@@ -106,7 +106,7 @@ function clearSupersededStyle(font: HTMLElement, style: string): void {
  * span) never run. Emulate just those two so the real production code exercises,
  * exactly as a browser would produce the deprecated `<font>` wrapper.
  */
-function emulateExecCommand(id: string, _showUI?: boolean, value?: string): boolean {
+function emulateExecCommand(...[id, , value]: [string, boolean?, string?]): boolean {
     const command = FONT_COMMANDS[id];
     if (!command) {
         return false;

@@ -26,7 +26,7 @@ export class DocsTextPipe implements PipeTransform {
              * `[^}]*`: whitespace is inside that class too, so the two would
              * backtrack against each other on a long unclosed brace.
              */
-            .replaceAll(/\{@link([^}]*)\}/g, (_, body: string) => {
+            .replaceAll(/\{@link([^}]*)\}/g, (...[, body]: [unknown, string]) => {
                 const [target, label] = body.split('|');
                 return (label ?? target).trim();
             })

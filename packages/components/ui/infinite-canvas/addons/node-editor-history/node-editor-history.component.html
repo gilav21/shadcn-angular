@@ -39,7 +39,7 @@
       a click handler would leave the panel usable only with a pointer.
     -->
     <ul class="flex max-h-48 flex-col gap-1 overflow-y-auto" [attr.data-slot]="'node-editor-history-runs'">
-      @for (item of list; track trackRun($index, item)) {
+      @for (item of list; track trackRun(item)) {
         <li>
           <button
             type="button"
@@ -121,7 +121,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (node of run.nodes; track trackNode($index, node)) {
+            @for (node of run.nodes; track trackNode(node)) {
               <tr
                 class="border-t align-top"
                 [attr.data-slot]="'node-editor-history-node'"

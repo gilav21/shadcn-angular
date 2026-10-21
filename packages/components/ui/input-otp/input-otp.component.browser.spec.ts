@@ -173,7 +173,7 @@ describe('InputOTPComponent paste (browser)', () => {
         ['a code with a dash and a space', '', 'ab-12 34', 'AB1234', 5],
         ['a code longer than the field', '', '12345678', '123456', 5],
         ['a short code into a full field', '123456', '78', '78', 2],
-    ])('a paste replaces the code in %s', async (_name, initial, pasted, expected, active) => {
+    ])('a paste replaces the code in %s', async (...[, initial, pasted, expected, active]) => {
         const fixture = mount(initial);
         await userEvent.click(slots(fixture)[0]);
         fixture.componentInstance.emissions.length = 0;

@@ -168,10 +168,10 @@ describe('cycle detection', () => {
     });
 
     it('handles a long chain without recursing', () => {
-        const nodes = Array.from({ length: 2000 }, (_, i) =>
+        const nodes = Array.from({ length: 2000 }, (...[, i]) =>
             node(`n${i}`, [port('in', 'in'), port('out', 'out')]),
         );
-        const connections = Array.from({ length: 1999 }, (_, i) => link(`n${i}`, `n${i + 1}`));
+        const connections = Array.from({ length: 1999 }, (...[, i]) => link(`n${i}`, `n${i + 1}`));
         const view = graph({ nodes, connections, allowCycles: false });
         expect(outcome(view, ['n1999', 'out'], ['n0', 'in'])).toBe('cycle');
     });

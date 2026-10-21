@@ -258,7 +258,7 @@ describe('withDerivedHeights remembers what it derived', () => {
     it('re-derives when the metrics changed but the node did not', () => {
         // Enough ports that the height clears NODE_MIN_HEIGHT, or both rows
         // clamp to the same floor and the comparison proves nothing.
-        const many: NodePort[] = Array.from({ length: 8 }, (_, i) => ({
+        const many: NodePort[] = Array.from({ length: 8 }, (...[, i]) => ({
             id: `in${i}`,
             direction: 'in' as const,
             label: `In ${i}`,

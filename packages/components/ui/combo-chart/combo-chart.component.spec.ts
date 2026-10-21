@@ -488,12 +488,12 @@ describe('ComboChartComponent negative values', () => {
 
     function pathYs(d: string): number[] {
         const numbers = (d.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi) ?? []).map(Number);
-        return numbers.filter((_, i) => i % 2 === 1);
+        return numbers.filter((...[, i]) => i % 2 === 1);
     }
 
     function build(bars: number[], line: number[]): ComboChartComponent {
         const instance = TestBed.createComponent(ComboChartComponent);
-        const names = bars.map((_, i) => `C${i}`);
+        const names = bars.map((...[, i]) => `C${i}`);
         instance.componentRef.setInput('barSeries', [{ name: 'Bars', data: bars.map((value, i) => ({ name: names[i], value })) }]);
         instance.componentRef.setInput('lineSeries', [{ name: 'Line', data: line.map((value, i) => ({ name: names[i], value })) }]);
         instance.detectChanges();
@@ -511,7 +511,7 @@ describe('ComboChartComponent negative values', () => {
     it.each(Object.keys(CLASSES))('should keep the %s cumulative line inside the plot', className => {
         const { bars, line } = CLASSES[className];
         const instance = TestBed.createComponent(ComboChartComponent);
-        const names = bars.map((_, i) => `C${i}`);
+        const names = bars.map((...[, i]) => `C${i}`);
         instance.componentRef.setInput('barSeries', [{ name: 'Bars', data: bars.map((value, i) => ({ name: names[i], value })) }]);
         instance.componentRef.setInput('lineSeries', [{ name: 'Line', data: line.map((value, i) => ({ name: names[i], value })) }]);
         instance.componentRef.setInput('showCumulative', true);

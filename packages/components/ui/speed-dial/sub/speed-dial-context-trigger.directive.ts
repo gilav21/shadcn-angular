@@ -22,7 +22,7 @@ import { SpeedDialComponent } from '../speed-dial.component';
     selector: '[uiSpeedDialContextTrigger]',
     host: {
         '(contextmenu)': 'onContextMenu($event)',
-        '(click)': 'onClick($event)',
+        '(click)': 'onClick()',
     },
 })
 export class SpeedDialContextTriggerDirective {
@@ -58,7 +58,7 @@ export class SpeedDialContextTriggerDirective {
      * context-menu behaviour: {@link onContextMenu} opens, a plain click
      * dismisses. Does nothing when the menu is already closed.
      */
-    onClick(_event: MouseEvent): void {
+    onClick(): void {
         const speedDial = this.uiSpeedDialContextTrigger();
         if (speedDial?.open()) {
             speedDial.hide();

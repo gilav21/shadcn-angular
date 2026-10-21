@@ -217,7 +217,7 @@ export class DataTableFilterBuilderComponent {
      * (`track $index`), so an out-of-range index is a no-op replacement.
      */
     removeRule(index: number): void {
-        this.emit(this.group().rules.filter((_, i) => i !== index));
+        this.emit(this.group().rules.filter((...[, i]) => i !== index));
     }
 
     /**

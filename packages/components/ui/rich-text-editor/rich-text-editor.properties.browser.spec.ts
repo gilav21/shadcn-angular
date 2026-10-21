@@ -263,7 +263,7 @@ const NAMED: ReadonlyArray<readonly [string, string]> = [
 
 const DOCUMENTS: ReadonlyArray<readonly [string, string]> = (() => {
     const generator = new DocumentGenerator(mulberry32(SEED));
-    const generated = Array.from({ length: GENERATED_DOCUMENTS }, (_, i) =>
+    const generated = Array.from({ length: GENERATED_DOCUMENTS }, (...[, i]) =>
         [`generated #${i}`, generator.document()] as const);
     return [...NAMED, ...generated];
 })();

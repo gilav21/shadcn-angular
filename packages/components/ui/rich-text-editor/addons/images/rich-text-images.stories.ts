@@ -63,7 +63,7 @@ export const MinimalToolbarWithImages: Story = {
 export const AutoUpload: Story = {
     render: () => ({
         props: {
-            uploader: (_file: File) => of(SAMPLE_UPLOAD).pipe(delay(1500)),
+            uploader: () => of(SAMPLE_UPLOAD).pipe(delay(1500)),
         },
         template: `
             <ui-rich-text-editor

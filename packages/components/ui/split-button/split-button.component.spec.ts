@@ -13,7 +13,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
     <ui-split-button [variant]="variant()">
       <ui-split-button-primary>Custom Primary</ui-split-button-primary>
       <ui-split-button-menu>
-        <ui-split-button-item (click)="onItemClick('item1')">Item 1</ui-split-button-item>
+        <ui-split-button-item (click)="onItemClick()">Item 1</ui-split-button-item>
         <ui-split-button-item [disabled]="true">Disabled Item</ui-split-button-item>
       </ui-split-button-menu>
     </ui-split-button>
@@ -23,7 +23,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 })
 class TestHostComponent {
     variant = signal<ButtonVariant>('default');
-    onItemClick(_id: string): void { }
+    onItemClick(): void { }
 }
 
 describe('SplitButtonComponent', () => {

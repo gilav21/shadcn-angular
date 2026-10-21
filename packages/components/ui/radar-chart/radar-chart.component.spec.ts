@@ -102,7 +102,7 @@ describe('RadarChartComponent vertices on their own axis', () => {
 
     function build(values: number[][], maxValueInput?: number): RadarChartComponent {
         const instance = TestBed.createComponent(RadarChartComponent);
-        const axes = values[0].map((_, i) => `Axis ${i}`);
+        const axes = values[0].map((...[, i]) => `Axis ${i}`);
         instance.componentRef.setInput(
             'series',
             values.map((row, s) => ({ name: `S${s}`, data: row.map((value, i) => ({ name: axes[i], value })) })),

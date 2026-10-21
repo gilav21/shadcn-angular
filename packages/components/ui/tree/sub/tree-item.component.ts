@@ -123,7 +123,7 @@ export class TreeItemComponent {
      * `selectable` is `'none'`, in which case it only moves focus. Clicking a parent's label does
      * not expand it; that is the chevron's job ({@link onExpandClick}).
      */
-    onHeaderClick(_event: Event): void {
+    onHeaderClick(): void {
         this.tree?.focusedKey.set(this.value());
         this.tree?.toggleSelected(this.value());
     }

@@ -2047,9 +2047,9 @@ describe('DataTableComponent', () => {
                     accessorKey: 'role',
                     header: 'Role',
                     enableFiltering: true,
-                    filterFn: (_row: TestData, filterValue: unknown): boolean => {
+                    filterFn: (row: TestData, filterValue: unknown): boolean => {
                         const roles = filterValue as string[];
-                        return roles.includes(_row.role);
+                        return roles.includes(row.role);
                     },
                 },
             ];
@@ -2070,9 +2070,9 @@ describe('DataTableComponent', () => {
                     accessorKey: 'role',
                     header: 'Role',
                     enableFiltering: true,
-                    filterFn: (_row: TestData, filterValue: unknown): boolean => {
+                    filterFn: (row: TestData, filterValue: unknown): boolean => {
                         const roles = filterValue as string[];
-                        return roles.includes(_row.role);
+                        return roles.includes(row.role);
                     },
                 },
             ];
@@ -2906,7 +2906,7 @@ describe('DataTableComponent - Addon host slots & context', () => {
 
     it('invokes the slot onClick with the row context when a ⋮ button is clicked', () => {
         let captured: RowActionContext<TestData> | undefined;
-        registerCellSlot((_event, context) => { captured = context; });
+        registerCellSlot((...[, context]) => { captured = context; });
         fixture.detectChanges();
 
         fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'))[2].nativeElement.click();
@@ -3641,7 +3641,7 @@ describe('DataTableComponent - Row Grouping', () => {
         it('copies the selected rows in the order they are drawn', async () => {
             fixture.componentRef.setInput('rowSelection', { o2: true, o3: true, o4: true });
             fixture.detectChanges();
-            const writeText = vi.fn(async (_text: string) => undefined);
+            const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
             vi.stubGlobal('navigator', { clipboard: { writeText } });
             try {
                 await component.copySelectedToClipboard();
@@ -3656,7 +3656,7 @@ describe('DataTableComponent - Row Grouping', () => {
             fixture.componentRef.setInput('enableVirtualScroll', true);
             fixture.componentRef.setInput('rowSelection', { o2: true, o3: true });
             fixture.detectChanges();
-            const writeText = vi.fn(async (_text: string) => undefined);
+            const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
             vi.stubGlobal('navigator', { clipboard: { writeText } });
             try {
                 await component.copySelectedToClipboard();
@@ -3671,7 +3671,7 @@ describe('DataTableComponent - Row Grouping', () => {
             fixture.componentRef.setInput('rowSelection', { o1: true, o2: true });
             fixture.componentRef.setInput('collapsedGroups', { pending: true });
             fixture.detectChanges();
-            const writeText = vi.fn(async (_text: string) => undefined);
+            const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
             vi.stubGlobal('navigator', { clipboard: { writeText } });
             try {
                 await component.copySelectedToClipboard();
@@ -3686,7 +3686,7 @@ describe('DataTableComponent - Row Grouping', () => {
             component.registerCellAction({
                 id: 'menu',
                 ariaLabel: 'Row actions',
-                onClick: (_event, context) => clicked.push({ id: context.row.id, index: context.index }),
+                onClick: (...[, context]) => clicked.push({ id: context.row.id, index: context.index }),
             });
             fixture.detectChanges();
 
@@ -3930,7 +3930,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     });
 
     it('copyRowToClipboard writes tab-separated cell values', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         await component.copyRowToClipboard(NUM_DATA[0]);
         expect(writeText).toHaveBeenCalledWith('1\tAlice\t30');
@@ -3938,7 +3938,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     });
 
     it('copyAllToClipboard writes header + every row', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         await component.copyAllToClipboard();
         const text = writeText.mock.calls[0][0] as string;
@@ -3955,7 +3955,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
             { id: '3', name: '- item', score: 4 },
         ]);
         fixture.detectChanges();
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         try {
             await component.copyAllToClipboard();
@@ -3976,7 +3976,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
         component.rowSelection.set({ '2': true, '4': true });
         fixture.detectChanges();
 
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         await component.copySelectedToClipboard();
         const text = writeText.mock.calls[0][0] as string;
@@ -3989,7 +3989,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     });
 
     it('copySelectedToClipboard is a no-op when nothing is selected', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         await component.copySelectedToClipboard();
         expect(writeText).not.toHaveBeenCalled();
@@ -3999,7 +3999,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     it('clipboard copy helpers are disabled when enableCopy is false', async () => {
         fixture.componentRef.setInput('enableCopy', false);
         fixture.detectChanges();
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         await component.copyRowToClipboard(NUM_DATA[0]);
         await component.copyAllToClipboard();
@@ -4011,7 +4011,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     });
 
     it('copyCellToClipboard is a no-op when no cell is focused', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.focusedCell.set(null);
         await component.copyCellToClipboard();
@@ -4020,7 +4020,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
     });
 
     it('copyCellToClipboard copies the focused cell value', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.focusedCell.set({ rowIndex: 2, columnKey: 'name' });
         await component.copyCellToClipboard();
@@ -4194,7 +4194,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     });
 
     it('PageDown / PageUp move by the number of whole rows that fit in the viewport', () => {
-        const rows: NumRow[] = Array.from({ length: 30 }, (_, i) => ({ id: String(i + 1), name: `Person ${i + 1}`, score: i }));
+        const rows: NumRow[] = Array.from({ length: 30 }, (...[, i]) => ({ id: String(i + 1), name: `Person ${i + 1}`, score: i }));
         fixture.componentRef.setInput('data', rows);
         fixture.componentRef.setInput('paginationState', { pageIndex: 0, pageSize: 50 });
         fixture.detectChanges();
@@ -4307,7 +4307,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     });
 
     it('Ctrl+C copies the focused cell to the clipboard', () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.focusedCell.set({ rowIndex: 2, columnKey: 'name' });
         const evt = new KeyboardEvent('keydown', { key: 'c', ctrlKey: true });
@@ -4319,7 +4319,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     it('Ctrl+C copies a selected cell range', async () => {
         fixture.componentRef.setInput('enableCellRangeSelection', true);
         fixture.detectChanges();
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
 
         component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 1, endCol: 'name' });
@@ -4333,7 +4333,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     it('copyCellRangeToClipboard skips rows past the end of the data', async () => {
         fixture.componentRef.setInput('enableCellRangeSelection', true);
         fixture.detectChanges();
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
 
         component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 50, endCol: 'name' });
@@ -4349,7 +4349,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
         component.rowSelection.set({ '1': true });
         fixture.detectChanges();
 
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.onTableKeydown(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }));
         await Promise.resolve();
@@ -4360,7 +4360,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     });
 
     it('Ctrl+C is a no-op when nothing is focused, ranged, or selected', () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.focusedCell.set(null);
         component.cellRange.set(null);
@@ -4372,7 +4372,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     it('Ctrl+C is a no-op when enableCopy is false', () => {
         fixture.componentRef.setInput('enableCopy', false);
         fixture.detectChanges();
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 1, endCol: 'name' });
         component.onTableKeydown(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }));
@@ -4381,7 +4381,7 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
     });
 
     it('copyCellRangeToClipboard is a no-op when there is no active range', async () => {
-        const writeText = vi.fn(async (_text: string) => undefined);
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         component.cellRange.set(null);
         await component.copyCellRangeToClipboard();
@@ -5346,7 +5346,7 @@ describe('DataTableComponent - Virtual scroll', () => {
         readonly label = input('');
     }
 
-    const V_DATA: VRow[] = Array.from({ length: 1000 }, (_, i) => ({ id: i, name: `Row ${i}` }));
+    const V_DATA: VRow[] = Array.from({ length: 1000 }, (...[, i]) => ({ id: i, name: `Row ${i}` }));
     const V_COLS: ColumnDef<VRow>[] = [
         { accessorKey: 'id', header: 'ID', width: '120px' },
         { accessorKey: 'name', header: 'Name', width: '200px' },
@@ -5656,7 +5656,7 @@ describe('DataTableComponent - scrollToColumn', () => {
         await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
         const fixture = TestBed.createComponent(DataTableComponent<VRow>);
         const component = fixture.componentInstance;
-        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (_, i) => ({ id: i })));
+        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (...[, i]) => ({ id: i })));
         fixture.componentRef.setInput('columns', [
             { accessorKey: 'a', header: 'A', width: '100px' },
             { accessorKey: 'b', header: 'B', width: '150px' },
@@ -5680,7 +5680,7 @@ describe('DataTableComponent - scrollToColumn', () => {
 
 describe('DataTableComponent - scroll-to helpers & container drag', () => {
     interface VRow { id: number; name: string }
-    const V_DATA: VRow[] = Array.from({ length: 800 }, (_, i) => ({ id: i, name: `R${i}` }));
+    const V_DATA: VRow[] = Array.from({ length: 800 }, (...[, i]) => ({ id: i, name: `R${i}` }));
     const V_COLS: ColumnDef<VRow>[] = [
         { accessorKey: 'id', header: 'ID', width: '120px' },
         { accessorKey: 'name', header: 'Name', width: '200px' },
@@ -5908,8 +5908,8 @@ describe('DataTableComponent - built-in control columns on a touch screen', () =
         const listeners = new Set<(event: MediaQueryListEvent) => void>();
         const query = {
             matches: true,
-            addEventListener: (_: string, fn: (event: MediaQueryListEvent) => void) => listeners.add(fn),
-            removeEventListener: (_: string, fn: (event: MediaQueryListEvent) => void) => listeners.delete(fn),
+            addEventListener: (...[, fn]: [string, (event: MediaQueryListEvent) => void]) => listeners.add(fn),
+            removeEventListener: (...[, fn]: [string, (event: MediaQueryListEvent) => void]) => listeners.delete(fn),
         };
         const view = globalThis as { matchMedia?: unknown };
         const original = view.matchMedia;
@@ -5947,7 +5947,7 @@ describe('DataTableComponent - where ResizeObserver does not exist', () => {
         delete (globalThis as ResizeObserverGlobal).ResizeObserver;
         await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
         const fixture = TestBed.createComponent(DataTableComponent<{ id: number }>);
-        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (_, i) => ({ id: i })));
+        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (...[, i]) => ({ id: i })));
         fixture.componentRef.setInput('columns', [{ accessorKey: 'id', header: 'ID', width: '120px' }]);
         fixture.componentRef.setInput('enableVirtualScroll', true);
         fixture.componentRef.setInput('virtualVariableRowHeight', true);
@@ -5955,7 +5955,7 @@ describe('DataTableComponent - where ResizeObserver does not exist', () => {
 
         const { end, paddingBottom } = fixture.componentInstance.virtualRowRange();
         expect(renderedVirtualRows(fixture).map((row) => Number(row.dataset['virtualRowIndex'])))
-            .toEqual(Array.from({ length: end }, (_, i) => i));
+            .toEqual(Array.from({ length: end }, (...[, i]) => i));
         // no virtualRowHeight set: the 40px desktop estimate
         expect(paddingBottom).toBe((600 - end) * 40);
         expect(() => fixture.destroy()).not.toThrow();
@@ -5972,7 +5972,7 @@ describe('DataTableComponent - variable row height virtual scroll', () => {
         await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
         fixture = TestBed.createComponent(DataTableComponent<VRow>);
         component = fixture.componentInstance;
-        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (_, i) => ({ id: i })));
+        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (...[, i]) => ({ id: i })));
         fixture.componentRef.setInput('columns', [{ accessorKey: 'id', header: 'ID', width: '120px' }] as ColumnDef<VRow>[]);
         fixture.componentRef.setInput('enableVirtualScroll', true);
         fixture.componentRef.setInput('virtualVariableRowHeight', true);
@@ -6014,7 +6014,7 @@ describe('DataTableComponent - variable row height virtual scroll', () => {
         const rendered = renderedVirtualRows(fixture);
         // 20000 / 40px = row 500; a 200px viewport shows 5 rows; 5 rows of buffer on each side
         expect(rendered.map((row) => Number(row.dataset['virtualRowIndex']))).toEqual(
-            Array.from({ length: 15 }, (_, i) => 495 + i),
+            Array.from({ length: 15 }, (...[, i]) => 495 + i),
         );
         expect(new Set(rowObserver.observed)).toEqual(new Set(rendered));
         expect(rowObserver.observed).not.toContain(firstWindowRow);
@@ -6037,7 +6037,7 @@ describe('DataTableComponent - ResizeObserver constructor/viewport callbacks', (
     });
 
     it('re-windows the rendered rows when the row observer reports taller rows', () => {
-        fixture.componentRef.setInput('data', Array.from({ length: 50 }, (_, i) => ({ id: String(i), name: `User ${i}`, role: 'User' })));
+        fixture.componentRef.setInput('data', Array.from({ length: 50 }, (...[, i]) => ({ id: String(i), name: `User ${i}`, role: 'User' })));
         fixture.componentRef.setInput('enableVirtualScroll', true);
         fixture.componentRef.setInput('virtualVariableRowHeight', true);
         fixture.componentRef.setInput('showPagination', false);
@@ -6756,7 +6756,7 @@ describe('DataTableComponent smart paste (B2)', () => {
                 ["'=total", "'- item", "'@user", '-12', "'plain apostrophe text", "''=x"],
             );
 
-            fixture.componentRef.setInput('data', labels.map((_, i) => ({ id: String(i + 1), n: 0, label: '' })));
+            fixture.componentRef.setInput('data', labels.map((...[, i]) => ({ id: String(i + 1), n: 0, label: '' })));
             fixture.detectChanges();
             component.cellRange.set(null);
             component.focusedCell.set({ rowIndex: 0, columnKey: 'n' });
@@ -6954,9 +6954,9 @@ describe('DataTableComponent - paging only what a pager can reach', () => {
         { accessorKey: 'team', header: 'Team' },
     ];
     const member = (i: number): Member => ({ id: `m${i}`, name: `Member ${i}`, team: ['Design', 'Platform', 'Sales'][i % 3] });
-    const flatMembers = Array.from({ length: 60 }, (_, i) => member(i));
+    const flatMembers = Array.from({ length: 60 }, (...[, i]) => member(i));
     // 30 leads with one report each: 60 rows once every node is expanded
-    const treeMembers = Array.from({ length: 30 }, (_, i) => ({ ...member(i), children: [member(100 + i)] }));
+    const treeMembers = Array.from({ length: 30 }, (...[, i]) => ({ ...member(i), children: [member(100 + i)] }));
 
     async function render(data: Member[], inputs: Record<string, unknown>): Promise<ComponentFixture<DataTableComponent<Member>>> {
         await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();

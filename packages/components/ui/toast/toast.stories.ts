@@ -94,7 +94,7 @@ class ToastStoryWrapperComponent {
     showPromiseFailure() {
         void this.toastService
             .promise(
-                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('network down')), 2000)),
+                new Promise<never>((...[, reject]) => setTimeout(() => reject(new Error('network down')), 2000)),
                 {
                     loading: 'Saving…',
                     success: 'Saved',

@@ -54,7 +54,7 @@ const PIPELINE_EDGES: NodeConnection[] = [
 
 /** A grid big enough that virtualisation is doing real work. */
 function buildLarge(count: number, columns = 20): EditorNode[] {
-  return Array.from({ length: count }, (_, i) =>
+  return Array.from({ length: count }, (...[, i]) =>
     node(`n${i}`, (i % columns) * 260, Math.floor(i / columns) * 200, `Step ${i + 1}`, [
       { id: 'in', direction: 'in', label: 'In' },
       { id: 'out', direction: 'out', label: 'Out' },
@@ -356,7 +356,7 @@ const COUNTER: NodeTypeDefinition<CounterState> = {
   initialState: () => ({ value: 1 }),
   view: CounterNodeComponent,
   bodyHeight: 46,
-  compute: (_inputs, ctx) => ({ out: ctx.state.value }),
+  compute: (...[, ctx]) => ({ out: ctx.state.value }),
 };
 
 /** A pure transform: no view, no state, four lines. */

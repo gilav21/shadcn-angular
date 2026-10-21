@@ -73,7 +73,7 @@ describe('generateXlsx', () => {
 
     it('generates correct column letters past Z (A..Z, AA, AB...)', () => {
         // 28 columns -> last ref must be AB1.
-        const wide = Array.from({ length: 28 }, (_, i) => `c${i}`);
+        const wide = Array.from({ length: 28 }, (...[, i]) => `c${i}`);
         const bytes = generateXlsx([wide]);
         const sheet = decode(readZip(bytes).get('xl/worksheets/sheet1.xml')!);
         expect(sheet).toContain('<c r="Z1"');

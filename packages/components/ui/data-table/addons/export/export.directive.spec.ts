@@ -47,7 +47,7 @@ class FakeHost<T> extends DataTableAddonHost<T> {
   readonly busyCalls: (string | null)[] = [];
   private _busy: string | null = null;
 
-  getExportData(_options?: DataTableExportOptions, rows?: readonly T[]): string[][] {
+  getExportData(...[, rows]: [DataTableExportOptions?, (readonly T[])?]): string[][] {
     const src = rows ?? this.rows;
     const header = this.columns.map((c) => c.header);
     const body = src.map((r) =>

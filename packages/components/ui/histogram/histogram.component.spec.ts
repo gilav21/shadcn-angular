@@ -15,7 +15,7 @@ const originalResizeObserver = (
     globalThis as unknown as { ResizeObserver?: unknown }
 ).ResizeObserver;
 
-const range = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
+const range = (n: number): number[] => Array.from({ length: n }, (...[, i]) => i);
 
 describe('HistogramComponent', () => {
     let component: HistogramComponent;

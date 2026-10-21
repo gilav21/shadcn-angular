@@ -36,7 +36,7 @@ const nested: TreemapNode[] = [
 /** Skewed enough that slice-and-dice would produce unreadable slivers. */
 const skewed: TreemapNode[] = [
     { label: 'Dominant', value: 5000 },
-    ...Array.from({ length: 14 }, (_, i) => ({ label: `n${i}`, value: 40 - i * 2 })),
+    ...Array.from({ length: 14 }, (...[, i]) => ({ label: `n${i}`, value: 40 - i * 2 })),
 ];
 
 // Every input is exposed as an interactive control (argTypes) with a sensible

@@ -300,7 +300,7 @@ export class DatePickerComponent implements ControlValueAccessor, OnDestroy {
   }
 
   /** `ControlValueAccessor` no-op — bind the {@link disabled} input instead; `control.disable()` alone will not disable the trigger. */
-  setDisabledState(_isDisabled: boolean): void {
+  setDisabledState(): void {
     // Disabled state is managed via the disabled input binding
   }
 }

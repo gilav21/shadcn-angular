@@ -118,7 +118,7 @@ describe('candlestick utils', () => {
         // Regression: the old flatMap + `Math.min(...all)` passed four arguments
         // per period, which V8 rejects past ~100k arguments.
         it('spans a series far larger than the argument-count limit', () => {
-            const many = Array.from({ length: 50_000 }, (_, i) =>
+            const many = Array.from({ length: 50_000 }, (...[, i]) =>
                 point({ open: i, high: i + 2, low: i - 1, close: i + 1 }));
             expect(ohlcExtent(many)).toEqual([-1, 50_001]);
         });

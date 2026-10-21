@@ -126,7 +126,7 @@ export const Conversation: Story = {
                 { role: 'assistant', content: 'Of course! I\'d be happy to help. What\'s your question?', avatarFallback: 'A' },
                 { role: 'system', content: 'Session started' },
             ],
-            onSend: (_message: string) => {
+            onSend: () => {
                 // message handled by consumer
             },
         },

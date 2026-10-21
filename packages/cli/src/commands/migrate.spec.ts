@@ -224,7 +224,7 @@ describe('migrate (command)', () => {
   });
 
   it('prints the backup notice and plan before writing, and stops the spinner after', async () => {
-    vi.mocked(migrateCore).mockImplementation(async (_cwd, _config, _options, hooks) => {
+    vi.mocked(migrateCore).mockImplementation(async (...[, , , hooks]) => {
       hooks?.onBeforeExecute?.(plan);
       return { status: 'migrated', plan, execution: makeExecution() };
     });
@@ -240,7 +240,7 @@ describe('migrate (command)', () => {
 
   it('warns that --force removes the git backstop only when the tree is actually dirty', async () => {
     vi.mocked(gitTreeClean).mockReturnValue(false);
-    vi.mocked(migrateCore).mockImplementation(async (_cwd, _config, _options, hooks) => {
+    vi.mocked(migrateCore).mockImplementation(async (...[, , , hooks]) => {
       hooks?.onBeforeExecute?.(plan);
       return { status: 'migrated', plan, execution: makeExecution() };
     });

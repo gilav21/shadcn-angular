@@ -33,7 +33,7 @@ describe('unifiedDiff', () => {
   });
 
   it('B1: a single inserted line yields ONE small hunk, no cascade', () => {
-    const base = Array.from({ length: 60 }, (_, i) => `line ${i}`);
+    const base = Array.from({ length: 60 }, (...[, i]) => `line ${i}`);
     const local = base.join('\n');
     const remote = [...base.slice(0, 5), '  count = input<number>(0);', ...base.slice(5)].join('\n');
     const d = unifiedDiff('big.component.ts', local, remote);
@@ -50,7 +50,7 @@ describe('unifiedDiff', () => {
   });
 
   it('re-synchronizes after an edit — the file tail is not re-emitted', () => {
-    const a = Array.from({ length: 40 }, (_, i) => `L${i}`).join('\n');
+    const a = Array.from({ length: 40 }, (...[, i]) => `L${i}`).join('\n');
     const b = a.replace('L20', 'L20-edited');
     const d = unifiedDiff('a.ts', a, b);
     expect(d.match(/^@@ /gm) ?? []).toHaveLength(1);
@@ -58,7 +58,7 @@ describe('unifiedDiff', () => {
   });
 
   it('two distant edits produce two separate hunks', () => {
-    const base = Array.from({ length: 40 }, (_, i) => `L${i}`);
+    const base = Array.from({ length: 40 }, (...[, i]) => `L${i}`);
     const local = base.join('\n');
     const editTwo = (l: string): string => {
       if (l === 'L2') return 'L2-x';

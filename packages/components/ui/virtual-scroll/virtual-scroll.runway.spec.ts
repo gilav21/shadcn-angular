@@ -55,7 +55,7 @@ describe('VirtualScroll Runway Logic', () => {
 
         fixture = TestBed.createComponent(TestHostComponent);
         fixture.componentInstance.items.set(
-            Array.from({ length: 100 }, (_, i) => ({ id: i, height: 50 })),
+            Array.from({ length: 100 }, (...[, i]) => ({ id: i, height: 50 })),
         );
         fixture.detectChanges();
 

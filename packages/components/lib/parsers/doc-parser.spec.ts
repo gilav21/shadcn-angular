@@ -291,7 +291,7 @@ describe('legacy .doc piece table — resource limits', () => {
     /** Forty pieces that all read the same 64 bytes while ccpText claims 2560 characters. */
     function overlappingPiecesDoc(): { file: Uint8Array; wordDocumentLength: number } {
         const textFc = 0x600;
-        const pieces = Array.from({ length: 40 }, (_, i) => ({
+        const pieces = Array.from({ length: 40 }, (...[, i]) => ({
             cpStart: i * sentence.length,
             cpEnd: (i + 1) * sentence.length,
             fc: textFc,
@@ -320,7 +320,7 @@ describe('legacy .doc piece table — resource limits', () => {
         ['parseDocEnhanced', parseDocEnhanced],
     ] as const;
 
-    it.each(parsers)('T-15 %s: overlapping pieces yield text no longer than the WordDocument stream', (_name, parse) => {
+    it.each(parsers)('T-15 %s: overlapping pieces yield text no longer than the WordDocument stream', (...[, parse]) => {
         // The claim, not the file, used to size the text.
         const { file, wordDocumentLength } = overlappingPiecesDoc();
         const result = parse(file);
@@ -328,7 +328,7 @@ describe('legacy .doc piece table — resource limits', () => {
         expect(result.plainText.length).toBeLessThanOrEqual(wordDocumentLength);
     });
 
-    it.each(parsers)('%s hands its limits to the container read', (_name, parse) => {
+    it.each(parsers)('%s hands its limits to the container read', (...[, parse]) => {
         const { file } = overlappingPiecesDoc();
         const capped = { ...DEFAULT_PARSER_LIMITS, maxOle2StreamBytes: 512 };
         // The text sits at 0x600, past the 512 bytes the cap leaves of WordDocument.

@@ -10,7 +10,7 @@ interface TestItem extends VirtualItem {
 }
 
 function createItems(count: number): TestItem[] {
-    return Array.from({ length: count }, (_, i) => ({
+    return Array.from({ length: count }, (...[, i]) => ({
         id: i,
         name: `Item ${i}`,
     }));
@@ -492,7 +492,7 @@ interface Group {
 })
 class NoIdHostComponent {
     readonly groups = signal<Group[]>(
-        Array.from({ length: 30 }, (_, i) => ({ name: `Group ${i}`, count: i })),
+        Array.from({ length: 30 }, (...[, i]) => ({ name: `Group ${i}`, count: i })),
     );
 }
 

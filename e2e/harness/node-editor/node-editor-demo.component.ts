@@ -65,7 +65,7 @@ const TEXT_TYPE: NodeTypeDefinition<TextState> = {
     initialState: () => ({ value: '' }),
     view: E2eTextNodeComponent,
     bodyHeight: 46,
-    compute: (_inputs, ctx) => ({ out: ctx.state.value }),
+    compute: (...[, ctx]) => ({ out: ctx.state.value }),
 };
 
 const UPPER_TYPE: NodeTypeDefinition = {

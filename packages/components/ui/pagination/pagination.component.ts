@@ -158,7 +158,7 @@ export class PaginationComponent {
     if (total <= 0) return [];
 
     const range = (start: number, end: number): number[] =>
-      Array.from({ length: end - start + 1 }, (_, i) => start + i);
+      Array.from({ length: end - start + 1 }, (...[, i]) => start + i);
 
     const totalPageNumbers = siblings * 2 + 5; // siblings + first + last + current + 2 ellipsis
 

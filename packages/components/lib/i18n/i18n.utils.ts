@@ -180,7 +180,7 @@ export function formatRelativeTime(
  */
 export function localeDigits(locale: string): readonly string[] {
     const formatter = new Intl.NumberFormat(locale, { useGrouping: false });
-    return Array.from({ length: 10 }, (_, digit) => formatter.format(digit));
+    return Array.from({ length: 10 }, (...[, digit]) => formatter.format(digit));
 }
 
 /**

@@ -41,7 +41,7 @@ export const Default: Story = {
     render: (args) => ({
         props: {
             ...args,
-            onSort: (_direction: SortDirection) => {
+            onSort: () => {
                 // sort handled externally
             },
         },

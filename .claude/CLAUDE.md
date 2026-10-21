@@ -356,11 +356,31 @@ reference implementation for this pattern.
 - **No Unused Declarations**: Remove all unused imports, variables,
   parameters, and types in TypeScript files and the
   `@Component({ imports: [...] })` array. ESLint's
-  `@typescript-eslint/no-unused-vars` enforces this (prefix an intentionally
-  unused parameter with `_`). `tsconfig.json` sets
-  `noUnusedLocals`/`noUnusedParameters`, so `npm run typecheck` fails on a
-  `ts(6133)` ("declared but its value is never read") — it catches unused
-  private members ESLint misses. An effect kept only for its side effect is a
+  `@typescript-eslint/no-unused-vars` enforces this, and `tsconfig.json`
+  sets `noUnusedLocals` **and `noUnusedParameters`**, so `npm run typecheck`
+  must report **zero** `ts(6133)` ("declared but its value is never read"). The
+  same holds for a consumer who enables the flag on the code we ship.
+  **One standard for unused parameters, no underscore names:**
+  1. A parameter nothing needs is *removed* and its callers updated. If the
+     function is called by name from first-party code (`findRuledTable(band,
+     rects, pageIndex)`, a `track` function, a click handler), nothing fixes
+     its position, so it goes, even when a used parameter follows it.
+  2. A parameter that stays only because a callback or interface signature
+     fixes its position is *skipped*, not named: `ops.set('cm', (...[, operands])
+     => …)`, `text.replace(re, (...[, prefix, quote]) => …)`,
+     `test.each(rows)('…', (...[, input]) => …)`. The destructuring hole keeps
+     the position without a name, so `noUnusedParameters` has nothing to report
+     and no `_` placeholder is needed. When the parameters carry type
+     annotations, annotate the tuple: `(...[, value]: [string, unknown])`.
+  3. A mock declared with a parameter only to type `mock.calls` says so with a
+     generic signature, `vi.fn<(text: string) => Promise<void>>()`, not an unused
+     parameter.
+  4. The single exception: Angular's `static ngTemplateContextGuard(_dir, _ctx:
+     unknown): _ctx is Context`. A type predicate cannot point at a skipped
+     parameter, and both the compiler and ESLint report a plainly named one, so
+     the underscore is the only spelling that passes. Its files are listed in
+     `eslint.config.mjs`. Do not use `_` anywhere else.
+  An effect kept only for its side effect is a
   `protected readonly` field (not `private`, which would be flagged, and not
   moved into the constructor, which would change its creation order).
 
@@ -1013,8 +1033,10 @@ When generating or modifying components:
 8. **Form Components**: Support both `value` input and `ControlValueAccessor`
 9. **Clean up unused declarations** — after writing or modifying code, verify
    every import, variable, and parameter is actually used. Remove any that
-   aren't. ESLint `no-unused-vars` and `npm run typecheck` (which enforces
-   `noUnusedLocals`/`noUnusedParameters`) must be clean.
+   aren't (parameters are removed, or skipped with `...[, used]` when a
+   signature fixes their position; never prefixed with `_`). ESLint
+   `no-unused-vars` and `npm run typecheck` (which enforces
+   `noUnusedLocals` and `noUnusedParameters`) must be clean.
 10. **SonarQube compliance** — follow ALL rules in Section 4
     "SonarQube Compliance". **Before declaring ANY work done, run the full
     SonarQube server scan** (`npm run sonar:gate` against `localhost:9000`;

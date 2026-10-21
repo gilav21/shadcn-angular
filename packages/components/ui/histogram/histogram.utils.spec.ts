@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeBinEdges, computeBins, sturgesBinCount } from './histogram.utils';
 
-const range = (n: number): number[] => Array.from({ length: n }, (_, i) => i);
+const range = (n: number): number[] => Array.from({ length: n }, (...[, i]) => i);
 
 const totalCount = (bins: { count: number }[]): number =>
     bins.reduce((sum, b) => sum + b.count, 0);

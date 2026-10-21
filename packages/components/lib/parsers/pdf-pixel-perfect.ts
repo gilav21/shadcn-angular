@@ -1634,7 +1634,7 @@ class TextLine {
     // F5: optimize_normal (HTMLTextLine.cc:363-540) — 1:1 C++ translation
     // Adjusts letter-space and word-space to reduce HTML element count.
     // Builds new_offsets list and swaps at end (C++ line 537).
-    optimizeNormal(mgr: AllStateManager, _hEps: number, spaceThreshold: number, z: number): void {
+    optimizeNormal(mgr: AllStateManager, spaceThreshold: number, z: number): void {
         // C++ line 366-367: remove useless states at end
         let lastSt = this.states.at(-1);
         while (lastSt && (lastSt.installed?.startIdx ?? 0) >= this.text.length) {
@@ -1766,7 +1766,7 @@ class TextLine {
      *   <span class="[diff classes]">styled text</span>
      * </div>
      */
-    dumpText(mgr: AllStateManager, fontRegistry: FontRegistry, hEps: number, spaceThreshold: number, z: number): string {
+    dumpText(mgr: AllStateManager, hEps: number, spaceThreshold: number, z: number): string {
         if (this.text.length === 0 && this.states.length === 0) return '';
 
         const mId = mgr.transformMatrix.install(this.transformMatrix);
@@ -1779,7 +1779,7 @@ class TextLine {
         const divClasses = this.buildDivClasses(mId, xId, yId, hId);
         parts.push(`<div class="${divClasses}">`);
 
-        this.emitLineContent(parts, mgr, fontRegistry, hEps, spaceThreshold, z);
+        this.emitLineContent(parts, mgr, hEps, spaceThreshold, z);
 
         parts.push('</div>');
         return parts.join('');
@@ -1805,7 +1805,6 @@ class TextLine {
     private emitLineContent(
         parts: string[],
         mgr: AllStateManager,
-        _fontRegistry: FontRegistry,
         hEps: number,
         spaceThreshold: number,
         z: number,
@@ -2002,7 +2001,6 @@ class TextLine {
 // ── Content Stream Processor (mirrors pdf2htmlEX HTMLRenderer) ───────
 
 type OperatorHandler = (
-    op: string,
     operands: ReadonlyArray<string>,
     resources: Record<string, PdfObject>,
     pageWidth: number,
@@ -2135,7 +2133,7 @@ class PixelPerfectProcessor {
         return new DrawPath(maxNestingDepth, maxFormDrawsPerPage);
     }
 
-    processPage(pageObj: PdfObject, _pageIndex: number): ProcessedPage {
+    processPage(pageObj: PdfObject): ProcessedPage {
         this.resetState();
         this.formDraws = this.newFormDraws();
         this.lines.length = 0;
@@ -2174,7 +2172,7 @@ class PixelPerfectProcessor {
         }
 
         // Extract annotations
-        const annotations = this.extractAnnotations(pageDict, pageHeight);
+        const annotations = this.extractAnnotations(pageDict);
 
         return {
             lines: [...this.lines],
@@ -2572,52 +2570,52 @@ class PixelPerfectProcessor {
     private registerGraphicsStateOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
         m.set('q', () => this.saveState());
         m.set('Q', () => this.restoreState());
-        m.set('cm', (_op, ops) => this.opCm(ops));
-        m.set('w', (_op, ops) => { if (ops.length >= 1) this.lineWidth = Number.parseFloat(ops[0]); });
-        m.set('g', (_op, ops) => { this.fillColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.fillColorChanged = true; });
-        m.set('G', (_op, ops) => { this.strokeColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.strokeColorChanged = true; });
-        m.set('rg', (_op, ops) => this.opRg(ops, true));
-        m.set('RG', (_op, ops) => this.opRg(ops, false));
-        m.set('k', (_op, ops) => this.opK(ops, true));
-        m.set('K', (_op, ops) => this.opK(ops, false));
-        m.set('cs', (_op, ops, res) => this.opCs(ops, res));
-        m.set('CS', (_op, ops, res) => this.opCs(ops, res));
-        m.set('sc', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
-        m.set('SC', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
-        m.set('scn', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
-        m.set('SCN', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
-        m.set('Do', (_op, ops, res, pw, ph) => this.opDo(ops, res, pw, ph));
-        m.set('gs', (_op, ops, res) => this.opGs(ops, res));
+        m.set('cm', (ops) => this.opCm(ops));
+        m.set('w', (ops) => { if (ops.length >= 1) this.lineWidth = Number.parseFloat(ops[0]); });
+        m.set('g', (ops) => { this.fillColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.fillColorChanged = true; });
+        m.set('G', (ops) => { this.strokeColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.strokeColorChanged = true; });
+        m.set('rg', (ops) => this.opRg(ops, true));
+        m.set('RG', (ops) => this.opRg(ops, false));
+        m.set('k', (ops) => this.opK(ops, true));
+        m.set('K', (ops) => this.opK(ops, false));
+        m.set('cs', (ops) => this.opCs(ops));
+        m.set('CS', (ops) => this.opCs(ops));
+        m.set('sc', (ops, res) => this.opSc(ops, true, res));
+        m.set('SC', (ops, res) => this.opSc(ops, false, res));
+        m.set('scn', (ops, res) => this.opSc(ops, true, res));
+        m.set('SCN', (ops, res) => this.opSc(ops, false, res));
+        m.set('Do', (ops, res, pw, ph) => this.opDo(ops, res, pw, ph));
+        m.set('gs', (ops, res) => this.opGs(ops, res));
         for (const name of ['BMC', 'BDC', 'EMC', 'MP', 'DP', 'BI']) m.set(name, noop);
     }
 
     private registerTextOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
-        m.set('Tf', (_op, ops) => this.opTf(ops));
-        m.set('Tc', (_op, ops) => { this.charSpace = Number.parseFloat(ops[0] ?? '0'); this.letterSpaceChanged = true; });
-        m.set('Tw', (_op, ops) => { this.wordSpace = Number.parseFloat(ops[0] ?? '0'); this.wordSpaceChanged = true; });
-        m.set('Tz', (_op, ops) => { this.horizScaling = Number.parseFloat(ops[0] ?? '100') / 100; this.horizScaleChanged = true; });
-        m.set('TL', (_op, ops) => { this.leading = Number.parseFloat(ops[0] ?? '0'); });
-        m.set('Tr', (_op, ops) => { this.renderMode = Number.parseInt(ops[0] ?? '0', 10); this.fillColorChanged = true; this.strokeColorChanged = true; });
-        m.set('Ts', (_op, ops) => { this.rise = Number.parseFloat(ops[0] ?? '0'); this.riseChanged = true; });
+        m.set('Tf', (ops) => this.opTf(ops));
+        m.set('Tc', (ops) => { this.charSpace = Number.parseFloat(ops[0] ?? '0'); this.letterSpaceChanged = true; });
+        m.set('Tw', (ops) => { this.wordSpace = Number.parseFloat(ops[0] ?? '0'); this.wordSpaceChanged = true; });
+        m.set('Tz', (ops) => { this.horizScaling = Number.parseFloat(ops[0] ?? '100') / 100; this.horizScaleChanged = true; });
+        m.set('TL', (ops) => { this.leading = Number.parseFloat(ops[0] ?? '0'); });
+        m.set('Tr', (ops) => { this.renderMode = Number.parseInt(ops[0] ?? '0', 10); this.fillColorChanged = true; this.strokeColorChanged = true; });
+        m.set('Ts', (ops) => { this.rise = Number.parseFloat(ops[0] ?? '0'); this.riseChanged = true; });
         m.set('BT', () => this.opBT());
         m.set('ET', noop);
-        m.set('Td', (_op, ops) => this.opTd(ops));
-        m.set('TD', (_op, ops) => this.opTD(ops));
-        m.set('Tm', (_op, ops) => this.opTm(ops));
+        m.set('Td', (ops) => this.opTd(ops));
+        m.set('TD', (ops) => this.opTD(ops));
+        m.set('Tm', (ops) => this.opTm(ops));
         m.set('T*', () => this.opTStar());
-        m.set('Tj', (_op, ops) => this.opTj(ops));
-        m.set('TJ', (_op, ops) => this.opTJ(ops));
-        m.set('\'', (_op, ops) => { this.opTStar(); this.opTj(ops); });
-        m.set('"', (_op, ops) => this.opQuoteDbl(ops));
+        m.set('Tj', (ops) => this.opTj(ops));
+        m.set('TJ', (ops) => this.opTJ(ops));
+        m.set('\'', (ops) => { this.opTStar(); this.opTj(ops); });
+        m.set('"', (ops) => this.opQuoteDbl(ops));
     }
 
     private registerPathOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
-        m.set('re', (_op, ops) => this.opRe(ops));
-        m.set('m', (_op, ops) => this.opPathMove(ops));
-        m.set('l', (_op, ops) => this.opPathLine(ops));
-        m.set('c', (_op, ops) => this.opPathCurve(ops));
-        m.set('v', (_op, ops) => this.opPathCurve2Points(ops));
-        m.set('y', (_op, ops) => this.opPathCurve2Points(ops));
+        m.set('re', (ops) => this.opRe(ops));
+        m.set('m', (ops) => this.opPathMove(ops));
+        m.set('l', (ops) => this.opPathLine(ops));
+        m.set('c', (ops) => this.opPathCurve(ops));
+        m.set('v', (ops) => this.opPathCurve2Points(ops));
+        m.set('y', (ops) => this.opPathCurve2Points(ops));
         m.set('h', noop);
         m.set('S', () => this.paintPath(true, false));
         m.set('s', () => this.paintPath(true, false));
@@ -2650,7 +2648,7 @@ class PixelPerfectProcessor {
         pageHeight: number,
     ): void {
         const handler = this.getOperatorMap().get(op);
-        if (handler) handler(op, operands, resources, pageWidth, pageHeight);
+        if (handler) handler(operands, resources, pageWidth, pageHeight);
     }
 
     // ── Operator implementations ─────────────────────────────────────
@@ -2719,7 +2717,7 @@ class PixelPerfectProcessor {
         else { this.strokeColor = hex; this.strokeColorChanged = true; }
     }
 
-    private opCs(operands: ReadonlyArray<string>, _resources: Record<string, PdfObject>): void {
+    private opCs(operands: ReadonlyArray<string>): void {
         const name = operands[0]?.startsWith('/') ? operands[0].substring(1) : operands[0] ?? '';
         this.fillColorSpaceIsPattern = name === 'Pattern';
         if (!this.fillColorSpaceIsPattern) this.patternFillImage = null;
@@ -3191,7 +3189,6 @@ class PixelPerfectProcessor {
 
     private extractAnnotations(
         pageDict: Record<string, PdfObject>,
-        _pageHeight: number,
     ): PdfAnnotation[] {
         const annotsRef = pageDict['Annots'];
         if (!annotsRef) return [];
@@ -3356,7 +3353,7 @@ function fixYFlippedCoordinates(result: ProcessedPage): void {
 
 function buildPageContentHtml(
     result: ProcessedPage, pageIndex: number,
-    mgr: AllStateManager, fontRegistry: FontRegistry, z: number,
+    mgr: AllStateManager, z: number,
     scaledWidth: number, scaledHeight: number,
 ): string {
     const htmlParts: string[] = [];
@@ -3371,7 +3368,7 @@ function buildPageContentHtml(
     }
     for (const img of result.imageItems) htmlParts.push(renderImage(img, z));
     for (const line of result.lines) {
-        const lineHtml = line.dumpText(mgr, fontRegistry, H_EPS, SPACE_THRESHOLD, z);
+        const lineHtml = line.dumpText(mgr, H_EPS, SPACE_THRESHOLD, z);
         if (lineHtml) htmlParts.push(lineHtml);
     }
     for (const ann of result.annotations) {
@@ -3398,11 +3395,11 @@ function assemblePageHtml(
 
     for (const line of result.lines) {
         line.prepare(mgr, fontRegistry, z);
-        line.optimizeNormal(mgr, H_EPS, SPACE_THRESHOLD, z);
+        line.optimizeNormal(mgr, SPACE_THRESHOLD, z);
     }
 
     return {
-        html: buildPageContentHtml(result, pageIndex, mgr, fontRegistry, z, scaledWidth, scaledHeight),
+        html: buildPageContentHtml(result, pageIndex, mgr, z, scaledWidth, scaledHeight),
         text,
         pageIndex,
         pageWidth: scaledWidth,
@@ -3448,7 +3445,7 @@ export async function renderPixelPerfectPaged(buffer: ArrayBuffer, options?: Pix
 
     for (let i = 0; i < pdfPages.length; i++) {
         try {
-            const result = processor.processPage(pdfPages[i], i);
+            const result = processor.processPage(pdfPages[i]);
             const page = assemblePageHtml(result, i, mgr, fontRegistry, zoom);
             pages.push(page);
         } catch {

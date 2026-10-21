@@ -141,7 +141,7 @@ export function areaPath(points: Point[], baselineY: number, curve: CurveType = 
  * reverse with straight segments to enclose the band.
  */
 export function bandAreaPath(upper: Point[], lower: Point[], curve: CurveType = 'linear'): string {
-    const indices = Array.from({ length: Math.min(upper.length, lower.length) }, (_, i) => i);
+    const indices = Array.from({ length: Math.min(upper.length, lower.length) }, (...[, i]) => i);
     // A band breaks where either edge has a non-finite point.
     return runsOf(indices, i => isFinitePoint(upper[i]) && isFinitePoint(lower[i]))
         .map(run => {

@@ -296,7 +296,7 @@ describe('ContextMenuTriggerDirective', () => {
         menu.show(1, 1);
         expect(menu.open()).toBe(true);
 
-        directive().onClick(new MouseEvent('click'));
+        directive().onClick();
         expect(menu.open()).toBe(false);
     });
 
