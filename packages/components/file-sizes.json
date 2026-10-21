@@ -62,8 +62,8 @@
       "lines": 33
     },
     "alert-dialog/alert-dialog.component.spec.ts": {
-      "bytes": 19186,
-      "lines": 478
+      "bytes": 22878,
+      "lines": 561
     },
     "alert-dialog/alert-dialog.component.ts": {
       "bytes": 1673,
@@ -94,8 +94,8 @@
       "lines": 50
     },
     "alert-dialog/sub/alert-dialog-content.component.ts": {
-      "bytes": 7396,
-      "lines": 186
+      "bytes": 7961,
+      "lines": 198
     },
     "alert-dialog/sub/alert-dialog-description.component.ts": {
       "bytes": 671,
@@ -1194,7 +1194,7 @@
       "lines": 55
     },
     "command/command.component.spec.ts": {
-      "bytes": 28011,
+      "bytes": 28031,
       "lines": 695
     },
     "command/command.component.ts": {
@@ -1202,7 +1202,7 @@
       "lines": 460
     },
     "command/command.features.spec.ts": {
-      "bytes": 17059,
+      "bytes": 17064,
       "lines": 487
     },
     "command/command.stories.ts": {
@@ -1494,8 +1494,8 @@
       "lines": 1
     },
     "data-table/addons/context-menu/context-menu.directive.spec.ts": {
-      "bytes": 43184,
-      "lines": 1108
+      "bytes": 43167,
+      "lines": 1107
     },
     "data-table/addons/context-menu/context-menu.directive.ts": {
       "bytes": 15819,
@@ -1574,8 +1574,8 @@
       "lines": 119
     },
     "data-table/data-table-grid-semantics.spec.ts": {
-      "bytes": 9864,
-      "lines": 240
+      "bytes": 10283,
+      "lines": 244
     },
     "data-table/data-table-paste.spec.ts": {
       "bytes": 1314,
@@ -1606,8 +1606,8 @@
       "lines": 1531
     },
     "data-table/data-table.component.spec.ts": {
-      "bytes": 314404,
-      "lines": 6989
+      "bytes": 318347,
+      "lines": 7077
     },
     "data-table/data-table.component.ts": {
       "bytes": 234068,
@@ -2310,7 +2310,7 @@
       "lines": 597
     },
     "file-upload/file-upload.crop.browser.spec.ts": {
-      "bytes": 10571,
+      "bytes": 10576,
       "lines": 282
     },
     "file-upload/file-upload.dom.spec.ts": {
@@ -2318,7 +2318,7 @@
       "lines": 191
     },
     "file-upload/file-upload.features.spec.ts": {
-      "bytes": 12842,
+      "bytes": 12847,
       "lines": 319
     },
     "file-upload/file-upload.locales.ts": {
@@ -3302,7 +3302,7 @@
       "lines": 540
     },
     "kanban/kanban.swimlanes.spec.ts": {
-      "bytes": 10373,
+      "bytes": 10388,
       "lines": 263
     },
     "kanban/sub/kanban-card-content.component.ts": {
@@ -3826,16 +3826,16 @@
       "lines": 1
     },
     "page-renderer/page-renderer.component.html": {
-      "bytes": 488,
-      "lines": 15
+      "bytes": 438,
+      "lines": 14
     },
     "page-renderer/page-renderer.component.spec.ts": {
-      "bytes": 6015,
-      "lines": 171
+      "bytes": 5774,
+      "lines": 166
     },
     "page-renderer/page-renderer.component.ts": {
-      "bytes": 5303,
-      "lines": 148
+      "bytes": 3691,
+      "lines": 100
     },
     "page-renderer/page-renderer.stories.ts": {
       "bytes": 3639,
@@ -3994,7 +3994,7 @@
       "lines": 115
     },
     "popover/popover.component.spec.ts": {
-      "bytes": 20880,
+      "bytes": 20890,
       "lines": 523
     },
     "popover/popover.component.ts": {
@@ -4254,7 +4254,7 @@
       "lines": 88
     },
     "rich-text-editor/addons/actions/rich-text-actions-bind.directive.spec.ts": {
-      "bytes": 4792,
+      "bytes": 4797,
       "lines": 114
     },
     "rich-text-editor/addons/actions/rich-text-actions-bind.directive.ts": {
@@ -4298,8 +4298,8 @@
       "lines": 77
     },
     "rich-text-editor/addons/actions/rich-text-actions.directive.spec.ts": {
-      "bytes": 49532,
-      "lines": 957
+      "bytes": 49511,
+      "lines": 956
     },
     "rich-text-editor/addons/actions/rich-text-actions.directive.ts": {
       "bytes": 26422,
@@ -4442,7 +4442,7 @@
       "lines": 16
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.spec.ts": {
-      "bytes": 6069,
+      "bytes": 6074,
       "lines": 156
     },
     "rich-text-editor/addons/emoji/rich-text-emoji.directive.ts": {
@@ -4814,8 +4814,8 @@
       "lines": 92
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts": {
-      "bytes": 27413,
-      "lines": 622
+      "bytes": 27392,
+      "lines": 621
     },
     "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.ts": {
       "bytes": 19961,
@@ -4942,8 +4942,8 @@
       "lines": 302
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 536742,
-      "lines": 11913
+      "bytes": 536726,
+      "lines": 11912
     },
     "rich-text-editor/rich-text-editor.component.ts": {
       "bytes": 386176,
@@ -5086,8 +5086,8 @@
       "lines": 1
     },
     "rich-text-view/rich-text-view.component.spec.ts": {
-      "bytes": 28925,
-      "lines": 701
+      "bytes": 28919,
+      "lines": 700
     },
     "rich-text-view/rich-text-view.component.ts": {
       "bytes": 11108,
@@ -5194,8 +5194,8 @@
       "lines": 28
     },
     "select/select.component.spec.ts": {
-      "bytes": 40846,
-      "lines": 1048
+      "bytes": 41147,
+      "lines": 1052
     },
     "select/select.component.ts": {
       "bytes": 26141,
@@ -6226,7 +6226,7 @@
       "lines": 422
     },
     "toast/toast.features.spec.ts": {
-      "bytes": 17862,
+      "bytes": 17872,
       "lines": 472
     },
     "toast/toast.stories.ts": {
@@ -6330,8 +6330,8 @@
       "lines": 66
     },
     "tooltip/tooltip.component.spec.ts": {
-      "bytes": 5566,
-      "lines": 155
+      "bytes": 5545,
+      "lines": 154
     },
     "tooltip/tooltip.component.ts": {
       "bytes": 2351,
@@ -7180,8 +7180,8 @@
       "lines": 97
     },
     "theme-presets.spec.ts": {
-      "bytes": 3694,
-      "lines": 94
+      "bytes": 3610,
+      "lines": 90
     },
     "theme-presets.ts": {
       "bytes": 2443,
