@@ -10,7 +10,7 @@ import {
     AlertDialogActionComponent,
     AlertDialogCancelComponent
 } from './index';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
@@ -46,6 +46,43 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
     ]
 })
 class TestHostComponent { }
+
+// The title is projected only once some data has loaded, after the dialog is already open.
+@Component({
+    template: `
+        <ui-alert-dialog>
+            <ui-alert-dialog-trigger>Open Alert</ui-alert-dialog-trigger>
+            <ui-alert-dialog-content>
+                @if (loaded()) {
+                    <ui-alert-dialog-title>Delete 3 files?</ui-alert-dialog-title>
+                }
+            </ui-alert-dialog-content>
+        </ui-alert-dialog>
+    `,
+    imports: [
+        AlertDialogComponent,
+        AlertDialogTriggerComponent,
+        AlertDialogContentComponent,
+        AlertDialogTitleComponent,
+    ]
+})
+class LateTitleHostComponent {
+    readonly loaded = signal(false);
+}
+
+// Simple mode: the content renders its own title, from an input that is set after the dialog opened.
+@Component({
+    template: `
+        <ui-alert-dialog>
+            <ui-alert-dialog-trigger>Open Alert</ui-alert-dialog-trigger>
+            <ui-alert-dialog-content [title]="title()" />
+        </ui-alert-dialog>
+    `,
+    imports: [AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent]
+})
+class LateInputTitleHostComponent {
+    readonly title = signal('');
+}
 
 describe('AlertDialogComponent', () => {
     let component: AlertDialogComponent;
@@ -96,6 +133,9 @@ describe('AlertDialog Integration', () => {
     });
 
     it('should render title and description', async () => {
+        // The title id is assigned from an afterRender hook and read back through a binding. Under zone.js a fixture that
+        // is not attached to the application renders neither on the click's tick, so attach it, as an app's root is.
+        fixture.autoDetectChanges();
         const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
         trigger.nativeElement.click();
         fixture.detectChanges();
@@ -476,3 +516,46 @@ describe('AlertDialogTrigger — keyboard activation', () => {
     imports: [AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent],
 })
 class NestedTriggerHostComponent { }
+
+describe('AlertDialog naming', () => {
+    it('points aria-labelledby at the title it renders for an input that is set after the dialog opened', async () => {
+        await TestBed.configureTestingModule({ imports: [LateInputTitleHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(LateInputTitleHostComponent);
+        fixture.detectChanges();
+        (fixture.nativeElement.querySelector('[data-slot="alert-dialog-trigger"]') as HTMLElement).click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const content = document.querySelector('[data-slot="alert-dialog-content"]') as HTMLElement;
+        expect(content.getAttribute('aria-labelledby')).toBeNull();
+
+        fixture.componentInstance.title.set('Discard changes?');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const title = document.querySelector('[data-slot="alert-dialog-title"]') as HTMLElement;
+        expect(title.textContent?.trim()).toBe('Discard changes?');
+        expect(title.id).toBeTruthy();
+        expect(content.getAttribute('aria-labelledby')).toBe(title.id);
+    });
+
+    it('points aria-labelledby at a title that is projected after the dialog opened', async () => {
+        await TestBed.configureTestingModule({ imports: [LateTitleHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(LateTitleHostComponent);
+        fixture.detectChanges();
+        (fixture.nativeElement.querySelector('[data-slot="alert-dialog-trigger"]') as HTMLElement).click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const content = document.querySelector('[data-slot="alert-dialog-content"]') as HTMLElement;
+        expect(content.getAttribute('aria-labelledby')).toBeNull();
+
+        fixture.componentInstance.loaded.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const title = document.querySelector('[data-slot="alert-dialog-title"]') as HTMLElement;
+        expect(title.id).toBeTruthy();
+        expect(content.getAttribute('aria-labelledby')).toBe(title.id);
+    });
+});
