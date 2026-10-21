@@ -9,7 +9,8 @@ module.exports = {
     ...createCjsPreset(),
     rootDir: __dirname,
     setupFilesAfterEnv: ['<rootDir>/setup-jest.cjs'],
-    testMatch: ['<rootDir>/src/**/*.spec.ts'],
+    // checks/ holds specs for the shim itself, which no component's shipped specs exercise on the failing path.
+    testMatch: ['<rootDir>/src/**/*.spec.ts', '<rootDir>/checks/**/*.spec.ts'],
     moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
     },
