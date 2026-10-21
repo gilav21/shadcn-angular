@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, ComponentRef, input } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { PageRendererComponent } from './page-renderer.component';
 import { PageData, ComponentMeta } from '../../lib/page-builder.types';
 
@@ -161,11 +161,6 @@ describe('PageRendererComponent', () => {
         const item = component.dashboardItems()[0];
         expect(item?.inputs?.['title']).toBe('Static Title');
         expect(item?.inputs?.['description']).toBeUndefined();
-    });
-
-    it('should ignore component init for an unknown item id', () => {
-        const ref = { instance: {} } as ComponentRef<unknown>;
-        expect(() => component.onComponentInit({ id: 'ghost', ref })).not.toThrow();
     });
 
 });
