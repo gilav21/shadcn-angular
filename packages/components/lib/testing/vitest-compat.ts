@@ -62,7 +62,7 @@ function expectWithMessage<T>(actual: T, message?: string): ReturnType<typeof je
 }
 
 // The statics (`expect.any`, `expect.objectContaining`, `expect.extend`, …) are copied across.
-export const expect = Object.assign(expectWithMessage, jestExpect) as unknown as ExpectWithMessage;
+export const expect: ExpectWithMessage = Object.assign(expectWithMessage, jestExpect);
 
 /** Original descriptors of globals replaced by `vi.stubGlobal`, for restoration. */
 const stubbedGlobals = new Map<PropertyKey, PropertyDescriptor | undefined>();
