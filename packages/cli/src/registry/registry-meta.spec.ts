@@ -47,7 +47,8 @@ describe('directive discoverability', () => {
   it('finds the directive-only entries', () => {
     // Guards the derivation itself: if this drops to zero (e.g. a refactor
     // renames `.directive.ts`), the convention test below would vacuously pass.
-    expect(directiveEntries().length).toBeGreaterThanOrEqual(10);
+    // It was 10 until the standalone data-table directive merged into its addon (9 entries now).
+    expect(directiveEntries().length).toBeGreaterThanOrEqual(9);
   });
 
   it('every directive entry describes itself as a directive', () => {
@@ -180,5 +181,29 @@ describe('ComponentName stays a union of the registry keys', () => {
     // @ts-expect-error -- 'not-a-component' is not a registry key
     const bad: ComponentName = 'not-a-component';
     expect(Object.keys(registry)).not.toContain(bad);
+  });
+});
+
+/**
+ * The data table's context menu is ONE directive: the `data-table/context-menu` addon. The standalone
+ * `uiDataTableContextMenu` directive was merged into it (specs/data-table-context-menu-merge-spec.md),
+ * so a second entry, a leftover flat file, or a dependency that drags another directive into the
+ * compiled data-table package would bring the duplication back.
+ */
+describe('data-table context menu is a single addon', () => {
+  const addon = registry['data-table/context-menu'];
+
+  it('has no standalone entry and no flat source file', () => {
+    expect(Object.keys(registry)).not.toContain('data-table-context-menu');
+    expect(fs.existsSync(path.join(REPO_ROOT, 'packages/components/ui/data-table-context-menu.directive.ts'))).toBe(false);
+  });
+
+  it('ships its event types and does not depend on table-context-menu', () => {
+    expect(addon.files).toContain('data-table/addons/context-menu/context-menu.types.ts');
+    expect(addon.dependencies ?? []).not.toContain('table-context-menu');
+  });
+
+  it('prunes the files of the standalone directive from a project that installed it', () => {
+    expect(addon.obsoleteFiles).toEqual(['data-table-context-menu.directive.ts', 'data-table-context-menu.directive.spec.ts']);
   });
 });

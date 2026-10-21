@@ -43,16 +43,18 @@ directive added later too.
 | `context-menu-attach` | `[uiContextMenuAttach]` | any element | Attaches a context menu, opened by right-click or long-press. |
 | `tree-context-menu` | `ui-tree[uiTreeContextMenu]` | `<ui-tree>` | Wires a context menu to tree nodes for per-node right-click actions. |
 | `table-context-menu` | `table[uiTableContextMenu]`, `[uiTable]` | `<table>` | Wires a context menu to table rows and headers. |
-| `data-table-context-menu` | `ui-data-table[uiDataTableContextMenu]` | `<ui-data-table>` | Adds right-click context menus to data-table rows and columns. |
+| `data-table/context-menu` | `[uiDtContextMenu]` | `<ui-data-table>` | Adds context menus to data-table rows and columns: open your own menu (`[contextMenu]`) or let it build row actions and a column menu (`[rowActions]`). |
 | `component-outlet` | `[uiComponentOutlet]` | any element | Dynamically renders a component by reference into the DOM. |
 | `ripple` | `[uiRipple]` | any element | Adds a Material-style click ripple effect. |
 | `magnetic` | `[uiMagnetic]` | any element | Makes an element drift toward the cursor like a magnet. |
 | `confetti` | `[uiConfetti]` | any element | Bursts celebratory confetti particles on a triggered event. |
 
-> `data-table-context-menu` (the directive, `uiDataTableContextMenu`) is a
-> different entry from the `data-table/context-menu` **addon**. The addon is
-> installed with `apply data-table/context-menu` and wires itself in via DI; the
-> directive is applied by hand as an attribute.
+> `data-table/context-menu` is an **addon**: install it with `apply data-table/context-menu`
+> and it wires itself in through the table's `DataTableAddonHost`. It has two modes, chosen by
+> what you bind: `[rowActions]` (it builds the menus and the ⋮ buttons) or `[contextMenu]` (a
+> right-click, the context-menu key or a long-press opens *your* `<ui-context-menu>`). It replaces
+> the older standalone `data-table-context-menu` directive (`uiDataTableContextMenu`); `update`
+> tells you how to migrate.
 
 ## Why they are not their own category
 

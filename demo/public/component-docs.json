@@ -6109,66 +6109,6 @@
       ]
     },
     {
-      "name": "data-table-context-menu",
-      "description": "Directive adding right-click context menus to data-table rows and columns.",
-      "category": "utility",
-      "install": "npx @gilav21/shadcn-angular@latest add data-table-context-menu",
-      "importStatement": "import { DataTableContextMenuDirective } from '@/components/ui/data-table-context-menu.directive';",
-      "selector": "ui-data-table[uiDataTableContextMenu]",
-      "dependencies": [
-        "context-menu",
-        "data-table",
-        "table-context-menu"
-      ],
-      "npmDependencies": [],
-      "snippet": null,
-      "snippetSkipReason": "applies to <ui-data-table>, so usage depends on that component's own required inputs",
-      "demoRoute": "data-table-context-menu",
-      "demoFile": "demo/src/app/demos/data-display/data-table-context-menu-demo.component.ts",
-      "api": [
-        {
-          "className": "DataTableContextMenuDirective",
-          "file": "packages/components/ui/data-table-context-menu.directive.ts",
-          "kind": "directive",
-          "selector": "ui-data-table[uiDataTableContextMenu]",
-          "description": "Attach a context menu to a `<ui-data-table>` element. Right-clicking or long-pressing a row opens the provided {@link ContextMenuComponent} and emits {@link TableRowContextMenuEvent}. Right-clicking a header (when `contextMenuRowsOnly` is false) emits {@link DataTableHeaderContextMenuEvent}.",
-          "inputs": [
-            {
-              "name": "contextMenuDisabled",
-              "type": "boolean",
-              "description": "Stops the table from opening the menu.",
-              "default": "false"
-            },
-            {
-              "name": "contextMenuRowsOnly",
-              "type": "boolean",
-              "description": "Restrict the menu to body rows, leaving the header alone.",
-              "default": "true"
-            },
-            {
-              "name": "uiDataTableContextMenu",
-              "type": "ContextMenuComponent",
-              "description": "The menu to open when a row or header is right-clicked.",
-              "required": true
-            }
-          ],
-          "outputs": [
-            {
-              "name": "headerContextMenu",
-              "type": "DataTableHeaderContextMenuEvent",
-              "description": "Emits the column header that was right-clicked."
-            },
-            {
-              "name": "rowContextMenu",
-              "type": "TableRowContextMenuEvent<T>",
-              "description": "Emits the row that was right-clicked."
-            }
-          ],
-          "methods": []
-        }
-      ]
-    },
-    {
       "name": "data-table-range-chart",
       "description": "Dialog that visualizes a data table's selected range as a bar, pie, or stacked bar chart.",
       "category": "charts",
@@ -6246,7 +6186,7 @@
     },
     {
       "name": "data-table/context-menu",
-      "description": "Opt-in right-click + ⋮ context menus (row actions, column sort/pin/hide) for the data-table.",
+      "description": "Opt-in context menus for the data-table: open your own menu on right-click or long-press, or use row actions and a column menu.",
       "category": "data-display",
       "install": "npx @gilav21/shadcn-angular@latest add data-table/context-menu",
       "importStatement": "import { DataTableContextMenuDirective } from '@/components/ui/data-table/addons/context-menu';",
@@ -6258,16 +6198,33 @@
       "npmDependencies": [],
       "snippet": "<div uiDtContextMenu></div>",
       "snippetSkipReason": "",
-      "demoRoute": null,
-      "demoFile": null,
+      "demoRoute": "data-table-context-menu",
+      "demoFile": "demo/src/app/demos/data-display/data-table-context-menu-demo.component.ts",
       "api": [
         {
           "className": "DataTableContextMenuDirective",
           "file": "packages/components/ui/data-table/addons/context-menu/context-menu.directive.ts",
           "kind": "directive",
           "selector": "[uiDtContextMenu]",
-          "description": "Opt-in context-menu addon for `<ui-data-table>`. Attaches via DI to the `DataTableAddonHost` the base provides, contributes the ⋮ row/header buttons through the host's generic slot registries, and renders menus itself (imperative `ContextMenuComponent`) — the base ships no context-menu code or dependency. Reachable by mouse (`contextmenu`), keyboard (the context-menu key), touch (long-press), and the ⋮ buttons. A long-press that the browser also reports as a `contextmenu` (Android) opens the menu, and emits, once.",
+          "description": "Opt-in context-menu addon for `<ui-data-table>`. Attaches via DI to the `DataTableAddonHost` the base provides, contributes the ⋮ row/header buttons through the host's generic slot registries — the base ships no context-menu code or dependency. Reachable by mouse (`contextmenu`), keyboard (the context-menu key), touch (long-press), and the ⋮ buttons. A long-press that the browser also reports as a `contextmenu` (Android) opens the menu, and emits, once. Two modes, chosen by what you bind: - **Simple** — `[rowActions]` (and `[enableColumnMenu]`): the addon builds the menus itself and adds the ⋮ buttons. Emits {@link rowMenuOpen} / {@link columnMenuOpen}. - **Custom** — `[contextMenu]`: the gestures open *your* `<ui-context-menu>`, with the row (or, with `[contextMenuRowsOnly]=\"false\"`, the header) as its data. Emits {@link rowContextMenu} / {@link headerContextMenu}. With both bound, the gestures open your menu and the ⋮ buttons still open the built one. With neither, the directive takes no gesture. While `enableCellRangeSelection` is on, a touch long-press opens your menu only on a cell that is already selected (inside the range, or the focused cell with no range); anywhere else the same hold starts a range, as it always did.",
           "inputs": [
+            {
+              "name": "contextMenu",
+              "type": "ContextMenuComponent | undefined",
+              "description": "Your own menu (custom mode). A right-click, the context-menu key or a long-press on a row opens it at the pointer with the row as its data (the flattened tree row, with the row merged in, when the table renders sub-rows)."
+            },
+            {
+              "name": "contextMenuDisabled",
+              "type": "boolean",
+              "description": "Hands every context gesture on the table back to the browser. The ⋮ buttons are unaffected.",
+              "default": "false"
+            },
+            {
+              "name": "contextMenuRowsOnly",
+              "type": "boolean",
+              "description": "Custom mode: leave the header alone. Set to `false` to open `contextMenu` on a column header too.",
+              "default": "true"
+            },
             {
               "name": "enableColumnMenu",
               "type": "boolean",
@@ -6285,6 +6242,16 @@
               "name": "columnMenuOpen",
               "type": "ColumnDef<T>",
               "description": "Emitted when a column menu opens (with its column)."
+            },
+            {
+              "name": "headerContextMenu",
+              "type": "DataTableHeaderContextMenuEvent",
+              "description": "Custom mode: the header a gesture opened `contextMenu` on (needs `contextMenuRowsOnly` false)."
+            },
+            {
+              "name": "rowContextMenu",
+              "type": "DataTableRowContextMenuEvent<T>",
+              "description": "Custom mode: the row a gesture opened `contextMenu` on."
             },
             {
               "name": "rowMenuOpen",
@@ -9399,7 +9366,7 @@
           "file": "packages/components/ui/infinite-canvas/addons/node-editor-context-menu/node-editor-context-menu.directive.ts",
           "kind": "directive",
           "selector": "ui-node-editor[uiNodeEditorContextMenu]",
-          "description": "A context menu on the graph, with contents that depend on what was clicked. ### Why a directive, and why on the editor element It follows the convention already in this repo — `uiTreeContextMenu`, `uiTableContextMenu`, `uiDataTableContextMenu` all attach a {@link ContextMenuComponent} to a host and hand it the thing under the pointer. A node graph is the same problem with a richer answer. Sitting on `ui-node-editor` lets it inject the editor, which is the only thing that can say what is under a screen point: node cards and ports are real elements, but connections are painted into one shared canvas, so no amount of DOM walking finds a wire. ### What it does NOT do It does not decide what the menu contains. The target it publishes carries the node, the port and the connection themselves, and the consumer writes the items — which is what makes \"options per what you right-click\" the consumer's vocabulary rather than a fixed list baked in here. ```html <ui-node-editor [uiNodeEditorContextMenu]=\"menu\" /> ___COMPODOC_EMPTY_LINE___ <ui-context-menu #menu> @if (menu.data(); as target) { @switch (target.kind) { @case ('canvas') { <ui-context-menu-item (select)=\"add(target.at)\">Add node…</ui-context-menu-item> } @case ('node') { <ui-context-menu-item (select)=\"rename(target.node)\">Rename…</ui-context-menu-item> } } } </ui-context-menu> ```",
+          "description": "A context menu on the graph, with contents that depend on what was clicked. ### Why a directive, and why on the editor element It follows the convention already in this repo — `uiTreeContextMenu`, `uiTableContextMenu`, `uiDtContextMenu` all attach a {@link ContextMenuComponent} to a host and hand it the thing under the pointer. A node graph is the same problem with a richer answer. Sitting on `ui-node-editor` lets it inject the editor, which is the only thing that can say what is under a screen point: node cards and ports are real elements, but connections are painted into one shared canvas, so no amount of DOM walking finds a wire. ### What it does NOT do It does not decide what the menu contains. The target it publishes carries the node, the port and the connection themselves, and the consumer writes the items — which is what makes \"options per what you right-click\" the consumer's vocabulary rather than a fixed list baked in here. ```html <ui-node-editor [uiNodeEditorContextMenu]=\"menu\" /> ___COMPODOC_EMPTY_LINE___ <ui-context-menu #menu> @if (menu.data(); as target) { @switch (target.kind) { @case ('canvas') { <ui-context-menu-item (select)=\"add(target.at)\">Add node…</ui-context-menu-item> } @case ('node') { <ui-context-menu-item (select)=\"rename(target.node)\">Rename…</ui-context-menu-item> } } } </ui-context-menu> ```",
           "inputs": [
             {
               "name": "contextMenuDisabled",

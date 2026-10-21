@@ -83,7 +83,6 @@ export * from './virtual-scroll';
 export * from './context-menu-attach.directive';
 export * from './tree-context-menu.directive';
 export * from './table-context-menu.directive';
-export * from './data-table-context-menu.directive';
 export * from './copy-to.directive';
 export * from './shortcut-binding.service';
 

@@ -372,7 +372,8 @@ readonly menuRow = signal&lt;Ticket | null&gt;(null);
 &lt;ui-data-table
   [data]="tickets()"
   [columns]="columns"
-  [uiDataTableContextMenu]="rowMenu"
+  uiDtContextMenu
+  [contextMenu]="rowMenu"
   (rowContextMenu)="menuRow.set($event.row)" /&gt;   &lt;!-- $event.row: Ticket --&gt;
 
 &lt;ui-context-menu #rowMenu&gt;

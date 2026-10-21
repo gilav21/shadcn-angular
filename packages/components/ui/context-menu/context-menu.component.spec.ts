@@ -569,16 +569,21 @@ describe('ContextMenu as a keyboard menu', () => {
 
     // The menu takes its initial focus two animation frames after it opens. A slow frame lets a keyboard
     // user reach a flyout first; their focus is already inside the menu and the late pass must leave it.
+    // A flyout is portalled out of the root panel under its own marker, so it is built here directly:
+    // opening one through the keyboard depends on timers this rule does not.
     it('does not pull focus out of a flyout when its delayed initial focus runs', async () => {
         const frames: FrameRequestCallback[] = [];
         const raf = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(cb => frames.push(cb));
         try {
             await openOnTarget(KeyboardMenuHostComponent);
-            const share = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'))
-                .find(item => (item.textContent ?? '').trim() === 'Share')!;
-            share.focus();
-            press('ArrowRight');
-            await settle();
+            const flyout = document.createElement('div');
+            flyout.dataset['contextMenuSubPortal'] = 'true';
+            const item = document.createElement('button');
+            item.setAttribute('role', 'menuitem');
+            item.textContent = 'Email';
+            flyout.append(item);
+            document.body.append(flyout);
+            item.focus();
             expect(focused()).toBe('Email');
 
             while (frames.length > 0) frames.shift()!(0);

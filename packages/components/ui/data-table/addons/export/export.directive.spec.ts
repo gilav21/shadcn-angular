@@ -81,6 +81,19 @@ class FakeHost<T> extends DataTableAddonHost<T> {
   getRenderedRowAt(index: number): T | undefined {
     return this.rows[index];
   }
+  getRenderedTreeRowAt(): undefined {
+    return undefined;
+  }
+  focusCell(): void {}
+  isCellRangeSelectionEnabled(): boolean {
+    return false;
+  }
+  isCellSelected(): boolean {
+    return false;
+  }
+  isEditingCell(): boolean {
+    return false;
+  }
   getRowContext(row: T, index: number): RowActionContext<T> {
     return { row, index, selected: false };
   }

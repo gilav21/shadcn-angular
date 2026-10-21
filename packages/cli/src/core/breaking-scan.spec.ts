@@ -210,3 +210,21 @@ describe('printBreakingUsages', () => {
         expect(logged.join('\n')).toContain('no usages found in your app code');
     });
 });
+
+describe('the merged data-table context menu', () => {
+    const change = (registry['data-table'].breaking ?? []).find(c => c.from === 'uiDataTableContextMenu');
+
+    it('is announced on the data-table entry, naming the addon to apply and the replacement binding', () => {
+        expect(change?.suggestedAddon).toBe('data-table/context-menu');
+        expect(change?.note).toContain('uiDtContextMenu [contextMenu]="menu"');
+    });
+
+    it('flags the old binding in a template and leaves the new one alone', () => {
+        const usages = scanFilesForTokens([
+            { path: 'old.html', content: '<ui-data-table [uiDataTableContextMenu]="menu" (rowContextMenu)="row($event)" />' },
+            { path: 'new.html', content: '<ui-data-table uiDtContextMenu [contextMenu]="menu" (rowContextMenu)="row($event)" />' },
+        ], extractBreakingTokens(change as BreakingChange));
+
+        expect(usages).toEqual([{ path: 'old.html', line: 1, token: 'uiDataTableContextMenu' }]);
+    });
+});

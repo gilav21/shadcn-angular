@@ -107,7 +107,7 @@ export class SalesComponent {
 
 | Directive | Attribute | What it adds |
 |---|---|---|
-| `DataTableContextMenuDirective` | `uiDtContextMenu` | Row action menu (⋮ button, right-click, long-press) |
+| `DataTableContextMenuDirective` | `uiDtContextMenu` | Context menus: open your own menu on right-click / long-press (`[contextMenu]`), or get built-in row actions (⋮ button) and a column menu (`[rowActions]`, `[enableColumnMenu]`) |
 | `DataTableExportDirective` | `uiDtExport` | CSV / clipboard export of the current view |
 | `DataTablePivotDirective` | `uiDtPivot` | Grouping and aggregation (`getPivot()`) |
 

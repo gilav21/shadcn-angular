@@ -25,7 +25,7 @@ Rules that hold for every component:
 - Inputs marked `(required)` must be bound or the template will not compile.
 - A section without a snippet says so explicitly; do not invent one.
 
-## Index (182 components)
+## Index (181 components)
 
 - [accordion](#accordion): Vertically stacked, collapsible sections that expand one or more panels to reveal content.
 - [alert](#alert): Inline callout banner for important messages with title, description, and variants.
@@ -74,9 +74,8 @@ Rules that hold for every component:
 - [currency-input](#currency-input): Money input that formats and parses for any locale and currency, including non-ASCII digits.
 - [data-list](#data-list): Label-to-value description list rendered as real dl/dt/dd, with simple array and projected row modes.
 - [data-table](#data-table): Feature-rich table with sorting, filtering, pagination, and column tools.
-- [data-table-context-menu](#data-table-context-menu): Directive adding right-click context menus to data-table rows and columns.
 - [data-table-range-chart](#data-table-range-chart): Dialog that visualizes a data table's selected range as a bar, pie, or stacked bar chart.
-- [data-table/context-menu](#data-tablecontext-menu): Opt-in right-click + ⋮ context menus (row actions, column sort/pin/hide) for the data-table.
+- [data-table/context-menu](#data-tablecontext-menu): Opt-in context menus for the data-table: open your own menu on right-click or long-press, or use row actions and a column menu.
 - [data-table/export](#data-tableexport): Opt-in CSV/Excel export for the data-table (isolates the xlsx dependency from the base).
 - [data-table/pivot](#data-tablepivot): Opt-in pivot transform (rows x columns x values) for the data-table; exposes getPivot + the pure computePivot.
 - [date-picker](#date-picker): Popover date and date-range picker combining an input trigger with a calendar.
@@ -1080,7 +1079,7 @@ Feature-rich table with sorting, filtering, pagination, and column tools.
 
 ### data-table/context-menu
 
-Opt-in right-click + ⋮ context menus (row actions, column sort/pin/hide) for the data-table.
+Opt-in context menus for the data-table: open your own menu on right-click or long-press, or use row actions and a column menu.
 
 - Install: `npx @gilav21/shadcn-angular@latest add data-table/context-menu`
 - Import: `import { DataTableContextMenuDirective } from '@/components/ui/data-table/addons/context-menu';`
@@ -1088,8 +1087,8 @@ Opt-in right-click + ⋮ context menus (row actions, column sort/pin/hide) for t
 - Category: data-display
 - Depends on: `context-menu`, `data-table`
 - npm dependencies: none
-- Inputs: `enableColumnMenu: boolean = false`, `rowActions: RowActionsFn<T> | undefined`
-- Outputs: `columnMenuOpen: ColumnDef<T>`, `rowMenuOpen: RowActionContext<T>`
+- Inputs: `contextMenu: ContextMenuComponent | undefined`, `contextMenuDisabled: boolean = false`, `contextMenuRowsOnly: boolean = true`, `enableColumnMenu: boolean = false`, `rowActions: RowActionsFn<T> | undefined`
+- Outputs: `columnMenuOpen: ColumnDef<T>`, `headerContextMenu: DataTableHeaderContextMenuEvent`, `rowContextMenu: DataTableRowContextMenuEvent<T>`, `rowMenuOpen: RowActionContext<T>`
 
 ```html
 <div uiDtContextMenu></div>
@@ -3105,21 +3104,6 @@ Directive that copies a string to the clipboard on click and shows a localized "
 ```html
 <div uiCopyTo uiCopyTo="text"></div>
 ```
-
-### data-table-context-menu
-
-Directive adding right-click context menus to data-table rows and columns.
-
-- Install: `npx @gilav21/shadcn-angular@latest add data-table-context-menu`
-- Import: `import { DataTableContextMenuDirective } from '@/components/ui/data-table-context-menu.directive';`
-- Selector: `ui-data-table[uiDataTableContextMenu]`
-- Category: utility
-- Depends on: `context-menu`, `data-table`, `table-context-menu`
-- npm dependencies: none
-- Inputs: `contextMenuDisabled: boolean = false`, `contextMenuRowsOnly: boolean = true`, `uiDataTableContextMenu: ContextMenuComponent` (required)
-- Outputs: `headerContextMenu: DataTableHeaderContextMenuEvent`, `rowContextMenu: TableRowContextMenuEvent<T>`
-
-_No generated snippet: applies to <ui-data-table>, so usage depends on that component's own required inputs._
 
 ### emoji-picker
 

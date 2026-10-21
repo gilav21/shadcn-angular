@@ -239,6 +239,28 @@ describe('ContextMenu keyboard (real browser)', () => {
         await settle();
         expect(focusedLabel()).toBe('Share');
     });
+
+    // The portable spec builds the flyout by hand (opening one by keyboard depends on timers the jest runner does
+    // not honour); here the real thing: a user who arrows into a flyout before the menu's delayed initial focus runs.
+    it('keeps the focus in a flyout opened by keyboard when the delayed initial focus then runs', async () => {
+        const frames: FrameRequestCallback[] = [];
+        const original = globalThis.requestAnimationFrame;
+        globalThis.requestAnimationFrame = (callback: FrameRequestCallback): number => frames.push(callback);
+        try {
+            await openFromTarget(KeyboardHost);
+            Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]'))
+                .find(item => (item.textContent ?? '').trim() === 'Share')!.focus();
+            pressOnFocused('ArrowRight');
+            await settle();
+            expect(focusedLabel()).toBe('Email');
+
+            while (frames.length > 0) frames.shift()!(0);
+
+            expect(focusedLabel()).toBe('Email');
+        } finally {
+            globalThis.requestAnimationFrame = original;
+        }
+    });
 });
 
 describe('ContextMenu focus return (real browser)', () => {

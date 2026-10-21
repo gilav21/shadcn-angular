@@ -980,6 +980,14 @@
         "suggestedAddon": "data-table/context-menu"
       },
       {
+        "kind": "selector",
+        "from": "uiDataTableContextMenu",
+        "to": "uiDtContextMenu [contextMenu]",
+        "note": "The standalone data-table-context-menu directive was merged into the context-menu addon. Run `npx @gilav21/shadcn-angular apply data-table/context-menu`, then change `[uiDataTableContextMenu]=\"menu\"` to `uiDtContextMenu [contextMenu]=\"menu\"`; (rowContextMenu) and (headerContextMenu) keep their names. Import DataTableContextMenuDirective from the addon and delete data-table-context-menu.directive.ts.",
+        "codemod": "none",
+        "suggestedAddon": "data-table/context-menu"
+      },
+      {
         "kind": "input",
         "from": "[enableColumnMenu] on <ui-data-table>",
         "to": "the uiDtContextMenu directive",
@@ -1011,6 +1019,7 @@
     "parent": "data-table",
     "files": [
       "data-table/addons/context-menu/context-menu.directive.ts",
+      "data-table/addons/context-menu/context-menu.types.ts",
       "data-table/addons/context-menu/index.ts"
     ],
     "libFiles": [
@@ -1022,18 +1031,24 @@
       "data-table"
     ],
     "testFiles": [
-      "data-table/addons/context-menu/context-menu.directive.spec.ts"
+      "data-table/addons/context-menu/context-menu.directive.spec.ts",
+      "data-table/addons/context-menu/context-menu.table.spec.ts"
     ],
     "requiresBaseFiles": [
       "data-table/data-table.host.ts"
     ],
     "category": "data-display",
-    "description": "Opt-in right-click + ⋮ context menus (row actions, column sort/pin/hide) for the data-table.",
+    "description": "Opt-in context menus for the data-table: open your own menu on right-click or long-press, or use row actions and a column menu.",
     "tags": [
       "context-menu",
+      "right-click",
       "row-actions",
       "column-menu",
       "addon"
+    ],
+    "obsoleteFiles": [
+      "data-table-context-menu.directive.ts",
+      "data-table-context-menu.directive.spec.ts"
     ],
     "attach": {
       "import": "DataTableContextMenuDirective from './ui/data-table/addons/context-menu'",
@@ -4042,32 +4057,6 @@
     ],
     "testFiles": [
       "table-context-menu.directive.spec.ts"
-    ]
-  },
-  "data-table-context-menu": {
-    "name": "data-table-context-menu",
-    "category": "utility",
-    "description": "Directive adding right-click context menus to data-table rows and columns.",
-    "tags": [
-      "data-table-context-menu",
-      "data-table",
-      "context-menu",
-      "right-click",
-      "directive"
-    ],
-    "files": [
-      "data-table-context-menu.directive.ts"
-    ],
-    "libFiles": [
-      "touch.ts"
-    ],
-    "dependencies": [
-      "context-menu",
-      "data-table",
-      "table-context-menu"
-    ],
-    "testFiles": [
-      "data-table-context-menu.directive.spec.ts"
     ]
   },
   "eyedropper": {

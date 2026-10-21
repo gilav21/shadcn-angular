@@ -372,6 +372,48 @@ describe('performInstall prunes obsolete files (B7)', () => {
   });
 });
 
+// The standalone data-table directive was merged into the context-menu addon, which now declares its file obsolete.
+// PUBLISHED is the real last version we shipped (`git show 0f499b59^:packages/components/ui/data-table-context-menu.directive.ts`),
+// so a pass here proves the regenerated baselines recognise it, not just that the registry lists its name.
+describe.each([
+  { OBSOLETE: 'data-table-context-menu.directive.ts', fixture: 'data-table-context-menu.directive.pre-merge.txt', edit: ['contextMenuRowsOnly = input<boolean>(true);', 'contextMenuRowsOnly = input<boolean>(false);'] },
+  { OBSOLETE: 'data-table-context-menu.directive.spec.ts', fixture: 'data-table-context-menu.directive.spec.pre-merge.txt', edit: ["it('does nothing when the context menu is disabled'", "it('does nothing when the menu is off'"] },
+])('applying the data-table context-menu addon prunes the standalone $OBSOLETE it replaces', ({ OBSOLETE, fixture, edit: [from, to] }) => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const PUBLISHED = readFileSync(fileURLToPath(new URL(`./__fixtures__/${fixture}`, import.meta.url)), 'utf-8');
+  const EDITED = PUBLISHED.replace(from, to);
+
+  // The baselines hold published component sources, not specs, so an UNTRACKED spec cannot be proven ours and is
+  // kept. That never matters here: a spec is only installed by --include-tests, which post-dates the lockfile.
+  const untrackedIsProvable = !OBSOLETE.endsWith('.spec.ts');
+  it.each([
+    { label: 'installed by the CLI and unchanged since', content: PUBLISHED, recorded: PUBLISHED, pruned: true },
+    ...(untrackedIsProvable
+      ? [{ label: 'installed before the lockfile existed, but byte-identical to what we shipped', content: PUBLISHED, recorded: null, pruned: true }]
+      : []),
+    { label: 'edited by its user', content: EDITED, recorded: PUBLISHED, pruned: false },
+    { label: 'edited by its user, before the lockfile existed', content: EDITED, recorded: null, pruned: false },
+  ])('$label', async ({ content, recorded, pruned }) => {
+    expect(EDITED).not.toBe(PUBLISHED);
+    asMock(fs.pathExists).mockImplementation(async (p: string) => {
+      const norm = String(p).replaceAll('\\', '/');
+      return norm.endsWith(OBSOLETE) || (recorded !== null && norm.endsWith('components.lock.json'));
+    });
+    asMock(fs.readJson).mockResolvedValue({
+      version: 1,
+      files: recorded === null ? {} : { [OBSOLETE]: { sha256: hashContent(recorded), component: 'data-table-context-menu' } },
+    });
+    asMock(fs.readFile).mockResolvedValue(content);
+
+    const result = await performInstall({ ...base, components: ['data-table/context-menu'], options: { branch: 'master', overwrite: true } });
+
+    const removed = asMock(fs.remove).mock.calls.map(c => String(c[0]).replaceAll('\\', '/'));
+    expect(result.pruned.includes(OBSOLETE)).toBe(pruned);
+    expect(removed.some(p => p.endsWith(OBSOLETE))).toBe(pruned);
+  });
+});
+
 describe('installSingleLibFile pre-manifest pristine refresh (L5)', () => {
   // input-group ships a single lib file and no registry deps, so the only lib
   // file installLibFiles touches is input-group.token.ts.
