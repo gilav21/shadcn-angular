@@ -14,9 +14,55 @@
  * them. Mock-instance methods (`mockReturnValue`, `mock.calls`, …) are identical
  * across both runners and need no bridging.
  */
-import { jest } from '@jest/globals';
+import { jest, expect as jestExpect } from '@jest/globals';
 
-export { describe, it, test, expect, beforeEach, afterEach, beforeAll, afterAll } from '@jest/globals';
+export { describe, it, test, beforeEach, afterEach, beforeAll, afterAll } from '@jest/globals';
+
+type JestExpect = typeof jestExpect;
+
+/** Jest's `expect`, which also takes Vitest's optional failure message as a second argument. */
+type ExpectWithMessage = JestExpect & (<T = unknown>(actual: T, message?: string) => ReturnType<typeof jestExpect<T>>);
+
+const isThenable = (value: unknown): value is PromiseLike<unknown> =>
+    typeof value === 'object' && value !== null && typeof (value as { then?: unknown }).then === 'function';
+
+/** Puts `message` in front of the failure Jest raises, keeping Jest's own error (and its diff and stack). */
+function withMessage(error: unknown, message: string): never {
+    if (error instanceof Error) error.message = `${message}: ${error.message}`;
+    throw error;
+}
+
+/**
+ * Wraps the matchers `expect(actual)` returned so that a failing one carries `message`, including through
+ * `.not`, `.resolves` and `.rejects`. Vitest specs use `expect(value, 'which case')` inside loops to say which
+ * iteration failed; Jest's `expect` takes one argument, so without this the message is a type error.
+ */
+function annotate<M extends object>(matchers: M, message: string): M {
+    return new Proxy(matchers, {
+        get(target, property, receiver) {
+            const member: unknown = Reflect.get(target, property, receiver);
+            if (typeof member === 'function') {
+                return (...args: unknown[]): unknown => {
+                    try {
+                        const result: unknown = member.apply(target, args);
+                        return isThenable(result) ? result.then(undefined, (error: unknown) => withMessage(error, message)) : result;
+                    } catch (error) {
+                        return withMessage(error, message);
+                    }
+                };
+            }
+            return typeof member === 'object' && member !== null ? annotate(member, message) : member;
+        },
+    });
+}
+
+function expectWithMessage<T>(actual: T, message?: string): ReturnType<typeof jestExpect<T>> {
+    const matchers = jestExpect(actual);
+    return message === undefined ? matchers : annotate(matchers, message);
+}
+
+// The statics (`expect.any`, `expect.objectContaining`, `expect.extend`, …) are copied across.
+export const expect: ExpectWithMessage = Object.assign(expectWithMessage, jestExpect);
 
 /** Original descriptors of globals replaced by `vi.stubGlobal`, for restoration. */
 const stubbedGlobals = new Map<PropertyKey, PropertyDescriptor | undefined>();
@@ -80,11 +126,14 @@ export const vi = {
     clearAllMocks: () => jest.clearAllMocks(),
     resetAllMocks: () => jest.resetAllMocks(),
     restoreAllMocks: () => jest.restoreAllMocks(),
-    useFakeTimers: () => jest.useFakeTimers(),
-    useRealTimers: () => jest.useRealTimers(),
+    // Return nothing: Vitest returns its own `vi`, which specs hand to a hook (`beforeEach(() => vi.useFakeTimers())`)
+    // and which Jest's hook types reject. Nothing chains on it.
+    useFakeTimers: (): void => { jest.useFakeTimers(); },
+    useRealTimers: (): void => { jest.useRealTimers(); },
     advanceTimersByTime: (ms: number) => jest.advanceTimersByTime(ms),
     advanceTimersByTimeAsync: (ms: number) => jest.advanceTimersByTimeAsync(ms),
     advanceTimersToNextTimer: () => jest.advanceTimersToNextTimer(),
+    advanceTimersToNextFrame: () => jest.advanceTimersToNextFrame(),
     runAllTimers: () => jest.runAllTimers(),
     runAllTimersAsync: () => jest.runAllTimersAsync(),
     runOnlyPendingTimers: () => jest.runOnlyPendingTimers(),

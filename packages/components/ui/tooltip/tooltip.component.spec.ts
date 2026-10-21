@@ -88,8 +88,7 @@ describe('TooltipDirective inside a themed component', () => {
         });
     });
 
-    it('carries the theme tokens onto the bubble it appends to document.body', (ctx) => {
-        if (navigator.userAgent.includes('jsdom')) return ctx.skip();
+    (navigator.userAgent.includes('jsdom') ? it.skip : it)('carries the theme tokens onto the bubble it appends to document.body', () => {
         vi.useFakeTimers();
         const fixture = TestBed.createComponent(ThemedDirectiveHost);
         fixture.detectChanges();

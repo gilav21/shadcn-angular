@@ -280,10 +280,9 @@ describe('RichTextViewComponent — shared typography', () => {
         }
     });
 
-    it('T-23 an h1 in the view and in the editor have identical computed typography', (ctx) => {
+    (isJsdom ? it.skip : it)('T-23 an h1 in the view and in the editor have identical computed typography', () => {
         // Computed style is meaningless under jsdom: it reports the initial
         // value for every property, so both elements would "match" trivially.
-        if (isJsdom) return ctx.skip();
 
         const editorH1 = editable().querySelector('h1') as HTMLElement;
         const viewH1 = view().querySelector('h1') as HTMLElement;
@@ -339,7 +338,7 @@ describe('RichTextViewComponent — actions on a page with no editor', () => {
         fixture = TestBed.createComponent(ActionsHost);
     });
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     const actioned = (): HTMLElement =>
         (fixture.nativeElement as HTMLElement).querySelector('[data-action-click]') as HTMLElement;
@@ -434,7 +433,7 @@ describe('RichTextViewComponent — remote resource policy', () => {
         doc = `![a](${TRACKER})`;
     }
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     const imgIn = (fixture: ComponentFixture<unknown>, id: string): HTMLImageElement =>
         (fixture.nativeElement as HTMLElement).querySelector(
@@ -584,7 +583,7 @@ describe('RichTextViewComponent — blocked-image caption and exposure report (f
         seen: ResourcePolicyDecision[] = [];
     }
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     const imgOf = (fixture: ComponentFixture<unknown>): HTMLImageElement =>
         (fixture.nativeElement as HTMLElement).querySelector('img') as HTMLImageElement;

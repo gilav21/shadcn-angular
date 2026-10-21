@@ -3,9 +3,6 @@ import {
     ChangeDetectionStrategy,
     input,
     computed,
-    effect,
-    ComponentRef,
-    OnDestroy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BentoGridComponent, DashboardItem } from '../bento-grid';
@@ -23,7 +20,7 @@ import { cn } from '../../lib/utils';
     templateUrl: './page-renderer.component.html',
     host: { class: 'block' }
 })
-export class PageRendererComponent implements OnDestroy {
+export class PageRendererComponent {
     /**
      * Saved page document to render: the grid configuration plus the placed
      * items. This is the read-only runtime counterpart of what the page builder
@@ -46,8 +43,6 @@ export class PageRendererComponent implements OnDestroy {
     context = input<Record<string, unknown>>({});
     /** Extra classes merged onto the `w-full h-full` grid wrapper — usually where you constrain the rendered page's size. */
     class = input('');
-
-    private readonly instanceMap = new Map<string, Record<string, unknown>>();
 
     classes = computed(() => cn('w-full h-full', this.class()));
 
@@ -91,45 +86,6 @@ export class PageRendererComponent implements OnDestroy {
         }).filter((item): item is DashboardItem => item !== null);
     });
 
-    constructor() {
-        effect(() => {
-            const items = this.dashboardItems();
-            this.updateInstances(items);
-        });
-    }
-
-    /**
-     * Handler for the grid's per-item instantiation event. Caches the created
-     * component instance against its item id so later {@link context} or
-     * {@link data} changes can be pushed into an already-rendered item without
-     * recreating it.
-     */
-    onComponentInit(event: { id: string, ref: ComponentRef<unknown> }): void {
-        const instance = event.ref.instance as Record<string, unknown>;
-        this.instanceMap.set(event.id, instance);
-        const item = this.dashboardItems().find(i => i.id === event.id);
-        if (item) {
-            this.updateInstance(item.inputs);
-        }
-    }
-
-    private updateInstances(items: DashboardItem[]): void {
-        items.forEach(item => {
-            const instance = this.instanceMap.get(item.id);
-            if (instance) {
-                this.updateInstance(item.inputs);
-            }
-        });
-    }
-
-    private updateInstance(inputs: Record<string, unknown> | undefined): void {
-        if (!inputs) return;
-        Object.entries(inputs).forEach(() => {
-            // Angular inputs are set by the framework via BentoGrid's setInput mechanism.
-            // BentoGrid detects dashboardItems() changes and re-renders / updates inputs.
-        });
-    }
-
     private resolvePath(obj: Record<string, unknown>, path: string): unknown {
         if (!path) return undefined;
         const keys = path.split('.');
@@ -140,9 +96,5 @@ export class PageRendererComponent implements OnDestroy {
             current = (current as Record<string, unknown>)[key];
         }
         return current;
-    }
-
-    ngOnDestroy(): void {
-        this.instanceMap.clear();
     }
 }

@@ -249,7 +249,7 @@ describe('FileUploadComponent — directory drop', () => {
         upload = fixture.debugElement.query(By.directive(FileUploadComponent)).componentInstance;
     });
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     function drop(dt: DataTransfer): void {
         const event = new Event('drop', { bubbles: true, cancelable: true });

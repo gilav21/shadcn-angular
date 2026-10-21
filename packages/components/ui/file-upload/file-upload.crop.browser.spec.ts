@@ -74,7 +74,7 @@ describe('FileUploadComponent — inline crop', () => {
         upload = fixture.debugElement.query(By.directive(FileUploadComponent)).componentInstance;
     });
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     /** The panel measures a real `<img>`; seed the natural size the way `(load)` would. */
     function seedNatural(width: number, height: number): void {

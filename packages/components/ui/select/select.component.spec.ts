@@ -786,17 +786,21 @@ describe('SelectComponent — i18n integration', () => {
         expect(trigger.textContent).toContain('...בחר');
     });
 
-    it('resolves isRtl from the direction its locale writes on the host', async () => {
+    // The attribute, not isRtl(): isRtl() reads the computed direction, which depends on the DOM implementation
+    // mapping dir to a style (jsdom 27 does, jest-environment-jsdom's jsdom 26 does not). The browser spec covers
+    // isRtl() against a real ancestor dir.
+    it('writes the direction its locale implies on the host', async () => {
         await TestBed.configureTestingModule({ imports: [SelectComponent] }).compileComponents();
         const fixture = TestBed.createComponent(SelectComponent);
+        const host = fixture.nativeElement as HTMLElement;
         fixture.componentRef.setInput('options', ['a', 'b']);
         fixture.componentRef.setInput('locale', 'he');
         fixture.detectChanges();
-        expect(fixture.componentInstance.isRtl()).toBe(true);
+        expect(host.getAttribute('dir')).toBe('rtl');
 
         fixture.componentRef.setInput('locale', 'en');
         fixture.detectChanges();
-        expect(fixture.componentInstance.isRtl()).toBe(false);
+        expect(host.getAttribute('dir')).toBeNull();
     });
 });
 

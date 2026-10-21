@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "importHelpers": true,
-    "lib": ["ES2022", "dom"],
+    "lib": ["ES2022", "dom", "dom.iterable"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]

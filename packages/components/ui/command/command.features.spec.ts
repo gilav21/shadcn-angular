@@ -416,7 +416,7 @@ describe('CommandComponent — nested pages', () => {
         cmd = getCommand(fixture);
     });
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     it('opens a nested page and clears the query', () => {
         typeQuery(fixture, 'alp');

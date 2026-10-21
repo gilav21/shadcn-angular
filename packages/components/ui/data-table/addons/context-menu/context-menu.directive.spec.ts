@@ -416,8 +416,7 @@ describe('DataTableContextMenuDirective', () => {
   // The menu is created through the directive's ViewContainerRef, which puts it
   // BESIDE the table host, not inside it, so it cannot inherit the preset. It is
   // also reused across opens, so a theme removed in between must not linger.
-  it('carries the table theme onto the reused row menu on every open, and drops it once unthemed', (ctx) => {
-    if (navigator.userAgent.includes('jsdom')) return ctx.skip();
+  (navigator.userAgent.includes('jsdom') ? it.skip : it)('carries the table theme onto the reused row menu on every open, and drops it once unthemed', () => {
     const { comp, fixture } = setup(host);
     comp.actions.set(() => [{ label: 'Edit' }]);
     fixture.detectChanges();

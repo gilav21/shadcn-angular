@@ -11,6 +11,7 @@ import {
     ContextMenuSubComponent,
     ContextMenuSubTriggerComponent,
     ContextMenuSubContentComponent,
+    ContextMenuShortcutComponent,
 } from './';
 
 /** Internal surface shared by the content and sub-content components; we drive
@@ -507,5 +508,23 @@ describe('ContextMenuSubContentComponent positioning', () => {
         host.querySelector('[data-slot="context-menu-sub-content"]')?.remove();
         calc(content);
         expect(content.portalPosition()).toEqual({ x: 0, y: 0 });
+    });
+});
+
+@Component({
+    imports: [ContextMenuShortcutComponent],
+    template: `<ui-context-menu-shortcut class="custom-shortcut">⌘C</ui-context-menu-shortcut>`,
+})
+class ShortcutHostComponent {}
+
+describe('ContextMenuShortcutComponent', () => {
+    it('is the shortcut slot, shows its text, and keeps a consumer class beside the built-in styling', () => {
+        const fixture = TestBed.createComponent(ShortcutHostComponent);
+        fixture.detectChanges();
+
+        const shortcut = (fixture.nativeElement as HTMLElement).querySelector('ui-context-menu-shortcut') as HTMLElement;
+        expect(shortcut.getAttribute('data-slot')).toBe('context-menu-shortcut');
+        expect(shortcut.textContent?.trim()).toBe('⌘C');
+        expect([...shortcut.classList]).toEqual(expect.arrayContaining(['custom-shortcut', 'text-muted-foreground']));
     });
 });

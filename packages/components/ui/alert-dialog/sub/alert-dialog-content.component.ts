@@ -10,6 +10,8 @@ import {
     effect,
     afterRenderEffect,
     signal,
+    viewChild,
+    contentChild,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../../../lib/utils';
@@ -138,6 +140,14 @@ export class AlertDialogContentComponent implements AfterViewInit {
     private contentEl?: HTMLElement;
     private previousActiveElement?: Element | null;
 
+    /**
+     * The two places a title can come from: the one this component renders for the `title` input, and one the
+     * author projects. Read by the naming effect so it runs again when either appears, which a title rendered
+     * after the dialog opened (behind an `@if`, say) otherwise never triggers.
+     */
+    private readonly ownTitle = viewChild(AlertDialogTitleComponent);
+    private readonly projectedTitle = contentChild(AlertDialogTitleComponent);
+
     constructor() {
         effect(() => {
             if (this.alertDialog?.open()) {
@@ -150,6 +160,8 @@ export class AlertDialogContentComponent implements AfterViewInit {
 
         afterRenderEffect(() => {
             if (!this.alertDialog?.open()) return;
+            this.ownTitle();
+            this.projectedTitle();
             const host = this.el.nativeElement as HTMLElement;
             const titleEl = host.querySelector<HTMLElement>('[data-slot="alert-dialog-title"]');
             if (!titleEl) return;
