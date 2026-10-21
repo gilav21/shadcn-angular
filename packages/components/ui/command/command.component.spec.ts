@@ -70,9 +70,9 @@ describe('CommandComponent', () => {
 
     it('should render command container with data-slot', () => {
         const root = fixture.nativeElement as HTMLElement;
-        for (const slot of ['command', 'command-input', 'command-list', 'command-separator']) {
-            expect(root.querySelector(`[data-slot="${slot}"]`), slot).not.toBeNull();
-        }
+        const missing = ['command', 'command-input', 'command-list', 'command-separator']
+            .filter((slot) => root.querySelector(`[data-slot="${slot}"]`) === null);
+        expect(missing).toEqual([]);
         const shortcut = root.querySelector('[data-slot="command-shortcut"]');
         expect(shortcut?.textContent?.trim()).toBe('Ctrl+C');
     });

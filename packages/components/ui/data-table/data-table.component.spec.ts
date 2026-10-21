@@ -3638,6 +3638,95 @@ describe('DataTableComponent - Row Grouping', () => {
             });
         });
 
+        // Keys and paste address rows by rendered index, so in a grouped table they must walk and fill the rows in the
+        // order they are drawn (o1, o3, o2, o5, o4), not the sorted order (o1..o5), and never into a collapsed group.
+        describe('keyboard and paste', () => {
+            const key = (name: string, init: KeyboardEventInit = {}): void =>
+                component.onTableKeydown(new KeyboardEvent('keydown', { key: name, ...init }));
+            const focusedId = (): string | undefined => {
+                const focused = component.focusedCell();
+                return focused ? component.getRenderedRowAt(focused.rowIndex)?.id : undefined;
+            };
+
+            it('ArrowDown crosses from one group to the next in drawn order', () => {
+                component.focusCell(1, 'id');
+                expect(focusedId()).toBe('o3');
+
+                key('ArrowDown');
+
+                expect(focusedId()).toBe('o2');
+            });
+
+            it('ArrowUp crosses back over the group boundary', () => {
+                component.focusCell(2, 'id');
+                expect(focusedId()).toBe('o2');
+
+                key('ArrowUp');
+
+                expect(focusedId()).toBe('o3');
+            });
+
+            it('stops at the last drawn row, not at a row hidden in a collapsed group', () => {
+                component.toggleGroupCollapsed('delivered');
+                fixture.detectChanges();
+                component.focusCell(3, 'id');
+                expect(focusedId()).toBe('o5');
+
+                key('ArrowDown');
+
+                expect(component.focusedCell()).toEqual({ rowIndex: 3, columnKey: 'id' });
+            });
+
+            it('stops at the last row of the page', () => {
+                fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
+                fixture.detectChanges();
+                component.focusCell(1, 'id');
+                expect(focusedId()).toBe('o5');
+
+                key('ArrowDown');
+
+                expect(component.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
+            });
+
+            it('Ctrl+End goes to the last drawn row, past which a collapsed group hides one', () => {
+                component.toggleGroupCollapsed('delivered');
+                fixture.detectChanges();
+                component.focusCell(0, 'id');
+
+                key('End', { ctrlKey: true });
+
+                expect(focusedId()).toBe('o5');
+            });
+
+            it('pastes down the rows as drawn, not down the sorted order', async () => {
+                fixture.componentRef.setInput('columns', [
+                    { accessorKey: 'id', header: 'ID' },
+                    { accessorKey: 'status', header: 'Status' },
+                    {
+                        accessorKey: 'amount', header: 'Amount',
+                        valueSetter: (row: OrderData, value: unknown) => ({ ...row, amount: Number(value) }),
+                    },
+                ] as ColumnDef<OrderData>[]);
+                fixture.componentRef.setInput('enableClipboardPaste', true);
+                fixture.detectChanges();
+                vi.stubGlobal('navigator', { clipboard: { readText: vi.fn(() => Promise.resolve('111\n222')) } });
+                try {
+                    component.focusCell(1, 'amount');
+                    expect(focusedId()).toBe('o3');
+
+                    key('v', { ctrlKey: true });
+                    await Promise.resolve();
+                    await Promise.resolve();
+
+                    const amount = (id: string): number | undefined => component.data().find((row) => row.id === id)?.amount;
+                    // o3 is drawn last in its group and o2 is drawn after it; o4 follows o3 only in the sorted order.
+                    expect([amount('o3'), amount('o2'), amount('o4')]).toEqual([111, 222, 40]);
+                } finally {
+                    vi.unstubAllGlobals();
+                }
+            });
+        });
+
         it('copies the selected rows in the order they are drawn', async () => {
             fixture.componentRef.setInput('rowSelection', { o2: true, o3: true, o4: true });
             fixture.detectChanges();
@@ -6930,8 +7019,7 @@ describe('DataTableComponent - theme preset', () => {
         expect((fixture.nativeElement as HTMLElement).dataset['uiTheme']).toBe('violet');
     });
 
-    it('resolves the preset tokens on the host, and the dark variant under a .dark ancestor', (ctx) => {
-        if (isJsdom) return ctx.skip();
+    (isJsdom ? it.skip : it)('resolves the preset tokens on the host, and the dark variant under a .dark ancestor', () => {
         fixture.componentRef.setInput('theme', 'slate');
         fixture.detectChanges();
         expect(primary()).toBe('oklch(0.208 0.042 265.755)');

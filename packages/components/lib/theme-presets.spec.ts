@@ -35,8 +35,7 @@ describe('inheritThemeTokens', () => {
         expect(target.hasAttribute('data-ui-theme')).toBe(false);
     });
 
-    it('copies every preset token from the NEAREST themed ancestor', (ctx) => {
-        if (isJsdom) return ctx.skip();
+    (isJsdom ? it.skip : it)('copies every preset token from the NEAREST themed ancestor', () => {
         const outer = themedHost('red', 'red');
         const inner = themedHost('blue', 'blue', outer);
         const origin = document.createElement('button');
@@ -51,8 +50,7 @@ describe('inheritThemeTokens', () => {
         expect(target.dataset['uiTheme']).toBe('blue');
     });
 
-    it('leaves a real descendant to inherit live instead of freezing a copy', (ctx) => {
-        if (isJsdom) return ctx.skip();
+    (isJsdom ? it.skip : it)('leaves a real descendant to inherit live instead of freezing a copy', () => {
         const host = themedHost('rose', 'rose');
         const inner = document.createElement('div');
         host.appendChild(inner);
@@ -63,8 +61,7 @@ describe('inheritThemeTokens', () => {
         expect(inner.hasAttribute('data-ui-theme')).toBe(false);
     });
 
-    it('clears copies on a reused overlay once its origin is no longer themed', (ctx) => {
-        if (isJsdom) return ctx.skip();
+    (isJsdom ? it.skip : it)('clears copies on a reused overlay once its origin is no longer themed', () => {
         const host = themedHost('amber', 'amber');
         const reused = overlay();
         inheritThemeTokens(host, reused);
@@ -77,8 +74,7 @@ describe('inheritThemeTokens', () => {
         expect(reused.hasAttribute('data-ui-theme')).toBe(false);
     });
 
-    it('lets an overlay opened from a themed overlay inherit in turn', (ctx) => {
-        if (isJsdom) return ctx.skip();
+    (isJsdom ? it.skip : it)('lets an overlay opened from a themed overlay inherit in turn', () => {
         const host = themedHost('green', 'green');
         const menu = overlay();
         inheritThemeTokens(host, menu);

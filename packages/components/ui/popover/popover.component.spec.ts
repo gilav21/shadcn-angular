@@ -446,7 +446,7 @@ describe('PopoverComponent - Escape inside a dialog (fine-comb review)', () => {
         dialogOpen = true;
     }
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     it('closes only the popover; the dialog behind it stays open', () => {
         // The dialog panel closes on Escape from its own keydown handler and
@@ -495,7 +495,7 @@ describe('PopoverComponent - overlay layers (follow-up F2)', () => {
     })
     class NestedHostComponent {}
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     it('closes only the innermost of two open popovers per Escape', () => {
         const fixture = TestBed.createComponent(NestedHostComponent);

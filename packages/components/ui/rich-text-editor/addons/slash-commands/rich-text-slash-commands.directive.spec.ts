@@ -120,8 +120,7 @@ describe('RichTextSlashCommandsDirective', () => {
 
     // The menu is created through the directive's ViewContainerRef — a sibling
     // of the editor, outside the element that carries the preset.
-    it('shows the menu in the editor theme although it renders outside the editor', (ctx) => {
-        if (navigator.userAgent.includes('jsdom')) return ctx.skip();
+    (navigator.userAgent.includes('jsdom') ? it.skip : it)('shows the menu in the editor theme although it renders outside the editor', () => {
         const { fixture, editor, editorCmp } = create();
         const editorHost = fixture.debugElement.query(By.directive(RichTextEditorComponent)).nativeElement as HTMLElement;
         editorHost.dataset['uiTheme'] = 'green';

@@ -11182,7 +11182,7 @@ describe('RichTextEditorComponent — locale cascade', () => {
         (fixture.debugElement.query(By.directive(type)).injector.get(type) as { t: () => FakeAddonLocale })
             .t().hello;
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     it('T-37 with no editor locale the addon follows the app-wide token when the registry has it', async () => {
         const fixture = await setup('fr-token', 'fr');
@@ -11898,8 +11898,7 @@ describe('RichTextEditorComponent - theme preset', () => {
         expect(host().hasAttribute('data-ui-theme')).toBe(false);
     });
 
-    it('themes descendants through inheritance, light and dark', (ctx) => {
-        if (isJsdom) return ctx.skip();
+    (isJsdom ? it.skip : it)('themes descendants through inheritance, light and dark', () => {
         fixture.componentRef.setInput('theme', 'slate');
         fixture.detectChanges();
         const editable = host().querySelector('[data-slot="rich-text-editor"]');

@@ -215,6 +215,10 @@ describe('data-table grid semantics', () => {
         });
 
         it('numbers rows by their absolute position, not their DOM position', async () => {
+            // The scroll is handled in a requestAnimationFrame callback. Under zone.js that callback ticks the application,
+            // which runs the grid-semantics stamp but does not render a fixture that is not attached to it; the rows then
+            // render later and nothing re-stamps them. Attached, the render and the stamp happen in the same tick, as in an app.
+            fixture.autoDetectChanges();
             const scroller: HTMLElement = fixture.nativeElement.querySelector('[data-slot="table"]')
                 .closest('.overflow-auto');
             // Pinned rather than assigned: jsdom has no layout, so a real scrollTop stays 0.

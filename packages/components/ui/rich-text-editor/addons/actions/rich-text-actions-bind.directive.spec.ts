@@ -50,7 +50,7 @@ describe('RichTextActionsBindDirective — sanitizer rules', () => {
     const ACTION_HTML =
         '<p><span data-action-click="a" data-action-click-params=\'{"id":1}\'>t</span></p>';
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     // T-29
     it('T-29 registers the action attribute rules for its lifetime', () => {

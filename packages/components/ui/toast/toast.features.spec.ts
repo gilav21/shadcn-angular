@@ -242,7 +242,7 @@ describe('ToastComponent — rendering the new state', () => {
         readonly loading = signal<boolean | undefined>(false);
     }
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     function render(): ComponentFixture<ToastRenderHostComponent> {
         TestBed.configureTestingModule({ imports: [ToastRenderHostComponent] });
@@ -449,7 +449,7 @@ describe('ui-toaster — loading toasts reach the DOM', () => {
     @Component({ imports: [ToasterComponent], template: '<ui-toaster />' })
     class ToasterHostComponent { }
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     it('forwards the service loading flag through to the rendered toast', () => {
         TestBed.configureTestingModule({ imports: [ToasterHostComponent] });

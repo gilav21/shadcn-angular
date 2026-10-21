@@ -933,9 +933,8 @@ describe('RichTextActionsDirective marker styles (browser)', () => {
         return { span: editable.querySelector('span')!, img: editable.querySelector('img')! };
     }
 
-    it('action markers are styled inside the editable, whatever the editor\'s host tag', async (ctx) => {
+    (navigator.userAgent.includes('jsdom') ? it.skip : it)('action markers are styled inside the editable, whatever the editor\'s host tag', async () => {
         // jsdom does not resolve stylesheet selectors into getComputedStyle reliably.
-        if (navigator.userAgent.includes('jsdom')) return ctx.skip();
         const fixture = TestBed.createComponent(HostCmp);
         cleanups.push(() => fixture.destroy());
         fixture.detectChanges();

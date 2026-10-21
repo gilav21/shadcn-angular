@@ -72,7 +72,7 @@ describe('KanbanComponent — swimlanes', () => {
         board = fixture.debugElement.query(By.directive(KanbanComponent)).componentInstance;
     });
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     function laneEls(): HTMLElement[] {
         return Array.from(fixture.nativeElement.querySelectorAll('[data-slot="kanban-swimlane"]'));
@@ -139,7 +139,7 @@ describe('KanbanComponent — swimlane collapse', () => {
         board = fixture.debugElement.query(By.directive(KanbanComponent)).componentInstance;
     });
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     function headers(): HTMLElement[] {
         return Array.from(fixture.nativeElement.querySelectorAll('[data-slot="kanban-swimlane-header"]'));
@@ -195,7 +195,7 @@ describe('KanbanComponent — dragging within and across swimlanes', () => {
         host.moves.length = 0;
     });
 
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     it('moves a card between columns within one lane, leaving the lane alone', () => {
         board.moveCard('a1', 'doing', 0, 'ada');

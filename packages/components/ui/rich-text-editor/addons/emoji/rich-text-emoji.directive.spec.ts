@@ -105,7 +105,7 @@ class CascadeHostCmp {
 }
 
 describe('RichTextEmojiDirective — locale cascade', () => {
-    afterEach(() => TestBed.resetTestingModule());
+    afterEach(() => { TestBed.resetTestingModule(); });
 
     /** Create the cascade host with the given editor / addon locale inputs. */
     function createCascade(editorLocale?: string, addonLocale?: string): ComponentFixture<CascadeHostCmp> {
