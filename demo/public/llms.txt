@@ -1805,7 +1805,7 @@ Input that collects multiple values as removable chips or tags.
 - Category: form
 - Depends on: `badge`, `input`
 - npm dependencies: none
-- Inputs: `allowDuplicates: boolean = false`, `badgeVariant: BadgeVariant = 'default'`, `chipColors: Record<string, string> = {}`, `class: string = ''`, `disabled: boolean = false`, `maxRows: number = 0`, `placeholder: string = 'Add item...'`, `separatorKeys: string[] = []`, `variant: ChipListVariant = 'outline'`
+- Inputs: `allowDuplicates: boolean = false`, `badgeVariant: BadgeVariant = 'default'`, `chipColors: Record<string, string> = {}`, `class: string = ''`, `disabled: boolean = false`, `maxRows: number = 0`, `placeholder: string = 'Add item...'`, `separatorKeys: string[] = []`, `size: ChipListSize = 'md'`, `variant: ChipListVariant = 'outline'`
 - Outputs: `chipAdded: string`, `chipRemoved: string`
 
 ```html
