@@ -7,6 +7,8 @@ import {
   signal,
   forwardRef,
   viewChild,
+  ElementRef,
+  afterRenderEffect,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../../lib/utils';
@@ -20,12 +22,12 @@ import { cva, type VariantProps } from 'class-variance-authority';
 const IME_KEY_CODE = 229;
 
 const chipListVariants = cva(
-  'w-full flex-wrap flex items-center gap-1.5 px-1 transition-[color,box-shadow] outline-none min-h-9 has-[input:focus-visible]:ring-[3px]',
+  'w-full flex-wrap flex items-center px-1 transition-[color,box-shadow] outline-none has-[input:focus-visible]:ring-[3px]',
   {
     variants: {
       variant: {
-        outline: 'rounded-md border border-input shadow-xs has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50',
-        underline: 'rounded-none border-b border-input has-[input:focus-visible]:border-ring px-0 has-[input:focus-visible]:ring-0',
+        outline: 'rounded-md border-input shadow-xs has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50',
+        underline: 'rounded-none border-input has-[input:focus-visible]:border-ring px-0 has-[input:focus-visible]:ring-0',
         ghost: 'border-none shadow-none has-[input:focus-visible]:ring-0',
       },
     },
@@ -36,6 +38,16 @@ const chipListVariants = cva(
 );
 
 export type ChipListVariant = VariantProps<typeof chipListVariants>['variant'];
+
+/** How large each chip is drawn; the row cap and the inline field follow whichever is chosen. */
+export type ChipListSize = 'sm' | 'md' | 'lg';
+
+/** The chip font per size. Chip height comes from the stylesheet, so a size and a density can never disagree about it. */
+const CHIP_FONTS: Record<ChipListSize, string> = {
+  sm: 'text-[0.6875rem] leading-[0.875rem]',
+  md: '',
+  lg: 'text-sm leading-5',
+};
 
 @Component({
   selector: 'ui-chip-list',
@@ -50,6 +62,7 @@ export type ChipListVariant = VariantProps<typeof chipListVariants>['variant'];
     { provide: UI_INPUT_GROUP, useExisting: forwardRef(() => ChipListComponent) }
   ],
   templateUrl: './chip-list.component.html',
+  styleUrl: './chip-list.component.css',
   host: {
     '[class]': '"contents"',
   },
@@ -83,11 +96,15 @@ export class ChipListComponent implements ControlValueAccessor {
    */
   chipColors = input<Record<string, string>>({});
   /**
-   * Caps the container height at this many rows (36px each plus 8px padding)
-   * and makes it scroll instead of growing. `0` (default) means unlimited —
-   * the container grows with every added chip.
+   * Caps the container at this many rows of chips and makes it scroll instead
+   * of growing. The cap is derived from the same size and density variables
+   * that size the chips, so it holds at any {@link size}, density or root font
+   * size. `0` (default) means unlimited — the container grows with every added
+   * chip.
    */
   maxRows = input(0);
+  /** Chip size: `'sm'`, `'md'` (default) or `'lg'`. The chips, the inline field and the {@link maxRows} cap all scale with it, and with density. */
+  size = input<ChipListSize>('md');
   /** When `false` (default), re-adding text that already exists as a chip is silently dropped and only clears the field. Set `true` to allow repeats. */
   allowDuplicates = input(false);
   /**
@@ -133,12 +150,22 @@ export class ChipListComponent implements ControlValueAccessor {
     this.class()
   ));
 
-  maxHeightStyle = computed(() => {
-    const rows = this.maxRows();
-    if (rows <= 0) return 'none';
-    const heightPx = rows * 36 + 8;
-    return `${heightPx}px`;
-  });
+  /** Font classes for each chip, from {@link size}. */
+  chipFont = computed(() => CHIP_FONTS[this.size()]);
+
+  private readonly container = viewChild.required<ElementRef<HTMLElement>>('container');
+  private revealInputAfterRender = false;
+
+  constructor() {
+    // After a chip is added the field is on the last row; a capped list scrolls to it so the user is not typing out of sight.
+    afterRenderEffect(() => {
+      this.chips();
+      if (!this.revealInputAfterRender) return;
+      this.revealInputAfterRender = false;
+      const box = this.container().nativeElement;
+      box.scrollTop = box.scrollHeight;
+    });
+  }
 
   /**
    * Redirects a key pressed on the container itself to the text field. A key
@@ -209,6 +236,7 @@ export class ChipListComponent implements ControlValueAccessor {
     }
 
     this.chips.update(chips => [...chips, trimmed]);
+    this.revealInputAfterRender = true;
     this.inputValue.set('');
     this.onChange(this.chips());
     this.chipAdded.emit(trimmed);
