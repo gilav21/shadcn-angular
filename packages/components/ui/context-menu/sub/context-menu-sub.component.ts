@@ -7,10 +7,14 @@ import {
     OnDestroy,
     computed,
     input,
+    inject,
+    effect,
+    untracked,
 } from '@angular/core';
 import type { ContextMenuSubTriggerComponent } from './context-menu-sub-trigger.component';
 import type { ContextMenuSubContentComponent } from './context-menu-sub-content.component';
 import { cn } from '../../../lib/utils';
+import { CONTEXT_MENU } from '../context-menu.component';
 
 export const CONTEXT_MENU_SUB = new InjectionToken<ContextMenuSubComponent>('CONTEXT_MENU_SUB');
 
@@ -31,6 +35,20 @@ export class ContextMenuSubComponent implements OnDestroy {
 
     isOpen = signal(false);
     private timeoutId: ReturnType<typeof setTimeout> | undefined;
+    private readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
+
+    constructor() {
+        // The flyout is portalled to <body>, so closing the root menu (an item
+        // click, Escape, an outside click) does not tear it down with the root.
+        effect(() => {
+            if (this.contextMenu && !this.contextMenu.open()) {
+                untracked(() => {
+                    clearTimeout(this.timeoutId);
+                    this.isOpen.set(false);
+                });
+            }
+        });
+    }
 
     /** Cancels a close still pending from {@link leave}, so a sub destroyed inside the grace period leaves no timer behind. */
     ngOnDestroy(): void {
