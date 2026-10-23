@@ -231,16 +231,25 @@ export class TimePickerComponent implements ControlValueAccessor {
     });
   }
 
-  /** Digits typed into one segment, read through the locale's own glyphs. */
-  onSegmentInput(kind: TimeSegmentKind, raw: string): void {
+  /**
+   * Digits typed into one segment, read through the locale's own glyphs.
+   *
+   * A segment holds two digits, so a longer run keeps its last two, as a native
+   * time field does. The field is then written back from the model: when the
+   * clamped value equals the one already shown, the `[value]` binding sees no
+   * change and would leave the stray keystrokes on screen (`59` + `4` = `594`).
+   */
+  onSegmentInput(kind: TimeSegmentKind, raw: string, field?: HTMLInputElement): void {
     const typed = parseSegmentDigits(raw, this.layout().digits);
-    if (typed === null) {
+    if (typed !== null) {
+      const bounds = segmentBounds(kind, this.layout().hour12);
+      this.apply(kind, Math.min(Math.max(typed % 100, bounds.min), bounds.max));
+    } else if (raw.trim() === '') {
       this.clear(kind);
-      return;
     }
+    // Otherwise the box holds only characters that are not digits: ignore them rather than wipe a valid segment.
 
-    const bounds = segmentBounds(kind, this.layout().hour12);
-    this.apply(kind, Math.min(Math.max(typed, bounds.min), bounds.max));
+    if (field) field.value = this.describe(kind, this.layout()).text;
   }
 
   /** Arrow keys step the segment under the caret, as a spinbutton does. */

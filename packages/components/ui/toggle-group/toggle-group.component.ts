@@ -149,6 +149,11 @@ export class ToggleGroupComponent implements OnInit, ControlValueAccessor {
             this.variant() === 'outline' && [
                 'shadow-xs',
                 '[&>*:not(:first-child)]:border-s-0 [&>.contents:not(:first-child)>*]:border-s-0',
+                // The pressed fill and the border are the same colour in the stock theme, so a join beside a pressed
+                // item would vanish. Every join touching one is drawn darker, whichever side the pressed item is on,
+                // so the dividers read the same all along the group.
+                '[&>*:not(:last-child)[data-state=on]]:border-e-foreground/20 [&>*:not(:last-child):has(+[data-state=on])]:border-e-foreground/20',
+                '[&>.contents:not(:last-child)>[data-state=on]]:border-e-foreground/20 [&>.contents:not(:last-child):has(+.contents>[data-state=on])>*]:border-e-foreground/20',
             ],
             this.class()
         )

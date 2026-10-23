@@ -1002,7 +1002,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Input that collects multiple values as removable chips or tags.',
     tags: ['chip-list', 'chips', 'tags', 'tokens', 'multi-input'],
-    files: ['chip-list/chip-list.component.html', 'chip-list/chip-list.component.ts', 'chip-list/index.ts'],
+    files: ['chip-list/chip-list.component.css', 'chip-list/chip-list.component.html', 'chip-list/chip-list.component.ts', 'chip-list/index.ts'],
     libFiles: ['color.ts', 'input-group.token.ts'],
     dependencies: ['badge', 'input'],
     testFiles: ['chip-list/chip-list.component.spec.ts'],
