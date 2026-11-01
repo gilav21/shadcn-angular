@@ -103,3 +103,20 @@ describe('RatingComponent under an RTL ancestor (browser)', () => {
         expect(stops).toEqual(['transparent', 'currentColor']);
     });
 });
+
+describe('RatingComponent focus after a pick (browser)', () => {
+    it('moves focus to the range input so ArrowRight continues from the clicked star', () => {
+        const fixture = TestBed.createComponent(RatingComponent);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const third = root.querySelectorAll<HTMLButtonElement>('button[data-star]')[2];
+        third.focus();
+        third.click();
+        fixture.detectChanges();
+        const input = root.querySelector('input[type="range"]') as HTMLInputElement;
+        expect(document.activeElement).toBe(input);
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+        expect(fixture.componentInstance.value()).toBe(4);
+    });
+});

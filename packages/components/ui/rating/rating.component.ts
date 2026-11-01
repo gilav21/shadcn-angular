@@ -254,6 +254,7 @@ export class RatingComponent implements ControlValueAccessor {
     if (currentHover !== null) {
       const finalValue = this.value() === currentHover ? 0 : currentHover;
       this.setValue(finalValue);
+      this.focusRangeInput();
     }
   }
 
@@ -279,6 +280,16 @@ export class RatingComponent implements ControlValueAccessor {
 
     const finalValue = this.value() === newValue ? 0 : newValue;
     this.setValue(finalValue);
+    this.focusRangeInput();
+  }
+
+  /**
+   * Arrow/Home/End are handled only on the hidden range input, but a click focuses the star
+   * button instead. Handing focus to the input after a pick keeps the keyboard working from
+   * the picked value.
+   */
+  private focusRangeInput(): void {
+    (this.el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[type="range"]')?.focus({ preventScroll: true });
   }
 
   /**
