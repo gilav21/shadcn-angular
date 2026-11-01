@@ -47,6 +47,19 @@ class SeparatorHost {
   readonly orientation = signal<'horizontal' | 'vertical'>('horizontal');
 }
 
+@Component({
+  template: `
+    <ui-stepper [orientation]="orientation()">
+      <ui-stepper-item value="a"><ui-stepper-trigger><ui-stepper-title>One</ui-stepper-title></ui-stepper-trigger></ui-stepper-item>
+      <ui-stepper-item value="b"><ui-stepper-trigger><ui-stepper-title>Two</ui-stepper-title></ui-stepper-trigger></ui-stepper-item>
+    </ui-stepper>
+  `,
+  imports: [StepperComponent, StepperItemComponent, StepperTriggerComponent, StepperTitleComponent],
+})
+class ProjectedHost {
+  readonly orientation = signal<'horizontal' | 'vertical'>('horizontal');
+}
+
 function itemRects(root: HTMLElement): DOMRect[] {
   return Array.from(root.querySelectorAll<HTMLElement>('[data-slot="stepper-item"]'))
     .map(item => item.getBoundingClientRect());
@@ -90,5 +103,45 @@ describe('StepperComponent layout (browser)', () => {
     const vertical = separator();
     expect(vertical.width).toBeCloseTo(2, 0);
     expect(vertical.height).toBeCloseTo(32, 0);
+  });
+
+  it('joins steps with a connector that leaves room on both sides, in both orientations', () => {
+    TestBed.configureTestingModule({ imports: [SimpleHost] });
+    const fixture = TestBed.createComponent(SimpleHost);
+    fixture.detectChanges();
+    const root: HTMLElement = fixture.nativeElement;
+    const measure = () => {
+      const items = itemRects(root);
+      const connector = root.querySelector<HTMLElement>('[data-slot="stepper-connector"]')!.getBoundingClientRect();
+      return { items, connector };
+    };
+
+    const h = measure();
+    expect(h.connector.left - h.items[0].right).toBeCloseTo(8, 0);
+    expect(h.items[1].left - h.connector.right).toBeCloseTo(8, 0);
+
+    fixture.componentInstance.orientation.set('vertical');
+    fixture.detectChanges();
+    const v = measure();
+    expect(v.connector.width).toBeCloseTo(2, 0);
+    expect(v.connector.height).toBeCloseTo(32, 0);
+    expect(v.connector.top - v.items[0].bottom).toBeCloseTo(8, 0);
+    expect(v.items[1].top - v.connector.bottom).toBeCloseTo(8, 0);
+  });
+
+  it('projected items get the same connector spacing as simple mode', () => {
+    TestBed.configureTestingModule({ imports: [ProjectedHost] });
+    const fixture = TestBed.createComponent(ProjectedHost);
+    fixture.detectChanges();
+    const root: HTMLElement = fixture.nativeElement;
+    const connector = () => root.querySelector<HTMLElement>('[data-slot="stepper-connector"]')!.getBoundingClientRect();
+
+    expect(connector().left - itemRects(root)[0].right).toBeCloseTo(8, 0);
+    expect(itemRects(root)[1].left - connector().right).toBeCloseTo(8, 0);
+
+    fixture.componentInstance.orientation.set('vertical');
+    fixture.detectChanges();
+    expect(connector().height).toBeCloseTo(32, 0);
+    expect(connector().top - itemRects(root)[0].bottom).toBeCloseTo(8, 0);
   });
 });

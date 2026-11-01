@@ -258,7 +258,7 @@ describe('Stepper Simple Mode (Data-Driven)', () => {
         expect(component.lastStepChange()).toBe(1);
     });
 
-    it('should render a connector after every step but the last, coloured once the step is complete', async () => {
+    it('should render a connector after every step but the last, in both orientations, coloured once the step is complete', async () => {
         // The connector is the item wrapper's trailing sibling inside each <li>.
         const connectors = (): HTMLElement[] =>
             Array.from(fixture.nativeElement.querySelectorAll('li > [data-slot="stepper-item"] + div'));
@@ -273,6 +273,6 @@ describe('Stepper Simple Mode (Data-Driven)', () => {
         component.orientation.set('vertical');
         fixture.detectChanges();
         await fixture.whenStable();
-        expect(connectors()).toHaveLength(0);
+        expect(connectors().map(c => c.classList.contains('bg-primary'))).toEqual([true, false]);
     });
 });

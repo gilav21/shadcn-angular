@@ -25,8 +25,8 @@ export const STEPPER_ITEM = new InjectionToken<StepperItemComponent>('STEPPER_IT
     >
       <ng-content />
     </div>
-    @if (!isLast() && stepper?.orientation() === 'horizontal') {
-      <div class="flex-1 h-0.5 bg-border mt-4" [class.bg-primary]="status() === 'complete'"></div>
+    @if (!isLast()) {
+      <div [class]="connectorClasses()" [attr.data-slot]="'stepper-connector'"></div>
     }
   `,
   // The parent `<ol data-slot="stepper">` may only contain list items. This host is
@@ -35,7 +35,7 @@ export const STEPPER_ITEM = new InjectionToken<StepperItemComponent>('STEPPER_IT
   host: { class: 'contents', role: 'listitem' },
 })
 export class StepperItemComponent {
-  /** Extra classes merged onto the item's inner wrapper (via `cn()`, so utilities here override the orientation-derived flex direction and gap). Does not reach the trailing horizontal connector, which is a sibling of that wrapper. */
+  /** Extra classes merged onto the item's inner wrapper (via `cn()`, so utilities here override the orientation-derived flex direction and gap). Does not reach the trailing connector, which is a sibling of that wrapper. */
   class = input('');
   /** Stable identifier for this step. Its position among the parent's projected items is what determines the step number and status, so it must be unique within one stepper — {@link StepperComponent.getStepIndex} matches on it. */
   value = input.required<string>();
@@ -48,6 +48,14 @@ export class StepperItemComponent {
     const items = this.stepper?.items();
     return items ? this.index() === items.length - 1 : true;
   });
+
+  readonly connectorClasses = computed(() =>
+    cn(
+      'transition-colors',
+      this.stepper?.orientation() === 'vertical' ? 'ms-4 mt-2 mb-2 w-0.5 h-8' : 'mx-2 flex-1 h-0.5 mt-4',
+      this.status() === 'complete' ? 'bg-primary' : 'bg-border'
+    )
+  );
 
   classes = computed(() =>
     cn(

@@ -10,7 +10,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { bindOverlayLayer } from '../../lib/overlay-stack.service';
 
 export const sheetVariants = cva(
-    'fixed z-50 gap-4 bg-background p-4 sm:p-6 shadow-lg transition ease-in-out overflow-y-auto',
+    'fixed z-50 bg-background shadow-lg transition ease-in-out overflow-y-auto',
     {
         variants: {
             side: {

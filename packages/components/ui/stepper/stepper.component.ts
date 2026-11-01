@@ -166,6 +166,15 @@ export class StepperComponent {
     return this.getStepStatus(index);
   }
 
+  /** Classes for the connector drawn between two simple-mode steps: a horizontal line with breathing room, or a vertical one under the 2rem indicator. Coloured once the step before it is complete. */
+  connectorClasses(complete: boolean): string {
+    return cn(
+      'transition-colors',
+      this.orientation() === 'vertical' ? 'ms-4 mt-2 mb-2 w-0.5 h-8' : 'mx-2 flex-1 h-0.5 mt-4',
+      complete ? 'bg-primary' : 'bg-border'
+    );
+  }
+
   /** Whether a click may jump to `index`: always true unless {@link linear} is set, in which case only the current step and the ones already completed are reachable. Gates both the trigger's `disabled` state and {@link goToStep}. */
   canNavigateTo(index: number): boolean {
     if (!this.linear()) return true;
