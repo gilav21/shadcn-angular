@@ -180,7 +180,10 @@ export class StepperComponent {
   /** Moves to `index`, updating {@link activeStep} and emitting {@link stepChange}. A no-op — silently, with no emission — when {@link canNavigateTo} rejects the index. Does not clamp, so callers must pass an in-range index. */
   goToStep(index: number): void {
     if (!this.canNavigateTo(index)) return;
+    this.moveTo(index);
+  }
 
+  private moveTo(index: number): void {
     const from = this.activeStep();
     const guard = this.canLeave();
 
@@ -235,11 +238,12 @@ export class StepperComponent {
     this.stepChange.emit(index);
   }
 
-  /** Advances one step through {@link goToStep}, clamped at the last step (counted from {@link steps} in simple mode, from the projected items otherwise). This is the only way forward when {@link linear} is set. */
+  /** Advances one step (still subject to {@link canLeave}), clamped at the last step (counted from {@link steps} in simple mode, from the projected items otherwise). This is the only way forward when {@link linear} is set. */
   nextStep(): void {
     const count = this.steps().length > 0 ? this.steps().length : this.items().length;
     const next = Math.min(this.activeStep() + 1, count - 1);
-    this.goToStep(next);
+    // Bypasses canNavigateTo on purpose: linear mode forbids jumping ahead, not advancing one step.
+    this.moveTo(next);
   }
 
   /** Goes back one step through {@link goToStep}, clamped at `0`. Always permitted, since earlier steps stay reachable even under {@link linear}. */

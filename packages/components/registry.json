@@ -1878,6 +1878,7 @@
     ],
     "files": [
       "pagination/index.ts",
+      "pagination/pagination.component.css",
       "pagination/pagination.component.ts",
       "pagination/pagination.locales.ts",
       "pagination/sub/pagination-content.component.ts",
@@ -2405,6 +2406,7 @@
       "tabs/sub/tabs-list.component.ts",
       "tabs/sub/tabs-trigger.component.css",
       "tabs/sub/tabs-trigger.component.ts",
+      "tabs/tabs.component.css",
       "tabs/tabs.component.ts"
     ],
     "dependencies": [
@@ -2460,6 +2462,7 @@
       "timeline/sub/timeline-description.component.ts",
       "timeline/sub/timeline-dot.component.ts",
       "timeline/sub/timeline-header.component.ts",
+      "timeline/sub/timeline-item.component.css",
       "timeline/sub/timeline-item.component.ts",
       "timeline/sub/timeline-time.component.ts",
       "timeline/sub/timeline-title.component.ts",

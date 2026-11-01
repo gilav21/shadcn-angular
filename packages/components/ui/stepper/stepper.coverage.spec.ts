@@ -105,6 +105,17 @@ describe('StepperComponent — data-driven public API', () => {
     expect(host.activeStep()).toBe(0);
     expect(host.last()).toBe(-1);
   });
+
+  it('linear mode still lets nextStep advance one step at a time, but never jump ahead', () => {
+    host.linear.set(true);
+    fixture.detectChanges();
+    stepper.nextStep();
+    expect(host.activeStep()).toBe(1);
+    stepper.goToStep(3);
+    expect(host.activeStep()).toBe(1);
+    stepper.nextStep();
+    expect(host.activeStep()).toBe(2);
+  });
 });
 
 describe('StepperComponent — projected items nextStep', () => {

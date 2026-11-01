@@ -72,3 +72,22 @@ describe('Switch layout (real browser)', () => {
         expect(Math.abs((label.top + label.height / 2) - (track.top + track.height / 2))).toBeLessThan(1.5);
     });
 });
+
+describe('Switch density (real browser)', () => {
+    it('keeps the checked thumb at the track end (within the unscaled 2px border) when --density is not 1', async () => {
+        for (const density of ['0.75', '1.5']) {
+            const fixture = await render('ltr');
+            (fixture.nativeElement as HTMLElement).style.setProperty('--density', density);
+            fixture.componentInstance.checked.set(true);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const track: HTMLElement = fixture.nativeElement.querySelector('[data-slot="switch"]');
+            const thumb = track.querySelector('span') as HTMLElement;
+            thumb.getAnimations().forEach(a => a.finish());
+            const gap = track.getBoundingClientRect().right - thumb.getBoundingClientRect().right;
+            expect(gap).toBeGreaterThanOrEqual(0);
+            expect(gap).toBeLessThanOrEqual(5);
+            TestBed.resetTestingModule();
+        }
+    });
+});

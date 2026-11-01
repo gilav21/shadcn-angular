@@ -53,3 +53,27 @@ describe('RadioGroup layout', () => {
         expect(label.top).toBeLessThan(dot.bottom);
     });
 });
+
+@Component({
+    template: `
+        <div style="--density: 1.5">
+            <ui-radio-group value="a">
+                <ui-radio-group-item value="a" label="First" />
+            </ui-radio-group>
+        </div>
+    `,
+    imports: [RadioGroupComponent, RadioGroupItemComponent],
+})
+class DensityHost {}
+
+describe('RadioGroup density', () => {
+    it('scales the dot together with the circle', () => {
+        const fixture = TestBed.createComponent(DensityHost);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const circle = root.querySelector('[data-slot="radio-group-item"]') as HTMLElement;
+        const dot = circle.querySelector('span span') as HTMLElement;
+        expect(getComputedStyle(circle).width).toBe('24px');
+        expect(getComputedStyle(dot).width).toBe('15px');
+    });
+});
