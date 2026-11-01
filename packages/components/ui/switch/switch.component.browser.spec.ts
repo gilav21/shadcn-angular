@@ -74,8 +74,8 @@ describe('Switch layout (real browser)', () => {
 });
 
 describe('Switch density (real browser)', () => {
-    it('keeps the checked thumb at the track end (within the unscaled 2px border) when --density is not 1', async () => {
-        for (const density of ['0.75', '1.5']) {
+    it('keeps the thumb vertically centred on whole pixels and at the track end when --density is not 1', async () => {
+        for (const density of ['0.75', '1.3', '1.5']) {
             const fixture = await render('ltr');
             (fixture.nativeElement as HTMLElement).style.setProperty('--density', density);
             fixture.componentInstance.checked.set(true);
@@ -86,7 +86,10 @@ describe('Switch density (real browser)', () => {
             thumb.getAnimations().forEach(a => a.finish());
             const gap = track.getBoundingClientRect().right - thumb.getBoundingClientRect().right;
             expect(gap).toBeGreaterThanOrEqual(0);
-            expect(gap).toBeLessThanOrEqual(5);
+            expect(gap).toBeLessThanOrEqual(3);
+            const [above, below] = [thumb.getBoundingClientRect().top - track.getBoundingClientRect().top, track.getBoundingClientRect().bottom - thumb.getBoundingClientRect().bottom];
+            expect(Number.isInteger(above)).toBe(true);
+            expect(above).toBe(below);
             TestBed.resetTestingModule();
         }
     });
