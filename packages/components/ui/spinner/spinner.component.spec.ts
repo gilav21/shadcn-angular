@@ -23,6 +23,14 @@ describe('SpinnerComponent', () => {
         expect(status.nativeElement.getAttribute('aria-label')).toBe('Loading');
     });
 
+    it.each(['ring', 'dots', 'bars', 'pulse'])('names the %s variant after the label input', (variant) => {
+        fixture.componentRef.setInput('variant', variant);
+        fixture.componentRef.setInput('label', 'Saving');
+        fixture.detectChanges();
+        const status = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+        expect(status.nativeElement.getAttribute('aria-label')).toBe('Saving');
+    });
+
     it('should apply custom size via style', () => {
         fixture.componentRef.setInput('customSize', 48);
         fixture.detectChanges();

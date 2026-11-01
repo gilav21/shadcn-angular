@@ -215,6 +215,8 @@ export class InputComponent implements ControlValueAccessor {
     readonly innerClasses = computed(() => cn(
         inputVariants({ variant: 'ghost' }),
         'flex-1 h-full',
+        // The ghost variant is flush (px-0), so without a prefix span the text would sit on the border.
+        !this.prefix() && 'ps-[calc(0.75rem*var(--_d))]',
     ));
 
     readonly floatingLabelClasses = computed(() => cn(

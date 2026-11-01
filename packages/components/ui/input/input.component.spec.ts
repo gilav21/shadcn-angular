@@ -191,6 +191,19 @@ describe('InputComponent - container mode (prefix/suffix/clearable/loading)', ()
         expect(container.nativeElement.querySelector('input')).toBeTruthy();
     });
 
+    it.each([
+        { inputs: { suffix: 'kg' }, padded: true },
+        { inputs: { clearable: true, value: 'Clear me' }, padded: true },
+        { inputs: { loading: true }, padded: true },
+        { inputs: { prefix: '$' }, padded: false },
+    ])('pads the inner field start only when there is no prefix: $inputs', ({ inputs, padded }) => {
+        for (const [key, value] of Object.entries(inputs)) fixture.componentRef.setInput(key, value);
+        fixture.detectChanges();
+
+        const field = fixture.debugElement.query(By.css('[data-slot="input-container"] input')).nativeElement as HTMLElement;
+        expect(field.classList.contains('ps-[calc(0.75rem*var(--_d))]')).toBe(padded);
+    });
+
     it('renders a suffix span when suffix is set and not loading', () => {
         fixture.componentRef.setInput('suffix', 'kg');
         fixture.detectChanges();

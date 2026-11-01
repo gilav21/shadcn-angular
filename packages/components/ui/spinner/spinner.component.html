@@ -3,7 +3,7 @@
 </div>
 @if (!hasCustomContent()) {
   @if (variant() === 'ring') {
-    <output class="inline-flex" aria-label="Loading" [attr.data-slot]="'spinner'">
+    <output class="inline-flex" [attr.aria-label]="label()" [attr.data-slot]="'spinner'">
       <svg
         [class]="classes()"
         [style]="customStyles()"
@@ -20,13 +20,13 @@
       </svg>
     </output>
   } @else if (variant() === 'dots') {
-    <output class="flex items-center gap-1" aria-label="Loading" [attr.data-slot]="'spinner'">
+    <output class="flex items-center gap-1" [attr.aria-label]="label()" [attr.data-slot]="'spinner'">
       <div [class]="cn(dotClass(), 'rounded-full bg-current animate-bounce [animation-delay:-0.3s]')"></div>
       <div [class]="cn(dotClass(), 'rounded-full bg-current animate-bounce [animation-delay:-0.15s]')"></div>
       <div [class]="cn(dotClass(), 'rounded-full bg-current animate-bounce')"></div>
     </output>
   } @else if (variant() === 'bars') {
-    <output class="flex items-center gap-0.5" aria-label="Loading" [attr.data-slot]="'spinner'">
+    <output class="flex items-center gap-0.5" [attr.aria-label]="label()" [attr.data-slot]="'spinner'">
       @for (delay of barDelays; track delay) {
         <div
           [class]="cn(barClass(), 'bg-current rounded-sm animate-pulse')"
@@ -37,7 +37,7 @@
   } @else if (variant() === 'pulse') {
     <output
       [class]="cn(pulseClass(), 'block rounded-full bg-current animate-pulse')"
-      aria-label="Loading"
+      [attr.aria-label]="label()"
       [attr.data-slot]="'spinner'"
     ></output>
   }
