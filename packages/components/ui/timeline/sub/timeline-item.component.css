@@ -1,0 +1,8 @@
+/* The "last item" test must look at the host's position among its siblings:
+   the row div is always the only child of its host, so a utility like
+   `last:pb-0` on the div matches every item. */
+@layer components {
+    :host(:not(:last-child)) [data-slot="timeline-item"] {
+        padding-bottom: 2rem;
+    }
+}

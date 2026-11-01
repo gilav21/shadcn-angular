@@ -41,10 +41,11 @@ import { TimelineContentComponent } from './timeline-content.component';
       }
     </div>
   `,
+    styleUrl: './timeline-item.component.css',
     host: { class: 'contents' },
 })
 export class TimelineItemComponent implements AfterContentInit {
-    /** Extra utilities for the item's row wrapper, merged through `cn()` so they override the built-in `relative flex gap-4 pb-8 last:pb-0` — this is where you change the gap between dot and content, or the spacing to the next item. */
+    /** Extra utilities for the item's row wrapper, merged through `cn()` so they override the built-in `relative flex gap-4` — this is where you change the gap between dot and content. The 2rem spacing to the next item comes from the component stylesheet (every item but the last), so a `pb-*` utility passed here overrides it. */
     class = input('');
 
     /**
@@ -78,7 +79,7 @@ export class TimelineItemComponent implements AfterContentInit {
 
     classes = computed(() =>
         cn(
-            'relative flex gap-4 pb-8 last:pb-0',
+            'relative flex gap-4',
             this.class()
         )
     );

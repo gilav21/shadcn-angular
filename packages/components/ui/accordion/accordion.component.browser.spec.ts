@@ -68,3 +68,28 @@ describe('Accordion layout (browser)', () => {
         }
     });
 });
+
+@Component({
+    template: `
+        <div style="--density: 1.5">
+            <ui-accordion>
+                <ui-accordion-item value="s" title="Simple" content="Body" />
+                <ui-accordion-item value="c">
+                    <ui-accordion-trigger>Custom</ui-accordion-trigger>
+                    <ui-accordion-content>Body</ui-accordion-content>
+                </ui-accordion-item>
+            </ui-accordion>
+        </div>
+    `,
+    imports: [AccordionComponent, AccordionItemComponent, AccordionTriggerComponent, AccordionContentComponent],
+})
+class DensityHost {}
+
+describe('Accordion density (browser)', () => {
+    it('scales the trigger padding with --density in simple and custom mode alike', () => {
+        const fixture = TestBed.createComponent(DensityHost);
+        fixture.detectChanges();
+        const triggers = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-slot="accordion-trigger"]');
+        expect(Array.from(triggers, t => getComputedStyle(t).paddingTop)).toEqual(['24px', '24px']);
+    });
+});

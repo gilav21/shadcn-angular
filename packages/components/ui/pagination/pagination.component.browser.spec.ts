@@ -44,3 +44,41 @@ describe('Pagination (browser layout)', () => {
         expect(chevronRotations('rtl')).toEqual(['180deg', '180deg']);
     });
 });
+
+@Component({
+    template: `
+        <div style="--density: 1.5">
+            <ui-pagination [totalPages]="5" [currentPage]="1" />
+            <ui-pagination>
+                <ui-pagination-content>
+                    <ui-pagination-item><ui-pagination-previous [disabled]="true" /></ui-pagination-item>
+                    <ui-pagination-item><ui-pagination-next [disabled]="true" /></ui-pagination-item>
+                </ui-pagination-content>
+            </ui-pagination>
+        </div>
+    `,
+    imports: [PaginationComponent, PaginationContentComponent, PaginationItemComponent, PaginationPreviousComponent, PaginationNextComponent],
+})
+class DensityHost {}
+
+describe('Pagination density and disabled (browser)', () => {
+    it('simple mode scales nav and page buttons with --density', () => {
+        const fixture = TestBed.createComponent(DensityHost);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const next = root.querySelector('button[data-slot="pagination-next"]') as HTMLElement;
+        const link = root.querySelector('button[data-slot="pagination-link"]') as HTMLElement;
+        expect(getComputedStyle(next).height).toBe('54px');
+        expect(getComputedStyle(link).width).toBe('54px');
+    });
+
+    it('custom-mode previous/next are dimmed when disabled', () => {
+        const fixture = TestBed.createComponent(DensityHost);
+        fixture.detectChanges();
+        const buttons = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('ui-pagination-previous button, ui-pagination-next button');
+        for (const b of Array.from(buttons)) {
+            expect(getComputedStyle(b).opacity).toBe('0.5');
+            expect(getComputedStyle(b).pointerEvents).toBe('none');
+        }
+    });
+});

@@ -1,19 +1,24 @@
 :host {
     --_d: var(--density-switch, var(--density, 1));
+    /* Track height snapped to whole pixels: the thumb is the track minus its 2px
+       borders, so a fractional height splits the leftover half-pixel unevenly
+       and the thumb looks pushed up or down at densities other than 1. */
+    --_h: round(calc(1.25rem * var(--_d)), 1px);
+    --_w: calc(2.25rem * var(--_d));
 }
 @layer components {
     [data-slot="switch"] {
-        height: calc(1.25rem * var(--_d));
-        width: calc(2.25rem * var(--_d));
+        height: var(--_h);
+        width: var(--_w);
     }
     [data-slot="switch"] > span {
-        height: calc(1rem * var(--_d));
-        width: calc(1rem * var(--_d));
+        height: calc(var(--_h) - 4px);
+        width: calc(var(--_h) - 4px);
     }
     [data-slot="switch"][aria-checked="true"] > span {
-        translate: calc(1rem * var(--_d)) 0;
+        translate: calc(var(--_w) - var(--_h)) 0;
     }
-    [dir="rtl"] [data-slot="switch"][aria-checked="true"] > span {
-        translate: calc(-1rem * var(--_d)) 0;
+    :host-context([dir="rtl"]) [data-slot="switch"][aria-checked="true"] > span {
+        translate: calc(var(--_h) - var(--_w)) 0;
     }
 }

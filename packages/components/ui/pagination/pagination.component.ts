@@ -30,6 +30,7 @@ import { PAGINATION_LOCALES, type PaginationLocale } from './pagination.locales'
               [class]="navButtonClasses()"
               [disabled]="currentPage() <= 1"
               data-slot="pagination-previous"
+              data-size="default"
               (click)="onPageChange(currentPage() - 1)">
               <svg class="h-4 w-4 rtl:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -56,6 +57,7 @@ import { PAGINATION_LOCALES, type PaginationLocale } from './pagination.locales'
                   [class]="pageLinkClasses(page === currentPage())"
                   [attr.aria-current]="page === currentPage() ? 'page' : null"
                   data-slot="pagination-link"
+                  data-size="icon"
                   (click)="onPageChange(page)">
                   {{ page }}
                 </button>
@@ -70,6 +72,7 @@ import { PAGINATION_LOCALES, type PaginationLocale } from './pagination.locales'
               [class]="navButtonClasses()"
               [disabled]="currentPage() >= totalPages()"
               data-slot="pagination-next"
+              data-size="default"
               (click)="onPageChange(currentPage() + 1)">
               <span>{{ t().next }}</span>
               <svg class="h-4 w-4 rtl:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -84,6 +87,7 @@ import { PAGINATION_LOCALES, type PaginationLocale } from './pagination.locales'
       }
     </nav>
   `,
+  styleUrl: './pagination.component.css',
   host: { class: 'contents' },
 })
 export class PaginationComponent {
@@ -130,14 +134,14 @@ export class PaginationComponent {
   readonly classes = computed(() => cn('mx-auto flex w-full justify-center', this.class()));
 
   readonly navButtonClasses = computed(() => cn(
-    'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-sm font-medium h-9 px-4 py-2 cursor-pointer',
+    'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-sm font-medium cursor-pointer',
     'hover:bg-accent hover:text-accent-foreground transition-colors',
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
     'disabled:pointer-events-none disabled:opacity-50'
   ));
 
   readonly pageLinkClasses = (isActive: boolean): string => cn(
-    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors cursor-pointer h-9 w-9',
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors cursor-pointer',
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
     isActive
       ? 'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground'

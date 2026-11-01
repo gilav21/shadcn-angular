@@ -44,9 +44,11 @@ let tabsIdCounter = 0;
               [attr.aria-selected]="activeTab() === tab.value"
               [attr.data-state]="activeTab() === tab.value ? 'active' : 'inactive'"
               [attr.tabindex]="activeTab() === tab.value ? 0 : -1"
+              [attr.data-slot]="'tabs-trigger'"
               [disabled]="tab.disabled"
               [class]="triggerClasses(tab.value)"
               (click)="selectTab(tab.value)"
+              (keydown)="onTabKeydown($event)"
             >
               {{ tab.label }}
             </button>
@@ -71,6 +73,7 @@ let tabsIdCounter = 0;
       }
     </div>
   `,
+  styleUrl: './tabs.component.css',
   host: { '[class]': '"contents"' },
 })
 export class TabsComponent implements OnInit {
@@ -110,7 +113,7 @@ export class TabsComponent implements OnInit {
    */
   triggerClasses(value: string): string {
     return cn(
-      'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+      'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
       this.activeTab() === value
         ? 'bg-background text-foreground shadow'
         : 'hover:bg-background/50'
@@ -148,6 +151,35 @@ export class TabsComponent implements OnInit {
   selectTab(value: string): void {
     this.activeTab.set(value);
     this.tabChange.emit(value);
+  }
+
+  /**
+   * WAI-ARIA tabs keyboard support, shared by both modes' trigger buttons. Left/Right move to the
+   * neighbouring enabled tab (wrapping, and swapped in RTL) and Home/End jump to the first/last
+   * enabled one; the target is focused and activated through a click so {@link tabChange} fires
+   * exactly as it does for the mouse. Other keys are left alone.
+   */
+  onTabKeydown(event: KeyboardEvent): void {
+    const current = event.currentTarget as HTMLElement;
+    const tablist = current.closest('[role="tablist"]');
+    if (!tablist) return;
+    const enabled = Array.from(tablist.querySelectorAll<HTMLButtonElement>('[role="tab"]:not(:disabled)'));
+    const from = enabled.indexOf(current as HTMLButtonElement);
+    const target = this.keyTarget(event.key, from, enabled.length, getComputedStyle(tablist).direction === 'rtl');
+    if (from < 0 || target === null) return;
+    event.preventDefault();
+    enabled[target].focus();
+    enabled[target].click();
+  }
+
+  private keyTarget(key: string, from: number, count: number, rtl: boolean): number | null {
+    const forward = rtl ? 'ArrowLeft' : 'ArrowRight';
+    const backward = rtl ? 'ArrowRight' : 'ArrowLeft';
+    if (key === 'Home') return 0;
+    if (key === 'End') return count - 1;
+    if (key === forward) return (from + 1) % count;
+    if (key === backward) return (from - 1 + count) % count;
+    return null;
   }
 
   /**

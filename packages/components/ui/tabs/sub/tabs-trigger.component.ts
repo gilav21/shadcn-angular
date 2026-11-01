@@ -24,6 +24,7 @@ import { TABS } from '../tabs.component';
       [class]="classes()"
       [attr.data-slot]="'tabs-trigger'"
       (click)="select()"
+      (keydown)="onKeydown($event)"
     >
       <ng-content />
     </button>
@@ -65,5 +66,10 @@ export class TabsTriggerComponent {
     if (this.tabs) {
       this.tabs.selectTab(this.value());
     }
+  }
+
+  /** Arrow/Home/End navigation between triggers; delegated to the parent `<ui-tabs>`. */
+  protected onKeydown(event: KeyboardEvent): void {
+    this.tabs?.onTabKeydown(event);
   }
 }

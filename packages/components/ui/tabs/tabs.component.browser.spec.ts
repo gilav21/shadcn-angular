@@ -38,3 +38,68 @@ describe('TabsComponent layout (browser)', () => {
         expect(tabs.width).toBe(360);
     });
 });
+
+@Component({
+    template: `
+        <div [attr.dir]="dir" style="--density: 1.5">
+            <ui-tabs [tabs]="tabs" />
+            <ui-tabs defaultValue="a">
+                <ui-tabs-list>
+                    <ui-tabs-trigger value="a">A</ui-tabs-trigger>
+                    <ui-tabs-trigger value="b">B</ui-tabs-trigger>
+                    <ui-tabs-trigger value="c">C</ui-tabs-trigger>
+                </ui-tabs-list>
+            </ui-tabs>
+        </div>
+    `,
+    imports: [TabsComponent, TabsListComponent, TabsTriggerComponent],
+})
+class DensityHostComponent {
+    dir = 'ltr';
+    readonly tabs = [
+        { value: 'a', label: 'A' },
+        { value: 'b', label: 'B', disabled: true },
+        { value: 'c', label: 'C' },
+    ];
+}
+
+describe('TabsComponent density and keyboard (browser)', () => {
+    it('scales simple-mode trigger padding with --density like custom mode', () => {
+        const fixture = TestBed.createComponent(DensityHostComponent);
+        fixture.detectChanges();
+        const [simple, custom] = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-slot="tabs-trigger"]'),
+        ).filter((el, i) => i === 0 || el.closest('ui-tabs-trigger'));
+        expect(getComputedStyle(simple).paddingLeft).toBe('18px');
+        expect(getComputedStyle(custom).paddingLeft).toBe('18px');
+        expect(getComputedStyle(simple).paddingTop).toBe('6px');
+    });
+
+    it.each([
+        ['ltr', 'ArrowRight', 'C'],
+        ['rtl', 'ArrowLeft', 'C'],
+        ['ltr', 'ArrowLeft', 'C'],
+        ['ltr', 'End', 'C'],
+        ['ltr', 'Home', 'A'],
+    ])('simple mode (%s): %s from A lands on %s, skipping the disabled tab and wrapping', (dir, key, label) => {
+        const fixture = TestBed.createComponent(DensityHostComponent);
+        fixture.componentInstance.dir = dir;
+        fixture.detectChanges();
+        const tabs = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('ui-tabs:first-of-type [role="tab"]');
+        tabs[0].dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+        const active = (fixture.nativeElement as HTMLElement).querySelector('[role="tab"][aria-selected="true"]')!;
+        expect(active.textContent!.trim()).toBe(label);
+    });
+
+    it('custom mode: ArrowRight moves focus and activation to the next trigger', () => {
+        const fixture = TestBed.createComponent(DensityHostComponent);
+        fixture.detectChanges();
+        const triggers = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('ui-tabs-trigger button');
+        triggers[0].focus();
+        triggers[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(triggers[1]);
+        expect(triggers[1].getAttribute('aria-selected')).toBe('true');
+    });
+});
