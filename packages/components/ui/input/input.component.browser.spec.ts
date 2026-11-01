@@ -18,6 +18,9 @@ class WidthHost {
     readonly prefix = input('');
 }
 
+@Component({ template: '', imports: [InputComponent] })
+class PaddingHost {}
+
 function mount(inputs: { variant?: NonNullable<InputVariant>; prefix?: string } = {}): HTMLElement {
     const fixture = TestBed.createComponent(WidthHost);
     for (const [key, value] of Object.entries(inputs)) fixture.componentRef.setInput(key, value);
@@ -33,6 +36,16 @@ describe('Input rendering', () => {
         expect(style.borderTopWidth).toBe('1px');
         expect(Number.parseFloat(style.borderTopLeftRadius)).toBeGreaterThan(0);
         expect(field.getBoundingClientRect().width).toBeCloseTo(300, 0);
+    });
+
+    it.each(['suffix="kg"', '[clearable]="true" value="x"', '[loading]="true"'])('pads the start of a container input exactly like a plain input: %s', (attrs) => {
+        TestBed.overrideComponent(PaddingHost, { set: { template: `<ui-input /><ui-input ${attrs} />` } });
+        const fixture = TestBed.createComponent(PaddingHost);
+        fixture.detectChanges();
+
+        const [regular, container] = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('input'));
+        expect(getComputedStyle(container).paddingLeft).toBe(getComputedStyle(regular).paddingLeft);
+        expect(getComputedStyle(regular).paddingLeft).not.toBe('0px');
     });
 
     it('lays the prefix before the input, which fills the rest of the container', () => {

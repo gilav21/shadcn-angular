@@ -201,7 +201,7 @@ describe('InputComponent - container mode (prefix/suffix/clearable/loading)', ()
         fixture.detectChanges();
 
         const field = fixture.debugElement.query(By.css('[data-slot="input-container"] input')).nativeElement as HTMLElement;
-        expect(field.classList.contains('ps-[calc(0.75rem*var(--_d))]')).toBe(padded);
+        expect(field.classList.contains(String.raw`ps-[calc(0.75rem*var(--\_d))]`)).toBe(padded);
     });
 
     it('renders a suffix span when suffix is set and not loading', () => {

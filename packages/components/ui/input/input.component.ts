@@ -215,8 +215,8 @@ export class InputComponent implements ControlValueAccessor {
     readonly innerClasses = computed(() => cn(
         inputVariants({ variant: 'ghost' }),
         'flex-1 h-full',
-        // The ghost variant is flush (px-0), so without a prefix span the text would sit on the border.
-        !this.prefix() && 'ps-[calc(0.75rem*var(--_d))]',
+        // Ghost is flush (px-0); without a prefix the text would sit on the border. `\_` keeps Tailwind from reading `_` as a space, and String.raw keeps the single backslash its class scanner needs in source.
+        !this.prefix() && String.raw`ps-[calc(0.75rem*var(--\_d))]`,
     ));
 
     readonly floatingLabelClasses = computed(() => cn(
