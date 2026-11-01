@@ -105,6 +105,24 @@ describe('ContextMenu flyout placement (real browser)', () => {
     });
 });
 
+describe('ContextMenu flyout dismissal (real browser)', () => {
+    afterEach(() => {
+        document.querySelectorAll('[data-context-menu-portal], [data-context-menu-sub-portal]').forEach(el => el.remove());
+    });
+
+    // The flyout is portalled to <body>, so it outlives the root panel unless closing the root closes it.
+    it('picking a flyout item closes the flyout along with the root menu', async () => {
+        await openFlyout('ltr', 100, 100);
+        expect(document.querySelector('[data-slot="context-menu-sub-content"]')).not.toBeNull();
+
+        document.querySelector<HTMLElement>('[data-slot="context-menu-sub-content"] [data-slot="context-menu-item"]')!.click();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(document.querySelector('[data-slot="context-menu-sub-content"]')).toBeNull();
+        expect(document.querySelector('[data-slot="context-menu-item"]')).toBeNull();
+    });
+});
+
 describe('ContextMenu direction (real browser)', () => {
     afterEach(() => {
         document.querySelectorAll('[data-context-menu-portal], [data-context-menu-sub-portal]').forEach(el => el.remove());

@@ -284,6 +284,22 @@ describe('TimePickerComponent', () => {
             expect(host.time()).toBe('23:00');
         });
 
+        // The model clamped correctly while the box kept the stray keystrokes whenever the clamp landed on the value
+        // already shown, so this asserts what is on screen, from the shown maximum and from a run of digits.
+        it.each([
+            { name: 'a third digit after the maximum', typed: '594' },
+            { name: 'a run of seven digits', typed: '1234567' },
+            { name: 'letters only', typed: 'lasd' },
+        ])('shows only a valid two-digit minute after $name', async ({ typed }) => {
+            host.locale.set('en-GB');
+            host.time.set('14:59');
+            await settle();
+
+            await typeInto('minute', typed);
+
+            expect(segment('minute').value).toBe('59');
+            expect(host.time()).toBe('14:59');
+        });
     });
 
     describe('arrow keys', () => {

@@ -55,4 +55,24 @@ describe('ToggleGroupComponent layout (browser)', () => {
             joins: [1, 1],
         });
     });
+
+    // Pressed fill and border share one colour in the stock theme, so a join beside a pressed item vanished.
+    // Pressing the first and last items covers both sides of a join: pressed-then-unpressed and unpressed-then-pressed.
+    it.each(['ltr', 'rtl'] as const)('draws every join beside a pressed item in one visible colour (%s)', dir => {
+        const fixture = TestBed.createComponent(OutlineGroupHost);
+        fixture.componentInstance.dir.set(dir);
+        fixture.detectChanges();
+        const [bold, italic, underline] = (fixture.nativeElement as HTMLElement).querySelectorAll('button');
+        const side = dir === 'ltr' ? 'right' : 'left';
+        const joinColor = (el: HTMLElement) => getComputedStyle(el).getPropertyValue(`border-${side}-color`);
+        const resting = joinColor(bold);
+
+        bold.click();
+        underline.click();
+        fixture.detectChanges();
+
+        expect(joinColor(bold)).not.toBe(resting);
+        expect(joinColor(italic)).toBe(joinColor(bold));
+        expect(joinColor(bold)).not.toBe(getComputedStyle(bold).backgroundColor);
+    });
 });

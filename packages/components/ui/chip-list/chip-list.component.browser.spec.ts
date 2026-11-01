@@ -132,3 +132,99 @@ describe('ChipListComponent keyboard (browser)', () => {
         }
     });
 });
+
+@Component({
+    template: `
+    <div [style.--density]="density()" style="width: 22rem">
+      <ui-chip-list [(ngModel)]="chips" [maxRows]="2" [size]="size()" variant="outline" />
+    </div>
+  `,
+    imports: [ChipListComponent, FormsModule],
+})
+class CappedHost {
+    readonly size = signal<'sm' | 'md' | 'lg'>('md');
+    readonly density = signal(1);
+    chips = ['Apple', 'Banana', 'Cherry', 'Date', 'Elderberry', 'Fig', 'Grape', 'asdasd', 'qweqe', 'sdfsf', 'ertert', 'asdasdas', 'dfgdfg', 'tert', 'fgh', 'ljk'];
+}
+
+describe('ChipListComponent maxRows (browser layout)', () => {
+    async function mount(size: 'sm' | 'md' | 'lg', density: number): Promise<{ fixture: ComponentFixture<CappedHost>; box: HTMLElement }> {
+        const fixture = TestBed.createComponent(CappedHost);
+        fixture.componentInstance.size.set(size);
+        fixture.componentInstance.density.set(density);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        return { fixture, box: (fixture.nativeElement as HTMLElement).querySelector('[data-slot="chip-list"]') as HTMLElement };
+    }
+
+    /** Distinct chip rows with any part inside the box, the gap above the first, and whether the last one shown is whole. */
+    function visibleRows(box: HTMLElement): { rows: number; topGap: number; chipHeights: number[]; lastRowWhole: boolean } {
+        const boxRect = box.getBoundingClientRect();
+        const border = Number.parseFloat(getComputedStyle(box).borderTopWidth);
+        const innerBottom = boxRect.bottom - border;
+        const chips = [...box.querySelectorAll('ui-badge')].map(chip => chip.getBoundingClientRect());
+        const shown = chips.filter(chip => chip.top < innerBottom - 0.5 && chip.bottom > boxRect.top + border);
+        return {
+            rows: new Set(shown.map(chip => Math.round(chip.top))).size,
+            topGap: chips[0].top - boxRect.top - border,
+            chipHeights: [...new Set(chips.map(chip => Math.round(chip.height)))],
+            lastRowWhole: shown.every(chip => chip.bottom <= innerBottom + 0.5),
+        };
+    }
+
+    // The cap used to be a constant of 36px per row, which matched no chip at any size or density.
+    it.each([
+        { size: 'sm', density: 1 },
+        { size: 'md', density: 1 },
+        { size: 'lg', density: 1 },
+        { size: 'md', density: 1.5 },
+        { size: 'md', density: 0.75 },
+    ] as const)('shows exactly two rows with the first off the border (size $size, density $density)', async ({ size, density }) => {
+        const { box } = await mount(size, density);
+
+        const { rows, topGap, chipHeights, lastRowWhole } = visibleRows(box);
+
+        expect(rows).toBe(2);
+        expect(lastRowWhole).toBe(true);
+        expect(topGap).toBeGreaterThan(0);
+        expect(chipHeights).toHaveLength(1);
+        expect(box.scrollHeight).toBeGreaterThan(box.clientHeight);
+    });
+
+    it('scales the chips and the cap with density', async () => {
+        const normal = await mount('md', 1);
+        const chipAt1 = normal.box.querySelector('ui-badge')!.getBoundingClientRect().height;
+        const boxAt1 = normal.box.getBoundingClientRect().height;
+        normal.fixture.destroy();
+
+        const roomy = await mount('md', 1.5);
+        const chipAt15 = roomy.box.querySelector('ui-badge')!.getBoundingClientRect().height;
+
+        expect(chipAt15 / chipAt1).toBeCloseTo(1.5, 1);
+        expect(roomy.box.getBoundingClientRect().height).toBeGreaterThan(boxAt1 * 1.3);
+    });
+
+    it('makes the inline field as tall as a chip, so the row holding it is not taller than the rows counted', async () => {
+        const { box } = await mount('md', 1);
+        const chip = box.querySelector('ui-badge')!.getBoundingClientRect().height;
+        const field = box.querySelector('input')!.getBoundingClientRect().height;
+
+        expect(Math.abs(field - chip)).toBeLessThan(1);
+    });
+
+    it('scrolls to the field when a chip is added, so the user is not typing out of sight', async () => {
+        const { fixture, box } = await mount('md', 1);
+        const field = box.querySelector('input')!;
+
+        field.focus();
+        await userEvent.keyboard('zzz{Enter}');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const boxRect = box.getBoundingClientRect();
+        const fieldRect = field.getBoundingClientRect();
+        expect(fieldRect.top).toBeGreaterThanOrEqual(boxRect.top);
+        expect(fieldRect.bottom).toBeLessThanOrEqual(boxRect.bottom + 0.5);
+    });
+});

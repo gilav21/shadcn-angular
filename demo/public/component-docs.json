@@ -3471,7 +3471,7 @@
             {
               "name": "maxRows",
               "type": "number",
-              "description": "Caps the container height at this many rows (36px each plus 8px padding) and makes it scroll instead of growing. `0` (default) means unlimited — the container grows with every added chip.",
+              "description": "Caps the container at this many rows of chips and makes it scroll instead of growing. The cap is derived from the same size and density variables that size the chips, so it holds at any {@link size}, density or root font size. `0` (default) means unlimited — the container grows with every added chip.",
               "default": "0"
             },
             {
@@ -3485,6 +3485,12 @@
               "type": "string[]",
               "description": "Extra `KeyboardEvent.key` values that commit the typed text as a chip, e.g. `[',', ' ']`. Enter always commits regardless of this list; the keys are matched exactly and are consumed (`preventDefault`) so they never reach the text field.",
               "default": "[]"
+            },
+            {
+              "name": "size",
+              "type": "ChipListSize",
+              "description": "Chip size: `'sm'`, `'md'` (default) or `'lg'`. The chips, the inline field and the {@link maxRows} cap all scale with it, and with density.",
+              "default": "'md'"
             },
             {
               "name": "variant",

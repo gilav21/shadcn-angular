@@ -1,0 +1,58 @@
+:host {
+    --_d: var(--density-chip-list, var(--density-badge, var(--density, 1)));
+}
+@layer components {
+    /*
+     * One variable, --_chip-h, is the height of a chip, of the inline field's
+     * row, and of each row the max-rows cap counts. It is a fraction (--_k, set
+     * by size) of a stock 2.25rem input, times density, so the cap holds at any
+     * size, density or root font size without measuring anything.
+     */
+    [data-slot="chip-list"] {
+        --_k: 0.6111;
+        --_bw: 0.0625rem;
+        --_borders: 2;
+        --_pad-y: calc(0.25rem * var(--_d));
+        --_gap: calc(0.375rem * var(--_d));
+        --_chip-h: calc(2.25rem * var(--_k) * var(--_d));
+        --_field-d: calc(var(--_k) * var(--_d));
+        gap: var(--_gap);
+        padding-block: var(--_pad-y);
+        min-height: calc(2.25rem * var(--_d));
+    }
+    [data-slot="chip-list"][data-size="sm"] {
+        --_k: 0.5556;
+    }
+    [data-slot="chip-list"][data-size="lg"] {
+        --_k: 0.7222;
+    }
+
+    /* The border width lives here, not in a utility, so the cap can count it. */
+    [data-slot="chip-list"][data-variant="outline"] {
+        border-width: var(--_bw);
+    }
+    [data-slot="chip-list"][data-variant="underline"] {
+        --_borders: 1;
+        border-bottom-width: var(--_bw);
+    }
+    [data-slot="chip-list"][data-variant="ghost"] {
+        --_borders: 0;
+    }
+
+    /* The box holds exactly --_rows rows of chips, its padding and its border. */
+    [data-slot="chip-list"][data-max-rows] {
+        max-height: calc(
+            var(--_rows) * var(--_chip-h) + (var(--_rows) - 1) * var(--_gap) + 2 * var(--_pad-y) +
+                var(--_borders) * var(--_bw)
+        );
+    }
+
+    [data-slot="chip-list"] ui-badge {
+        height: var(--_chip-h);
+        padding-block: 0;
+    }
+    /* The field's row is as tall as a chip row: a stock input is 2.25rem * its density. */
+    [data-slot="chip-list"] ui-input {
+        --density-input: var(--_field-d);
+    }
+}

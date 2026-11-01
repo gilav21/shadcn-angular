@@ -128,18 +128,17 @@ describe('ChipListComponent (standalone unit)', () => {
         fixture.detectChanges();
     });
 
-    it('maxHeightStyle returns none when maxRows is 0', () => {
-        fixture.componentRef.setInput('maxRows', 0);
-        fixture.detectChanges();
-        expect(component.maxHeightStyle()).toBe('none');
-    });
+    // The cap itself is stylesheet-derived, so its size is asserted as rendered layout in the browser spec.
+    it('scrolls instead of growing only when maxRows is set', () => {
+        expect(component.containerClasses()).not.toContain('overflow-y-auto');
 
-    it('maxHeightStyle computes pixel height and adds overflow class when maxRows > 0', () => {
         fixture.componentRef.setInput('maxRows', 3);
         fixture.detectChanges();
-        // 3 * 36 + 8 = 116
-        expect(component.maxHeightStyle()).toBe('116px');
+
+        const box = fixture.nativeElement.querySelector('[data-slot="chip-list"]');
         expect(component.containerClasses()).toContain('overflow-y-auto');
+        expect(box.hasAttribute('data-max-rows')).toBe(true);
+        expect(box.style.getPropertyValue('--_rows')).toBe('3');
     });
 
     it('containerClasses reflects the disabled state', () => {

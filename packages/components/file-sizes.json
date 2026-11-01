@@ -1030,24 +1030,28 @@
       "lines": 1
     },
     "chip-list/chip-list.component.browser.spec.ts": {
-      "bytes": 5196,
-      "lines": 134
+      "bytes": 9728,
+      "lines": 230
+    },
+    "chip-list/chip-list.component.css": {
+      "bytes": 1977,
+      "lines": 58
     },
     "chip-list/chip-list.component.html": {
-      "bytes": 2592,
-      "lines": 70
+      "bytes": 2748,
+      "lines": 74
     },
     "chip-list/chip-list.component.spec.ts": {
-      "bytes": 17136,
-      "lines": 414
+      "bytes": 17209,
+      "lines": 413
     },
     "chip-list/chip-list.component.ts": {
-      "bytes": 10629,
-      "lines": 261
+      "bytes": 11886,
+      "lines": 289
     },
     "chip-list/chip-list.stories.ts": {
-      "bytes": 6647,
-      "lines": 176
+      "bytes": 6893,
+      "lines": 179
     },
     "chip-list/index.ts": {
       "bytes": 39,
@@ -1330,8 +1334,8 @@
       "lines": 274
     },
     "context-menu/context-menu.component.browser.spec.ts": {
-      "bytes": 13117,
-      "lines": 284
+      "bytes": 14057,
+      "lines": 302
     },
     "context-menu/context-menu.component.spec.ts": {
       "bytes": 28858,
@@ -1386,8 +1390,8 @@
       "lines": 131
     },
     "context-menu/sub/context-menu-sub.component.ts": {
-      "bytes": 4041,
-      "lines": 105
+      "bytes": 4664,
+      "lines": 123
     },
     "context-menu/sub/context-menu-trigger.component.ts": {
       "bytes": 2343,
@@ -6126,16 +6130,16 @@
       "lines": 30
     },
     "time-picker/time-picker.component.html": {
-      "bytes": 2183,
+      "bytes": 2204,
       "lines": 60
     },
     "time-picker/time-picker.component.spec.ts": {
-      "bytes": 20676,
-      "lines": 557
+      "bytes": 21460,
+      "lines": 573
     },
     "time-picker/time-picker.component.ts": {
-      "bytes": 14242,
-      "lines": 413
+      "bytes": 14816,
+      "lines": 422
     },
     "time-picker/time-picker.format.spec.ts": {
       "bytes": 9138,
@@ -6250,8 +6254,8 @@
       "lines": 52
     },
     "toggle-group/toggle-group.component.browser.spec.ts": {
-      "bytes": 2657,
-      "lines": 58
+      "bytes": 3749,
+      "lines": 78
     },
     "toggle-group/toggle-group.component.html": {
       "bytes": 515,
@@ -6262,8 +6266,8 @@
       "lines": 340
     },
     "toggle-group/toggle-group.component.ts": {
-      "bytes": 9955,
-      "lines": 215
+      "bytes": 10586,
+      "lines": 220
     },
     "toggle-group/toggle-group.stories.ts": {
       "bytes": 6535,

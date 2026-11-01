@@ -46,7 +46,7 @@
         [attr.aria-valuemax]="segment.max"
         [attr.aria-valuetext]="segment.text + ' ' + segment.label"
         placeholder="--"
-        (input)="onSegmentInput(segment.kind, $any($event.target).value)"
+        (input)="onSegmentInput(segment.kind, $any($event.target).value, $any($event.target))"
         (keydown)="onSegmentKeydown(segment.kind, $event)"
       />
     }

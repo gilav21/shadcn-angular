@@ -27,7 +27,8 @@ const meta: Meta<ChipListComponent> = {
             options: ['default', 'secondary', 'destructive', 'outline'],
             description: 'Visual style variant applied to each chip (badge), unless overridden by `chipColors`.',
         },
-        maxRows: { control: 'number', description: 'Maximum visible rows before scrolling (0 = unlimited).' },
+        maxRows: { control: 'number', description: 'Maximum visible rows before scrolling (0 = unlimited). Measured in chips, so it holds at any size or density.' },
+        size: { control: 'select', options: ['sm', 'md', 'lg'], description: 'Chip size; the inline field and the maxRows cap scale with it.' },
         allowDuplicates: { control: 'boolean', description: 'Allow duplicate chip values to be added.' },
         chipColors: { control: 'object', description: 'Map of chip value to a custom background color, overriding `badgeVariant` for matching chips.' },
         separatorKeys: { control: 'object', description: 'Extra keyboard keys (besides Enter) that commit the current input as a chip.' },
@@ -39,6 +40,7 @@ const meta: Meta<ChipListComponent> = {
         variant: 'outline',
         badgeVariant: 'default',
         maxRows: 0,
+        size: 'md',
         allowDuplicates: false,
         chipColors: {},
         separatorKeys: [],
@@ -58,6 +60,7 @@ const TEMPLATE = `
             [variant]="variant"
             [badgeVariant]="badgeVariant"
             [maxRows]="maxRows"
+            [size]="size"
             [allowDuplicates]="allowDuplicates"
             [chipColors]="chipColors"
             [separatorKeys]="separatorKeys"

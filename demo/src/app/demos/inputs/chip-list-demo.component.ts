@@ -64,6 +64,13 @@ import { CHIP_LIST_DEMO_LOCALES } from './chip-list-demo.locales';
         </div>
 
         <div class="space-y-2">
+          <ui-label>size="sm" | "md" | "lg" (max 2 rows each)</ui-label>
+          <ui-chip-list [(ngModel)]="chipListFruits" [maxRows]="2" size="sm" variant="outline" />
+          <ui-chip-list [(ngModel)]="chipListFruits" [maxRows]="2" size="md" variant="outline" />
+          <ui-chip-list [(ngModel)]="chipListFruits" [maxRows]="2" size="lg" variant="outline" />
+        </div>
+
+        <div class="space-y-2">
           <ui-label>{{ t().labels.disabled }}</ui-label>
           <ui-chip-list [(ngModel)]="chipListTags" [disabled]="true" />
         </div>

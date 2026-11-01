@@ -2646,6 +2646,7 @@
       "multi-input"
     ],
     "files": [
+      "chip-list/chip-list.component.css",
       "chip-list/chip-list.component.html",
       "chip-list/chip-list.component.ts",
       "chip-list/index.ts"
