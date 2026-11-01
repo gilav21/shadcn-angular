@@ -19,6 +19,17 @@ import { describe, it, expect, beforeEach } from 'vitest';
 })
 class TestHostComponent { }
 
+@Component({
+    template: `
+        <ui-card-header [bordered]="true"><ui-card-title>T</ui-card-title></ui-card-header>
+        <ui-card-footer [bordered]="true">F</ui-card-footer>
+        <ui-card-header>Plain</ui-card-header>
+        <ui-card-footer>Plain</ui-card-footer>
+    `,
+    imports: [CardHeaderComponent, CardTitleComponent, CardFooterComponent]
+})
+class BorderedHostComponent { }
+
 describe('CardComponent', () => {
     let fixture: ComponentFixture<CardComponent>;
 
@@ -98,5 +109,20 @@ describe('Card Integration', () => {
         expect(slot('card-description')?.textContent?.trim()).toBe('Card Description');
         expect(slot('card-content')?.textContent?.trim()).toBe('Card Content');
         expect(slot('card-footer')?.textContent?.trim()).toBe('Card Footer');
+    });
+});
+
+describe('Card bordered dividers', () => {
+    it('draws a divider only on the header and footer that ask for one', async () => {
+        await TestBed.configureTestingModule({ imports: [BorderedHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(BorderedHostComponent);
+        fixture.detectChanges();
+        const [header, footer, plainHeader, plainFooter] = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-slot="card-header"], [data-slot="card-footer"]')
+        );
+        expect(header.classList.contains('border-b')).toBe(true);
+        expect(footer.classList.contains('border-t')).toBe(true);
+        expect(plainHeader.classList.contains('border-b')).toBe(false);
+        expect(plainFooter.classList.contains('border-t')).toBe(false);
     });
 });

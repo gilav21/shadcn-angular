@@ -93,6 +93,8 @@ export class SpinnerComponent implements AfterViewInit {
    * rendered instead.
    */
   readonly variant = input<SpinnerVariant>('ring');
+  /** Accessible name announced by assistive technology (applies to every variant). Set it to say what is loading, or to localize it. */
+  readonly label = input('Loading');
 
   readonly contentWrapper = viewChild<ElementRef>('contentWrapper');
 
