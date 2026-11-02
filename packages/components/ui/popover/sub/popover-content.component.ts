@@ -293,15 +293,13 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         const needsHorizontalFix = rect.right > vw || rect.left < 0;
         const needsVerticalFix = rect.bottom > vh || rect.top < 0;
 
-        if (needsHorizontalFix) {
-            const clampedLeft = Math.max(8, Math.min(rect.left, vw - rect.width - 8));
-            el.style.left = `${clampedLeft}px`;
-            el.style.transform = 'none';
-        }
-        if (needsVerticalFix) {
-            const clampedTop = Math.max(8, Math.min(rect.top, vh - rect.height - 8));
-            el.style.top = `${clampedTop}px`;
-        }
+        if (!needsHorizontalFix && !needsVerticalFix) return;
+        // The measured rect already includes the placement transform (translateX/Y(-50%|-100%)),
+        // so pin both axes from it and drop the transform; fixing one axis alone would leave the
+        // other shifted by the transform that is being removed.
+        el.style.left = `${Math.max(8, Math.min(rect.left, vw - rect.width - 8))}px`;
+        el.style.top = `${Math.max(8, Math.min(rect.top, vh - rect.height - 8))}px`;
+        el.style.transform = 'none';
     }
 
     private adjustCollisionPosition(content: HTMLElement): void {
@@ -383,11 +381,8 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
             return this.computeFixedStyles(pos);
         }
 
-        if (pos.offsetX !== 0) {
-            return `transform: translateX(${pos.offsetX}px);`;
-        }
-
-        return '';
+        const offset = `--popover-offset:${this.sideOffset()}px;`;
+        return pos.offsetX === 0 ? offset : `${offset}transform: translateX(${pos.offsetX}px);`;
     });
 
     private computeFixedStyles(pos: { side: PopoverSide; align: PopoverAlign; offsetX: number; offsetY: number }): string {
@@ -397,22 +392,43 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         const currentSide = this.avoidCollisions() ? pos.side : this.side();
         const currentAlign = this.avoidCollisions() ? pos.align : this.align();
 
-        const top = currentSide === 'bottom' ? triggerRect.bottom + 4 : triggerRect.top - 4;
-        let left = this.computeFixedLeft(currentAlign, triggerRect);
-
-        left = Math.max(8, Math.min(left, globalThis.window.innerWidth - 8));
+        const { top, left, transform } = this.computeFixedAnchor(currentSide, currentAlign, triggerRect);
+        const clampedLeft = Math.max(8, Math.min(left, globalThis.window.innerWidth - 8));
         const clampedTop = Math.max(8, Math.min(top, globalThis.window.innerHeight - 8));
 
         // `inset:auto;margin:0;overflow:visible` neutralize the UA `[popover]`
         // defaults (centered via inset:0 + margin:auto, overflow:auto) so our
         // own fixed coordinates and layout apply when promoted to the top layer.
-        let styles = `position:fixed;inset:auto;margin:0;overflow:visible;top:${clampedTop}px;left:${left}px;`;
-        if (currentAlign === 'center') {
-            styles += 'transform:translateX(-50%);';
-        } else if (currentAlign === 'end') {
-            styles += 'transform:translateX(-100%);';
+        return `position:fixed;inset:auto;margin:0;overflow:visible;top:${clampedTop}px;left:${clampedLeft}px;transform:${transform};`;
+    }
+
+    /**
+     * The panel's anchor point and the transform that pulls the panel's matching edge onto it.
+     * The transform is what lets the panel sit *before* the anchor (above or left of it) without
+     * knowing its own size: `top` places the panel's bottom edge on the point, `left` its right edge.
+     */
+    private computeFixedAnchor(
+        side: PopoverSide,
+        align: PopoverAlign,
+        triggerRect: DOMRect,
+    ): { top: number; left: number; transform: string } {
+        const offset = this.sideOffset();
+        const shift = { start: 0, center: -50, end: -100 }[align];
+        if (side === 'top' || side === 'bottom') {
+            const top = side === 'bottom' ? triggerRect.bottom + offset : triggerRect.top - offset;
+            return {
+                top,
+                left: this.computeFixedLeft(align, triggerRect),
+                transform: `translate(${shift}%, ${side === 'top' ? -100 : 0}%)`,
+            };
         }
-        return styles;
+        const crossAxis = { start: triggerRect.top, center: triggerRect.top + triggerRect.height / 2, end: triggerRect.bottom }[align];
+        const isLeft = side === 'left';
+        return {
+            top: crossAxis,
+            left: isLeft ? triggerRect.left - offset : triggerRect.right + offset,
+            transform: `translate(${isLeft ? -100 : 0}%, ${shift}%)`,
+        };
     }
 
     private computeFixedLeft(align: PopoverAlign, triggerRect: DOMRect): number {
@@ -432,10 +448,10 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
             end: 'right-0',
         };
         const sideClasses = {
-            top: 'bottom-full mb-1',
-            bottom: 'top-full mt-1',
-            left: 'right-full me-1 top-0',
-            right: 'left-full ms-1 top-0',
+            top: 'bottom-full mb-[var(--popover-offset)]',
+            bottom: 'top-full mt-[var(--popover-offset)]',
+            left: 'right-full me-[var(--popover-offset)] top-0',
+            right: 'left-full ms-[var(--popover-offset)] top-0',
         };
         const isFixed = this.strategy() === 'fixed';
         return cn(

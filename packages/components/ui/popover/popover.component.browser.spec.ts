@@ -104,12 +104,12 @@ describe('PopoverContent placement (absolute strategy)', () => {
         // A trigger at the viewport's left edge puts half of the centred panel off-screen.
         host.pad.set('300px 0 0 0');
         await openRects();
-        expect(contentCmp().positionStyles()).toMatch(/^transform: translateX\(\d+(\.\d+)?px\);$/);
+        expect(contentCmp().positionStyles()).toMatch(/transform: translateX\(\d+(\.\d+)?px\);$/);
 
         host.open.set(false);
         host.avoidCollisions.set(false);
         fixture.detectChanges();
         await openRects();
-        expect(contentCmp().positionStyles()).toBe('');
+        expect(contentCmp().positionStyles()).not.toContain('transform');
     });
 });
