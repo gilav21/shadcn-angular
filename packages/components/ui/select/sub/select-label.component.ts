@@ -18,5 +18,5 @@ import { cn } from '../../../lib/utils';
 export class SelectLabelComponent {
     /** Extra classes merged onto the element this component renders, after its built-in styling. */
     readonly class = input('');
-    readonly classes = computed(() => cn('text-muted-foreground px-2 py-1.5 text-xs', this.class()));
+    readonly classes = computed(() => cn('block text-muted-foreground px-2 py-1.5 text-xs', this.class()));
 }
