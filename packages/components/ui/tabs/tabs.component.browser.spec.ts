@@ -92,6 +92,22 @@ describe('TabsComponent density and keyboard (browser)', () => {
         expect(active.textContent!.trim()).toBe(label);
     });
 
+    it.each([
+        ['ArrowLeft', { altKey: true }],
+        ['ArrowRight', { ctrlKey: true }],
+        ['ArrowRight', { metaKey: true }],
+        ['Home', { shiftKey: true }],
+    ])('leaves %s with a modifier (%o) to the browser: no activation, not default-prevented', (key, modifier) => {
+        const fixture = TestBed.createComponent(DensityHostComponent);
+        fixture.detectChanges();
+        const tabs = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('ui-tabs:first-of-type [role="tab"]');
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...modifier });
+        tabs[0].dispatchEvent(event);
+        fixture.detectChanges();
+        expect(event.defaultPrevented).toBe(false);
+        expect((fixture.nativeElement as HTMLElement).querySelector('[role="tab"][aria-selected="true"]')!.textContent!.trim()).toBe('A');
+    });
+
     it('custom mode: ArrowRight moves focus and activation to the next trigger', () => {
         const fixture = TestBed.createComponent(DensityHostComponent);
         fixture.detectChanges();

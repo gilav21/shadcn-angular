@@ -160,6 +160,7 @@ export class TabsComponent implements OnInit {
    * exactly as it does for the mouse. Other keys are left alone.
    */
   onTabKeydown(event: KeyboardEvent): void {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const current = event.currentTarget as HTMLElement;
     const tablist = current.closest('[role="tablist"]');
     if (!tablist) return;
