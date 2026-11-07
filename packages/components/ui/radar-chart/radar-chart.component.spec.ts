@@ -28,6 +28,30 @@ describe('RadarChartComponent', () => {
         fixture.detectChanges();
     });
 
+    it('shows a tooltip with series, axis and value for a hovered or focused vertex, and hides it on leave', () => {
+        const vertices = (): SVGCircleElement[] => [...fixture.nativeElement.querySelectorAll('circle[data-slot="radar-vertex"]')];
+        const tip = (): string | null => fixture.nativeElement.querySelector('ui-chart-tooltip div')?.textContent ?? null;
+        expect(tip()).toBeNull();
+
+        vertices()[1].dispatchEvent(new MouseEvent('mouseenter'));
+        fixture.detectChanges();
+        expect(tip()).toContain('Power');
+        expect(tip()).toContain('Product A');
+        expect(tip()).toContain('6');
+        expect(vertices()[1].getAttribute('r')).toBe('5');
+        expect(vertices()[0].getAttribute('r')).toBe('3');
+
+        vertices()[1].dispatchEvent(new MouseEvent('mouseleave'));
+        vertices()[5].dispatchEvent(new FocusEvent('focus'));
+        fixture.detectChanges();
+        expect(tip()).toContain('Product B');
+        expect(tip()).toContain('9');
+
+        vertices()[5].dispatchEvent(new FocusEvent('blur'));
+        fixture.detectChanges();
+        expect(tip()).toBeNull();
+    });
+
     it('renders with an accessible Radar chart label', () => {
         const c = fixture.nativeElement.querySelector('[role="group"]');
         expect(c.getAttribute('aria-label')).toContain('Radar chart');

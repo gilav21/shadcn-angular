@@ -94,6 +94,19 @@ describe('TypingAnimationComponent', () => {
         expect(comp.displayText()).toBe('He');
     });
 
+    it('should keep typing when the strings list shrinks below the running index', () => {
+        host.strings.set(['Hello', 'World', 'Third']);
+        fixture.detectChanges();
+        const comp = getComp(fixture);
+        // Hello and World take 2200ms each; at 4800ms the run is pausing on Third (index 2).
+        vi.advanceTimersByTime(4800);
+        host.strings.set(['Only']);
+        fixture.detectChanges();
+        expect(() => vi.advanceTimersByTime(10_000)).not.toThrow();
+        fixture.detectChanges();
+        expect(comp.displayText()).toMatch(/^(O(n(l(y)?)?)?)?$/);
+    });
+
     it('should render the cursor span when cursor input is true', () => {
         host.cursor.set(true);
         fixture.detectChanges();
