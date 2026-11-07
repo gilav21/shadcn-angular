@@ -334,4 +334,26 @@ describe('PropertyEditorComponent', () => {
         expect(emitted!.value).toHaveProperty('description', 'item.desc');
         expect(emitted!.value).toHaveProperty('title', '');
     });
+
+    it('keeps a freshly toggled, still-blank binding on, and a second toggle turns it off', () => {
+        const el = fixture.nativeElement as HTMLElement;
+        const toggle = (): void => {
+            el.querySelector<HTMLButtonElement>('button[title="Toggle Data Binding"]')!.click();
+        };
+        // Like the page builder: feed each emitted bindings map back into the item.
+        component.itemChange.subscribe(event => {
+            fixture.componentRef.setInput('item', { ...mockItem, bindings: event.value });
+            fixture.detectChanges();
+        });
+        fixture.componentRef.setInput('item', mockItem);
+        fixture.componentRef.setInput('componentMeta', mockComponentMeta);
+        fixture.detectChanges();
+
+        toggle();
+        expect(el.querySelector('button[title="Toggle Data Binding"]')!.textContent).toContain('Bound');
+        expect(el.querySelector('input[placeholder="e.g. user.name"]')).not.toBeNull();
+
+        toggle();
+        expect(el.querySelector('button[title="Toggle Data Binding"]')!.textContent).toContain('Static');
+    });
 });
