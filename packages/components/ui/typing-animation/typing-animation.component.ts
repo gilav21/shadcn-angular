@@ -4,6 +4,8 @@ import {
     input,
     computed,
     signal,
+    effect,
+    untracked,
     OnInit,
     OnDestroy,
     output,
@@ -52,6 +54,8 @@ export class TypingAnimationComponent implements OnInit, OnDestroy {
     private readonly state = signal<TypingState>('typing');
     private stringIndex = 0;
     private charIndex = 0;
+    /** True while there is no phrase to type and so no timer pending. */
+    private starved = false;
     private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     classes = computed(() => cn('inline', this.class()));
@@ -77,8 +81,24 @@ export class TypingAnimationComponent implements OnInit, OnDestroy {
     }
 
     ngOnInit(): void {
+        this.start();
+    }
+
+    /** The timer chain only ever runs from `tick`, so an empty list ends it; the list filling again must start a new run. */
+    protected readonly restartWhenListFills = effect(() => {
+        const filled = this.strings().length > 0;
+        untracked(() => {
+            if (filled && this.starved) this.start();
+        });
+    });
+
+    private start(): void {
         const strs = this.strings();
-        if (strs.length === 0) return;
+        if (strs.length === 0) {
+            this.starved = true;
+            return;
+        }
+        this.starved = false;
 
         if (prefersReducedMotion()) {
             this.displayText.set(strs[0]);
@@ -105,7 +125,14 @@ export class TypingAnimationComponent implements OnInit, OnDestroy {
 
     private tick(): void {
         const strs = this.strings();
-        if (strs.length === 0) return;
+        if (strs.length === 0) {
+            this.starved = true;
+            this.displayText.set('');
+            this.stringIndex = 0;
+            this.charIndex = 0;
+            this.state.set('typing');
+            return;
+        }
         this.restartIfListShrank(strs.length);
         const current = strs[this.stringIndex];
         const s = this.state();

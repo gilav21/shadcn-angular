@@ -517,6 +517,21 @@ describe('NavigationMenu keyboard', () => {
         expect(document.activeElement).toBe(first);
     });
 
+    it('leaves Home and End to a text field inside an open panel', () => {
+        const [first] = triggers();
+        press(first, 'ArrowDown');
+        const field = document.createElement('input');
+        fixture.nativeElement.querySelector('[data-slot="navigation-menu-content"]').appendChild(field);
+        field.focus();
+
+        for (const key of ['Home', 'End', 'ArrowDown', 'ArrowUp']) {
+            const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+            field.dispatchEvent(event);
+            expect(event.defaultPrevented).toBe(false);
+            expect(document.activeElement).toBe(field);
+        }
+    });
+
     it('carries an open panel along the bar', () => {
         const [first, second] = triggers();
         first.click();

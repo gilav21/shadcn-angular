@@ -178,11 +178,11 @@ export class SelectContentComponent implements AfterViewInit {
         if (!this.contentEl?.nativeElement) return;
 
         if (event.key === 'Tab') {
-            // The panel unmounts on close; without this the browser moves focus on from
-            // an item that is about to disappear, leaving the page's tab order mid-list.
-            event.preventDefault();
-            this.select?.close();
+            // The panel unmounts on close, so the Tab must not start from an item about to
+            // disappear. Focus goes to the trigger first and the default Tab then walks on from it:
+            // one press leaves the select, and nothing is committed (only Enter/Space select, as in data-driven mode).
             this.select?.getTriggerElement()?.focus();
+            this.select?.close();
             return;
         }
 

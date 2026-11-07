@@ -3,6 +3,7 @@ import { SelectComponent, SelectTriggerComponent, SelectContentComponent, Select
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
 // Test host for integration
@@ -234,21 +235,26 @@ describe('Select Keyboard Navigation', () => {
         expect(content).toBeNull();
     });
 
-    it('closes on Tab and returns focus to the trigger', async () => {
+    it.each([
+        ['Tab', '{Tab}', 'next'],
+        ['Shift+Tab', '{Shift>}{Tab}{/Shift}', 'previous'],
+    ] as const)('closes on one real %s and moves focus on past the trigger without committing the focused item', async (...[, keys, direction]) => {
+        const neighbours = { previous: document.createElement('button'), next: document.createElement('button') };
+        fixture.nativeElement.prepend(neighbours.previous);
+        fixture.nativeElement.appendChild(neighbours.next);
         const trigger: HTMLButtonElement = fixture.debugElement.query(By.css('[data-slot="select-trigger"]')).nativeElement;
         trigger.click();
         fixture.detectChanges();
-        await new Promise(resolve => setTimeout(resolve, 0));
+
         const item: HTMLElement = fixture.nativeElement.querySelector('[data-slot="select-item"]');
         item.focus();
 
-        const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
-        item.dispatchEvent(tab);
+        await userEvent.keyboard(keys);
         fixture.detectChanges();
 
         expect(fixture.nativeElement.querySelector('[data-slot="select-content"]')).toBeNull();
-        expect(document.activeElement).toBe(trigger);
-        expect(tab.defaultPrevented).toBe(true);
+        expect(document.activeElement).toBe(neighbours[direction]);
+        expect(fixture.componentInstance.selectedValue).toBe('');
     });
 
     // Note: Focus management tests require attaching to DOM or specific focus spying
@@ -508,6 +514,23 @@ describe('Select Data-Driven Mode (Strings)', () => {
         expect(component.selected).toBe('Banana');
         expect(fixture.debugElement.query(By.css('[role="listbox"]'))).toBeNull();
         expect(trigger.nativeElement.textContent).toContain('Banana');
+    });
+
+    it('closes on one real Shift+Tab from a focused option and walks on before the trigger without committing it', async () => {
+        const previous = document.createElement('button');
+        fixture.nativeElement.prepend(previous);
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.debugElement.query(By.css('[role="option"]')).nativeElement.focus();
+
+        await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.css('[role="listbox"]'))).toBeNull();
+        expect(document.activeElement).toBe(previous);
+        expect(component.selected).toBeNull();
     });
 
     it('focuses the selected option when opening with a value', async () => {

@@ -132,6 +132,9 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
      */
     readonly editable = input<boolean>(true);
 
+    /** Accessible name of the touch drag grip each editable widget shows. */
+    readonly dragHandleLabel = input<string>('Drag to reorder');
+
     // Outputs
     /**
      * The complete next layout after a drag, resize, merge, split, delete or add.
