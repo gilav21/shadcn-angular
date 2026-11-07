@@ -107,6 +107,29 @@ describe('TypingAnimationComponent', () => {
         expect(comp.displayText()).toMatch(/^(O(n(l(y)?)?)?)?$/);
     });
 
+    it('should start typing again when an emptied list, or a list that began empty, is filled', () => {
+        const comp = getComp(fixture);
+        vi.advanceTimersByTime(200);
+        host.strings.set([]);
+        fixture.detectChanges();
+        vi.advanceTimersByTime(5000);
+        expect(comp.displayText()).toBe('');
+
+        host.strings.set(['Cat']);
+        fixture.detectChanges();
+        vi.advanceTimersByTime(500);
+        expect(comp.displayText()).toBe('Cat');
+
+        fixture.destroy();
+        fixture = TestBed.createComponent(TestHostComponent);
+        fixture.componentInstance.strings.set([]);
+        fixture.detectChanges();
+        fixture.componentInstance.strings.set(['Dog']);
+        fixture.detectChanges();
+        vi.advanceTimersByTime(500);
+        expect(getComp(fixture).displayText()).toBe('Dog');
+    });
+
     it('should render the cursor span when cursor input is true', () => {
         host.cursor.set(true);
         fixture.detectChanges();
