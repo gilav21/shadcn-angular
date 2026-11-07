@@ -72,6 +72,17 @@ describe('Pagination density and disabled (browser)', () => {
         expect(getComputedStyle(link).width).toBe('54px');
     });
 
+    it('custom-mode previous/next scale height and padding with --density', () => {
+        const fixture = TestBed.createComponent(DensityHost);
+        fixture.detectChanges();
+        const buttons = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('ui-pagination-previous button, ui-pagination-next button');
+        expect(buttons).toHaveLength(2);
+        for (const b of Array.from(buttons)) {
+            const style = getComputedStyle(b);
+            expect([style.height, style.paddingLeft, style.paddingTop]).toEqual(['54px', '24px', '12px']);
+        }
+    });
+
     it('custom-mode previous/next are dimmed when disabled', () => {
         const fixture = TestBed.createComponent(DensityHost);
         fixture.detectChanges();
