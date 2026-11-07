@@ -18,5 +18,5 @@ import { cn } from '../../../lib/utils';
 export class SelectSeparatorComponent {
     /** Extra classes merged onto the element this component renders, after its built-in styling. */
     readonly class = input('');
-    readonly classes = computed(() => cn('bg-border pointer-events-none -mx-1 my-1 h-px', this.class()));
+    readonly classes = computed(() => cn('block bg-border pointer-events-none -mx-1 my-1 h-px', this.class()));
 }
