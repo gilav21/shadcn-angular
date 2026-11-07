@@ -1,4 +1,4 @@
-<div [class]="classes()" [attr.data-slot]="'property-editor'">
+<div [class]="classes()" [attr.data-slot]="'property-editor'" [attr.dir]="dir()">
     <div class="flex-1 overflow-y-auto">
         @if (item()) {
             <div class="p-6 space-y-8">
@@ -39,12 +39,12 @@
                     </div>
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
-                             <h4 class="text-sm font-semibold text-foreground">Layout</h4>
-                             <span class="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Grid Config</span>
+                             <h4 class="text-sm font-semibold text-foreground">{{ t().layout }}</h4>
+                             <span class="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">{{ t().gridConfig }}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-1.5">
-                                <label for="pe-cols" class="text-xs font-medium text-muted-foreground">Columns (Width)</label>
+                                <label for="pe-cols" class="text-xs font-medium text-muted-foreground">{{ t().columnsWidth }}</label>
                                 <div class="relative">
                                     <input
                                         id="pe-cols"
@@ -60,7 +60,7 @@
                                 </div>
                             </div>
                             <div class="space-y-1.5">
-                                <label for="pe-rows" class="text-xs font-medium text-muted-foreground">Rows (Height)</label>
+                                <label for="pe-rows" class="text-xs font-medium text-muted-foreground">{{ t().rowsHeight }}</label>
                                 <div class="relative">
                                     <input
                                         id="pe-rows"
@@ -82,8 +82,8 @@
                     @if (componentMeta()?.inputs?.length) {
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
-                                <h4 class="text-sm font-semibold text-foreground">Settings</h4>
-                                <span class="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Props</span>
+                                <h4 class="text-sm font-semibold text-foreground">{{ t().settings }}</h4>
+                                <span class="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">{{ t().props }}</span>
                            </div>
 
                             @for (inputDef of componentMeta()?.inputs; track inputDef.name) {
@@ -96,10 +96,10 @@
                                         class="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
                                         [class.text-primary]="hasBinding(inputDef.name)"
                                         (click)="toggleBinding(inputDef.name)"
-                                        title="Toggle Data Binding"
+                                        [title]="t().toggleBinding"
                                     >
                                         <ui-icon name="box" class="h-3 w-3" />
-                                        {{ hasBinding(inputDef.name) ? 'Bound' : 'Static' }}
+                                        {{ hasBinding(inputDef.name) ? t().bound : t().static }}
                                     </button>
                                 </div>
 
@@ -111,7 +111,7 @@
                                             [ngModel]="getBinding(inputDef.name)"
                                             (ngModelChange)="onBindingChange(inputDef.name, $event)"
                                             class="flex h-10 w-full rounded-md border border-primary/50 bg-primary/5 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ps-8 font-mono text-primary"
-                                            placeholder="e.g. user.name"
+                                            [placeholder]="t().bindingPlaceholder"
                                         />
                                         <div class="absolute start-2.5 top-1/2 -translate-y-1/2 text-primary">
                                             <span class="text-xs font-bold">@</span>
@@ -133,7 +133,7 @@
                                                 [value]="getItemInput(inputDef.name)"
                                                 (valueChange)="onInputChange(inputDef.name, $event)"
                                                 [options]="inputDef.options || []"
-                                                [placeholder]="'Select ' + (inputDef.label || inputDef.name)"
+                                                [placeholder]="selectPlaceholder(inputDef.label || inputDef.name)"
                                             >
                                                 <ui-select-trigger class="w-full">
                                                     <ui-select-value />
@@ -169,7 +169,7 @@
                         (click)="delete.emit()"
                         >
                             <ui-icon name="trash-2" class="h-4 w-4" />
-                            Delete Component
+                            {{ t().deleteComponent }}
                         </button>
                     </div>
                 }
@@ -180,8 +180,8 @@
                 <div class="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-6">
                     <ui-icon name="mouse-pointer-click" class="h-10 w-10 opacity-50" />
                 </div>
-                <h3 class="font-medium text-foreground mb-2">No Selection</h3>
-                <p class="text-sm max-w-[200px]">Select an item on the board to edit its layout and properties.</p>
+                <h3 class="font-medium text-foreground mb-2">{{ t().noSelection }}</h3>
+                <p class="text-sm max-w-[200px]">{{ t().noSelectionHint }}</p>
             </div>
         }
     </div>

@@ -1,9 +1,9 @@
 <div [class]="classes()" [attr.data-slot]="'page-builder'" class="h-screen bg-background overflow-hidden flex">
     <!-- Sidebar -->
-    <aside aria-label="Components" class="w-full md:w-80 border-e bg-card flex flex-col border-e-border h-full">
+    <aside [attr.aria-label]="t().components" [attr.dir]="dir()" class="w-full md:w-80 border-e bg-card flex flex-col border-e-border h-full">
         <div class="h-14 border-b flex items-center px-4 font-semibold text-sm gap-2 bg-background/50 backdrop-blur shrink-0">
             <ui-icon name="box" class="h-4 w-4 text-muted-foreground"></ui-icon>
-            Components
+            {{ t().components }}
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain">
             @for (category of categories(); track category) {
@@ -24,7 +24,7 @@
                                 <button
                                     type="button"
                                     class="absolute end-1 top-1 flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                    [attr.aria-label]="'Add ' + comp.name"
+                                    [attr.aria-label]="addAriaLabel(comp.name)"
                                     [attr.data-slot]="'page-builder-palette-add'"
                                     (click)="addItem(comp)"
                                 >
@@ -49,7 +49,7 @@
             <div class="flex items-center gap-4">
                 <div class="flex items-center gap-2 text-sm font-medium">
                     <ui-icon name="layers" class="h-4 w-4"></ui-icon>
-                    <span>{{ items().length }} Items</span>
+                    <span>{{ itemsLabel() }}</span>
                 </div>
             </div>
 
@@ -61,10 +61,10 @@
                         [class.bg-primary]="simulatingData()"
                         [class.text-primary-foreground]="simulatingData()"
                         [class.bg-transparent]="!simulatingData()"
-                        title="Toggle Live Data Simulation"
+                        [title]="t().toggleSimulationTitle"
                     >
                         <ui-icon [name]="simulatingData() ? 'refresh-cw' : 'loader'" [class.animate-spin]="simulatingData()" class="h-3.5 w-3.5"></ui-icon>
-                        <span>{{ simulatingData() ? 'Stop Sim' : 'Live Demo' }}</span>
+                        <span>{{ simulatingData() ? t().stopSim : t().liveDemo }}</span>
                     </button>
                 </div>
 
@@ -72,46 +72,46 @@
                     (click)="toggleViewMode()"
                     class="h-9 px-3 rounded-md hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm transition-colors"
                     [class.bg-accent]="viewMode() === 'preview'"
-                    [title]="viewMode() === 'preview' ? 'Switch to Edit Mode' : 'Switch to Preview Mode'"
+                    [title]="viewMode() === 'preview' ? t().switchToEditTitle : t().switchToPreviewTitle"
                 >
                     <ui-icon [name]="viewMode() === 'preview' ? 'pencil' : 'eye'" class="h-4 w-4"></ui-icon>
-                    <span>{{ viewMode() === 'preview' ? 'Edit' : 'Preview' }}</span>
+                    <span>{{ viewMode() === 'preview' ? t().edit : t().preview }}</span>
                 </button>
                 <div class="h-4 w-px bg-border mx-2"></div>
                 <button
                     (click)="clearBoard()"
                     class="h-9 px-3 rounded-md hover:bg-destructive/10 hover:text-destructive flex items-center gap-2 text-sm transition-colors"
-                    title="Clear Board"
+                    [title]="t().clearBoardTitle"
                 >
                     <ui-icon name="trash-2" class="h-4 w-4"></ui-icon>
-                    <span>Clear</span>
+                    <span>{{ t().clear }}</span>
                 </button>
                 <button
                     (click)="importJson()"
                     class="h-9 px-3 rounded-md hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm transition-colors mr-2"
-                    title="Import Layout"
+                    [title]="t().importLayoutTitle"
                 >
                     <ui-icon name="upload" class="h-4 w-4"></ui-icon>
-                    Import
+                    {{ t().import }}
                 </button>
                 @if (enableSave()) {
                     <button
                         (click)="saveJson()"
                         class="h-9 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
-                        title="Save Layout"
+                        [title]="t().saveLayoutTitle"
                     >
                         <ui-icon name="save" class="h-4 w-4"></ui-icon>
-                        Save
+                        {{ t().save }}
                     </button>
                 }
                 @if (enableExport()) {
                     <button
                         (click)="exportJson()"
                         class="h-9 px-4 rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
-                        title="Export Layout as File"
+                        [title]="t().exportLayoutTitle"
                     >
                         <ui-icon name="download" class="h-4 w-4"></ui-icon>
-                        Export
+                        {{ t().export }}
                     </button>
                 }
             </div>
@@ -126,7 +126,7 @@
                         <div class="bg-background/50 p-6 rounded-full mb-4 ring-1 ring-border/50">
                             <ui-icon name="layout-template" class="h-8 w-8 opacity-50"></ui-icon>
                         </div>
-                        <p class="text-sm font-medium">Drag components here to build your page</p>
+                        <p class="text-sm font-medium">{{ t().emptyCanvas }}</p>
                     </div>
                 }
 
@@ -158,22 +158,23 @@
         id="import-json-input"
         accept=".json"
         hidden
-        aria-label="Import JSON"
+        [attr.aria-label]="t().importJsonLabel"
         (change)="handleFileInput($event)"
     >
 
     <!-- RIGHT INSPECTOR -->
     @if (viewMode() === 'edit') {
-        <aside aria-label="Properties" class="w-80 border-s bg-card flex flex-col border-s-border h-full">
+        <aside [attr.aria-label]="t().properties" [attr.dir]="dir()" class="w-80 border-s bg-card flex flex-col border-s-border h-full">
             <div class="h-14 border-b flex items-center px-4 font-semibold text-sm gap-2 bg-background/50 backdrop-blur shrink-0">
                 <ui-icon name="settings-2" class="h-4 w-4 text-muted-foreground"></ui-icon>
-                {{ selectedItemId() ? 'Properties' : 'Grid Settings' }}
+                {{ selectedItemId() ? t().properties : t().gridSettings }}
             </div>
             <div class="flex-1 overflow-auto p-4">
                 @if (selectedItemId()) {
                     <ui-property-editor
                         [item]="selectedItem()"
                         [componentMeta]="selectedComponentMeta()"
+                        [locale]="locale()"
                         [isLoading]="!!(selectedItemId() && !instanceMap().has(selectedItemId()!))"
                         (itemChange)="onItemChange($event)"
                         (delete)="onDeleteItem()"
@@ -183,12 +184,12 @@
                         <div class="space-y-4">
                             <div class="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                 <ui-icon name="grid" class="h-3 w-3"></ui-icon>
-                                Layout Configuration
+                                {{ t().layoutConfiguration }}
                             </div>
 
                             <div class="space-y-3 p-3 rounded-lg border bg-muted/30">
                                 <div class="space-y-1.5">
-                                    <label for="pb-row-height" class="text-xs font-medium">Row Height</label>
+                                    <label for="pb-row-height" class="text-xs font-medium">{{ t().rowHeight }}</label>
                                     <input
                                         id="pb-row-height"
                                         type="text"
@@ -196,12 +197,12 @@
                                         (ngModelChange)="gridRowHeight.set($event)"
                                         (blur)="updateGridSetting(gridRowHeight, gridRowHeight())"
                                         class="w-full h-8 px-2 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary outline-none"
-                                        placeholder="e.g. 100px"
+                                        [placeholder]="example('100px')"
                                     >
                                 </div>
 
                                  <div class="space-y-1.5">
-                                     <label for="pb-gap-size" class="text-xs font-medium">Gap Size</label>
+                                     <label for="pb-gap-size" class="text-xs font-medium">{{ t().gapSize }}</label>
                                      <input
                                          id="pb-gap-size"
                                          type="text"
@@ -209,7 +210,7 @@
                                          (ngModelChange)="gridGap.set($event)"
                                          (blur)="updateGridSetting(gridGap, gridGap())"
                                          class="w-full h-8 px-2 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary outline-none"
-                                         placeholder="e.g. 1rem"
+                                         [placeholder]="example('1rem')"
                                      >
                                  </div>
 
@@ -217,12 +218,12 @@
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center gap-2">
                                             <ui-icon name="box-select" class="h-3 w-3 text-muted-foreground"></ui-icon>
-                                            <span class="text-xs font-medium">Square Cells (Symmetry)</span>
+                                            <span class="text-xs font-medium">{{ t().squareCells }}</span>
                                         </div>
                                         <button
                                             type="button"
                                             role="switch"
-                                            aria-label="Square Cells (Symmetry)"
+                                            [attr.aria-label]="t().squareCells"
                                             [attr.aria-checked]="gridSquareCells()"
                                             (click)="toggleSquareCells()"
                                             class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -238,10 +239,10 @@
 
                                     @if (!gridSquareCells()) {
                                         <div class="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                                            <span class="text-xs font-medium text-muted-foreground">Column Configuration</span>
+                                            <span class="text-xs font-medium text-muted-foreground">{{ t().columnConfiguration }}</span>
                                             <div class="grid grid-cols-2 gap-2">
                                                 <div class="space-y-1">
-                                                    <span class="text-[10px] text-muted-foreground">Count</span>
+                                                    <span class="text-[10px] text-muted-foreground">{{ t().count }}</span>
                                                     <input
                                                         type="number"
                                                         [(ngModel)]="gridCols"
@@ -249,14 +250,14 @@
                                                     >
                                                 </div>
                                                 <div class="space-y-1">
-                                                    <span class="text-[10px] text-muted-foreground">Width</span>
+                                                    <span class="text-[10px] text-muted-foreground">{{ t().width }}</span>
                                                     <input
                                                         type="text"
                                                         [ngModel]="gridColumnWidth()"
                                                         (ngModelChange)="gridColumnWidth.set($event)"
                                                         (blur)="updateGridSetting(gridColumnWidth, gridColumnWidth())"
                                                         class="w-full h-8 px-2 rounded-md border bg-background text-xs focus:ring-1 focus:ring-primary outline-none"
-                                                        placeholder="1fr or px"
+                                                        [placeholder]="t().columnWidthPlaceholder"
                                                     >
                                                 </div>
                                             </div>
@@ -266,11 +267,11 @@
 
                                 <div class="space-y-1.5 pt-2 border-t border-border/50">
                                     <div class="flex items-center justify-between">
-                                        <span class="text-xs font-medium">Show Borders (Preview)</span>
+                                        <span class="text-xs font-medium">{{ t().showBorders }}</span>
                                         <button
                                             type="button"
                                             role="switch"
-                                            aria-label="Show Borders (Preview)"
+                                            [attr.aria-label]="t().showBorders"
                                             [attr.aria-checked]="gridShowBorders()"
                                             (click)="gridShowBorders.set(!gridShowBorders())"
                                             class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -286,7 +287,7 @@
                                 </div>
 
                                  <div class="space-y-1.5">
-                                     <label for="pb-border-radius" class="text-xs font-medium">Border Radius</label>
+                                     <label for="pb-border-radius" class="text-xs font-medium">{{ t().borderRadius }}</label>
                                      <div class="flex items-center gap-2">
                                          <input
                                              id="pb-border-radius"
@@ -295,7 +296,7 @@
                                              (ngModelChange)="gridBorderRadius.set($event)"
                                              (blur)="updateGridSetting(gridBorderRadius, gridBorderRadius())"
                                              class="flex-1 h-8 px-2 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary outline-none"
-                                             placeholder="e.g. 0.75rem"
+                                             [placeholder]="example('0.75rem')"
                                          >
                                          <div class="flex gap-1">
                                              <button (click)="gridBorderRadius.set('0px')" class="h-6 w-6 pointer-coarse:size-11 rounded border text-[10px] flex items-center justify-center hover:bg-accent">0</button>
@@ -306,7 +307,7 @@
                                  </div>
 
                                  <div class="space-y-1.5 pt-2 border-t border-border/50">
-                                    <label for="pb-item-padding" class="text-xs font-medium">Item Padding (Fix Snapping)</label>
+                                    <label for="pb-item-padding" class="text-xs font-medium">{{ t().itemPadding }}</label>
                                     <div class="flex items-center gap-2">
                                         <input
                                             id="pb-item-padding"
@@ -315,18 +316,18 @@
                                             (ngModelChange)="gridItemPadding.set($event)"
                                             (blur)="updateGridSetting(gridItemPadding, gridItemPadding())"
                                             class="flex-1 h-8 px-2 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary outline-none"
-                                            placeholder="e.g. 1rem"
+                                            [placeholder]="example('1rem')"
                                         >
-                                        <button (click)="gridItemPadding.set('0px')" class="h-8 px-2 rounded border text-[10px] hover:bg-accent">None</button>
+                                        <button (click)="gridItemPadding.set('0px')" class="h-8 px-2 rounded border text-[10px] hover:bg-accent">{{ t().none }}</button>
                                     </div>
-                                    <p class="text-[10px] text-muted-foreground">Reduce padding to allow items to fit in very small rows (< 30px).</p>
+                                    <p class="text-[10px] text-muted-foreground">{{ t().itemPaddingHint }}</p>
                                  </div>
                              </div>
                          </div>
 
                         <div class="p-4 rounded-xl bg-primary/5 border border-primary/10 text-xs text-muted-foreground leading-relaxed">
-                            <p class="font-medium text-primary mb-1">Tip:</p>
-                            Use standard CSS units like px, rem, or vh to customize your grid's spacing.
+                            <p class="font-medium text-primary mb-1">{{ t().tip }}</p>
+                            {{ t().tipBody }}
                         </div>
                     </div>
                 }

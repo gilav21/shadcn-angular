@@ -28,6 +28,8 @@ import { FormsModule } from '@angular/forms';
 import { PropertyEditorComponent } from './sub/property-editor.component';
 import { cn } from '../../lib/utils';
 import { IconComponent } from '../icon';
+import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
+import { PAGE_BUILDER_LOCALES, type PageBuilderLocale } from './page-builder.locales';
 
 @Component({
     selector: 'ui-page-builder',
@@ -45,6 +47,24 @@ import { IconComponent } from '../icon';
 export class PageBuilderComponent implements OnDestroy {
     /** Extra classes merged onto the builder shell, after the built-in `flex h-full w-full overflow-hidden` utilities. The shell fills its parent, so give that parent a height. */
     class = input('');
+    /** Locale dictionary or registry key, also forwarded to the property inspector. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<PageBuilderLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, PAGE_BUILDER_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
+
+    /** Localised `aria-label` of a palette tile's add button. */
+    protected addAriaLabel(name: string): string {
+        return interpolate(this.t().addComponent, { name });
+    }
+
+    /** Localised toolbar item counter. */
+    protected readonly itemsLabel = computed(() => interpolate(this.t().itemsCount, { count: this.items().length }));
+
+    /** Localised placeholder showing a sample CSS value. */
+    protected example(value: string): string {
+        return interpolate(this.t().exampleValue, { value });
+    }
     /**
      * The palette of components the user may drop onto the canvas, keyed by
      * `ComponentMeta.id`. It is also the lookup used when loading a layout:
@@ -472,7 +492,7 @@ export class PageBuilderComponent implements OnDestroy {
             const data = JSON.parse(jsonString);
 
             if (!data.grid || !Array.isArray(data.items)) {
-                alert('Invalid layout file format');
+                alert(this.t().invalidLayout);
                 return;
             }
 
@@ -480,7 +500,7 @@ export class PageBuilderComponent implements OnDestroy {
             this.applyLayout(data as PageData);
         } catch (err) {
             console.error('Failed to parse layout file:', err);
-            alert('Failed to parse layout file');
+            alert(this.t().parseFailed);
         }
     }
 

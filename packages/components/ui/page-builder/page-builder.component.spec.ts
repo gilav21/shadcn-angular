@@ -80,6 +80,23 @@ describe('PageBuilderComponent', () => {
         expect(widget.nativeElement.textContent).toContain('Mock Widget');
     });
 
+    it('speaks the chosen locale in the palette, toolbar, canvas and inspector, interpolating the add label', () => {
+        fixture.componentRef.setInput('locale', 'de');
+        fixture.detectChanges();
+        const el = fixture.nativeElement as HTMLElement;
+        expect(el.querySelector('aside')!.getAttribute('aria-label')).toBe('Komponenten');
+        expect(el.querySelector('[data-slot="page-builder-palette-add"]')!.getAttribute('aria-label')).toBe('Mock Widget hinzufügen');
+        expect(el.textContent).toContain('0 Elemente');
+        expect(el.textContent).toContain('Komponenten hierher ziehen');
+        expect(el.textContent).toContain('Rastereinstellungen');
+        expect(el.textContent).toContain('Zeilenhöhe');
+        expect(el.textContent).not.toContain('Row Height');
+
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        expect(el.querySelector('aside')!.getAttribute('dir')).toBe('rtl');
+    });
+
     it('should update grid settings', () => {
         component.gridRowHeight.set('150px');
         fixture.detectChanges();
