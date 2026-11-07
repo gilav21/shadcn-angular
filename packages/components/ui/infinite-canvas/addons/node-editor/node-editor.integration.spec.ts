@@ -421,7 +421,12 @@ describe('the drain lets the browser breathe', () => {
             expect(resolved).toBe(false);
 
             // The floor (or the frame, whichever the fake clock fires first) lets it through.
-            await vi.advanceTimersByTimeAsync(32);
+            // Stepped rather than one 32ms jump: the resolution is a timer callback plus a
+            // microtask hop, and under a full coverage run a single advance was observed to
+            // return before that hop had run. The cap only bounds a genuine hang.
+            for (let step = 0; step < 20 && !resolved; step++) {
+                await vi.advanceTimersByTimeAsync(16);
+            }
             expect(resolved).toBe(true);
         } finally {
             vi.useRealTimers();
