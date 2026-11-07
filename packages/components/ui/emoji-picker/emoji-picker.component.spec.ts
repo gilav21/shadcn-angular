@@ -333,6 +333,35 @@ describe('EmojiPickerComponent', () => {
         expect(content.activeCategory()).toBe('smileys');
     });
 
+    it('keeps ignoring scroll events while a smooth scroll has not taken its first step yet', () => {
+        open();
+        const content = contentInstance();
+        const scrollArea = fixture.debugElement.query(By.directive(ScrollAreaComponent))
+            .componentInstance as ScrollAreaComponent;
+        (content as unknown as ContentInternals).scrollArea = scrollArea;
+        vi.runAllTimers();
+
+        const viewport = scrollArea.viewportRef?.nativeElement as HTMLElement;
+        const sections = Array.from(
+            contentEl().querySelectorAll('[data-category]')
+        ) as HTMLElement[];
+        sections.forEach((section, index) => {
+            Object.defineProperty(section, 'offsetTop', { value: index * 1000, configurable: true });
+        });
+        // Already aligned: the only thing keeping the scroll-spy off is waiting for the animation's first step.
+        sections.forEach(section => { section.getBoundingClientRect = () => viewport.getBoundingClientRect(); });
+        Object.defineProperty(viewport, 'scrollTop', { value: 0, configurable: true });
+
+        const foodTab = Array.from(
+            contentEl().querySelectorAll('.border-b button')
+        ).find(b => b.textContent?.trim() === '🍔') as HTMLButtonElement;
+        foodTab.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        vi.advanceTimersByTime(250);
+
+        viewport.dispatchEvent(new Event('scroll'));
+        expect(content.activeCategory()).toBe('food');
+    });
+
     it('onScroll is inert once the scroll area is gone', () => {
         open();
         const content = contentInstance();
