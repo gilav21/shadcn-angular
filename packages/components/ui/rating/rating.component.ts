@@ -9,6 +9,7 @@ import {
   output,
   inject,
   ElementRef,
+  viewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, isRtl } from '../../lib/utils';
@@ -111,6 +112,7 @@ export class RatingComponent implements ControlValueAccessor {
   private onTouched: () => void = () => { };
 
   private readonly el = inject(ElementRef);
+  private readonly rangeInput = viewChild<ElementRef<HTMLInputElement>>('rangeInput');
 
   /**
    * Resolves text direction from the host's computed style rather than an input, so
@@ -289,7 +291,7 @@ export class RatingComponent implements ControlValueAccessor {
    * the picked value.
    */
   private focusRangeInput(): void {
-    (this.el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[type="range"]')?.focus({ preventScroll: true });
+    this.rangeInput()?.nativeElement.focus({ preventScroll: true });
   }
 
   /**
