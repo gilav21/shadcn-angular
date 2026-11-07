@@ -98,11 +98,11 @@ describe('TypingAnimationComponent', () => {
         host.strings.set(['Hello', 'World', 'Third']);
         fixture.detectChanges();
         const comp = getComp(fixture);
-        // Run through Hello and World so the index points at 'Third'.
-        vi.advanceTimersByTime(60_000);
+        // Hello and World take 2200ms each; at 4800ms the run is pausing on Third (index 2).
+        vi.advanceTimersByTime(4800);
         host.strings.set(['Only']);
         fixture.detectChanges();
-        expect(() => vi.advanceTimersByTime(60_000)).not.toThrow();
+        expect(() => vi.advanceTimersByTime(10_000)).not.toThrow();
         fixture.detectChanges();
         expect(comp.displayText()).toMatch(/^(O(n(l(y)?)?)?)?$/);
     });
