@@ -27,6 +27,8 @@ export const COMPONENT_DENSITY_VARS: Record<string, string> = {
     switch: '--density-switch',
     menu: '--density-menu',
     dialog: '--density-dialog',
+    'alert-dialog': '--density-alert-dialog',
+    sheet: '--density-sheet',
     accordion: '--density-accordion',
     radio: '--density-radio',
     slider: '--density-slider',
