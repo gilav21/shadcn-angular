@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { afterEach, describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import { DockComponent, DockItemData } from './dock.component';
 
@@ -30,6 +30,16 @@ class PositionHost {
 })
 class NaturalHost {
     readonly items: DockItemData[] = ['A', 'B', 'C', 'D'].map(icon => ({ label: icon, icon }));
+    readonly position = signal<'left' | 'right'>('left');
+}
+
+@Component({
+    template: `<ui-dock [items]="items" [position]="position()" />`,
+    imports: [DockComponent],
+})
+class TallHost {
+    // 40 items at 40px each is well past any test viewport height.
+    readonly items: DockItemData[] = Array.from({ length: 40 }, (_, i) => ({ label: `Item ${i}`, icon: String(i) }));
     readonly position = signal<'left' | 'right'>('left');
 }
 
@@ -92,6 +102,24 @@ describe('DockComponent layout (browser)', () => {
         expect(items).toHaveLength(4);
         expect(items.at(-1)!.bottom).toBeLessThanOrEqual(box.bottom);
         expect(bar.scrollHeight).toBeLessThanOrEqual(bar.clientHeight);
+        // Any non-visible overflow would clip the label beside an item, so a column that fits must not scroll.
+        expect(getComputedStyle(bar).overflowY).toBe('visible');
+    });
+
+    it.each(['left', 'right'] as const)('should scroll a %s column taller than the viewport and reach its last item', async position => {
+        const fixture = TestBed.createComponent(TallHost);
+        fixture.componentInstance.position.set(position);
+        fixture.detectChanges();
+        const bar = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-slot="dock"]')!;
+        // The scroll class is applied from an observer callback, so wait for it to settle.
+        await vi.waitFor(() => expect(getComputedStyle(bar).overflowY).toBe('auto'));
+        expect(bar.scrollHeight).toBeGreaterThan(bar.clientHeight);
+        expect(bar.getBoundingClientRect().height).toBeLessThanOrEqual(globalThis.innerHeight);
+
+        const last = [...bar.querySelectorAll<HTMLElement>('ui-dock-item')].at(-1)!;
+        last.scrollIntoView();
+        const rect = last.getBoundingClientRect();
+        expect(last.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2))).toBe(true);
     });
 
     describe('hover label', () => {

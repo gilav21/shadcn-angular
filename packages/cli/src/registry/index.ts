@@ -550,6 +550,7 @@ export const registry = defineRegistry({
     description: 'macOS-style dock of icons that magnify on hover for quick app navigation.',
     tags: ['dock', 'launcher', 'taskbar', 'icons', 'navigation'],
     files: ['dock/dock.component.html', 'dock/dock.component.ts', 'dock/index.ts', 'dock/sub/dock-icon.component.html', 'dock/sub/dock-icon.component.ts', 'dock/sub/dock-item.component.html', 'dock/sub/dock-item.component.ts', 'dock/sub/dock-label.component.html', 'dock/sub/dock-label.component.ts'],
+    libFiles: ['observers.ts'],
     testFiles: ['dock/dock.component.spec.ts', 'dock/sub/dock-icon.component.spec.ts', 'dock/sub/dock-item.component.spec.ts', 'dock/sub/dock-label.component.spec.ts'],
   },
   'tree-select': {
