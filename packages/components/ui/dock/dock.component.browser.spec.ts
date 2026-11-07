@@ -141,6 +141,9 @@ describe('DockComponent layout (browser)', () => {
                 await userEvent.hover(item);
 
                 const label = item.querySelector('[data-slot="dock-label"]')!;
+                // The label is display:none until the :hover style lands, which can lag a frame behind the
+                // synthetic mouse event under load; measuring before that probes an empty rectangle.
+                await vi.waitFor(() => expect(getComputedStyle(label).display).not.toBe('none'));
                 const rect = label.getBoundingClientRect();
                 const icon = item.querySelector('[data-slot="dock-icon"]')!.getBoundingClientRect();
                 const topmost = (x: number, y: number) => document.elementFromPoint(x, y);
