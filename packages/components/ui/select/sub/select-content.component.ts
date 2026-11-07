@@ -172,10 +172,19 @@ export class SelectContentComponent implements AfterViewInit {
     /**
      * Roving-focus key handler over the projected `<ui-select-item>` elements:
      * arrows move focus and wrap around the ends, Enter/Space click the focused
-     * item. Items marked `data-disabled` are excluded from the ring.
+     * item, Tab closes and returns focus to the trigger. Items marked `data-disabled` are excluded from the ring.
      */
     onKeydown(event: KeyboardEvent): void {
         if (!this.contentEl?.nativeElement) return;
+
+        if (event.key === 'Tab') {
+            // The panel unmounts on close; without this the browser moves focus on from
+            // an item that is about to disappear, leaving the page's tab order mid-list.
+            event.preventDefault();
+            this.select?.close();
+            this.select?.getTriggerElement()?.focus();
+            return;
+        }
 
         const items = Array.from(this.contentEl.nativeElement.querySelectorAll<HTMLElement>('[data-slot="select-item"]:not([data-disabled])'));
 

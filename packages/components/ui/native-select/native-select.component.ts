@@ -76,7 +76,7 @@ export class NativeSelectComponent implements ControlValueAccessor {
 
   classes = computed(() => cn(
     'border-input placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground',
-    'w-full min-w-0 appearance-none rounded-md border bg-transparent px-3 pr-9 rtl:pr-3 rtl:pl-9 text-sm shadow-xs',
+    'w-full min-w-0 appearance-none rounded-md border bg-transparent text-sm shadow-xs',
     'transition-[color,box-shadow] outline-none',
     'disabled:pointer-events-none disabled:cursor-not-allowed',
     'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',

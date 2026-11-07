@@ -4,6 +4,7 @@ import {
   input,
   computed,
   inject,
+  ElementRef,
   InjectionToken,
   forwardRef,
 } from '@angular/core';
@@ -23,6 +24,7 @@ let nextId = 0;
     <li
       [class]="classes()"
       [attr.data-slot]="'navigation-menu-item'"
+      [attr.data-item-id]="id"
       role="none"
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
@@ -42,6 +44,7 @@ export class NavigationMenuItemComponent {
   class = input('');
   id = `nav-menu-item-${nextId++}`;
   readonly service = inject(NavigationMenuService);
+  private readonly host = inject(ElementRef);
 
   isOpen = computed(() => this.service.isActive(this.id));
 
@@ -67,9 +70,14 @@ export class NavigationMenuItemComponent {
    * schedules the close 150ms out ({@link NavigationMenuService.scheduleClose}) rather than
    * closing at once, so the pointer can cross the gap between trigger and panel. Because the
    * dropdown is rendered inside this `<li>`, moving into the panel does not fire this handler.
+   * Does nothing while keyboard focus is inside the open panel or on its trigger.
    */
   onMouseLeave(): void {
     if (isTouchDevice()) return;
+    // A panel the keyboard is inside must not close under a stray pointer.
+    const host: HTMLElement = this.host.nativeElement;
+    const active = host.ownerDocument.activeElement;
+    if (this.isOpen() && active && host.contains(active) && active.matches(':focus-visible')) return;
     this.service.scheduleClose();
   }
 
