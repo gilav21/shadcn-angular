@@ -2325,6 +2325,7 @@
       "stepper/index.ts",
       "stepper/stepper.component.html",
       "stepper/stepper.component.ts",
+      "stepper/stepper.utils.ts",
       "stepper/sub/stepper-content.component.ts",
       "stepper/sub/stepper-description.component.ts",
       "stepper/sub/stepper-item.component.ts",

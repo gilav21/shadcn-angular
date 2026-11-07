@@ -16591,7 +16591,7 @@
         {
           "name": "orientation",
           "type": "\"horizontal\" | \"vertical\"",
-          "description": "Lays the steps out in a row (`horizontal`, the default) or a column (`vertical`). Horizontal additionally renders a connector bar after every step but the last — both here and in {@link StepperItemComponent} — and lets the row scroll on overflow; vertical renders none and switches each item to an icon-beside-text row.",
+          "description": "Lays the steps out in a row (`horizontal`, the default) or a column (`vertical`). Both orientations render one connector bar after every step but the last — here and in {@link StepperItemComponent}, which skips it when a `ui-stepper-separator` is projected into the item. Horizontal also lets the row scroll on overflow; vertical switches each item to an icon-beside-text row.",
           "default": "'horizontal'"
         },
         {

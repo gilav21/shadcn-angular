@@ -70,8 +70,8 @@
       "lines": 51
     },
     "alert-dialog/alert-dialog.density.browser.spec.ts": {
-      "bytes": 1530,
-      "lines": 34
+      "bytes": 1777,
+      "lines": 40
     },
     "alert-dialog/alert-dialog.stories.ts": {
       "bytes": 6287,
@@ -2954,8 +2954,8 @@
       "lines": 286
     },
     "infinite-canvas/addons/node-editor/node-editor.integration.spec.ts": {
-      "bytes": 18470,
-      "lines": 484
+      "bytes": 18821,
+      "lines": 489
     },
     "infinite-canvas/addons/node-editor/node-editor.layout.spec.ts": {
       "bytes": 10659,
@@ -4046,8 +4046,8 @@
       "lines": 491
     },
     "popover/popover.offset.browser.spec.ts": {
-      "bytes": 3150,
-      "lines": 69
+      "bytes": 6160,
+      "lines": 136
     },
     "popover/popover.stories.ts": {
       "bytes": 6286,
@@ -4062,8 +4062,8 @@
       "lines": 6
     },
     "popover/sub/popover-content.component.ts": {
-      "bytes": 20086,
-      "lines": 478
+      "bytes": 21746,
+      "lines": 507
     },
     "popover/sub/popover-trigger.component.ts": {
       "bytes": 2263,
@@ -5342,8 +5342,8 @@
       "lines": 63
     },
     "sheet/sub/sheet-content.component.css": {
-      "bytes": 375,
-      "lines": 15
+      "bytes": 297,
+      "lines": 13
     },
     "sheet/sub/sheet-content.component.ts": {
       "bytes": 6023,
@@ -5906,8 +5906,8 @@
       "lines": 7
     },
     "stepper/stepper.component.browser.spec.ts": {
-      "bytes": 5674,
-      "lines": 147
+      "bytes": 7615,
+      "lines": 187
     },
     "stepper/stepper.component.html": {
       "bytes": 2097,
@@ -5918,8 +5918,8 @@
       "lines": 278
     },
     "stepper/stepper.component.ts": {
-      "bytes": 10603,
-      "lines": 263
+      "bytes": 10613,
+      "lines": 261
     },
     "stepper/stepper.coverage.spec.ts": {
       "bytes": 7823,
@@ -5933,6 +5933,10 @@
       "bytes": 15020,
       "lines": 340
     },
+    "stepper/stepper.utils.ts": {
+      "bytes": 864,
+      "lines": 23
+    },
     "stepper/sub/stepper-content.component.ts": {
       "bytes": 1132,
       "lines": 39
@@ -5942,12 +5946,12 @@
       "lines": 29
     },
     "stepper/sub/stepper-item.component.ts": {
-      "bytes": 2451,
-      "lines": 67
+      "bytes": 3026,
+      "lines": 76
     },
     "stepper/sub/stepper-separator.component.ts": {
-      "bytes": 1268,
-      "lines": 43
+      "bytes": 1433,
+      "lines": 46
     },
     "stepper/sub/stepper-title.component.ts": {
       "bytes": 665,

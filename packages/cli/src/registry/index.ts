@@ -896,7 +896,7 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Multi-step progress indicator for wizards and sequential flows.',
     tags: ['stepper', 'steps', 'wizard', 'progress', 'multi-step'],
-    files: ['stepper/index.ts', 'stepper/stepper.component.html', 'stepper/stepper.component.ts', 'stepper/sub/stepper-content.component.ts', 'stepper/sub/stepper-description.component.ts', 'stepper/sub/stepper-item.component.ts', 'stepper/sub/stepper-separator.component.ts', 'stepper/sub/stepper-title.component.ts', 'stepper/sub/stepper-trigger.component.ts'],
+    files: ['stepper/index.ts', 'stepper/stepper.component.html', 'stepper/stepper.component.ts', 'stepper/stepper.utils.ts', 'stepper/sub/stepper-content.component.ts', 'stepper/sub/stepper-description.component.ts', 'stepper/sub/stepper-item.component.ts', 'stepper/sub/stepper-separator.component.ts', 'stepper/sub/stepper-title.component.ts', 'stepper/sub/stepper-trigger.component.ts'],
     testFiles: ['stepper/stepper.component.spec.ts', 'stepper/stepper.coverage.spec.ts', 'stepper/stepper.guard.spec.ts'],
   },
   switch: {
