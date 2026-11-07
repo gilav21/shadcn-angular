@@ -1282,7 +1282,7 @@ Drag-and-drop visual builder for composing pages from configurable blocks.
 - Category: editor
 - Depends on: `bento-grid`, `icon`, `select`, `switch`
 - npm dependencies: none
-- Inputs: `class: string = ''`, `components: ComponentMeta[] = []`, `data: PageData | undefined`, `enableExport: boolean = false`, `enableSave: boolean = true`
+- Inputs: `class: string = ''`, `components: ComponentMeta[] = []`, `data: PageData | undefined`, `enableExport: boolean = false`, `enableSave: boolean = true`, `locale: LocaleInput<PageBuilderLocale>`
 - Outputs: `save: PageData`, `viewModeChange: PageBuilderViewMode`
 
 ```html
@@ -2633,7 +2633,7 @@ In-browser viewer rendering PDF, DOCX, XLSX, images, and other documents.
 - Category: media
 - Depends on: `spinner`
 - npm dependencies: none
-- Inputs: `class: string = ''`, `file: File | Blob | null = null`, `filename: string = ''`, `height: string = '600px'`, `page: number = 1`, `src: string = ''`, `type: FileViewerType | '' = ''`, `zoom: number = 1`
+- Inputs: `class: string = ''`, `file: File | Blob | null = null`, `filename: string = ''`, `height: string = '600px'`, `locale: LocaleInput<FileViewerLocale>`, `page: number = 1`, `src: string = ''`, `type: FileViewerType | '' = ''`, `zoom: number = 1`
 - Outputs: `loaded: FileViewerLoadedEvent`, `loadError: FileViewerErrorEvent`, `pageChange: number`, `zoomChange: number`
 
 ```html

@@ -7506,6 +7506,11 @@
           "default": "'600px'"
         },
         {
+          "name": "locale",
+          "type": "LocaleInput<FileViewerLocale>",
+          "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set."
+        },
+        {
           "name": "page",
           "type": "number",
           "description": "Initial 1-based page/slide for paginated types (PDF, PPT/PPTX). Same seed-not-binding semantics as {@link zoom} — read {@link pageChange} for the live value. Ignored by non-paginated types.",
@@ -10802,6 +10807,11 @@
           "type": "boolean",
           "description": "Show the \"Save\" button in the toolbar. Clicking it emits the current layout via the (save) output. Default: true.",
           "default": "true"
+        },
+        {
+          "name": "locale",
+          "type": "LocaleInput<PageBuilderLocale>",
+          "description": "Locale dictionary or registry key, also forwarded to the property inspector. Falls back to `UI_LOCALE_ID` when not set."
         }
       ],
       "outputs": [
@@ -10876,6 +10886,11 @@
           "name": "item",
           "type": "DashboardItem | undefined",
           "description": "The widget being edited. `undefined` renders the empty state; the editor never mutates it, it only emits {@link itemChange}."
+        },
+        {
+          "name": "locale",
+          "type": "LocaleInput<PropertyEditorLocale>",
+          "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set."
         }
       ],
       "outputs": [
