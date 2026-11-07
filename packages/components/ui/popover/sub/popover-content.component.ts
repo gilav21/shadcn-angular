@@ -10,6 +10,7 @@ import {
     effect,
     ViewChild,
     ElementRef,
+    ChangeDetectorRef,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn, getClippingRect } from '../../../lib/utils';
@@ -44,6 +45,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     readonly popover = inject(POPOVER, { optional: true });
     private readonly document = inject(DOCUMENT);
     private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
+    private readonly cdr = inject(ChangeDetectorRef);
 
     /** Extra classes merged onto the panel. Keep a width constraint viewport-aware (`max-w-[calc(100vw-2rem)]`), since the panel is positioned, not laid out by its parent. */
     class = input('');
@@ -287,10 +289,37 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         this.adjustCollisionPosition(this.contentEl.nativeElement);
     }
 
+    /**
+     * Invariant: with `avoidCollisions` on, a fixed top/bottom panel never sits over its trigger
+     * when the opposite side has more room. The absolute strategy flips through
+     * `adjustCollisionPosition`; here the clamp below would otherwise pin an overflowing panel to
+     * the viewport edge on top of the trigger. Flips when the opposite side fits the panel, or —
+     * when neither fits — when it is simply the roomier one; the clamp then trims what is left.
+     * Returns whether the side changed (the styles are re-rendered, so the caller re-measures).
+     */
+    private flipFixedSide(rect: DOMRect, vh: number): boolean {
+        const side = this.adjustedPosition().side;
+        if (!this.avoidCollisions() || (side !== 'top' && side !== 'bottom')) return false;
+        const overflows = side === 'top' ? rect.top < 0 : rect.bottom > vh;
+        const triggerRect = this.popover?.getTriggerRect();
+        if (!overflows || !triggerRect) return false;
+
+        const boundary = { top: 0, bottom: vh };
+        const opposite = side === 'top' ? 'bottom' : 'top';
+        const roomThere = this.getAvailableSpace(opposite, triggerRect, boundary);
+        const roomHere = this.getAvailableSpace(side, triggerRect, boundary);
+        if (roomThere < rect.height + this.sideOffset() && roomThere <= roomHere) return false;
+
+        this.adjustedPosition.update(pos => ({ ...pos, side: opposite }));
+        this.cdr.detectChanges();
+        return true;
+    }
+
     private adjustFixedPosition(el: HTMLElement): void {
-        const rect = el.getBoundingClientRect();
+        let rect = el.getBoundingClientRect();
         const vw = globalThis.window.innerWidth;
         const vh = globalThis.window.innerHeight;
+        if (this.flipFixedSide(rect, vh)) rect = el.getBoundingClientRect();
         const needsHorizontalFix = rect.right > vw || rect.left < 0;
         const needsVerticalFix = rect.bottom > vh || rect.top < 0;
 
@@ -460,10 +489,10 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
             end: 'right-0',
         };
         const sideClasses = {
-            top: 'bottom-full mb-[var(--popover-offset)]',
-            bottom: 'top-full mt-[var(--popover-offset)]',
-            left: 'right-full me-[var(--popover-offset)] top-0',
-            right: 'left-full ms-[var(--popover-offset)] top-0',
+            top: 'bottom-full mb-[var(--popover-offset,4px)]',
+            bottom: 'top-full mt-[var(--popover-offset,4px)]',
+            left: 'right-full me-[var(--popover-offset,4px)] top-0',
+            right: 'left-full ms-[var(--popover-offset,4px)] top-0',
         };
         const isFixed = this.strategy() === 'fixed';
         return cn(
