@@ -30,7 +30,6 @@ import { PAGINATION_LOCALES, type PaginationLocale } from './pagination.locales'
               [class]="navButtonClasses()"
               [disabled]="currentPage() <= 1"
               data-slot="pagination-previous"
-              data-size="default"
               (click)="onPageChange(currentPage() - 1)">
               <svg class="h-4 w-4 rtl:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -57,7 +56,6 @@ import { PAGINATION_LOCALES, type PaginationLocale } from './pagination.locales'
                   [class]="pageLinkClasses(page === currentPage())"
                   [attr.aria-current]="page === currentPage() ? 'page' : null"
                   data-slot="pagination-link"
-                  data-size="icon"
                   (click)="onPageChange(page)">
                   {{ page }}
                 </button>
@@ -72,7 +70,6 @@ import { PAGINATION_LOCALES, type PaginationLocale } from './pagination.locales'
               [class]="navButtonClasses()"
               [disabled]="currentPage() >= totalPages()"
               data-slot="pagination-next"
-              data-size="default"
               (click)="onPageChange(currentPage() + 1)">
               <span>{{ t().next }}</span>
               <svg class="h-4 w-4 rtl:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
