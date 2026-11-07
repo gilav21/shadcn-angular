@@ -58,7 +58,8 @@ describe('RichTextViewComponent typography (browser)', () => {
     it('keeps mention and tag chips visibly styled after the sanitizer strips their class', () => {
         fixture.componentRef.setInput('value',
             '<p>Hi <span class="bg-accent rounded px-1" data-mention="ada" data-mention-id="1">@Ada</span>'
-            + ' <a href="https://example.com/t/news" class="x" data-tag="news" data-tag-id="2">#news</a></p>');
+            + ' <a href="https://example.com/t/news" class="x" data-tag="news" data-tag-id="2">#news</a></p>'
+            + '<div data-mention="blk">Not a chip</div>');
         fixture.detectChanges();
 
         const mention = content().querySelector<HTMLElement>('[data-mention]')!;
@@ -69,6 +70,9 @@ describe('RichTextViewComponent typography (browser)', () => {
             expect(style.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
             expect(px(style.paddingLeft)).toBeGreaterThan(0);
         }
+        // Only the elements the mentions addon emits are chips; pasted markup
+        // carrying the attribute on a block is not.
+        expect(getComputedStyle(content().querySelector('div[data-mention]')!).backgroundColor).toBe('rgba(0, 0, 0, 0)');
     });
 
     it('orders the text size presets sm < default < lg', () => {
