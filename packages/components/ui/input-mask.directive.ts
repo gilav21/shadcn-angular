@@ -68,6 +68,24 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         const onBlur = this.renderer.listen(this.inputElement, 'blur', () => this.handleBlur());
 
         this.destroyValues.push(onInput, onKeyDown, onPaste, onBlur);
+
+        // A value a form writes in (ngModel's first write lands a microtask after the view
+        // init, `FormControl.setValue`) never raises an `input` event, so it would stay raw.
+        const modelChanges = this.ngControl?.valueChanges?.subscribe(() => this.formatModelValue());
+        if (modelChanges) {
+            this.destroyValues.push(() => modelChanges.unsubscribe());
+        }
+    }
+
+    private formatModelValue(): void {
+        const current: unknown = this.ngControl?.value;
+        if (typeof current !== 'string' || current === '') return;
+        const masked = this.applyMask(this.unmask(current));
+        if (masked === current) return;
+        this.inputElement.value = masked;
+        // Silent on purpose: formatting a programmatic write is not a user edit, so the control must not turn dirty.
+        this.ngControl?.control?.setValue(masked, { emitEvent: false, emitModelToViewChange: false, emitViewToModelChange: false });
+        this.uiInput?.value.set(masked);
     }
 
     private handleInput(): void {
