@@ -45,6 +45,7 @@ let tabsIdCounter = 0;
               [attr.data-state]="activeTab() === tab.value ? 'active' : 'inactive'"
               [attr.tabindex]="activeTab() === tab.value ? 0 : -1"
               [attr.data-slot]="'tabs-trigger'"
+              [attr.data-value]="tab.value"
               [disabled]="tab.disabled"
               [class]="triggerClasses(tab.value)"
               (click)="selectTab(tab.value)"
@@ -156,10 +157,12 @@ export class TabsComponent implements OnInit {
   /**
    * WAI-ARIA tabs keyboard support, shared by both modes' trigger buttons. Left/Right move to the
    * neighbouring enabled tab (wrapping, and swapped in RTL) and Home/End jump to the first/last
-   * enabled one; the target is focused and activated through a click so {@link tabChange} fires
-   * exactly as it does for the mouse. Other keys are left alone.
+   * enabled one; the target is focused and activated via {@link selectTab} (automatic activation),
+   * so {@link tabChange} fires without a synthetic click. Other keys, and any key with a
+   * modifier (Alt+Left is browser Back, Ctrl+Arrow is word navigation), are left alone.
    */
   onTabKeydown(event: KeyboardEvent): void {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const current = event.currentTarget as HTMLElement;
     const tablist = current.closest('[role="tablist"]');
     if (!tablist) return;
@@ -169,7 +172,8 @@ export class TabsComponent implements OnInit {
     if (from < 0 || target === null) return;
     event.preventDefault();
     enabled[target].focus();
-    enabled[target].click();
+    const value = enabled[target].dataset['value'];
+    if (value !== undefined) this.selectTab(value);
   }
 
   private keyTarget(key: string, from: number, count: number, rtl: boolean): number | null {
