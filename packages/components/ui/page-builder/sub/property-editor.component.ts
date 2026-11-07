@@ -19,6 +19,8 @@ import {
     SelectItemComponent
 } from '../../select';
 import { IconComponent } from '../../icon';
+import { createLocaleBindings, interpolate, type LocaleInput } from '../../../lib/i18n';
+import { PROPERTY_EDITOR_LOCALES, type PropertyEditorLocale } from './property-editor.locales';
 
 @Component({
     selector: 'ui-property-editor',
@@ -41,6 +43,17 @@ export class PropertyEditorComponent {
     /** Extra classes merged onto the editor panel, after the full-height column default. */
     readonly class = input('');
     readonly classes = computed(() => cn('h-full flex flex-col bg-background', this.class()));
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<PropertyEditorLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, PROPERTY_EDITOR_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
+
+    /** Localised placeholder of a select input. */
+    protected selectPlaceholder(label: string): string {
+        return interpolate(this.t().selectPlaceholder, { label });
+    }
 
     /** The widget being edited. `undefined` renders the empty state; the editor never mutates it, it only emits {@link itemChange}. */
     item = input<DashboardItem | undefined>(undefined);

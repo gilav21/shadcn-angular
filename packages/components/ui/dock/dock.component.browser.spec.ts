@@ -141,22 +141,28 @@ describe('DockComponent layout (browser)', () => {
                 await userEvent.hover(item);
 
                 const label = item.querySelector('[data-slot="dock-label"]')!;
-                const rect = label.getBoundingClientRect();
-                const icon = item.querySelector('[data-slot="dock-icon"]')!.getBoundingClientRect();
                 const topmost = (x: number, y: number) => document.elementFromPoint(x, y);
-                // All four corners hit the label, so a clip on any side fails; the centre alone would miss a half-clipped label.
-                for (const [x, y] of [[rect.left + 6, rect.top + 6], [rect.right - 6, rect.top + 6], [rect.left + 6, rect.bottom - 6], [rect.right - 6, rect.bottom - 6]]) {
-                    expect(label.contains(topmost(x, y)), `${position} label corner at ${width}px`).toBe(true);
-                }
-                const overlapsIcon = rect.left < icon.right && rect.right > icon.left && rect.top < icon.bottom && rect.bottom > icon.top;
-                expect(overlapsIcon, `${position} label covers its icon`).toBe(false);
-                const facing = {
-                    bottom: rect.bottom <= icon.top,
-                    top: rect.top >= icon.bottom,
-                    left: rect.left >= icon.right,
-                    right: rect.right <= icon.left,
-                }[position];
-                expect(facing, `${position} label sits on the side away from the dock edge`).toBe(true);
+                // The label is display:none until the :hover style lands, and the dock then magnifies its items over
+                // several frames, so assert the SETTLED layout: re-measure and re-probe until it holds. A genuine clip
+                // or overlap never settles into a pass and still fails at the timeout.
+                await vi.waitFor(() => {
+                    expect(getComputedStyle(label).display, `${position} label is shown`).not.toBe('none');
+                    const rect = label.getBoundingClientRect();
+                    const icon = item.querySelector('[data-slot="dock-icon"]')!.getBoundingClientRect();
+                    // All four corners hit the label, so a clip on any side fails; the centre alone would miss a half-clipped label.
+                    for (const [x, y] of [[rect.left + 6, rect.top + 6], [rect.right - 6, rect.top + 6], [rect.left + 6, rect.bottom - 6], [rect.right - 6, rect.bottom - 6]]) {
+                        expect(label.contains(topmost(x, y)), `${position} label corner at ${width}px`).toBe(true);
+                    }
+                    const overlapsIcon = rect.left < icon.right && rect.right > icon.left && rect.top < icon.bottom && rect.bottom > icon.top;
+                    expect(overlapsIcon, `${position} label covers its icon`).toBe(false);
+                    const facing = {
+                        bottom: rect.bottom <= icon.top,
+                        top: rect.top >= icon.bottom,
+                        left: rect.left >= icon.right,
+                        right: rect.right <= icon.left,
+                    }[position];
+                    expect(facing, `${position} label sits on the side away from the dock edge`).toBe(true);
+                }, { timeout: 3000 });
                 fixture.destroy();
             }
         });

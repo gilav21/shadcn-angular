@@ -85,6 +85,30 @@ describe('FileViewerComponent', () => {
         component = fixture.componentInstance;
     });
 
+    it('speaks the chosen locale in the toolbar, the empty preview and the default file name, and mirrors for RTL', () => {
+        fixture.componentRef.setInput('locale', 'de');
+        component.state.set('loaded');
+        component.detectedType.set('pdf');
+        fixture.detectChanges();
+        const el: HTMLElement = fixture.nativeElement;
+        const label = (name: string) => el.querySelector(`button[aria-label="${name}"]`);
+        expect(label('Vorherige Seite')).toBeTruthy();
+        expect(label('Vergrößern')).toBeTruthy();
+        expect(el.querySelector('[data-slot="file-viewer-toolbar"]')!.textContent).toContain('Datei');
+        expect(el.querySelector('button[aria-label="Previous page"]')).toBeNull();
+
+        component.state.set('loaded');
+        component.detectedType.set('unknown');
+        component.downloadUrl.set('blob:mock/1');
+        fixture.detectChanges();
+        expect(el.textContent).toContain('Für diesen Dateityp ist keine Vorschau verfügbar.');
+        expect(el.textContent).toContain('Datei herunterladen');
+
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        expect(el.querySelector('[data-slot="file-viewer-toolbar"]')!.getAttribute('dir')).toBe('rtl');
+    });
+
     it('renders at the default 600px height, and names the file after the input filename over the File name', () => {
         fixture.detectChanges();
         const el = fixture.nativeElement.querySelector('[data-slot="file-viewer"]');

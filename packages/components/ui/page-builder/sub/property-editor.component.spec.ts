@@ -58,6 +58,25 @@ describe('PropertyEditorComponent', () => {
         expect(el.textContent).toContain('No Selection');
     });
 
+    it('speaks the chosen locale for the empty state, the section chrome and the binding toggle, and mirrors for RTL', () => {
+        fixture.componentRef.setInput('locale', 'de');
+        fixture.detectChanges();
+        const el = fixture.nativeElement as HTMLElement;
+        expect(el.textContent).toContain('Keine Auswahl');
+        expect(el.textContent).not.toContain('No Selection');
+
+        fixture.componentRef.setInput('item', mockItemWithBindings);
+        fixture.componentRef.setInput('componentMeta', mockComponentMeta);
+        fixture.detectChanges();
+        expect(el.textContent).toContain('Spalten (Breite)');
+        expect(el.textContent).toContain('Komponente löschen');
+        expect(el.querySelector('button[title="Datenbindung umschalten"]')!.textContent).toContain('Gebunden');
+
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        expect(el.querySelector('[data-slot="property-editor"]')!.getAttribute('dir')).toBe('rtl');
+    });
+
     it('should return undefined for getItemInput when no item', () => {
         expect(component.getItemInput('title')).toBeUndefined();
     });

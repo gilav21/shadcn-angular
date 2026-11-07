@@ -2374,16 +2374,24 @@
       "lines": 31
     },
     "file-viewer/file-viewer.component.html": {
-      "bytes": 12351,
+      "bytes": 12244,
       "lines": 216
     },
     "file-viewer/file-viewer.component.spec.ts": {
-      "bytes": 72028,
-      "lines": 1507
+      "bytes": 73294,
+      "lines": 1531
     },
     "file-viewer/file-viewer.component.ts": {
-      "bytes": 71603,
-      "lines": 1697
+      "bytes": 72084,
+      "lines": 1704
+    },
+    "file-viewer/file-viewer.locales.spec.ts": {
+      "bytes": 1511,
+      "lines": 35
+    },
+    "file-viewer/file-viewer.locales.ts": {
+      "bytes": 13341,
+      "lines": 242
     },
     "file-viewer/file-viewer.stories.ts": {
       "bytes": 6058,
@@ -3798,16 +3806,24 @@
       "lines": 46
     },
     "page-builder/page-builder.component.html": {
-      "bytes": 21961,
-      "lines": 336
+      "bytes": 22176,
+      "lines": 337
     },
     "page-builder/page-builder.component.spec.ts": {
-      "bytes": 36451,
-      "lines": 829
+      "bytes": 37425,
+      "lines": 846
     },
     "page-builder/page-builder.component.ts": {
-      "bytes": 23265,
-      "lines": 595
+      "bytes": 24310,
+      "lines": 615
+    },
+    "page-builder/page-builder.locales.spec.ts": {
+      "bytes": 2017,
+      "lines": 46
+    },
+    "page-builder/page-builder.locales.ts": {
+      "bytes": 22792,
+      "lines": 503
     },
     "page-builder/page-builder.stories.ts": {
       "bytes": 4432,
@@ -3818,16 +3834,20 @@
       "lines": 10
     },
     "page-builder/sub/property-editor.component.html": {
-      "bytes": 12701,
+      "bytes": 12773,
       "lines": 188
     },
     "page-builder/sub/property-editor.component.spec.ts": {
-      "bytes": 12862,
-      "lines": 359
+      "bytes": 13870,
+      "lines": 378
     },
     "page-builder/sub/property-editor.component.ts": {
-      "bytes": 5529,
-      "lines": 129
+      "bytes": 6225,
+      "lines": 142
+    },
+    "page-builder/sub/property-editor.locales.ts": {
+      "bytes": 7878,
+      "lines": 202
     },
     "page-header/index.ts": {
       "bytes": 41,

@@ -17,6 +17,8 @@ import { DomSanitizer, type SafeHtml, type SafeUrl } from '@angular/platform-bro
 import type { PixelPerfectPage } from '../../lib/parsers/pdf-pixel-perfect';
 import { cn } from '../../lib/utils';
 import { cssColor, cssFontFamily, imageDataUrl, safeLinkHref } from '../../lib/parsers/markup-safety';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { FILE_VIEWER_LOCALES, type FileViewerLocale } from './file-viewer.locales';
 import { SpinnerComponent } from '../spinner';
 import type { FileViewerType, FileTypeResult } from '../../lib/parsers/file-type-detector';
 import type {
@@ -83,6 +85,11 @@ const HEADING_CLASSES: Record<number, string> = {
 export class FileViewerComponent implements AfterContentInit, OnDestroy {
     /** Extra classes merged onto the bordered viewer frame; the height comes from {@link height}, not from here. */
     readonly class = input('');
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<FileViewerLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, FILE_VIEWER_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
     /**
      * File to render, read fully into memory (`arrayBuffer()`) and parsed in-browser —
      * nothing is uploaded. Takes precedence over {@link src}; setting it back to `null`
@@ -168,7 +175,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         if (this.filename()) return this.filename();
         const f = this.file();
         if (f instanceof File) return f.name;
-        return 'File';
+        return this.t().defaultFilename;
     });
 
     readonly isPaginated = computed(() => {
@@ -359,7 +366,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             const file = new File([blob], this.extractFilename(url), { type: blob.type });
             await this.loadFile(file);
         } catch (err) {
-            this.handleError(err instanceof Error ? err.message : 'Failed to load file');
+            this.handleError(err instanceof Error ? err.message : this.t().loadFailed);
         }
     }
 
@@ -400,7 +407,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
                 filename: this.displayFilename(),
             });
         } catch (err) {
-            this.handleError(err instanceof Error ? err.message : 'Failed to process file');
+            this.handleError(err instanceof Error ? err.message : this.t().processFailed);
         }
     }
 
@@ -450,7 +457,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             const svgText = new TextDecoder().decode(bytes);
             const { sanitizeSvg } = await import('../../lib/parsers/svg-sanitizer');
             const sanitized = sanitizeSvg(svgText);
-            if (!sanitized) throw new Error('Invalid or unsafe SVG file');
+            if (!sanitized) throw new Error(this.t().invalidSvg);
             const blob = new Blob([sanitized], { type: 'image/svg+xml' });
             const url = URL.createObjectURL(blob);
             this.blobUrls.push(url);

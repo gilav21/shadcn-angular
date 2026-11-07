@@ -3,6 +3,8 @@ import { PageBuilderComponent } from './page-builder.component';
 import { ComponentMeta, PageBuilderViewMode, PageData } from '../../lib/page-builder.types';
 import { By } from '@angular/platform-browser';
 import { BentoGridComponent } from '../bento-grid';
+import { PAGE_BUILDER_LOCALES } from './page-builder.locales';
+import { PROPERTY_EDITOR_LOCALES } from './sub/property-editor.locales';
 import { Component, input } from '@angular/core';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -78,6 +80,32 @@ describe('PageBuilderComponent', () => {
         const widget = sidebar.query(By.css('[draggable="true"]'));
         expect(widget).toBeTruthy();
         expect(widget.nativeElement.textContent).toContain('Mock Widget');
+    });
+
+    it('speaks the chosen locale in the palette, toolbar, canvas and inspector, interpolating the add label', () => {
+        fixture.componentRef.setInput('locale', 'de');
+        fixture.detectChanges();
+        const el = fixture.nativeElement as HTMLElement;
+        expect(el.querySelector('aside')!.getAttribute('aria-label')).toBe('Komponenten');
+        expect(el.querySelector('[data-slot="page-builder-palette-add"]')!.getAttribute('aria-label')).toBe('Mock Widget hinzufügen');
+        expect(el.textContent).toContain('0 Elemente');
+        expect(el.textContent).toContain('Komponenten hierher ziehen');
+        expect(el.textContent).toContain('Rastereinstellungen');
+        expect(el.textContent).toContain('Zeilenhöhe');
+        expect(el.textContent).not.toContain('Row Height');
+
+        // A dictionary object (not a registry key) must localise the inspector too: the property editor
+        // has its own dictionary type, so it is handed the resolved language, not this component's dictionary.
+        fixture.componentRef.setInput('locale', PAGE_BUILDER_LOCALES['de']);
+        component.addItem(mockComponents[0]);
+        fixture.detectChanges();
+        const inspector = el.querySelector('ui-property-editor')!.textContent!;
+        expect(inspector).toContain(PROPERTY_EDITOR_LOCALES['de'].deleteComponent);
+        expect(inspector).not.toContain(PROPERTY_EDITOR_LOCALES['en'].deleteComponent);
+
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        expect(el.querySelector('aside')!.getAttribute('dir')).toBe('rtl');
     });
 
     it('should update grid settings', () => {
