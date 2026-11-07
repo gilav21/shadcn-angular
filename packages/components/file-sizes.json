@@ -69,6 +69,10 @@
       "bytes": 1673,
       "lines": 51
     },
+    "alert-dialog/alert-dialog.density.browser.spec.ts": {
+      "bytes": 1530,
+      "lines": 34
+    },
     "alert-dialog/alert-dialog.stories.ts": {
       "bytes": 6287,
       "lines": 173
@@ -93,9 +97,13 @@
       "bytes": 1634,
       "lines": 50
     },
+    "alert-dialog/sub/alert-dialog-content.component.css": {
+      "bytes": 399,
+      "lines": 15
+    },
     "alert-dialog/sub/alert-dialog-content.component.ts": {
-      "bytes": 7961,
-      "lines": 198
+      "bytes": 7989,
+      "lines": 199
     },
     "alert-dialog/sub/alert-dialog-description.component.ts": {
       "bytes": 671,
@@ -1353,6 +1361,10 @@
       "bytes": 20122,
       "lines": 530
     },
+    "context-menu/context-menu.separator.browser.spec.ts": {
+      "bytes": 1382,
+      "lines": 26
+    },
     "context-menu/context-menu.stories.ts": {
       "bytes": 13053,
       "lines": 327
@@ -1370,11 +1382,11 @@
       "lines": 91
     },
     "context-menu/sub/context-menu-label.component.ts": {
-      "bytes": 916,
+      "bytes": 922,
       "lines": 30
     },
     "context-menu/sub/context-menu-separator.component.ts": {
-      "bytes": 647,
+      "bytes": 653,
       "lines": 22
     },
     "context-menu/sub/context-menu-shortcut.component.ts": {
@@ -1973,6 +1985,10 @@
       "bytes": 7944,
       "lines": 214
     },
+    "dropdown-menu/dropdown-menu.separator.browser.spec.ts": {
+      "bytes": 1390,
+      "lines": 26
+    },
     "dropdown-menu/dropdown-menu.stories.ts": {
       "bytes": 8789,
       "lines": 248
@@ -1994,11 +2010,11 @@
       "lines": 95
     },
     "dropdown-menu/sub/dropdown-menu-label.component.ts": {
-      "bytes": 655,
+      "bytes": 661,
       "lines": 22
     },
     "dropdown-menu/sub/dropdown-menu-separator.component.ts": {
-      "bytes": 645,
+      "bytes": 651,
       "lines": 22
     },
     "dropdown-menu/sub/dropdown-menu-sub-content.component.ts": {
@@ -4014,11 +4030,11 @@
       "lines": 4
     },
     "popover/popover.component.browser.spec.ts": {
-      "bytes": 4803,
+      "bytes": 4820,
       "lines": 115
     },
     "popover/popover.component.spec.ts": {
-      "bytes": 21495,
+      "bytes": 21498,
       "lines": 535
     },
     "popover/popover.component.ts": {
@@ -4026,8 +4042,12 @@
       "lines": 162
     },
     "popover/popover.coverage.spec.ts": {
-      "bytes": 21627,
+      "bytes": 21632,
       "lines": 491
+    },
+    "popover/popover.offset.browser.spec.ts": {
+      "bytes": 3150,
+      "lines": 69
     },
     "popover/popover.stories.ts": {
       "bytes": 6286,
@@ -4042,8 +4062,8 @@
       "lines": 6
     },
     "popover/sub/popover-content.component.ts": {
-      "bytes": 18714,
-      "lines": 462
+      "bytes": 20086,
+      "lines": 478
     },
     "popover/sub/popover-trigger.component.ts": {
       "bytes": 2263,
@@ -5233,6 +5253,10 @@
       "bytes": 13240,
       "lines": 300
     },
+    "select/select.separator.browser.spec.ts": {
+      "bytes": 1336,
+      "lines": 26
+    },
     "select/select.stories.ts": {
       "bytes": 11408,
       "lines": 334
@@ -5254,11 +5278,11 @@
       "lines": 95
     },
     "select/sub/select-label.component.ts": {
-      "bytes": 648,
+      "bytes": 654,
       "lines": 22
     },
     "select/sub/select-separator.component.ts": {
-      "bytes": 650,
+      "bytes": 656,
       "lines": 22
     },
     "select/sub/select-trigger.component.css": {
@@ -5306,7 +5330,7 @@
       "lines": 416
     },
     "sheet/sheet.component.ts": {
-      "bytes": 2702,
+      "bytes": 2685,
       "lines": 84
     },
     "sheet/sheet.stories.ts": {
@@ -5317,9 +5341,13 @@
       "bytes": 1896,
       "lines": 63
     },
+    "sheet/sub/sheet-content.component.css": {
+      "bytes": 375,
+      "lines": 15
+    },
     "sheet/sub/sheet-content.component.ts": {
-      "bytes": 5976,
-      "lines": 168
+      "bytes": 6023,
+      "lines": 169
     },
     "sheet/sub/sheet-description.component.ts": {
       "bytes": 651,
@@ -5878,20 +5906,20 @@
       "lines": 7
     },
     "stepper/stepper.component.browser.spec.ts": {
-      "bytes": 3289,
-      "lines": 94
+      "bytes": 5674,
+      "lines": 147
     },
     "stepper/stepper.component.html": {
-      "bytes": 2121,
+      "bytes": 2097,
       "lines": 51
     },
     "stepper/stepper.component.spec.ts": {
-      "bytes": 10873,
+      "bytes": 10947,
       "lines": 278
     },
     "stepper/stepper.component.ts": {
-      "bytes": 10159,
-      "lines": 254
+      "bytes": 10603,
+      "lines": 263
     },
     "stepper/stepper.coverage.spec.ts": {
       "bytes": 7823,
@@ -5914,8 +5942,8 @@
       "lines": 29
     },
     "stepper/sub/stepper-item.component.ts": {
-      "bytes": 2256,
-      "lines": 59
+      "bytes": 2451,
+      "lines": 67
     },
     "stepper/sub/stepper-separator.component.ts": {
       "bytes": 1268,
