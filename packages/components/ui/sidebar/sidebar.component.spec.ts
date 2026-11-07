@@ -492,6 +492,15 @@ describe('Sidebar', () => {
       service.setMobile(false);
       expect(service.isMobile()).toBe(false);
     });
+
+    it('keeps an open drawer open when a resize stays below the breakpoint', () => {
+      const service = createService();
+      service.setMobile(true);
+      service.open();
+
+      service.setMobile(true);
+      expect(service.isOpen()).toBe(true);
+    });
   });
 
   describe('structure and simple parts', () => {
