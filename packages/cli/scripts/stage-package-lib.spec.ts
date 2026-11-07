@@ -89,16 +89,16 @@ describe('stagedFiles (T-2)', () => {
         return out;
     }
 
-    it('rte stages 292 files = union(files) ∪ union(libFiles) ∪ utils.ts', () => {
+    it('rte stages 293 files = union(files) ∪ union(libFiles) ∪ utils.ts', () => {
         const staged = stagedFiles('rte');
         expect(new Set(staged.map((f) => f.dest))).toEqual(expectedDests('rte'));
-        expect(staged).toHaveLength(292);
+        expect(staged).toHaveLength(293);
     });
 
-    it('data-table stages 185 files', () => {
+    it('data-table stages 186 files', () => {
         const staged = stagedFiles('data-table');
         expect(new Set(staged.map((f) => f.dest))).toEqual(expectedDests('data-table'));
-        expect(staged).toHaveLength(185);
+        expect(staged).toHaveLength(186);
     });
 
     // `sync-registry` never puts a `.spec.ts` / `.stories.ts` into `files[]`, so
