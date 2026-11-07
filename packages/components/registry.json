@@ -4844,7 +4844,8 @@
       "chart.utils.ts"
     ],
     "dependencies": [
-      "chart-legend"
+      "chart-legend",
+      "chart-tooltip"
     ],
     "testFiles": [
       "radar-chart/radar-chart.component.spec.ts"

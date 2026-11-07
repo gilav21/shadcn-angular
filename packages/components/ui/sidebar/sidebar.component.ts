@@ -87,7 +87,7 @@ export class SidebarComponent implements AfterViewInit {
 
   isMobile = signal(false);
   readonly service = inject(SidebarService);
-  private readonly el = inject(ElementRef);
+  private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly document = inject(DOCUMENT);
 
   private contentEl?: HTMLElement;
@@ -127,7 +127,7 @@ export class SidebarComponent implements AfterViewInit {
   }
 
   private focusFirstElement(): void {
-    const content = this.el.nativeElement.querySelector('[data-slot="sidebar"]');
+    const content = this.el.nativeElement.querySelector<HTMLElement>('[data-slot="sidebar"]');
     if (content) {
       this.contentEl = content;
       const focusable = Array.from(content.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(isRendered);

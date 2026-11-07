@@ -1703,7 +1703,7 @@ export const registry = defineRegistry({
     tags: ['radar-chart', 'radar', 'spider', 'chart', 'comparison'],
     files: ['radar-chart/index.ts', 'radar-chart/radar-chart.component.html', 'radar-chart/radar-chart.component.ts'],
     libFiles: ['chart-polar.ts', 'chart.types.ts', 'chart.utils.ts'],
-    dependencies: ['chart-legend'],
+    dependencies: ['chart-legend', 'chart-tooltip'],
     testFiles: ['radar-chart/radar-chart.component.spec.ts'],
   },
   heatmap: {
