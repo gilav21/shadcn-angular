@@ -2984,20 +2984,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private executeInlineFormatCommand(command: string, mentionTargets: HTMLElement[]): boolean {
         switch (command) {
             case 'bold':
-                this.execEditorCommand('bold');
-                this.toggleMentionStyle(mentionTargets, 'fontWeight', 'bold', 'normal');
+                this.execThenApplyToChips('bold', this.planMentionStyleToggle(mentionTargets, 'fontWeight', 'bold', 'normal'));
                 return true;
             case 'italic':
-                this.execEditorCommand('italic');
-                this.toggleMentionStyle(mentionTargets, 'fontStyle', 'italic', 'normal');
+                this.execThenApplyToChips('italic', this.planMentionStyleToggle(mentionTargets, 'fontStyle', 'italic', 'normal'));
                 return true;
             case 'underline':
-                this.execEditorCommand('underline');
-                this.toggleMentionTextDecoration(mentionTargets, 'underline');
+                this.execThenApplyToChips('underline', this.planMentionDecorationToggle(mentionTargets, 'underline'));
                 return true;
             case 'strikethrough':
-                this.execEditorCommand('strikeThrough');
-                this.toggleMentionTextDecoration(mentionTargets, 'line-through');
+                this.execThenApplyToChips('strikeThrough', this.planMentionDecorationToggle(mentionTargets, 'line-through'));
                 return true;
             case 'clear':
                 this.clearFormatting(mentionTargets);
@@ -3685,14 +3681,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const mentionTargets = this.getMentionElementsInSelection();
 
+        // Chromium rewrites the family it writes into `face` (quotes dropped), so
+        // the command's own elements are told apart by what changed across the
+        // exec -- a new element, or a `face` that moved -- not by the text.
+        const facesBefore = new Map<Element, string | null>(
+            Array.from(this.editorDiv?.nativeElement.querySelectorAll('font[face]') ?? [])
+                .map((font) => [font, font.getAttribute('face')]),
+        );
+
         this.execEditorCommand('fontName', family);
 
         const styled: HTMLElement[] = [];
         if (this.editorDiv?.nativeElement) {
-            // Compared as an attribute value rather than through a selector, which
-            // would need CSS.escape -- absent from jsdom, where this threw.
             const fontElements = Array.from(this.editorDiv.nativeElement.querySelectorAll('font[face]'))
-                .filter((font) => font.getAttribute('face') === family);
+                .filter((font) => facesBefore.get(font) !== font.getAttribute('face'));
             for (const font of fontElements) {
                 const el = font as HTMLElement;
                 const span = this.document.createElement('span');
@@ -6408,21 +6410,39 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return result;
     }
 
-    private toggleMentionStyle(elements: HTMLElement[], prop: 'fontWeight' | 'fontStyle', onValue: string, offValue: string): void {
-        for (const el of elements) {
-            el.style[prop] = el.style[prop] === onValue ? offValue : onValue;
-        }
+    /**
+     * Run a toggling `execCommand`, then apply the chips' new styles. The new
+     * values were decided by the caller BEFORE the exec: when the command turns
+     * a format off, Chromium also strips the chip's matching inline style, so
+     * deciding afterwards reads "off" and flips the chip back on.
+     */
+    private execThenApplyToChips(commandId: string, applyToChips: () => void): void {
+        this.execEditorCommand(commandId);
+        applyToChips();
     }
 
-    private toggleMentionTextDecoration(elements: HTMLElement[], decoration: string): void {
-        for (const el of elements) {
-            const current = el.style.textDecoration || '';
-            if (current.includes(decoration)) {
-                el.style.textDecoration = current.replace(decoration, '').trim() || '';
-            } else {
-                el.style.textDecoration = (current + ' ' + decoration).trim();
+    private planMentionStyleToggle(elements: HTMLElement[], prop: 'fontWeight' | 'fontStyle', onValue: string, offValue: string): () => void {
+        const next = elements.map((el) => [el, el.style[prop] === onValue ? offValue : onValue] as const);
+        return () => {
+            for (const [el, value] of next) {
+                el.style[prop] = value;
             }
-        }
+        };
+    }
+
+    private planMentionDecorationToggle(elements: HTMLElement[], decoration: string): () => void {
+        const next = elements.map((el) => {
+            const current = el.style.textDecoration || '';
+            const value = current.includes(decoration)
+                ? current.replace(decoration, '').trim()
+                : `${current} ${decoration}`.trim();
+            return [el, value] as const;
+        });
+        return () => {
+            for (const [el, value] of next) {
+                el.style.textDecoration = value;
+            }
+        };
     }
 
     private setMentionStyle(elements: HTMLElement[], prop: 'color' | 'backgroundColor' | 'fontSize' | 'fontFamily', value: string): void {

@@ -400,3 +400,54 @@ describe('RichTextEditorComponent — table menu controls', () => {
     });
 });
 
+describe('RichTextEditorComponent — font family via execCommand', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        ({ fixture, component, editor } = await createEditor('html'));
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it.each(['Georgia', '"Comic Sans MS", cursive', "'Times New Roman', serif"])(
+        'turns the <font> Chromium writes for %s into a styled span',
+        (family) => {
+            component.writeValue('<p>hello world</p>');
+            fixture.detectChanges();
+            editor.focus();
+            const text = editor.querySelector('p')!.firstChild as Text;
+            const range = document.createRange();
+            range.setStart(text, 0);
+            range.setEnd(text, 5);
+            document.getSelection()?.removeAllRanges();
+            document.getSelection()?.addRange(range);
+
+            component.onFontFamilySelect(family);
+
+            expect(editor.querySelector<HTMLElement>('font')).toBeNull();
+            const span = editor.querySelector<HTMLElement>('span[style*="font-family"]');
+            expect(span?.textContent).toBe('hello');
+            expect(getComputedStyle(span!).fontFamily).toContain(family.replaceAll(/["']/g, '').split(',')[0]);
+        },
+    );
+
+    it.each([
+        { command: 'bold', html: '<b>hi <span data-mention="a" data-mention-id="1" style="font-weight: bold">@Ada</span> end</b>', read: (s: CSSStyleDeclaration) => Number(s.fontWeight) },
+        { command: 'underline', html: '<u>hi <span data-mention="a" data-mention-id="1" style="text-decoration: underline">@Ada</span> end</u>', read: (s: CSSStyleDeclaration) => s.textDecorationLine === 'underline' ? 700 : 400 },
+    ] as const)('turning $command off on a fully formatted selection turns the chip off too', ({ command, html, read }) => {
+        component.writeValue(`<p>${html}</p>`);
+        fixture.detectChanges();
+        editor.focus();
+        const range = document.createRange();
+        range.selectNodeContents(editor.querySelector('p')!);
+        document.getSelection()?.removeAllRanges();
+        document.getSelection()?.addRange(range);
+
+        component.format(command);
+
+        const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
+        expect(read(getComputedStyle(chip))).toBeLessThan(600);
+    });
+});
+

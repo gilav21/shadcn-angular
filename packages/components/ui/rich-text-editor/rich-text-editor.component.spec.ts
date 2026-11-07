@@ -9226,12 +9226,6 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(outline(editor.querySelector('ul')!)).toEqual([['a', ['b']], ['c', ['d']]]);
     });
 
-    it('toggleMentionStyle turns a style off when already on', () => {
-        const el = document.createElement('span');
-        el.style.fontWeight = 'bold';
-        priv().toggleMentionStyle([el], 'fontWeight', 'bold', 'normal');
-        expect(el.style.fontWeight).toBe('normal');
-    });
 
     it('execEditorCommand returns false when execCommand is unavailable', () => {
         const doc = document as unknown as { execCommand?: unknown };
