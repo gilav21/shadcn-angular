@@ -400,3 +400,164 @@ describe('RichTextEditorComponent — table menu controls', () => {
     });
 });
 
+describe('RichTextEditorComponent — font family via execCommand', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        ({ fixture, component, editor } = await createEditor('html'));
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it.each(['Georgia', '"Comic Sans MS", cursive', "'Times New Roman', serif"])(
+        'turns the <font> Chromium writes for %s into a styled span',
+        (family) => {
+            component.writeValue('<p>hello world</p>');
+            fixture.detectChanges();
+            editor.focus();
+            const text = editor.querySelector('p')!.firstChild as Text;
+            const range = document.createRange();
+            range.setStart(text, 0);
+            range.setEnd(text, 5);
+            document.getSelection()?.removeAllRanges();
+            document.getSelection()?.addRange(range);
+
+            component.onFontFamilySelect(family);
+
+            expect(editor.querySelector<HTMLElement>('font')).toBeNull();
+            const span = editor.querySelector<HTMLElement>('span[style*="font-family"]');
+            expect(span?.textContent).toBe('hello');
+            expect(getComputedStyle(span!).fontFamily).toContain(family.replaceAll(/["']/g, '').split(',')[0]);
+        },
+    );
+
+    // A chip in the selection ends in the state the command gave the text
+    // around it, whether the chip is formatted by an ancestor tag (no inline
+    // style of its own) or by an inline style inside plain text.
+    const chip = (style = '') => {
+        const attr = style ? ' style="' + style + '"' : '';
+        return '<span data-mention="a" data-mention-id="1"' + attr + '>@Ada</span>';
+    };
+    const formats = {
+        bold: { tag: 'b', inline: 'font-weight: bold', isOn: (s: CSSStyleDeclaration) => Number(s.fontWeight) >= 600 },
+        italic: { tag: 'i', inline: 'font-style: italic', isOn: (s: CSSStyleDeclaration) => s.fontStyle === 'italic' },
+        underline: { tag: 'u', inline: 'text-decoration: underline', isOn: (s: CSSStyleDeclaration) => s.textDecorationLine.includes('underline') },
+        strikethrough: { tag: 's', inline: 'text-decoration: line-through', isOn: (s: CSSStyleDeclaration) => s.textDecorationLine.includes('line-through') },
+    } as const;
+
+    it.each(Object.keys(formats) as (keyof typeof formats)[])('%s: a chip follows the command, off or on', (command) => {
+        const { tag, inline, isOn } = formats[command];
+        const select = () => {
+            const range = document.createRange();
+            range.selectNodeContents(editor.querySelector('p')!);
+            document.getSelection()?.removeAllRanges();
+            document.getSelection()?.addRange(range);
+        };
+        const chipIsOn = () => isOn(getComputedStyle(editor.querySelector<HTMLElement>('[data-mention]')!));
+        editor.focus();
+
+        // Fully formatted through the ancestor: the command turns it off.
+        editor.innerHTML = `<p><${tag}>hi ${chip()}</${tag}></p>`;
+        select();
+        component.format(command);
+        expect(editor.querySelector(tag)).toBeNull();
+        expect(chipIsOn()).toBe(false);
+
+        // Formatted inline inside plain text: the command turns it on for all.
+        editor.innerHTML = `<p>plain ${chip(inline)}</p>`;
+        select();
+        component.format(command);
+        expect(chipIsOn()).toBe(true);
+    });
+
+    it.each([['Georgia', 'Georgia'], ['"Comic Sans MS", cursive', 'Comic Sans MS']])(
+        'turns a selected <font> that already carries %s into a styled span',
+        (family, face) => {
+            editor.innerHTML = `<p><font face="${face}">hello</font> world</p>`;
+            editor.focus();
+            const text = editor.querySelector<HTMLElement>('font')!.firstChild as Text;
+            const range = document.createRange();
+            range.setStart(text, 0);
+            range.setEnd(text, 5);
+            document.getSelection()?.removeAllRanges();
+            document.getSelection()?.addRange(range);
+
+            component.onFontFamilySelect(family);
+
+            expect(editor.querySelector<HTMLElement>('font')).toBeNull();
+            expect(editor.querySelector<HTMLElement>('span[style*="font-family"]')?.textContent).toBe('hello');
+        },
+    );
+
+    it.each([[0, 5], [3, 8], [6, 11]])('changes only the selected part of a pre-existing <font> (%i-%i)', (start, end) => {
+        const content = 'hello world';
+        editor.innerHTML = `<p><font face="Arial">${content}</font></p>`;
+        editor.focus();
+        const text = editor.querySelector<HTMLElement>('font')!.firstChild as Text;
+        const range = document.createRange();
+        range.setStart(text, start);
+        range.setEnd(text, end);
+        document.getSelection()?.removeAllRanges();
+        document.getSelection()?.addRange(range);
+
+        component.onFontFamilySelect('Georgia');
+
+        const familyAt = (index: number): string => {
+            const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+            let offset = 0;
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                offset += node.textContent!.length;
+                if (index < offset) return getComputedStyle(node.parentElement!).fontFamily;
+            }
+            return '';
+        };
+        for (let i = 0; i < content.length; i++) {
+            const selected = i >= start && i < end;
+            expect(familyAt(i).includes('Georgia'), `char ${i}`).toBe(selected);
+        }
+    });
+});
+
+describe('RichTextEditorComponent — chips-only selection toggles', () => {
+    it.each([
+        ['text-transform', 'text-transform: uppercase', 'whole'],
+        ['partly selected', '', 'partial'],
+    ])('a selection holding only a bold chip (%s) turns bold off', async (...[, extra, how]) => {
+        const { component, editor } = await createEditor('html');
+        editor.focus();
+        editor.innerHTML = `<p><span data-mention="a" contenteditable="false" style="font-weight: bold; ${extra}">@Ada</span></p>`;
+        const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
+        const range = document.createRange();
+        if (how === 'whole') {
+            range.selectNode(chip);
+        } else {
+            range.setStart(chip.firstChild!, 1);
+            range.setEnd(chip.firstChild!, 3);
+        }
+        document.getSelection()?.removeAllRanges();
+        document.getSelection()?.addRange(range);
+
+        component.format('bold');
+
+        expect(Number(getComputedStyle(chip).fontWeight)).toBeLessThan(600);
+    });
+});
+
+describe('RichTextEditorComponent — entity chip look', () => {
+    it('gives a class-less chip the chip look but lets a live consumer class and text mode keep their own', async () => {
+        const { editor } = await createEditor('html');
+        editor.innerHTML = '<p>'
+            + '<span data-mention="a" id="bare">@A</span>'
+            + '<span data-mention="b" id="own" class="bg-destructive">@B</span>'
+            + '<span data-mention="c" id="text" data-entity-mode="text">@C</span>'
+            + '</p>';
+        const bg = (id: string) => getComputedStyle(editor.querySelector('#' + id)!).backgroundColor;
+        const transparent = 'rgba(0, 0, 0, 0)';
+
+        expect(bg('bare')).not.toBe(transparent);
+        expect(bg('own')).not.toBe(transparent);
+        expect(bg('own')).not.toBe(bg('bare'));
+        expect(bg('text')).toBe(transparent);
+    });
+});

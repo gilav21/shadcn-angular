@@ -136,6 +136,7 @@ describe('rich-text-mentions.utils', () => {
             expect(element.dataset['mentionId']).toBe('u1');
             expect(element.textContent).toBe('@Jane Doe');
             expect(element.className).toContain('bg-accent');
+            expect(element.dataset['entityMode']).toBeUndefined();
             expect(url).toBeUndefined();
         });
 
@@ -146,6 +147,7 @@ describe('rich-text-mentions.utils', () => {
             expect(element.dataset['tag']).toBe('jane');
             expect(element.dataset['tagId']).toBe('u1');
             expect(element.className).toBe('');
+            expect(element.dataset['entityMode']).toBe('text');
         });
 
         it('applies a custom className in text mode', () => {
@@ -185,11 +187,13 @@ describe('rich-text-mentions.utils', () => {
             expect(element.getAttribute('target')).toBe('_self');
             expect(element.getAttribute('rel')).toBe('nofollow');
             expect(element.className).toBe('link-chip');
+            expect(element.dataset['entityMode']).toBe('link');
         });
 
         it('falls back to a chip span when the link url is rejected by the sanitizer', () => {
             const options: RichTextEntityRenderOptions = { mode: 'link', urlTemplate: 'javascript:alert(1)' };
             const { element, url } = buildEntityInsertNode(document, contextFor(), options, rejectUrl);
+            expect(element.dataset['entityMode']).toBeUndefined();
             expect(element.tagName).toBe('SPAN');
             expect(url).toBeUndefined();
         });

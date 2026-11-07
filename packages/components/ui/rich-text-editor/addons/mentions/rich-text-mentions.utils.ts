@@ -90,8 +90,15 @@ function resolveEntityUrl(
     return raw ? sanitizeUrl(raw) : null;
 }
 
-function applyEntityBaseAttributes(element: HTMLElement, context: RichTextEntityRenderContext): void {
+function applyEntityBaseAttributes(
+    element: HTMLElement,
+    context: RichTextEntityRenderContext,
+    mode: RichTextEntityRenderMode,
+): void {
     element.setAttribute('contenteditable', 'false');
+    // `class` does not survive the sanitizer, so the mode is what tells the
+    // chip look to leave a text/link entity alone after a round trip.
+    if (mode !== 'chip') element.dataset['entityMode'] = mode;
     if (context.type === 'mention') {
         element.dataset['mention'] = context.value;
         element.dataset['mentionId'] = context.id;
@@ -109,7 +116,7 @@ function createEntitySpanElement(
     customClassName?: string,
 ): HTMLElement {
     const span = doc.createElement('span');
-    applyEntityBaseAttributes(span, context);
+    applyEntityBaseAttributes(span, context, mode);
     span.className = mode === 'text'
         ? (customClassName ?? '')
         : (customClassName ?? 'bg-accent text-accent-foreground rounded px-1');
@@ -129,7 +136,7 @@ function createEntityLinkElement(
         return createEntitySpanElement(doc, context, text, 'chip', options.className);
     }
     const link = doc.createElement('a');
-    applyEntityBaseAttributes(link, context);
+    applyEntityBaseAttributes(link, context, 'link');
     link.href = safeUrl;
     link.target = options.target ?? '_blank';
     link.rel = options.rel ?? 'noopener noreferrer';
