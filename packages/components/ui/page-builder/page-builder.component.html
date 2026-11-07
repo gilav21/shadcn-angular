@@ -174,7 +174,7 @@
                     <ui-property-editor
                         [item]="selectedItem()"
                         [componentMeta]="selectedComponentMeta()"
-                        [locale]="locale()"
+                        [locale]="t().code"
                         [isLoading]="!!(selectedItemId() && !instanceMap().has(selectedItemId()!))"
                         (itemChange)="onItemChange($event)"
                         (delete)="onDeleteItem()"

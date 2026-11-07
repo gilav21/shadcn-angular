@@ -3,6 +3,8 @@ import { PageBuilderComponent } from './page-builder.component';
 import { ComponentMeta, PageBuilderViewMode, PageData } from '../../lib/page-builder.types';
 import { By } from '@angular/platform-browser';
 import { BentoGridComponent } from '../bento-grid';
+import { PAGE_BUILDER_LOCALES } from './page-builder.locales';
+import { PROPERTY_EDITOR_LOCALES } from './sub/property-editor.locales';
 import { Component, input } from '@angular/core';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -91,6 +93,15 @@ describe('PageBuilderComponent', () => {
         expect(el.textContent).toContain('Rastereinstellungen');
         expect(el.textContent).toContain('Zeilenhöhe');
         expect(el.textContent).not.toContain('Row Height');
+
+        // A dictionary object (not a registry key) must localise the inspector too: the property editor
+        // has its own dictionary type, so it is handed the resolved language, not this component's dictionary.
+        fixture.componentRef.setInput('locale', PAGE_BUILDER_LOCALES['de']);
+        component.addItem(mockComponents[0]);
+        fixture.detectChanges();
+        const inspector = el.querySelector('ui-property-editor')!.textContent!;
+        expect(inspector).toContain(PROPERTY_EDITOR_LOCALES['de'].deleteComponent);
+        expect(inspector).not.toContain(PROPERTY_EDITOR_LOCALES['en'].deleteComponent);
 
         fixture.componentRef.setInput('locale', 'he');
         fixture.detectChanges();
