@@ -7824,6 +7824,50 @@ describe('RichTextEditorComponent — paste max length & overlay handlers', () =
         }
     });
 
+    it('a throwing overlay insert still gets the original inputMode back, and the next insert sees it', () => {
+        vi.useFakeTimers();
+        try {
+            component.writeValue('<p>e</p>');
+            fixture.detectChanges();
+            editor.inputMode = 'text';
+            const insertAt = (component as unknown as { insertAtRestoredCaret: (text: string, insert: () => void) => void }).insertAtRestoredCaret.bind(component);
+
+            expect(() => insertAt('x', () => { throw new Error('insert failed'); })).toThrow('insert failed');
+            vi.advanceTimersByTime(150);
+            expect(editor.inputMode).toBe('text');
+
+            insertAt('y', () => undefined);
+            vi.advanceTimersByTime(150);
+            expect(editor.inputMode).toBe('text');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('destroying the editor within 100ms of an overlay insert cancels the inputMode restore', () => {
+        vi.useFakeTimers();
+        try {
+            component.writeValue('<p>e</p>');
+            fixture.detectChanges();
+            const writes: string[] = [];
+            let mode = 'text';
+            Object.defineProperty(editor, 'inputMode', {
+                configurable: true,
+                get: () => mode,
+                set: (value: string) => { writes.push(value); mode = value; },
+            });
+            const insertAt = (component as unknown as { insertAtRestoredCaret: (text: string, insert: () => void) => void }).insertAtRestoredCaret.bind(component);
+
+            insertAt('x', () => undefined);
+            fixture.destroy();
+            vi.advanceTimersByTime(300);
+
+            expect(writes).toEqual(['none']);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('re-targets the context menu to the cell beneath the overlay point', () => {
         editor.innerHTML = '<table><tbody><tr><td>cell</td></tr></tbody></table>';
         editor.dispatchEvent(new Event('input', { bubbles: true }));

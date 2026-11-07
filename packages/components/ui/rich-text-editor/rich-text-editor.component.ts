@@ -3222,17 +3222,22 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             }
             editor.inputMode = 'none';
         }
-        insert();
-        this.pushHistory();
-        const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            this.savedRange = selection.getRangeAt(0).cloneRange();
-        }
-        if (editor) {
-            this.inputModeRestoreTimer = setTimeout(() => {
-                this.inputModeRestoreTimer = null;
-                editor.inputMode = this.savedInputMode;
-            }, 100);
+        try {
+            insert();
+            this.pushHistory();
+            const selection = this.document.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                this.savedRange = selection.getRangeAt(0).cloneRange();
+            }
+        } finally {
+            // A throwing insert must still schedule the restore, or the editor
+            // keeps 'none' and the next insert saves that as the original.
+            if (editor) {
+                this.inputModeRestoreTimer = setTimeout(() => {
+                    this.inputModeRestoreTimer = null;
+                    editor.inputMode = this.savedInputMode;
+                }, 100);
+            }
         }
     }
 
@@ -8990,6 +8995,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.historyDebounceTimer) {
             clearTimeout(this.historyDebounceTimer);
             this.historyDebounceTimer = null;
+        }
+        if (this.inputModeRestoreTimer !== null) {
+            clearTimeout(this.inputModeRestoreTimer);
+            this.inputModeRestoreTimer = null;
         }
         this.releaseTableDragListeners();
         this.cancelPendingFind();
