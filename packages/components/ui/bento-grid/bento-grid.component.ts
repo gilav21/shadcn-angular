@@ -1023,13 +1023,16 @@ export class BentoGridComponent implements AfterViewInit, OnDestroy {
      * Touch equivalent of {@link onDragStart}: tracks the finger, moves the drop
      * preview and, on release, commits the move via {@link itemsChange} — the
      * HTML5 `drop` handlers never run on touch. Yields to an in-progress resize
-     * ({@link onResizeStart}) and is a no-op while {@link editable} is false.
+     * ({@link onResizeStart}) and is a no-op while {@link editable} is false or
+     * when the touch did not start on the drag handle.
      * Only internal moves are supported this way; dragging a widget in from
      * outside remains mouse-only.
      */
     onTouchDragStart(event: TouchEvent, item: DashboardItem): void {
         if (!this.editable()) return;
         if (this.resizingItemId()) return;
+        // Only the grip drags: a touchstart on the body must stay a native scroll gesture.
+        if (!(event.target as Element | null)?.closest('[data-slot="bento-drag-handle"]')) return;
 
         const touch = event.touches[0];
         const element = (event.target as HTMLElement).closest<HTMLElement>('.bento-item');

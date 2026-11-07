@@ -3,3 +3,24 @@
   flex-direction: column;
   height: 100%;
 }
+
+/* Touch screens drag by this grip only, so a swipe that starts on the widget body scrolls the page. */
+.bento-drag-handle {
+  display: none;
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: 20;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  cursor: grab;
+  touch-action: none;
+}
+
+@media (pointer: coarse) {
+  .bento-drag-handle {
+    display: flex;
+  }
+}

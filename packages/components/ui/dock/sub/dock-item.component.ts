@@ -23,7 +23,7 @@ export class DockItemComponent {
     private readonly el = inject(ElementRef);
     private readonly _renderer = inject(Renderer2);
 
-    /** Extra classes merged onto the item host. Avoid `w-*` here — width is owned by the dock's hover magnification and written as an inline style. Add `group` if you project a `ui-dock-label`, which reveals itself on `group-hover`. */
+    /** Extra classes merged onto the item host. Avoid `w-*` here — width is owned by the dock's hover magnification and written as an inline style. */
     class = input('');
     /** Shows the small "running" dot under the icon. Presentational only — it neither highlights the item nor is tracked by the dock. */
     active = input<boolean>(false);
@@ -31,7 +31,7 @@ export class DockItemComponent {
     isBouncing = signal(false);
 
     classes = computed(() => cn(
-        'rounded-full cursor-pointer transition-[width,height,margin] duration-100 ease-out relative',
+        'group rounded-full cursor-pointer transition-[width,height,margin] duration-100 ease-out relative',
         this.isBouncing() ? 'animate-bounce' : '',
         this.class()
     ));

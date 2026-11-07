@@ -309,6 +309,9 @@ describe('ColorPickerComponent', () => {
             fixture.detectChanges();
             expect(picker.compareAHex()).toBe('#ff0000');
 
+            const slotA = Array.from(document.querySelectorAll('button[aria-label]')).find(b => b.textContent?.trim() === '#ff0000');
+            expect(slotA?.getAttribute('aria-label')).toContain('#ff0000');
+
             picker.setCompareSlot('b');
             picker.selectPreset('#00ff00');
             fixture.detectChanges();

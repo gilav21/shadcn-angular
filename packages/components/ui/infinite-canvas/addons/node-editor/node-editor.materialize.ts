@@ -57,7 +57,7 @@ function cacheFor(
 export function withMaterializedTypes(
   nodes: readonly EditorNode[],
   definitions: ReadonlyMap<string, NodeTypeDefinition>,
-  stateOf?: (id: NodeId) => unknown,
+  stateOf?: (id: NodeId, type: string) => unknown,
 ): readonly EditorNode[] {
   if (definitions.size === 0) return nodes;
 
@@ -107,7 +107,7 @@ function isStateDependent(
 function materializeNode(
   node: EditorNode,
   definitions: ReadonlyMap<string, NodeTypeDefinition>,
-  stateOf?: (id: NodeId) => unknown,
+  stateOf?: (id: NodeId, type: string) => unknown,
 ): EditorNode {
   if (node.type === undefined) return node;
   const definition = definitions.get(node.type);
@@ -123,7 +123,7 @@ function materializeNode(
   // lot. Confining the read to the types that need it keeps that cost where
   // it was asked for.
   const ports = definition.portsFor
-    ? (definition.portsFor(stateOf?.(node.id)) as readonly NodePort[])
+    ? (definition.portsFor(stateOf?.(node.id, node.type)) as readonly NodePort[])
     : (definition.ports as readonly NodePort[]);
   const title = node.title === undefined || node.title === '' ? definition.label : node.title;
   const accent = node.accent ?? definition.accent;

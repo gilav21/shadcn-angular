@@ -40,10 +40,10 @@ export class SortableItemComponent {
         const bodyDraggable = !(this.parent?.handleOnly() ?? false) && !this.disabled();
         return cn(
             'relative flex items-center gap-2 select-none outline-none',
-            'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded',
+            'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ring-offset-background rounded',
             bodyDraggable ? 'touch-none cursor-grab active:cursor-grabbing' : '',
             isSource ? 'z-50 shadow-2xl' : '',
-            isLifted ? 'ring-2 ring-primary ring-offset-1 rounded' : '',
+            isLifted ? 'ring-2 ring-primary ring-offset-1 ring-offset-background rounded' : '',
             this.positionClassValue(),
             this.class(),
         );
@@ -77,7 +77,7 @@ export class SortableItemComponent {
      * in which case only {@link SortableHandleDirective} may start a drag.
      */
     onMouseDown(event: MouseEvent): void {
-        if (!this.parent || this.parent.handleOnly()) return;
+        if (!this.parent || this.parent.handleOnly() || event.button !== 0 || !this.ownsEvent(event)) return;
         this.parent.startDrag(this.index(), event.clientX, event.clientY);
     }
 
@@ -88,7 +88,7 @@ export class SortableItemComponent {
      * drags instead of scrolling; only the first touch point is tracked.
      */
     onTouchStart(event: TouchEvent): void {
-        if (!this.parent || this.parent.handleOnly() || event.touches.length === 0) return;
+        if (!this.parent || this.parent.handleOnly() || event.touches.length === 0 || !this.ownsEvent(event)) return;
         event.preventDefault();
         const touch = event.touches[0];
         this.parent.startDrag(this.index(), touch.clientX, touch.clientY);
@@ -102,6 +102,14 @@ export class SortableItemComponent {
      * target (`tabindex="0"` unless disabled).
      */
     onKeyDown(event: KeyboardEvent): void {
+        // Keys from a nested row or a control inside the row (an input) are not lift/move commands for this row.
+        if (event.target !== event.currentTarget) return;
         this.parent?.handleItemKeyDown(this.index(), event);
+    }
+
+    /** A pointer event bubbling from a nested row belongs to that row, not this one. */
+    private ownsEvent(event: Event): boolean {
+        const target = event.target;
+        return !(target instanceof Element) || target.closest('[data-slot="sortable-item"]') === event.currentTarget;
     }
 }

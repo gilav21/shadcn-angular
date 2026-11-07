@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { TourComponent, TourStep, TourEndReason, TourSkippedEvent } from './tour.component';
 
 interface MutableRect {
@@ -267,6 +268,20 @@ describe('TourComponent', () => {
         fixture.detectChanges();
         expect(host.active()).toBe(false);
         expect(host.doneCount).toBe(1);
+    });
+
+    it('advances exactly one step when Enter is pressed on the focused Next button', async () => {
+        host.active.set(true);
+        await flush(fixture);
+        const buttons = fixture.nativeElement.querySelectorAll('[data-slot="tour-card"] button');
+        const nextButton = buttons[buttons.length - 1] as HTMLButtonElement;
+
+        nextButton.focus();
+        await userEvent.keyboard('{Enter}');
+        await flush(fixture);
+
+        expect(getTour(fixture).currentIndex()).toBe(1);
+        expect(host.doneCount).toBe(0);
     });
 
     it('should re-read the target rect on scroll and resize reposition', async () => {

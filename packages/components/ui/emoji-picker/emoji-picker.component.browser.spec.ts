@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { afterEach, beforeEach, describe, it, expect } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { EmojiPickerComponent } from './emoji-picker.component';
 import { EmojiPickerTriggerComponent } from './sub/emoji-picker-trigger.component';
 import { EmojiPickerContentComponent } from './sub/emoji-picker-content.component';
@@ -148,5 +148,40 @@ describe('EmojiPickerContentComponent — top layer', () => {
 
         expect(picked).toEqual([firstEmoji.textContent?.trim()]);
         expect(picker.open()).toBe(false);
+    });
+});
+
+describe('EmojiPickerContentComponent — category tab scroll', () => {
+    it('lands the clicked category heading at the top of the grid', async () => {
+        await TestBed.configureTestingModule({ imports: [FixedHost] }).compileComponents();
+        const fixture = TestBed.createComponent(FixedHost);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+        const picker: EmojiPickerComponent = fixture.debugElement
+            .query(By.directive(EmojiPickerComponent)).componentInstance;
+        picker.open.set(true);
+        fixture.detectChanges();
+        await frame();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const panel: HTMLElement = fixture.nativeElement.querySelector('[data-slot="emoji-picker-content"]');
+        const tabs = [...panel.querySelectorAll<HTMLButtonElement>('.border-b button')];
+        tabs[tabs.length - 1].click();
+        const viewport = panel.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
+        const heading = panel.querySelectorAll('[data-category]')[tabs.length - 1];
+        const offset = () => heading.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+        // The first jump lands on an estimated height that is corrected once sections render, so the
+        // heading can pass through the top transiently. It only counts once it has stayed there.
+        let alignedSince = 0;
+        await vi.waitFor(() => {
+            if (Math.abs(offset()) > 1) {
+                alignedSince = 0;
+            } else if (alignedSince === 0) {
+                alignedSince = performance.now();
+            }
+            expect(alignedSince > 0 && performance.now() - alignedSince >= 500).toBe(true);
+        }, { timeout: 6000, interval: 50 });
+        fixture.destroy();
     });
 });

@@ -11,6 +11,7 @@ import {
   DestroyRef,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
+import { placeTooltip } from '../../lib/chart-interaction';
 import { observeChartWidth } from '../../lib/chart-responsive';
 import {
   ChartDataPoint,
@@ -310,7 +311,8 @@ export class BarChartComponent implements AfterViewInit {
    * and emitting {@link barHover}. Bound to both `mouseenter` and `focus` so
    * keyboard users get the same highlight.
    */
-  onBarHover(bar: BarRect): void {
+  onBarHover(bar: BarRect, evt?: Event): void {
+    placeTooltip(this.tooltipPosition, evt);
     this.hoveredIndex.set(bar.index);
     this.barHover.emit({ point: bar.data, index: bar.index });
   }

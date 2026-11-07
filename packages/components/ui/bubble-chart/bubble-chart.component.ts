@@ -207,6 +207,11 @@ export class BubbleChartComponent implements AfterViewInit {
         return sizeScale([min, max], [this.minRadius(), this.maxRadius()]);
     });
 
+    readonly xTicks = computed(() => {
+        const xs = this.xScale();
+        return xs.ticks(5).map(v => ({ value: v, x: xs.scale(v) }));
+    });
+
     readonly yTicks = computed(() => {
         const ys = this.yScale();
         return ys.ticks(5).map(v => ({ value: v, y: ys.scale(v) }));

@@ -36,6 +36,17 @@ describe('OrgChartComponent', () => {
         expect(component.getInitials('John Doe')).toBe('JD');
     });
 
+    it('leaves Enter and Space to the button native click, so a keypress never emits on its own', () => {
+        const emitted: unknown[] = [];
+        component.nodeClick.subscribe(v => emitted.push(v));
+        const button: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+        button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        button.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+        expect(emitted).toHaveLength(0);
+        button.click();
+        expect(emitted).toHaveLength(1);
+    });
+
     it('should emit nodeClick when onNodeClick is called', () => {
         let emitted: unknown;
         component.nodeClick.subscribe(val => emitted = val);

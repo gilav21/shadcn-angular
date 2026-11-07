@@ -4,6 +4,7 @@
   role="group"
   [attr.aria-label]="ariaLabel()"
 >
+  <div class="relative">
   <svg [attr.viewBox]="viewBox()" [attr.width]="size()" [attr.height]="size()" class="overflow-visible">
     @for (ring of rings(); track $index) {
       <polygon
@@ -45,9 +46,15 @@
       />
       @for (v of poly.vertices; track $index) {
         <circle
+          [attr.data-slot]="'radar-vertex'"
           [attr.cx]="v.x"
           [attr.cy]="v.y"
-          r="3"
+          [attr.r]="isHovered(poly.key, $index) ? 5 : 3"
+          class="cursor-pointer transition-[r]"
+          (mouseenter)="setHover(poly.key, $index)"
+          (mouseleave)="clearHover()"
+          (focus)="setHover(poly.key, $index)"
+          (blur)="clearHover()"
           [attr.fill]="poly.color"
           tabindex="0"
           role="button"
@@ -56,6 +63,16 @@
       }
     }
   </svg>
+
+  <ui-chart-tooltip
+    [visible]="hovered() !== null"
+    [x]="tooltipPos().x"
+    [y]="tooltipPos().y"
+    [title]="hoverTitle()"
+    [rows]="tooltipRows()"
+    [flipX]="tooltipPos().x > size() * 0.7"
+  />
+  </div>
 
   @if (showLegend()) {
     <ui-chart-legend

@@ -7,9 +7,10 @@ import {
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { ChartSeries, ChartDirection } from '../../lib/chart.types';
-import { getChartColor, getChartSummary, extent } from '../../lib/chart.utils';
+import { getChartColor, getChartSummary, extent, formatChartValue } from '../../lib/chart.utils';
 import { radarPoint, polygonPath } from '../../lib/chart-polar';
 import { ChartLegendComponent, ChartLegendItem } from '../chart-legend';
+import { ChartTooltipComponent, ChartTooltipRow } from '../chart-tooltip';
 
 interface RadarPolygon {
     key: string;
@@ -34,7 +35,7 @@ const UNIT_SCALE: readonly [number, number] = [0, 1];
     selector: 'ui-radar-chart',
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './radar-chart.component.html',
-    imports: [ChartLegendComponent],
+    imports: [ChartLegendComponent, ChartTooltipComponent],
     host: {
         class: 'block',
     },
@@ -105,6 +106,30 @@ export class RadarChartComponent {
 
     private readonly _hidden = signal<string[]>([]);
     readonly hiddenSeries = this._hidden.asReadonly();
+
+    protected readonly hovered = signal<{ key: string; index: number } | null>(null);
+
+    private readonly hoveredVertex = computed(() => {
+        const h = this.hovered();
+        if (!h) return null;
+        const poly = this.seriesPolygons().find(p => p.key === h.key);
+        const vertex = poly?.vertices[h.index];
+        return poly && vertex ? { poly, vertex } : null;
+    });
+
+    /** Tooltip anchor, just right of the hovered vertex. */
+    readonly tooltipPos = computed(() => {
+        const v = this.hoveredVertex()?.vertex;
+        return v ? { x: v.x + 10, y: Math.max(8, v.y - 8) } : { x: 0, y: 0 };
+    });
+
+    readonly hoverTitle = computed(() => this.hoveredVertex()?.vertex.axis);
+
+    readonly tooltipRows = computed((): ChartTooltipRow[] => {
+        const h = this.hoveredVertex();
+        if (!h) return [];
+        return [{ label: h.poly.name, value: formatChartValue(h.vertex.value), color: h.poly.color }];
+    });
 
     readonly classes = computed(() => cn('inline-flex flex-col items-center', this.class()));
     readonly viewBox = computed(() => `0 0 ${this.size()} ${this.size()}`);
@@ -185,6 +210,22 @@ export class RadarChartComponent {
             };
         });
     });
+
+    /** True while the vertex `index` of the series `key` is hovered or focused. */
+    isHovered(key: string, index: number): boolean {
+        const h = this.hovered();
+        return h?.key === key && h.index === index;
+    }
+
+    /** Highlights one vertex and shows its tooltip. Bound to hover and focus. */
+    setHover(key: string, index: number): void {
+        this.hovered.set({ key, index });
+    }
+
+    /** Clears the highlight and hides the tooltip. Bound to mouseleave and blur. */
+    clearHover(): void {
+        this.hovered.set(null);
+    }
 
     /**
      * Flips one series between shown and hidden, keyed by its `id` (or `name`

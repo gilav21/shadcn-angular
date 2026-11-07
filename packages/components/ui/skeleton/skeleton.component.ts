@@ -33,7 +33,7 @@ export class SkeletonComponent {
 
   classes = computed(() =>
     cn(
-      'rounded-md',
+      'block rounded-md',
       this.variant() === 'pulse' && 'animate-pulse bg-primary/10',
       this.variant() === 'shimmer' && 'animate-shimmer',
       this.class()

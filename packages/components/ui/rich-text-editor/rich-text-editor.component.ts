@@ -911,6 +911,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private snapshots: HistoryEntry[] = [];
     private historyIndex = -1;
+    private inputModeRestoreTimer: ReturnType<typeof setTimeout> | null = null;
+    private savedInputMode = '';
     private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private shortcutHandle: ShortcutComponentHandle | null = null;
     private readonly keydownInterceptors = new Set<(event: KeyboardEvent) => boolean>();
@@ -2982,20 +2984,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private executeInlineFormatCommand(command: string, mentionTargets: HTMLElement[]): boolean {
         switch (command) {
             case 'bold':
-                this.execEditorCommand('bold');
-                this.toggleMentionStyle(mentionTargets, 'fontWeight', 'bold', 'normal');
+                this.toggleChipStyle(mentionTargets, 'bold', 'fontWeight', 'bold');
                 return true;
             case 'italic':
-                this.execEditorCommand('italic');
-                this.toggleMentionStyle(mentionTargets, 'fontStyle', 'italic', 'normal');
+                this.toggleChipStyle(mentionTargets, 'italic', 'fontStyle', 'italic');
                 return true;
             case 'underline':
-                this.execEditorCommand('underline');
-                this.toggleMentionTextDecoration(mentionTargets, 'underline');
+                this.toggleChipDecoration(mentionTargets, 'underline', 'underline');
                 return true;
             case 'strikethrough':
-                this.execEditorCommand('strikeThrough');
-                this.toggleMentionTextDecoration(mentionTargets, 'line-through');
+                this.toggleChipDecoration(mentionTargets, 'strikeThrough', 'line-through');
                 return true;
             case 'clear':
                 this.clearFormatting(mentionTargets);
@@ -3214,18 +3212,32 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.exceedsMaxLength(plainText)) return;
         this.flushPendingHistoryPush();
         const editor = this.editorDiv?.nativeElement;
-        const prevInputMode = editor?.inputMode;
         if (editor) {
+            // A burst keeps the value from before its first insert: a second
+            // insert would otherwise capture our own temporary 'none'.
+            if (this.inputModeRestoreTimer === null) {
+                this.savedInputMode = editor.inputMode;
+            } else {
+                clearTimeout(this.inputModeRestoreTimer);
+            }
             editor.inputMode = 'none';
         }
-        insert();
-        this.pushHistory();
-        const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            this.savedRange = selection.getRangeAt(0).cloneRange();
-        }
-        if (editor) {
-            setTimeout(() => { editor.inputMode = prevInputMode ?? ''; }, 100);
+        try {
+            insert();
+            this.pushHistory();
+            const selection = this.document.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                this.savedRange = selection.getRangeAt(0).cloneRange();
+            }
+        } finally {
+            // A throwing insert must still schedule the restore, or the editor
+            // keeps 'none' and the next insert saves that as the original.
+            if (editor) {
+                this.inputModeRestoreTimer = setTimeout(() => {
+                    this.inputModeRestoreTimer = null;
+                    editor.inputMode = this.savedInputMode;
+                }, 100);
+            }
         }
     }
 
@@ -3674,14 +3686,28 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const mentionTargets = this.getMentionElementsInSelection();
 
+        // Chromium rewrites the family it writes into `face` (quotes dropped), so
+        // the command's own elements are told apart by what changed across the
+        // exec -- a new element, or a `face` that moved -- not by the text.
+        const facesBefore = new Map<Element, string | null>(
+            Array.from(this.editorDiv?.nativeElement.querySelectorAll('font[face]') ?? [])
+                .map((font) => [font, font.getAttribute('face')]),
+        );
+
         this.execEditorCommand('fontName', family);
 
         const styled: HTMLElement[] = [];
         if (this.editorDiv?.nativeElement) {
-            // Compared as an attribute value rather than through a selector, which
-            // would need CSS.escape -- absent from jsdom, where this threw.
+            // Splitting a pre-existing <font> leaves clones of it on both sides
+            // of the selection; those are new elements but not the command's, so
+            // only fonts the selection actually covers take the new family.
+            const selection = this.document.getSelection();
+            const range = selection && selection.rangeCount > 0 && this.editorDiv.nativeElement.contains(selection.getRangeAt(0).commonAncestorContainer)
+                ? selection.getRangeAt(0)
+                : null;
             const fontElements = Array.from(this.editorDiv.nativeElement.querySelectorAll('font[face]'))
-                .filter((font) => font.getAttribute('face') === family);
+                .filter((font) => (!range || range.intersectsNode(font))
+                    && (facesBefore.get(font) !== font.getAttribute('face') || this.isSameFontFamily(font.getAttribute('face'), family)));
             for (const font of fontElements) {
                 const el = font as HTMLElement;
                 const span = this.document.createElement('span');
@@ -3698,6 +3724,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.syncContentFromEditor();
         this.reSaveLiveSelection(styled);
         this.pushHistory();
+    }
+
+    /**
+     * A `<font>` already carrying the requested family is left unchanged by
+     * `fontName`, so "did its face move" cannot find it; the sanitizer drops
+     * `<font>`, so it must still become a styled span.
+     */
+    private isSameFontFamily(face: string | null, family: string): boolean {
+        const normalize = (value: string): string => value.replaceAll(/["']/g, '').trim().toLowerCase();
+        return face !== null && normalize(face) === normalize(family);
     }
 
     private getCaretOffset(element: HTMLElement): number {
@@ -6397,21 +6433,74 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return result;
     }
 
-    private toggleMentionStyle(elements: HTMLElement[], prop: 'fontWeight' | 'fontStyle', onValue: string, offValue: string): void {
-        for (const el of elements) {
-            el.style[prop] = el.style[prop] === onValue ? offValue : onValue;
-        }
+    /**
+     * Run a toggling `execCommand` and leave every chip in the selection in the
+     * state the command gave the surrounding text: after a toggle a chip has the
+     * same effective state as the text around it.
+     *
+     * That state is read BEFORE the exec, from the command, not from the chip's
+     * own inline style: a chip can be bold only through a `<b>` ancestor (no
+     * inline style), or carry an inline bold inside a partly-bold selection, and
+     * Chromium also strips a chip's matching inline style when the command turns
+     * the format off, so anything read afterwards reports "off". When the
+     * selection holds nothing but chips (non-editable, so the command has no
+     * text to act on and reports "off") or there is no `queryCommandState`, the
+     * chip's own style is the only state there is.
+     */
+    private toggleChipsWithCommand(
+        commandId: string,
+        chips: HTMLElement[],
+        chipHasFormat: (chip: HTMLElement) => boolean,
+        setChipFormat: (chip: HTMLElement, on: boolean) => void,
+    ): void {
+        const textHadFormat = this.selectionHoldsTextOutsideChips() ? this.queryEditorCommandState(commandId) : undefined;
+        const turnOn = chips.map((chip) => !(textHadFormat ?? chipHasFormat(chip)));
+        this.execEditorCommand(commandId);
+        chips.forEach((chip, i) => setChipFormat(chip, turnOn[i]));
     }
 
-    private toggleMentionTextDecoration(elements: HTMLElement[], decoration: string): void {
-        for (const el of elements) {
-            const current = el.style.textDecoration || '';
-            if (current.includes(decoration)) {
-                el.style.textDecoration = current.replace(decoration, '').trim() || '';
-            } else {
-                el.style.textDecoration = (current + ' ' + decoration).trim();
-            }
+    /**
+     * Decided on the range, not on `Selection.toString()`: that string follows
+     * rendered text (`text-transform`, a partly selected chip), so comparing it
+     * with a chip's `textContent` misreads a chips-only selection as having text.
+     */
+    private selectionHoldsTextOutsideChips(): boolean {
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) return false;
+        const range = selection.getRangeAt(0);
+        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+            if (!range.intersectsNode(node) || node.parentElement?.closest('[data-mention], [data-tag]')) continue;
+            const from = node === range.startContainer ? range.startOffset : 0;
+            const to = node === range.endContainer ? range.endOffset : node.data.length;
+            if (node.data.slice(from, to).trim() !== '') return true;
         }
+        return false;
+    }
+
+    private toggleChipStyle(chips: HTMLElement[], commandId: string, prop: 'fontWeight' | 'fontStyle', onValue: string): void {
+        this.toggleChipsWithCommand(
+            commandId,
+            chips,
+            (chip) => chip.style[prop] === onValue,
+            (chip, on) => { chip.style[prop] = on ? onValue : 'normal'; },
+        );
+    }
+
+    private toggleChipDecoration(chips: HTMLElement[], commandId: string, decoration: string): void {
+        this.toggleChipsWithCommand(
+            commandId,
+            chips,
+            (chip) => chip.style.textDecoration.includes(decoration),
+            (chip, on) => { chip.style.textDecoration = this.withTextDecoration(chip.style.textDecoration, decoration, on); },
+        );
+    }
+
+    private withTextDecoration(current: string, decoration: string, on: boolean): string {
+        const present = current.includes(decoration);
+        if (on === present) return current;
+        return on ? `${current} ${decoration}`.trim() : current.replace(decoration, '').trim();
     }
 
     private setMentionStyle(elements: HTMLElement[], prop: 'color' | 'backgroundColor' | 'fontSize' | 'fontFamily', value: string): void {
@@ -6540,9 +6629,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return doc.execCommand?.(commandId, false, value) ?? false;
     }
 
-    private queryEditorCommandState(commandId: string): boolean {
+    /** `undefined` when the environment has no `queryCommandState`. */
+    private queryEditorCommandState(commandId: string): boolean | undefined {
         const doc = this.document as unknown as { queryCommandState?: (id: string) => boolean };
-        return doc.queryCommandState?.(commandId) ?? false;
+        return doc.queryCommandState?.(commandId);
     }
 
 
@@ -8461,19 +8551,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 continue;
             }
             if (foundPrev === -1) {
-                ops.push('-' + pi, '+' + curLines[ci]);
+                ops.push('+' + curLines[ci]);
                 pi++;
                 ci++;
                 continue;
             }
-            this.pushRemovedOps(ops, pi, foundPrev);
             ops.push('=' + foundPrev);
             pi = foundPrev + 1;
             ci++;
-        }
-        while (pi < prevLines.length) {
-            ops.push('-' + pi);
-            pi++;
         }
         while (ci < curLines.length) {
             ops.push('+' + curLines[ci]);
@@ -8507,12 +8592,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private pushAddedOps(ops: string[], curLines: string[], start: number, end: number): void {
         for (let i = start; i < end; i++) {
             ops.push('+' + curLines[i]);
-        }
-    }
-
-    private pushRemovedOps(ops: string[], start: number, end: number): void {
-        for (let i = start; i < end; i++) {
-            ops.push('-' + i);
         }
     }
 
@@ -8575,10 +8654,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return html;
     }
 
+    /**
+     * Append the current content as a history entry. An entry's delta is
+     * computed against the entry it is appended to (the one at `historyIndex`),
+     * and the redo tail is dropped before that base is trusted: read from the
+     * tail, the base would be a discarded future entry and the delta would
+     * reconstruct on top of the wrong one.
+     */
     private pushHistory(): void {
         const currentHtml = this.htmlContent();
-        const lastEntry = this.snapshots.at(-1);
-        const lastHtml = lastEntry ? this.reconstructHtmlCached(this.snapshots.length - 1) : '';
+        const lastEntry = this.snapshots[this.historyIndex];
+        const lastHtml = lastEntry ? this.reconstructHtmlCached(this.historyIndex) : '';
         if (lastEntry && lastHtml === currentHtml) {
             return;
         }
@@ -8932,6 +9018,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.historyDebounceTimer) {
             clearTimeout(this.historyDebounceTimer);
             this.historyDebounceTimer = null;
+        }
+        if (this.inputModeRestoreTimer !== null) {
+            clearTimeout(this.inputModeRestoreTimer);
+            this.inputModeRestoreTimer = null;
         }
         this.releaseTableDragListeners();
         this.cancelPendingFind();

@@ -171,4 +171,10 @@ describe('SignaturePadComponent (browser)', () => {
     it('takes the touch gesture rather than letting the page have it', () => {
         expect(getComputedStyle(canvas()).touchAction).toBe('none');
     });
+
+    it('lets the density variable move the toolbar padding', () => {
+        const toolbar = fixture.nativeElement.querySelector('[data-slot="signature-pad-toolbar"]') as HTMLElement;
+        fixture.nativeElement.style.setProperty('--density', '2');
+        expect(getComputedStyle(toolbar).paddingTop).toBe('16px');
+    });
 });

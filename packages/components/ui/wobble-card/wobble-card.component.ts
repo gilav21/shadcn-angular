@@ -44,7 +44,7 @@ export class WobbleCardComponent {
     private readonly rotateY = signal(0);
 
     classes = computed(() => cn(
-        'relative overflow-hidden rounded-xl transition-transform duration-200 ease-out',
+        'relative block overflow-hidden rounded-xl transition-transform duration-200 ease-out',
         this.class()
     ));
 

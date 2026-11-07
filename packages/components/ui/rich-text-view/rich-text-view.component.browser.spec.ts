@@ -55,6 +55,38 @@ describe('RichTextViewComponent typography (browser)', () => {
         expect(styleOf('details').borderTopWidth).toBe('1px');
     });
 
+    it('keeps mention and tag chips visibly styled after the sanitizer strips their class', () => {
+        fixture.componentRef.setInput('value',
+            '<p>Hi <span class="bg-accent rounded px-1" data-mention="ada" data-mention-id="1">@Ada</span>'
+            + ' <a href="https://example.com/t/news" class="x" data-tag="news" data-tag-id="2">#news</a></p>'
+            + '<div data-mention="blk">Not a chip</div>');
+        fixture.detectChanges();
+
+        const mention = content().querySelector<HTMLElement>('[data-mention]')!;
+        const tag = content().querySelector<HTMLElement>('[data-tag]')!;
+        expect(mention.hasAttribute('class')).toBe(false);
+        for (const chip of [mention, tag]) {
+            const style = getComputedStyle(chip);
+            expect(style.backgroundColor).not.toBe('rgba(0, 0, 0, 0)');
+            expect(px(style.paddingLeft)).toBeGreaterThan(0);
+        }
+        // Only the elements the mentions addon emits are chips; pasted markup
+        // carrying the attribute on a block is not.
+        expect(getComputedStyle(content().querySelector('div[data-mention]')!).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    });
+
+    it('leaves text-mode and link-mode entities to their own styling after the class strip', () => {
+        fixture.componentRef.setInput('value',
+            '<p><span data-entity-mode="text" data-mention="ada" data-mention-id="1">@Ada</span>'
+            + ' <a href="https://example.com/u/bob" data-entity-mode="link" data-mention="bob" data-mention-id="2">@Bob</a></p>');
+        fixture.detectChanges();
+
+        const text = styleOf('span[data-mention]');
+        expect(text.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+        expect(px(text.paddingLeft)).toBe(0);
+        expect(styleOf('a[data-mention]').backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    });
+
     it('orders the text size presets sm < default < lg', () => {
         fixture.componentRef.setInput('value', '<p>Body text</p>');
         const sizeFor = (size: 'sm' | 'default' | 'lg'): number => {

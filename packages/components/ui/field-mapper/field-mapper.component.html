@@ -15,7 +15,7 @@
       <ul class="flex flex-col gap-2" [attr.aria-labelledby]="ids.startHeading">
         @for (item of startVisible(); track item.id) {
           <li
-            class="flex min-w-0 flex-col gap-2 rounded-md border bg-card p-3"
+            class="flex min-w-0 flex-col gap-2 rounded-md border bg-card p-3 [&_[data-slot=native-select-wrapper]]:w-full"
             [attr.data-slot]="'field-mapper-row'"
             [attr.data-id]="item.id"
           >

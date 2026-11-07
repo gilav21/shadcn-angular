@@ -91,6 +91,16 @@ describe('UiRippleDirective', () => {
         expect(button.style.overflow).toBe('');
     });
 
+    it('should spread from the centre when a keyboard click has no pointer position', () => {
+        vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue({ onfinish: null } as unknown as Animation);
+
+        button.click();
+
+        const ripple = button.querySelector('span')!;
+        expect(ripple.style.left).toBe('-50px');
+        expect(ripple.style.top).toBe('-75px');
+    });
+
     it('should create a ripple span element inside the button on click', () => {
         const mockAnimation: MockAnimation = { onfinish: null };
         vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue(mockAnimation as unknown as Animation);

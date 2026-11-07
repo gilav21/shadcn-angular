@@ -803,7 +803,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             characters: '{count} символов',
             words: '{count} слов',
             formattingOptions: 'Параметры форматирования',
-            blockedImage: 'Изображение заблокирована политикой безопасности',
+            blockedImage: 'Изображение заблокировано политикой безопасности',
         },
     },
     pt: {

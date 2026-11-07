@@ -21,6 +21,13 @@ const SIDEBAR_VARIANT_CLASSES: Record<SidebarVariant, string> = {
   inset: 'm-2 h-[calc(100vh-1rem)] rounded-lg border-none shadow-none',
 };
 
+const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/** A `display: none` control (the `hidden md:flex` rail on mobile) can never take focus, so it must not be the trap's first or last stop. */
+function isRendered(el: HTMLElement): boolean {
+  return el.checkVisibility?.() ?? true;
+}
+
 @Component({
   selector: 'ui-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -45,6 +52,7 @@ const SIDEBAR_VARIANT_CLASSES: Record<SidebarVariant, string> = {
       [attr.data-side]="side()"
       [attr.data-variant]="variant()"
       [attr.data-collapsible]="collapsible() ? collapseMode() : 'none'"
+      [attr.inert]="service.isMobile() && !service.isOpen() ? '' : null"
       (keydown)="onKeydown($event)"
       tabindex="-1"
     >
@@ -79,7 +87,7 @@ export class SidebarComponent implements AfterViewInit {
 
   isMobile = signal(false);
   readonly service = inject(SidebarService);
-  private readonly el = inject(ElementRef);
+  private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly document = inject(DOCUMENT);
 
   private contentEl?: HTMLElement;
@@ -119,12 +127,10 @@ export class SidebarComponent implements AfterViewInit {
   }
 
   private focusFirstElement(): void {
-    const content = this.el.nativeElement.querySelector('[data-slot="sidebar"]');
+    const content = this.el.nativeElement.querySelector<HTMLElement>('[data-slot="sidebar"]');
     if (content) {
       this.contentEl = content;
-      const focusable = content.querySelector(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      ) as HTMLElement;
+      const focusable = Array.from(content.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(isRendered);
       if (focusable) {
         focusable.focus();
       } else {
@@ -149,12 +155,11 @@ export class SidebarComponent implements AfterViewInit {
     }
 
     if (event.key === 'Tab' && this.contentEl) {
-      const focusableElements = this.contentEl.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusableElements.length === 0) return;
+      const elements = Array.from(
+        this.contentEl.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ).filter(isRendered);
+      if (elements.length === 0) return;
 
-      const elements = Array.from(focusableElements) as HTMLElement[];
       const firstElement = elements[0];
       const lastElement = elements.at(-1) as HTMLElement;
 

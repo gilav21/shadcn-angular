@@ -53,10 +53,15 @@ export class CopyToDirective implements OnDestroy {
 	 * escapes any clipping ancestor; it is removed on destroy.
 	 */
 	onClick(): void {
-		navigator.clipboard.writeText(this.uiCopyTo()).then(() => {
-			this.copied.emit();
-			this.zone.run(() => this.showIndicator());
-		});
+		navigator.clipboard.writeText(this.uiCopyTo()).then(
+			() => {
+				this.copied.emit();
+				this.zone.run(() => this.showIndicator());
+			},
+			() => {
+				// Rejected (no permission / insecure origin): documented to stay silent.
+			},
+		);
 	}
 
 	private showIndicator(): void {

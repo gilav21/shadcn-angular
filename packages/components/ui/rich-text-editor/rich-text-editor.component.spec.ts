@@ -6499,6 +6499,37 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
         expect(redone).toEqual(snapshots.slice(1));
     });
 
+    it.each([2, 9, 10])('a branch typed after an undo reconstructs on the entry it was appended to (undone from %i entries)', (depth) => {
+        const lines = (n: number) => Array.from({ length: n }, (...[, k]) => `<p>line ${k}</p>`).join('\n');
+        const type = (html: string) => {
+            component.writeValue(html);
+            fixture.detectChanges();
+            push();
+        };
+        for (let n = 1; n <= depth; n++) type(lines(n));
+        const base = lines(depth);
+        const discarded = `${base}\n<p>old A</p>\n<p>old B</p>`;
+        type(discarded);
+        component.undo();
+        expect(editor.innerHTML).toBe(base);
+
+        // Re-typing exactly the discarded content is a change from the entry
+        // undone to, so it is recorded as a new entry rather than skipped.
+        type(discarded);
+        expect(component.canRedo()).toBe(false);
+        component.undo();
+        expect(editor.innerHTML).toBe(base);
+
+        // A branch that keeps a line only the discarded future had: its delta
+        // must index the base it sits on, not the discarded tail.
+        const branch = `${base}\n<p>old A</p>`;
+        type(branch);
+        component.undo();
+        expect(editor.innerHTML).toBe(base);
+        component.redo();
+        expect(editor.innerHTML).toBe(branch);
+    });
+
     it('trims history to the configured limit, keeping the newest entries undoable', () => {
         fixture.componentRef.setInput('history', { limit: 10 });
         fixture.detectChanges();
@@ -7766,6 +7797,70 @@ describe('RichTextEditorComponent — paste max length & overlay handlers', () =
         expect(editor.inputMode).toBe('text');
         expect(editor.textContent).toContain('😀');
         vi.useRealTimers();
+    });
+
+    it.each([0, 50, 150])('overlay inserts %ims apart end with the original inputMode', (gap) => {
+        vi.useFakeTimers();
+        try {
+            component.writeValue('<p>e</p>');
+            fixture.detectChanges();
+            editor.inputMode = 'text';
+            const text = editor.querySelector('p')!.firstChild as Text;
+            const r = document.createRange();
+            r.setStart(text, 1);
+            r.collapse(true);
+            document.getSelection()?.removeAllRanges();
+            document.getSelection()?.addRange(r);
+
+            component.insertTextFromOverlay('a');
+            vi.advanceTimersByTime(gap);
+            component.insertTextFromOverlay('b');
+            expect(editor.inputMode).toBe('none');
+
+            vi.advanceTimersByTime(300);
+            expect(editor.inputMode).toBe('text');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('an overlay insert that throws still gets the original inputMode back, and the next insert sees it', () => {
+        vi.useFakeTimers();
+        try {
+            component.writeValue('<p>e</p>');
+            fixture.detectChanges();
+            editor.inputMode = 'text';
+            // A consumer's change handler throwing is how an insert fails for real.
+            component.registerOnChange(() => { throw new Error('handler failed'); });
+
+            expect(() => component.insertTextFromOverlay('x')).toThrow('handler failed');
+            vi.advanceTimersByTime(150);
+            expect(editor.inputMode).toBe('text');
+
+            component.registerOnChange(() => undefined);
+            component.insertTextFromOverlay('y');
+            vi.advanceTimersByTime(150);
+            expect(editor.inputMode).toBe('text');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('destroying the editor within 100ms of an overlay insert stops the late inputMode restore', () => {
+        vi.useFakeTimers();
+        try {
+            component.writeValue('<p>e</p>');
+            fixture.detectChanges();
+            editor.inputMode = 'text';
+
+            component.insertTextFromOverlay('x');
+            fixture.destroy();
+            vi.advanceTimersByTime(300);
+
+            expect(editor.inputMode).toBe('none');
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('re-targets the context menu to the cell beneath the overlay point', () => {
@@ -9170,11 +9265,13 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(outline(editor.querySelector('ul')!)).toEqual([['a', ['b']], ['c', ['d']]]);
     });
 
-    it('toggleMentionStyle turns a style off when already on', () => {
-        const el = document.createElement('span');
-        el.style.fontWeight = 'bold';
-        priv().toggleMentionStyle([el], 'fontWeight', 'bold', 'normal');
-        expect(el.style.fontWeight).toBe('normal');
+    it.each([
+        ['underline', 'underline', true, 'underline'],
+        ['underline', 'underline', false, ''],
+        ['underline line-through', 'underline', false, 'line-through'],
+        ['line-through', 'underline', true, 'line-through underline'],
+    ])('withTextDecoration(%j, %s, on=%s) -> %j', (current, decoration, on, expected) => {
+        expect(priv().withTextDecoration(current, decoration, on)).toBe(expected);
     });
 
     it('execEditorCommand returns false when execCommand is unavailable', () => {

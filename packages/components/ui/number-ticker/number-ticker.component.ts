@@ -38,7 +38,7 @@ export class NumberTickerComponent implements OnDestroy {
     decimalPlaces = input<number>(0);
     /**
      * Extra classes merged onto the host. The default includes literal
-     * `text-black dark:text-white` rather than a theme token, so pass a
+     * `text-foreground` rather than a theme token, so pass a
      * `text-*` utility here when the ticker must follow the theme.
      */
     class = input<string>('');
@@ -52,12 +52,13 @@ export class NumberTickerComponent implements OnDestroy {
     /** Effective locale id used for Intl.NumberFormat. */
     readonly resolvedLocale = computed(() => this.locale() ?? this.globalLocale());
 
-    classes = computed(() => cn('inline-block tabular-nums tracking-wider text-black dark:text-white', this.class()));
+    classes = computed(() => cn('inline-block tabular-nums tracking-wider text-foreground', this.class()));
 
     displayValue = signal<string>('0');
     displayDigits = computed(() => this.displayValue().split(''));
 
     private _animationFrameId: number | null = null;
+    private _delayTimeoutId: ReturnType<typeof setTimeout> | null = null;
     private _startTime: number | null = null;
     private _startValue: number = 0;
     private _endValue: number = 0;
@@ -89,7 +90,8 @@ export class NumberTickerComponent implements OnDestroy {
 
         const delayMs = delay * 1000;
 
-        setTimeout(() => {
+        this._delayTimeoutId = setTimeout(() => {
+            this._delayTimeoutId = null;
             this._startTime = null;
             this._animationFrameId = requestAnimationFrame(this._animate);
         }, delayMs);
@@ -130,6 +132,10 @@ export class NumberTickerComponent implements OnDestroy {
     };
 
     private _stopAnimation(): void {
+        if (this._delayTimeoutId !== null) {
+            clearTimeout(this._delayTimeoutId);
+            this._delayTimeoutId = null;
+        }
         if (this._animationFrameId) {
             cancelAnimationFrame(this._animationFrameId);
             this._animationFrameId = null;

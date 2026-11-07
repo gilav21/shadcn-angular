@@ -886,6 +886,9 @@ describe('BentoGridComponent', () => {
     });
 
     describe('touch drag', () => {
+        const handleEl = (): HTMLElement =>
+            fixture.debugElement.query(By.css('[data-slot="bento-drag-handle"]')).nativeElement as HTMLElement;
+
         beforeEach(() => {
             component.editable.set(true);
             component.items.set([
@@ -901,7 +904,7 @@ describe('BentoGridComponent', () => {
             const itemEl = fixture.debugElement.query(By.css('.bento-item')).nativeElement as HTMLElement;
             mockRect(itemEl, 100, 120);
             const remove = vi.spyOn(globalThis.window, 'removeEventListener');
-            grid.onTouchDragStart(makeTouchEvent('touchstart', [{ clientX: 5, clientY: 5 }], itemEl), component.items()[0]);
+            grid.onTouchDragStart(makeTouchEvent('touchstart', [{ clientX: 5, clientY: 5 }], handleEl()), component.items()[0]);
             expect(grid.draggedItemId()).toBe('1');
 
             fixture.destroy();
@@ -918,7 +921,7 @@ describe('BentoGridComponent', () => {
             const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
             mockRect(itemEl, 100, 120);
             mockRect(containerEl, 400, 480);
-            const ev = makeTouchEvent('touchstart', [{ clientX: 5, clientY: 5 }], itemEl);
+            const ev = makeTouchEvent('touchstart', [{ clientX: 5, clientY: 5 }], handleEl());
             grid.onTouchDragStart(ev, component.items()[0]);
             expect(grid.draggedItemId()).toBe('1');
 
@@ -932,25 +935,30 @@ describe('BentoGridComponent', () => {
             expect(grid.dropPreview()).toBeNull();
         });
 
-        it('onTouchDragStart does nothing when not editable or while resizing, and falls back to a zeroed rect outside a bento-item', () => {
+        it('onTouchDragStart does nothing when not editable, while resizing, or when the touch starts on the widget body', () => {
             const grid = getGrid();
-            const start = (): void => grid.onTouchDragStart(
-                makeTouchEvent('touchstart', [{ clientX: 15, clientY: 20 }], document.body), component.items()[0]);
+            const start = (target: EventTarget): void => grid.onTouchDragStart(
+                makeTouchEvent('touchstart', [{ clientX: 15, clientY: 20 }], target), component.items()[0]);
+            const body = fixture.debugElement.query(By.css('.bento-item p')).nativeElement as HTMLElement;
+
+            const handle = handleEl();
+            start(body);
+            expect(grid.draggedItemId()).toBeNull();
 
             component.editable.set(false);
             fixture.detectChanges();
-            start();
+            start(handle);
             expect(grid.draggedItemId()).toBeNull();
 
             component.editable.set(true);
             fixture.detectChanges();
             grid.resizingItemId.set('1');
-            start();
+            start(handleEl());
             expect(grid.draggedItemId()).toBeNull();
             grid.resizingItemId.set(null);
 
-            start();
-            expect(grid.dragOffset()).toEqual({ x: 15, y: 20 });
+            start(handleEl());
+            expect(grid.draggedItemId()).toBe('1');
             globalThis.window.dispatchEvent(makeTouchEvent('touchend', []));
         });
     });

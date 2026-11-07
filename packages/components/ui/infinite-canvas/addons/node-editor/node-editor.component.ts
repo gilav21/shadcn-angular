@@ -657,8 +657,8 @@ export class NodeEditorComponent {
    */
   protected readonly sizedNodes = computed(() =>
     withDerivedHeights(
-      withMaterializedTypes(this.nodes(), this.definitionIndex(), id =>
-        this.runtime.state(id)(),
+      withMaterializedTypes(this.nodes(), this.definitionIndex(), (id, type) =>
+        this.runtime.state(id, type)(),
       ),
       this.metrics,
       node => this.bodyHeightOf(node),
@@ -1176,7 +1176,7 @@ export class NodeEditorComponent {
 
     const created = Injector.create({
       parent: this.parentInjector,
-      providers: [{ provide: NODE_CONTEXT, useValue: this.createNodeContext(node.id) }],
+      providers: [{ provide: NODE_CONTEXT, useValue: this.createNodeContext(node) }],
     });
     this.nodeInjectors.set(node.id, created);
     return created;
@@ -1189,14 +1189,15 @@ export class NodeEditorComponent {
    * status. A view that needs more than this is reaching into the graph, which
    * is the editor's job rather than a node's.
    */
-  private createNodeContext(nodeId: NodeId): NodeContext {
+  private createNodeContext(node: EditorNode): NodeContext {
+    const nodeId = node.id;
     const runtime = this.runtime;
     // Replay substitutes the values here, at the one place every view reads
     // them — so a node written months ago replays without knowing it can.
     const recorded = computed(() => this.replay()?.[nodeId] ?? null);
     return {
       nodeId,
-      state: runtime.state(nodeId),
+      state: runtime.state(nodeId, node.type),
       setState: (next: unknown) => this.setNodeState(nodeId, next),
       input: <T,>(portId: string) =>
         computed(

@@ -28,6 +28,7 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
     "19b3cc3a078cf75aaf81da474acea6794247b4537df94b64c28199cc3e452249"
   ],
   "chart-interaction.ts": [
+    "3920c929aeeb10f01bb8bc1bd72547541e75e1b6846c934e62ea931d9e9a7026",
     "3f9881a4e6801e2df2ad6d4dd3c2275a9f13f2c0990564cc6671675a339fd788",
     "a8938d174250649f84867a6ef2af2134d52e1c9643d5e4d13fafe26a15b24550"
   ],
@@ -51,6 +52,7 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   "chart-scale.ts": [
     "19e9c95015fee17936dca3c90498872393b3589bf3b3d6b9b80d41effd6e4e4f",
     "272741ebeaa60fbb6819da77c125d02ef499006b94fa6991c10e77e83b81e0c5",
+    "3b3efc69801155cc8b4a86fac303716819c87c4166c568085d46f201a10534cb",
     "5ed543f849c2ddc79e7d1f77945fa3890521f15401969f48e86a4b4f19c68937",
     "5f6708df6ec899afd1cb3485f22c495cce82a5cf773124845f731ef8d81ab7b1",
     "91f77fb46286c6faa21d0722deb2c215b07a6948d3aebcc37c4b3534d243c5f2",
