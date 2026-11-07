@@ -2054,8 +2054,8 @@
       "lines": 1624
     },
     "emoji-picker/emoji-picker.component.browser.spec.ts": {
-      "bytes": 7363,
-      "lines": 179
+      "bytes": 7835,
+      "lines": 187
     },
     "emoji-picker/emoji-picker.component.spec.ts": {
       "bytes": 17483,
@@ -2074,8 +2074,8 @@
       "lines": 3
     },
     "emoji-picker/sub/emoji-picker-content.component.ts": {
-      "bytes": 17017,
-      "lines": 405
+      "bytes": 18243,
+      "lines": 432
     },
     "emoji-picker/sub/emoji-picker-trigger.component.ts": {
       "bytes": 2198,
@@ -2978,8 +2978,8 @@
       "lines": 271
     },
     "infinite-canvas/addons/node-editor/node-editor.replay.spec.ts": {
-      "bytes": 6717,
-      "lines": 198
+      "bytes": 6920,
+      "lines": 202
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.events.spec.ts": {
       "bytes": 9522,
@@ -4954,8 +4954,8 @@
       "lines": 102
     },
     "rich-text-editor/rich-text-editor.component.browser.spec.ts": {
-      "bytes": 19027,
-      "lines": 402
+      "bytes": 23769,
+      "lines": 501
     },
     "rich-text-editor/rich-text-editor.component.css": {
       "bytes": 6574,
@@ -4966,12 +4966,12 @@
       "lines": 302
     },
     "rich-text-editor/rich-text-editor.component.spec.ts": {
-      "bytes": 536848,
-      "lines": 11915
+      "bytes": 540996,
+      "lines": 12017
     },
     "rich-text-editor/rich-text-editor.component.ts": {
-      "bytes": 386176,
-      "lines": 8967
+      "bytes": 389933,
+      "lines": 9034
     },
     "rich-text-editor/rich-text-editor.fixtures.ts": {
       "bytes": 818,
@@ -5042,8 +5042,8 @@
       "lines": 1272
     },
     "rich-text-editor/rich-text-prose.ts": {
-      "bytes": 4715,
-      "lines": 64
+      "bytes": 5281,
+      "lines": 69
     },
     "rich-text-editor/rich-text-resource-policy.spec.ts": {
       "bytes": 12193,
@@ -5098,8 +5098,8 @@
       "lines": 1
     },
     "rich-text-view/rich-text-view.component.browser.spec.ts": {
-      "bytes": 3356,
-      "lines": 72
+      "bytes": 4529,
+      "lines": 92
     },
     "rich-text-view/rich-text-view.component.css": {
       "bytes": 1016,
