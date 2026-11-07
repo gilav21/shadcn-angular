@@ -432,22 +432,43 @@ describe('RichTextEditorComponent — font family via execCommand', () => {
         },
     );
 
-    it.each([
-        { command: 'bold', html: '<b>hi <span data-mention="a" data-mention-id="1" style="font-weight: bold">@Ada</span> end</b>', read: (s: CSSStyleDeclaration) => Number(s.fontWeight) },
-        { command: 'underline', html: '<u>hi <span data-mention="a" data-mention-id="1" style="text-decoration: underline">@Ada</span> end</u>', read: (s: CSSStyleDeclaration) => s.textDecorationLine === 'underline' ? 700 : 400 },
-    ] as const)('turning $command off on a fully formatted selection turns the chip off too', ({ command, html, read }) => {
-        component.writeValue(`<p>${html}</p>`);
-        fixture.detectChanges();
+    // A chip in the selection ends in the state the command gave the text
+    // around it, whether the chip is formatted by an ancestor tag (no inline
+    // style of its own) or by an inline style inside plain text.
+    const chip = (style = '') => {
+        const attr = style ? ' style="' + style + '"' : '';
+        return '<span data-mention="a" data-mention-id="1"' + attr + '>@Ada</span>';
+    };
+    const formats = {
+        bold: { tag: 'b', inline: 'font-weight: bold', isOn: (s: CSSStyleDeclaration) => Number(s.fontWeight) >= 600 },
+        italic: { tag: 'i', inline: 'font-style: italic', isOn: (s: CSSStyleDeclaration) => s.fontStyle === 'italic' },
+        underline: { tag: 'u', inline: 'text-decoration: underline', isOn: (s: CSSStyleDeclaration) => s.textDecorationLine.includes('underline') },
+        strikethrough: { tag: 's', inline: 'text-decoration: line-through', isOn: (s: CSSStyleDeclaration) => s.textDecorationLine.includes('line-through') },
+    } as const;
+
+    it.each(Object.keys(formats) as (keyof typeof formats)[])('%s: a chip follows the command, off or on', (command) => {
+        const { tag, inline, isOn } = formats[command];
+        const select = () => {
+            const range = document.createRange();
+            range.selectNodeContents(editor.querySelector('p')!);
+            document.getSelection()?.removeAllRanges();
+            document.getSelection()?.addRange(range);
+        };
+        const chipIsOn = () => isOn(getComputedStyle(editor.querySelector<HTMLElement>('[data-mention]')!));
         editor.focus();
-        const range = document.createRange();
-        range.selectNodeContents(editor.querySelector('p')!);
-        document.getSelection()?.removeAllRanges();
-        document.getSelection()?.addRange(range);
 
+        // Fully formatted through the ancestor: the command turns it off.
+        editor.innerHTML = `<p><${tag}>hi ${chip()}</${tag}></p>`;
+        select();
         component.format(command);
+        expect(editor.querySelector(tag)).toBeNull();
+        expect(chipIsOn()).toBe(false);
 
-        const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
-        expect(read(getComputedStyle(chip))).toBeLessThan(600);
+        // Formatted inline inside plain text: the command turns it on for all.
+        editor.innerHTML = `<p>plain ${chip(inline)}</p>`;
+        select();
+        component.format(command);
+        expect(chipIsOn()).toBe(true);
     });
 
     it.each([[0, 5], [3, 8], [6, 11]])('changes only the selected part of a pre-existing <font> (%i-%i)', (start, end) => {

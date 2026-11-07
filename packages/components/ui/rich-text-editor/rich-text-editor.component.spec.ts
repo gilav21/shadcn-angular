@@ -9226,6 +9226,14 @@ describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
         expect(outline(editor.querySelector('ul')!)).toEqual([['a', ['b']], ['c', ['d']]]);
     });
 
+    it.each([
+        ['underline', 'underline', true, 'underline'],
+        ['underline', 'underline', false, ''],
+        ['underline line-through', 'underline', false, 'line-through'],
+        ['line-through', 'underline', true, 'line-through underline'],
+    ])('withTextDecoration(%j, %s, on=%s) -> %j', (current, decoration, on, expected) => {
+        expect(priv().withTextDecoration(current, decoration, on)).toBe(expected);
+    });
 
     it('execEditorCommand returns false when execCommand is unavailable', () => {
         const doc = document as unknown as { execCommand?: unknown };

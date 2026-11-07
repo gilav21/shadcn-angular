@@ -913,7 +913,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private historyIndex = -1;
     private inputModeRestoreTimer: ReturnType<typeof setTimeout> | null = null;
     private savedInputMode = '';
-    private historyDebounceTimer:ReturnType<typeof setTimeout> | null = null;
+    private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private shortcutHandle: ShortcutComponentHandle | null = null;
     private readonly keydownInterceptors = new Set<(event: KeyboardEvent) => boolean>();
     private readonly exclusivePopovers = new Set<() => void>();
@@ -2984,16 +2984,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private executeInlineFormatCommand(command: string, mentionTargets: HTMLElement[]): boolean {
         switch (command) {
             case 'bold':
-                this.execThenApplyToChips('bold', this.planMentionStyleToggle(mentionTargets, 'fontWeight', 'bold', 'normal'));
+                this.toggleChipStyle(mentionTargets, 'bold', 'fontWeight', 'bold');
                 return true;
             case 'italic':
-                this.execThenApplyToChips('italic', this.planMentionStyleToggle(mentionTargets, 'fontStyle', 'italic', 'normal'));
+                this.toggleChipStyle(mentionTargets, 'italic', 'fontStyle', 'italic');
                 return true;
             case 'underline':
-                this.execThenApplyToChips('underline', this.planMentionDecorationToggle(mentionTargets, 'underline'));
+                this.toggleChipDecoration(mentionTargets, 'underline', 'underline');
                 return true;
             case 'strikethrough':
-                this.execThenApplyToChips('strikeThrough', this.planMentionDecorationToggle(mentionTargets, 'line-through'));
+                this.toggleChipDecoration(mentionTargets, 'strikeThrough', 'line-through');
                 return true;
             case 'clear':
                 this.clearFormatting(mentionTargets);
@@ -6418,38 +6418,62 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
-     * Run a toggling `execCommand`, then apply the chips' new styles. The new
-     * values were decided by the caller BEFORE the exec: when the command turns
-     * a format off, Chromium also strips the chip's matching inline style, so
-     * deciding afterwards reads "off" and flips the chip back on.
+     * Run a toggling `execCommand` and leave every chip in the selection in the
+     * state the command gave the surrounding text: after a toggle a chip has the
+     * same effective state as the text around it.
+     *
+     * That state is read BEFORE the exec, from the command, not from the chip's
+     * own inline style: a chip can be bold only through a `<b>` ancestor (no
+     * inline style), or carry an inline bold inside a partly-bold selection, and
+     * Chromium also strips a chip's matching inline style when the command turns
+     * the format off, so anything read afterwards reports "off". When the
+     * selection holds nothing but chips (non-editable, so the command has no
+     * text to act on and reports "off") or there is no `queryCommandState`, the
+     * chip's own style is the only state there is.
      */
-    private execThenApplyToChips(commandId: string, applyToChips: () => void): void {
+    private toggleChipsWithCommand(
+        commandId: string,
+        chips: HTMLElement[],
+        chipHasFormat: (chip: HTMLElement) => boolean,
+        setChipFormat: (chip: HTMLElement, on: boolean) => void,
+    ): void {
+        const doc = this.document as unknown as { queryCommandState?: (id: string) => boolean };
+        const textHadFormat = this.selectionHoldsOnlyChips(chips) ? undefined : doc.queryCommandState?.(commandId);
+        const turnOn = chips.map((chip) => !(textHadFormat ?? chipHasFormat(chip)));
         this.execEditorCommand(commandId);
-        applyToChips();
+        chips.forEach((chip, i) => setChipFormat(chip, turnOn[i]));
     }
 
-    private planMentionStyleToggle(elements: HTMLElement[], prop: 'fontWeight' | 'fontStyle', onValue: string, offValue: string): () => void {
-        const next = elements.map((el) => [el, el.style[prop] === onValue ? offValue : onValue] as const);
-        return () => {
-            for (const [el, value] of next) {
-                el.style[prop] = value;
-            }
-        };
+    private selectionHoldsOnlyChips(chips: HTMLElement[]): boolean {
+        let rest = this.document.getSelection()?.toString() ?? '';
+        for (const chip of chips) {
+            rest = rest.replace(chip.textContent ?? '', '');
+        }
+        return rest.trim() === '';
     }
 
-    private planMentionDecorationToggle(elements: HTMLElement[], decoration: string): () => void {
-        const next = elements.map((el) => {
-            const current = el.style.textDecoration || '';
-            const value = current.includes(decoration)
-                ? current.replace(decoration, '').trim()
-                : `${current} ${decoration}`.trim();
-            return [el, value] as const;
-        });
-        return () => {
-            for (const [el, value] of next) {
-                el.style.textDecoration = value;
-            }
-        };
+    private toggleChipStyle(chips: HTMLElement[], commandId: string, prop: 'fontWeight' | 'fontStyle', onValue: string): void {
+        this.toggleChipsWithCommand(
+            commandId,
+            chips,
+            (chip) => chip.style[prop] === onValue,
+            (chip, on) => { chip.style[prop] = on ? onValue : 'normal'; },
+        );
+    }
+
+    private toggleChipDecoration(chips: HTMLElement[], commandId: string, decoration: string): void {
+        this.toggleChipsWithCommand(
+            commandId,
+            chips,
+            (chip) => chip.style.textDecoration.includes(decoration),
+            (chip, on) => { chip.style.textDecoration = this.withTextDecoration(chip.style.textDecoration, decoration, on); },
+        );
+    }
+
+    private withTextDecoration(current: string, decoration: string, on: boolean): string {
+        const present = current.includes(decoration);
+        if (on === present) return current;
+        return on ? `${current} ${decoration}`.trim() : current.replace(decoration, '').trim();
     }
 
     private setMentionStyle(elements: HTMLElement[], prop: 'color' | 'backgroundColor' | 'fontSize' | 'fontFamily', value: string): void {
