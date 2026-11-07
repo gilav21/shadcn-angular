@@ -11,6 +11,7 @@ import {
   DestroyRef,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
+import { placeTooltip } from '../../lib/chart-interaction';
 import { observeChartWidth } from '../../lib/chart-responsive';
 import {
   ChartSeries,
@@ -354,7 +355,8 @@ export class StackedBarChartComponent implements AfterViewInit {
    * the same highlight. There is no hover output; consumers observe clicks via
    * {@link segmentClick}.
    */
-  onSegmentHover(categoryIndex: number, segment: StackedSegment): void {
+  onSegmentHover(categoryIndex: number, segment: StackedSegment, evt?: Event): void {
+    placeTooltip(this.tooltipPosition, evt);
     this.hoveredKey.set({ category: categoryIndex, series: segment.seriesIndex });
   }
 

@@ -97,7 +97,7 @@ export class BulletChartComponent {
         Math.min(this.trackWidth(), Math.max(0, this.scale().scale(this.value()))),
     );
 
-    readonly measureColor = computed(() => this.color() || 'hsl(var(--primary))');
+    readonly measureColor = computed(() => this.color() || 'var(--primary)');
 
     readonly targetX = computed(() => {
         const t = this.target();

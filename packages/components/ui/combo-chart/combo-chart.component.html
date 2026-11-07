@@ -49,7 +49,7 @@
       >{{ c.name }}</text>
     }
 
-    @for (b of bars(); track $index; let i = $index) {
+    @for (b of bars(); track $index) {
       <rect
         [attr.data-slot]="'combo-bar'"
         [attr.x]="b.x"
@@ -59,8 +59,8 @@
         [attr.rx]="barRadius()"
         [attr.fill]="b.color"
         class="cursor-pointer transition-opacity"
-        [attr.opacity]="hoveredIndex() === null || hoveredIndex() === (i % categories().length) ? 1 : 0.55"
-        (click)="onBarClick(0, i % categories().length)"
+        [attr.opacity]="hoveredIndex() === null || hoveredIndex() === b.categoryIndex ? 1 : 0.55"
+        (click)="onBarClick(b.seriesIndex, b.categoryIndex)"
       />
     }
 

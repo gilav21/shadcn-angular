@@ -30,9 +30,9 @@
           tabindex="0"
           role="button"
           [attr.aria-label]="getSliceAriaLabel(slice)"
-          (mouseenter)="onSliceHover(slice)"
+          (mouseenter)="onSliceHover(slice, $event)"
           (mouseleave)="onSliceLeave()"
-          (focus)="onSliceHover(slice)"
+          (focus)="onSliceHover(slice, $event)"
           (blur)="onSliceLeave()"
           (click)="onSliceClick($event, slice)"
           (keydown.enter)="onSliceClick($event, slice)"
@@ -52,8 +52,8 @@
               [attr.y]="slice.centroid.y"
               text-anchor="middle"
               dominant-baseline="middle"
-              class="text-xs font-medium fill-white pointer-events-none"
-              [class.fill-foreground]="isLightColor(slice.color)"
+              class="text-xs font-medium pointer-events-none"
+              [class]="isLightColor(slice.color) ? 'fill-foreground' : 'fill-white'"
             >
               {{ formatPercentage(slice.percentage) }}
             </text>
@@ -70,7 +70,7 @@
           type="button"
           class="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"
           [class.opacity-50]="hoveredIndex() !== null && hoveredIndex() !== slice.index"
-          (mouseenter)="slice.percentage > 0 && onSliceHover(slice)"
+          (mouseenter)="slice.percentage > 0 && onSliceHover(slice, $event)"
           (mouseleave)="onSliceLeave()"
           (click)="onSliceClick($event, slice)"
         >

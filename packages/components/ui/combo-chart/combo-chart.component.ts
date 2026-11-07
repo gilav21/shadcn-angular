@@ -36,6 +36,8 @@ interface ComboBar {
     y: number;
     width: number;
     height: number;
+    categoryIndex: number;
+    seriesIndex: number;
     color: string;
 }
 
@@ -142,11 +144,8 @@ export class ComboChartComponent implements AfterViewInit {
 
     /**
      * Emitted when any bar is clicked. `index` is the category index and
-     * `point` the matching {@link barSeries} datum — but the template wires
-     * every rect to bar series 0, so with several bar series the payload
-     * reports the first series' value for that category regardless of which
-     * grouped bar was hit. Call {@link onBarClick} directly if you need the
-     * exact series.
+     * `point` the datum of the clicked bar's own {@link barSeries} entry at
+     * that category.
      */
     readonly barClick = output<ChartClickEvent>();
 
@@ -271,6 +270,8 @@ export class ComboChartComponent implements AfterViewInit {
                     y: Math.min(zeroY, end),
                     width: subWidth,
                     height: Math.abs(end - zeroY),
+                    categoryIndex: ci,
+                    seriesIndex: si,
                     color: getChartColor(si, s.color),
                 });
             });
@@ -390,8 +391,7 @@ export class ComboChartComponent implements AfterViewInit {
     /**
      * Emits {@link barClick} for the datum at `barSeries()[seriesIndex]
      * .data[pointIndex]`, silently doing nothing if the indices don't resolve.
-     * The template always passes `0` as `seriesIndex` — see {@link barClick} —
-     * so call this yourself to report a specific bar series.
+     * The template passes the clicked bar's own series and category.
      */
     onBarClick(seriesIndex: number, pointIndex: number): void {
         const data = this.barSeries()[seriesIndex]?.data[pointIndex];
