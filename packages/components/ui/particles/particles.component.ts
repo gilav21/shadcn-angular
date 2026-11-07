@@ -28,6 +28,7 @@ interface Particle {
         '[style.position]': '"absolute"',
         '[style.inset]': '"0"',
         '[style.display]': '"block"',
+        '[style.pointer-events]': 'mouseInteraction() ? "auto" : "none"',
         '[class]': 'class()',
         '[attr.data-slot]': '"particles"',
     },
@@ -147,7 +148,6 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         this.resizeObserver?.observe(host);
 
         if (this.mouseInteraction()) {
-            host.style.pointerEvents = 'auto';
             host.addEventListener('mousemove', this.mouseMoveHandler, { passive: true });
             host.addEventListener('mouseleave', this.mouseLeaveHandler);
         }

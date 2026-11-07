@@ -197,11 +197,6 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         // If we're at the end, stay at the end
         if (oldPos >= oldValue.length) return newValue.length;
 
-        // If deleting (newValue shorter), try to respect position
-        if (newValue.length < oldValue.length) {
-            return Math.max(0, oldPos); // Simple expectation
-        }
-
         // If inserting, we generally want to follow the inserted characters.
         // However, jumping over literals is key.
 

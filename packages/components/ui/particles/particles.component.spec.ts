@@ -413,7 +413,7 @@ describe('ParticlesComponent without mouse interaction or connections', () => {
 
     it('does not enable pointer events on the host', () => {
         const hostEl = queryHostEl(fixture);
-        expect(hostEl.style.pointerEvents).not.toBe('auto');
+        expect(hostEl.style.pointerEvents).toBe('none');
     });
 
     it('draws the particles but no connecting lines when connectDistance is 0', () => {

@@ -56,6 +56,22 @@ describe('InputMaskDirective with a bound mask', () => {
     });
 });
 
+describe('InputMaskDirective caret', () => {
+    it('should land the caret after a digit typed before a literal that the re-mask moves', async () => {
+        await TestBed.configureTestingModule({ imports: [BoundMaskTestHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(BoundMaskTestHostComponent);
+        fixture.componentInstance.mask.set('999-999');
+        fixture.detectChanges();
+        const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+        input.value = '1239-456';
+        input.setSelectionRange(4, 4);
+        input.dispatchEvent(new Event('input'));
+
+        expect(input.value).toBe('123-945');
+        expect(input.selectionStart).toBe(5);
+    });
+});
+
 describe('InputMaskDirective', () => {
     let fixture: ComponentFixture<TestHostComponent>;
 

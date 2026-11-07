@@ -59,6 +59,8 @@ export class ChatInputComponent {
   /** Enter sends; Shift+Enter falls through to insert a newline. The default is prevented only in the sending case, so multi-line composing still works. */
   onEnter(event: Event): void {
     const kEvent = event as KeyboardEvent;
+    // Enter during IME composition confirms the candidate; it must not send.
+    if (kEvent.isComposing) return;
     if (!kEvent.shiftKey) {
       event.preventDefault();
       this.onSubmit();

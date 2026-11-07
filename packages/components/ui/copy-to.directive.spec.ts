@@ -73,6 +73,18 @@ describe('CopyToDirective', () => {
 		expect(copyWriteTextSpy).toHaveBeenCalledWith('Hello, World!');
 	});
 
+	it('should stay silent when the clipboard write is rejected', async () => {
+		vi.mocked(navigator.clipboard.writeText).mockRejectedValueOnce(new Error('denied'));
+		const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+		const initialCount = host.copiedCount;
+
+		clickButton(button);
+		await fixture.whenStable();
+
+		expect(host.copiedCount).toBe(initialCount);
+		expect(document.body.querySelector('.ui-copy-indicator')).toBeNull();
+	});
+
 	it('should emit copied output after successful copy', async () => {
 		const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
 		const initialCount = host.copiedCount;
