@@ -17,7 +17,7 @@ import { SkeletonComponent } from '../../skeleton';
     styleUrl: './select-trigger.component.css',
     template: `
     @if (skeleton()) {
-      <ui-skeleton class="h-9 w-full rounded-md" />
+      <ui-skeleton class="h-9 w-full min-w-32 rounded-md" />
     } @else {
       <button
         type="button"

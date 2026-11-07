@@ -466,3 +466,95 @@ describe('NavigationMenu Simple Mode', () => {
         mixedFixture.destroy();
     });
 });
+
+describe('NavigationMenu keyboard', () => {
+    let fixture: ComponentFixture<TestHostComponent>;
+    let originalMatchMedia: MatchMediaFn | undefined;
+
+    const triggers = (): HTMLElement[] =>
+        Array.from(fixture.nativeElement.querySelectorAll('[data-slot="navigation-menu-trigger"]'));
+    const press = (target: Element, key: string): void => {
+        target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+    };
+    const panelLinks = (): HTMLElement[] =>
+        Array.from(fixture.nativeElement.querySelectorAll('[data-slot="navigation-menu-content"] a'));
+
+    beforeEach(async () => {
+        originalMatchMedia = installMatchMedia(() => false);
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+        restoreMatchMedia(originalMatchMedia);
+    });
+
+    it('walks the bar, opens a panel with Down, walks its links and closes with Escape', () => {
+        const [first, second] = triggers();
+        first.focus();
+
+        press(first, 'ArrowRight');
+        expect(document.activeElement).toBe(second);
+        press(second, 'ArrowRight');
+        expect(document.activeElement).toBe(first);
+        press(first, 'End');
+        expect(document.activeElement).toBe(second);
+
+        press(first, 'ArrowDown');
+        expect(panelLinks().map(a => a.textContent?.trim())).toEqual(['Documentation', 'Components']);
+        expect(document.activeElement).toBe(panelLinks()[0]);
+
+        press(document.activeElement!, 'ArrowUp');
+        expect(document.activeElement).toBe(panelLinks()[1]);
+        press(document.activeElement!, 'Home');
+        expect(document.activeElement).toBe(panelLinks()[0]);
+
+        press(document.activeElement!, 'Escape');
+        expect(panelLinks()).toEqual([]);
+        expect(document.activeElement).toBe(first);
+    });
+
+    it('carries an open panel along the bar', () => {
+        const [first, second] = triggers();
+        first.click();
+        fixture.detectChanges();
+
+        press(first, 'ArrowRight');
+
+        expect(first.getAttribute('aria-expanded')).toBe('false');
+        expect(second.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('closes the open panel when focus moves to another item', () => {
+        const [first, second] = triggers();
+        first.click();
+        fixture.detectChanges();
+
+        first.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: panelLinks()[0] }));
+        fixture.detectChanges();
+        expect(first.getAttribute('aria-expanded')).toBe('true');
+
+        first.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: second }));
+        fixture.detectChanges();
+        expect(first.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('keeps a panel open when the pointer leaves while keyboard focus is inside it', () => {
+        vi.useFakeTimers();
+        try {
+            const [first] = triggers();
+            press(first, 'ArrowDown');
+
+            first.closest('li')!.dispatchEvent(new MouseEvent('mouseleave'));
+            vi.advanceTimersByTime(200);
+            fixture.detectChanges();
+
+            expect(first.getAttribute('aria-expanded')).toBe('true');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+});
