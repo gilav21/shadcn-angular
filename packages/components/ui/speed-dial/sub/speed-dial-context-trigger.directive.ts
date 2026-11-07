@@ -30,8 +30,7 @@ export class SpeedDialContextTriggerDirective {
      * The `ui-speed-dial` instance this element controls, normally passed as a
      * template reference variable. Required — the directive drives the speed dial
      * from the outside instead of through the `SPEED_DIAL` injection token, so
-     * the speed dial can live anywhere in the template. The host element is also
-     * what `showAt()` clamps against when it looks for its container.
+     * the speed dial can live anywhere in the template.
      */
     uiSpeedDialContextTrigger = input.required<SpeedDialComponent>();
 
