@@ -21,15 +21,22 @@ import { DockItemComponent } from './sub/dock-item.component';
 import { DockIconComponent } from './sub/dock-icon.component';
 import { DockLabelComponent } from './sub/dock-label.component';
 
+// Below sm the bar scrolls sideways, and a scroll container clips its overflow on both axes, so
+// the bar is 26px taller (76 vs 50) than its pinned items need, leaving the label's row inside the
+// scrollport. From sm up the bar does not scroll and the label simply paints outside it.
+const HORIZONTAL_BAR = 'overflow-x-auto sm:overflow-visible mt-4 sm:mt-8 h-[76px] sm:h-[58px]';
+// A label sits beside its item, so a column cannot reserve room for it and does not scroll.
+const VERTICAL_BAR = 'items-start flex-col h-max';
+
 const dockVariants = cva(
-    'mx-auto w-max max-w-[calc(100vw-2rem)] overflow-x-auto mt-4 sm:mt-8 h-[50px] sm:h-[58px] p-1.5 sm:p-2 flex gap-1.5 sm:gap-2 rounded-2xl border supports-backdrop-blur:bg-white/10 supports-backdrop-blur:dark:bg-black/10 backdrop-blur-md',
+    'mx-auto w-max max-w-[calc(100vw-2rem)] p-1.5 sm:p-2 flex gap-1.5 sm:gap-2 rounded-2xl border supports-backdrop-blur:bg-white/10 supports-backdrop-blur:dark:bg-black/10 backdrop-blur-md',
     {
         variants: {
             position: {
-                bottom: 'items-end',
-                top: 'items-start',
-                left: 'items-start flex-col',
-                right: 'items-start flex-col',
+                bottom: HORIZONTAL_BAR + ' items-end',
+                top: HORIZONTAL_BAR + ' items-start',
+                left: VERTICAL_BAR,
+                right: VERTICAL_BAR,
             },
         },
         defaultVariants: {

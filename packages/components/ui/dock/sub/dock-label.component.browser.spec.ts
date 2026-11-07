@@ -10,7 +10,7 @@ import { DockLabelComponent } from './dock-label.component';
 @Component({
     template: `
         <div style="padding: 64px">
-            <ui-dock-item class="group">
+            <ui-dock-item>
                 <ui-dock-label>Home</ui-dock-label>
                 <ui-dock-icon>H</ui-dock-icon>
             </ui-dock-item>

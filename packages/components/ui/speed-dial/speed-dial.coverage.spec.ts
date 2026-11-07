@@ -119,7 +119,6 @@ describe('SpeedDial showAt + clampToContainer', () => {
     let sd: SpeedDialComponent;
     let originalInnerWidth: PropertyDescriptor | undefined;
     let originalInnerHeight: PropertyDescriptor | undefined;
-    let getBoundingClientRectSpy: ReturnType<typeof vi.spyOn> | undefined;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({ imports: [ConfigHostComponent] }).compileComponents();
@@ -138,28 +137,12 @@ describe('SpeedDial showAt + clampToContainer', () => {
         Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: 1024 });
         Object.defineProperty(globalThis, 'innerHeight', { configurable: true, value: 768 });
 
-        const sdElement = fixture.debugElement.query(By.directive(SpeedDialComponent)).nativeElement as HTMLElement;
-        const container = sdElement.closest('[uiSpeedDialContextTrigger]') as HTMLElement | null ?? sdElement.parentElement;
-        if (container) {
-            getBoundingClientRectSpy = vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({
-                left: 0,
-                top: 0,
-                right: 0,
-                bottom: 0,
-                width: 0,
-                height: 0,
-                x: 0,
-                y: 0,
-                toJSON: () => ({}),
-            } as DOMRect);
-        }
     });
 
     afterEach(() => {
         vi.useRealTimers();
         if (originalInnerWidth) Object.defineProperty(globalThis, 'innerWidth', originalInnerWidth);
         if (originalInnerHeight) Object.defineProperty(globalThis, 'innerHeight', originalInnerHeight);
-        getBoundingClientRectSpy?.mockRestore();
     });
 
     it('opens after the reposition timeout and emits shown', () => {
@@ -197,6 +180,9 @@ describe('SpeedDial showAt + clampToContainer', () => {
 
         host.direction.set('right');
         fixture.detectChanges();
+        // A dial nested in an offset section must clamp at the viewport edge, not shifted by the section's left.
+        const parent = fixture.debugElement.query(By.directive(SpeedDialComponent)).nativeElement.parentElement as HTMLElement;
+        vi.spyOn(parent, 'getBoundingClientRect').mockReturnValue({ left: 300, top: 200 } as DOMRect);
         sd.showAt(5000, 40);
         // vw(1024) - r(104) - 8 = 912
         expect(sd.contextPosition()).toEqual({ x: 912, y: 40 });
@@ -355,12 +341,15 @@ describe('SpeedDialContextTrigger component', () => {
         vi.useRealTimers();
     });
 
-    it('opens the speed dial at the right-click position', () => {
-        const event = new MouseEvent('contextmenu', { clientX: 30, clientY: 40, bubbles: true, cancelable: true });
+    it('opens the speed dial at the viewport position of the right-click, wherever the trigger sits', () => {
+        // The area is offset from the viewport origin; the menu is position:fixed, so its origin is the raw pointer.
+        vi.spyOn(area, 'getBoundingClientRect').mockReturnValue({ left: 200, top: 150 } as DOMRect);
+        const event = new MouseEvent('contextmenu', { clientX: 300, clientY: 400, bubbles: true, cancelable: true });
         area.dispatchEvent(event);
         expect(event.defaultPrevented).toBe(true);
         vi.advanceTimersByTime(0);
         expect(sd.open()).toBe(true);
+        expect(sd.contextPosition()).toEqual({ x: 300, y: 400 });
     });
 
     it('closes on a subsequent plain click when open, and leaves a closed dial untouched', () => {
