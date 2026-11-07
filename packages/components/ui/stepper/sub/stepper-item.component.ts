@@ -6,11 +6,15 @@ import {
   inject,
   InjectionToken,
   forwardRef,
+  contentChild,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 import { STEPPER, StepStatus } from '../stepper.component';
+import { stepperConnectorClasses } from '../stepper.utils';
 
 export const STEPPER_ITEM = new InjectionToken<StepperItemComponent>('STEPPER_ITEM');
+/** Provided by `ui-stepper-separator` so the item can detect one without importing it (the separator already imports the item). */
+export const STEPPER_SEPARATOR = new InjectionToken<unknown>('STEPPER_SEPARATOR');
 
 @Component({
   selector: 'ui-stepper-item',
@@ -25,7 +29,7 @@ export const STEPPER_ITEM = new InjectionToken<StepperItemComponent>('STEPPER_IT
     >
       <ng-content />
     </div>
-    @if (!isLast()) {
+    @if (showConnector()) {
       <div [class]="connectorClasses()" [attr.data-slot]="'stepper-connector'"></div>
     }
   `,
@@ -49,11 +53,16 @@ export class StepperItemComponent {
     return items ? this.index() === items.length - 1 : true;
   });
 
+  private readonly projectedSeparator = contentChild(STEPPER_SEPARATOR);
+
+  /** A projected `ui-stepper-separator` is the consumer drawing the line themselves, so the auto connector steps aside: one bar per gap in every mode. */
+  readonly showConnector = computed(() => !this.isLast() && !this.projectedSeparator());
+
   readonly connectorClasses = computed(() =>
-    cn(
-      'transition-colors',
-      this.stepper?.orientation() === 'vertical' ? 'ms-4 mt-2 mb-2 w-0.5 h-8' : 'mx-2 flex-1 h-0.5 mt-4',
-      this.status() === 'complete' ? 'bg-primary' : 'bg-border'
+    stepperConnectorClasses(
+      this.stepper?.orientation() === 'vertical' ? 'vertical' : 'horizontal',
+      this.status() === 'complete',
+      'flex-1 mt-4',
     )
   );
 

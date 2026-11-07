@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { StepperItemComponent } from './sub/stepper-item.component';
+import { stepperConnectorClasses } from './stepper.utils';
 
 export type StepStatus = 'pending' | 'current' | 'complete' | 'error';
 
@@ -52,9 +53,10 @@ export class StepperComponent {
   class = input('');
   /**
    * Lays the steps out in a row (`horizontal`, the default) or a column (`vertical`).
-   * Horizontal additionally renders a connector bar after every step but the last —
-   * both here and in {@link StepperItemComponent} — and lets the row scroll on overflow;
-   * vertical renders none and switches each item to an icon-beside-text row.
+   * Both orientations render one connector bar after every step but the last — here and
+   * in {@link StepperItemComponent}, which skips it when a `ui-stepper-separator` is
+   * projected into the item. Horizontal also lets the row scroll on overflow; vertical
+   * switches each item to an icon-beside-text row.
    */
   orientation = input<'horizontal' | 'vertical'>('horizontal');
   /**
@@ -168,11 +170,7 @@ export class StepperComponent {
 
   /** Classes for the connector drawn between two simple-mode steps: a horizontal line with breathing room, or a vertical one under the 2rem indicator. Coloured once the step before it is complete. */
   connectorClasses(complete: boolean): string {
-    return cn(
-      'transition-colors',
-      this.orientation() === 'vertical' ? 'ms-4 mt-2 mb-2 w-0.5 h-8' : 'mx-2 flex-1 h-0.5 mt-4',
-      complete ? 'bg-primary' : 'bg-border'
-    );
+    return stepperConnectorClasses(this.orientation(), complete, 'flex-1 mt-4');
   }
 
   /** Whether a click may jump to `index`: always true unless {@link linear} is set, in which case only the current step and the ones already completed are reachable. Gates both the trigger's `disabled` state and {@link goToStep}. */

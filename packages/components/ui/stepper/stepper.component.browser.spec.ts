@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, Type, WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, it, expect } from 'vitest';
 import {
@@ -58,6 +58,10 @@ class SeparatorHost {
 })
 class ProjectedHost {
   readonly orientation = signal<'horizontal' | 'vertical'>('horizontal');
+}
+
+interface OrientedHost {
+  readonly orientation: WritableSignal<'horizontal' | 'vertical'>;
 }
 
 function itemRects(root: HTMLElement): DOMRect[] {
@@ -127,6 +131,42 @@ describe('StepperComponent layout (browser)', () => {
     expect(v.connector.height).toBeCloseTo(32, 0);
     expect(v.connector.top - v.items[0].bottom).toBeCloseTo(8, 0);
     expect(v.items[1].top - v.connector.bottom).toBeCloseTo(8, 0);
+  });
+
+  it('paints exactly one bar per gap between steps in simple, plain template and projected-separator modes', () => {
+    const cases: { host: Type<OrientedHost>; gaps: number }[] = [
+      { host: SimpleHost, gaps: 2 },
+      { host: ProjectedHost, gaps: 1 },
+      { host: SeparatorHost, gaps: 1 },
+    ];
+    for (const { host, gaps } of cases) {
+      for (const orientation of ['horizontal', 'vertical'] as const) {
+        TestBed.configureTestingModule({ imports: [host] });
+        const fixture = TestBed.createComponent(host);
+        fixture.componentInstance.orientation.set(orientation);
+        fixture.detectChanges();
+        const bars = Array.from(
+          (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+            '[data-slot="stepper-connector"], [data-slot="stepper-separator"]',
+          ),
+        ).filter(bar => bar.getBoundingClientRect().width * bar.getBoundingClientRect().height > 0);
+        expect(bars.length, `${host.name} ${orientation}`).toBe(gaps);
+        fixture.destroy();
+        TestBed.resetTestingModule();
+      }
+    }
+  });
+
+  it('centres the vertical connector on the 2rem step indicator', () => {
+    TestBed.configureTestingModule({ imports: [SimpleHost] });
+    const fixture = TestBed.createComponent(SimpleHost);
+    fixture.componentInstance.orientation.set('vertical');
+    fixture.detectChanges();
+    const root: HTMLElement = fixture.nativeElement;
+    const indicator = root.querySelector<HTMLElement>('[data-slot="stepper-trigger"] > div')!.getBoundingClientRect();
+    const connector = root.querySelector<HTMLElement>('[data-slot="stepper-connector"]')!.getBoundingClientRect();
+    expect(indicator.width).toBeCloseTo(32, 0);
+    expect(connector.left + connector.width / 2).toBeCloseTo(indicator.left + indicator.width / 2, 1);
   });
 
   it('projected items get the same connector spacing as simple mode', () => {

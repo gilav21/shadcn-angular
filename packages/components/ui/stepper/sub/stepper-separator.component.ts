@@ -4,14 +4,17 @@ import {
   input,
   computed,
   inject,
+  forwardRef,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 import { STEPPER } from '../stepper.component';
-import { STEPPER_ITEM } from './stepper-item.component';
+import { STEPPER_ITEM, STEPPER_SEPARATOR } from './stepper-item.component';
+import { stepperConnectorClasses } from '../stepper.utils';
 
 @Component({
   selector: 'ui-stepper-separator',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [{ provide: STEPPER_SEPARATOR, useExisting: forwardRef(() => StepperSeparatorComponent) }],
   template: `
     <div
       [class]="classes()"
@@ -32,11 +35,11 @@ export class StepperSeparatorComponent {
 
   classes = computed(() =>
     cn(
-      'transition-colors',
-      this.stepper?.orientation() === 'horizontal'
-        ? 'mx-2 h-0.5 w-full'
-        : 'ms-4 mt-2 mb-2 w-0.5 h-8',
-      this.isComplete() ? 'bg-primary' : 'bg-border',
+      stepperConnectorClasses(
+        this.stepper?.orientation() === 'horizontal' ? 'horizontal' : 'vertical',
+        this.isComplete(),
+        'w-full',
+      ),
       this.class()
     )
   );
