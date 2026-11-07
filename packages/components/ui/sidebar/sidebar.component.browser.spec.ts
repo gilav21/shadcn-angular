@@ -10,6 +10,9 @@ import {
   SidebarContentComponent,
   SidebarMenuComponent,
   SidebarMenuSkeletonComponent,
+  SidebarMenuItemComponent,
+  SidebarMenuLinkComponent,
+  SidebarRailComponent,
 } from './';
 
 /**
@@ -27,8 +30,12 @@ import {
             @for (row of skeletonRows; track row) {
               <ui-sidebar-menu-skeleton [seed]="row" />
             }
+            <ui-sidebar-menu-item>
+              <ui-sidebar-menu-link href="/home"><svg width="16" height="16"></svg><span>Home</span><span class="label">Home label</span></ui-sidebar-menu-link>
+            </ui-sidebar-menu-item>
           </ui-sidebar-menu>
         </ui-sidebar-content>
+        <ui-sidebar-rail />
       </ui-sidebar>
     </ui-sidebar-provider>
   `,
@@ -38,6 +45,9 @@ import {
     SidebarContentComponent,
     SidebarMenuComponent,
     SidebarMenuSkeletonComponent,
+    SidebarMenuItemComponent,
+    SidebarMenuLinkComponent,
+    SidebarRailComponent,
   ],
 })
 class LayoutHostComponent {
@@ -103,6 +113,38 @@ describe('Sidebar (browser layout)', () => {
 
     const left = await mount(375);
     expect(aside(left).getBoundingClientRect().right).toBeLessThanOrEqual(0);
+  });
+
+  it('keeps a collapsed link label in the accessibility tree', async () => {
+    const f = await mount(1024);
+    service(f).isCollapsed.set(true);
+    f.detectChanges();
+
+    const label = f.nativeElement.querySelector('[data-slot="sidebar-menu-link"] .label') as HTMLElement;
+    expect(getComputedStyle(label).display).not.toBe('none');
+    expect(label.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+  });
+
+  it('takes the closed mobile drawer out of the tab order, and back into it when open', async () => {
+    const f = await mount(375);
+    expect(aside(f).inert).toBe(true);
+
+    service(f).open();
+    f.detectChanges();
+    expect(aside(f).inert).toBe(false);
+  });
+
+  it('wraps Tab inside the open drawer although the rail is a non-rendered last child', async () => {
+    const f = await mount(375);
+    service(f).open();
+    f.detectChanges();
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    const link = f.nativeElement.querySelector('a[data-slot="sidebar-menu-link"]') as HTMLElement;
+    link.focus();
+    const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    aside(f).dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(true);
   });
 
   it('renders one row per entry with varying widths', async () => {

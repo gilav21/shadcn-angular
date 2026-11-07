@@ -74,15 +74,16 @@ export class SidebarService {
   /**
    * Switches between drawer and rail behaviour; the provider calls this on every
    * window resize. Entering mobile force-closes the drawer, so crossing the
-   * breakpoint always dismisses an open sidebar. Leaving mobile does not reopen
+   * breakpoint dismisses an open sidebar, while a resize that stays narrow
+   * (address bar, on-screen keyboard) leaves it open. Leaving mobile does not reopen
    * it — `isOpen` stays false until something calls {@link open}, which is
    * harmless because desktop ignores it.
    */
   setMobile(isMobile: boolean): void {
-    this.isMobile.set(isMobile);
-    if (isMobile) {
+    if (isMobile && !this.isMobile()) {
       this.isOpen.set(false);
     }
+    this.isMobile.set(isMobile);
   }
 
   /**
