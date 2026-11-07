@@ -1727,10 +1727,12 @@ describe('RichTextPasteNormalizerService', () => {
         it('font element with unmapped size and no attributes produces a plain span', () => {
             const html =
                 '<meta name="Generator" content="LibreOffice/7.0">' +
-                '<font size="9">odd</font><font>bare</font>';
+                '<font size="9">odd</font><font>bare</font>' +
+                '<font size="constructor">ctor</font><font size="__proto__">proto</font><font size="toString">str</font>';
             const result = service.normalize(html, '');
             expect(result).toContain('odd');
             expect(result).toContain('bare');
+            expect(result).toContain('ctor');
             expect(result).not.toContain('font-size');
         });
 
