@@ -763,7 +763,7 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Page navigation control with prev/next, numbered links, and ellipsis.',
     tags: ['pagination', 'pager', 'pages', 'navigation', 'paging'],
-    files: ['pagination/index.ts', 'pagination/pagination.component.css', 'pagination/pagination.component.ts', 'pagination/pagination.locales.ts', 'pagination/sub/pagination-content.component.ts', 'pagination/sub/pagination-ellipsis.component.ts', 'pagination/sub/pagination-item.component.ts', 'pagination/sub/pagination-link.component.css', 'pagination/sub/pagination-link.component.ts', 'pagination/sub/pagination-next.component.ts', 'pagination/sub/pagination-previous.component.ts'],
+    files: ['pagination/index.ts', 'pagination/pagination.component.css', 'pagination/pagination.component.ts', 'pagination/pagination.locales.ts', 'pagination/sub/pagination-content.component.ts', 'pagination/sub/pagination-ellipsis.component.ts', 'pagination/sub/pagination-item.component.ts', 'pagination/sub/pagination-link.component.css', 'pagination/sub/pagination-link.component.ts', 'pagination/sub/pagination-next.component.css', 'pagination/sub/pagination-next.component.ts', 'pagination/sub/pagination-previous.component.css', 'pagination/sub/pagination-previous.component.ts'],
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     testFiles: ['pagination/pagination.component.spec.ts'],
   },

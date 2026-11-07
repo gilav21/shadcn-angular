@@ -1896,7 +1896,9 @@
       "pagination/sub/pagination-item.component.ts",
       "pagination/sub/pagination-link.component.css",
       "pagination/sub/pagination-link.component.ts",
+      "pagination/sub/pagination-next.component.css",
       "pagination/sub/pagination-next.component.ts",
+      "pagination/sub/pagination-previous.component.css",
       "pagination/sub/pagination-previous.component.ts"
     ],
     "libFiles": [

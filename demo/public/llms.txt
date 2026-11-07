@@ -2278,7 +2278,7 @@ Responsive bento-style grid of variable-size cells for feature showcases.
 - Category: layout
 - Depends on: `component-outlet`, `context-menu`
 - npm dependencies: none
-- Inputs: `borderRadius: string, string | number = '0.75rem'`, `class: string = ''`, `cols: number = 12`, `columnWidth: string, string | number = '1fr'`, `editable: boolean = true`, `gap: string, string | number = '1.5rem'`, `itemPadding: string, string | number = '1rem'`, `items: DashboardItem[] = []`, `resizeHandleType: "corners" | "edges" | "both" = 'both'`, `rowHeight: string, string | number = '120px'`, `showBorders: boolean = true`
+- Inputs: `borderRadius: string, string | number = '0.75rem'`, `class: string = ''`, `cols: number = 12`, `columnWidth: string, string | number = '1fr'`, `dragHandleLabel: string = 'Drag to reorder'`, `editable: boolean = true`, `gap: string, string | number = '1.5rem'`, `itemPadding: string, string | number = '1rem'`, `items: DashboardItem[] = []`, `resizeHandleType: "corners" | "edges" | "both" = 'both'`, `rowHeight: string, string | number = '120px'`, `showBorders: boolean = true`
 - Outputs: `componentInit: { id: string, ref: ComponentRef<unknown> }`, `externalDrop: { widgetId: string, targetId: string | null, x?: number, y?: number }`, `itemsChange: DashboardItem[]`, `selectionChange: string[]`
 
 ```html
