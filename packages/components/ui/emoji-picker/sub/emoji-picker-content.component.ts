@@ -26,6 +26,11 @@ import { EMOJI_PICKER, EMOJI_CATEGORIES, EmojiCategory } from '../emoji-picker.c
 /** How many leading keywords make up an emoji's spoken name. */
 const EMOJI_LABEL_WORDS = 3;
 
+/** Frames the scroll position must hold still before a category jump counts as finished. */
+const SETTLE_STABLE_FRAMES = 3;
+/** Upper bound (~4s at 60fps) so a stuck scroll can never leave the scroll-spy suppressed. */
+const SETTLE_MAX_FRAMES = 240;
+
 @Component({
     selector: 'ui-emoji-picker-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -315,8 +320,8 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
     /**
      * Jumps the grid to a category section, clearing the search box first so every
      * category is present to scroll to. The scroll is smooth and the scroll-spy that
-     * normally tracks the active tab is suppressed for ~800ms so it cannot fight the
-     * animation.
+     * normally tracks the active tab is suppressed until the animation has settled so it
+     * cannot fight it.
      */
     scrollToCategory(categoryId: string): void {
         this.searchQuery.set('');
@@ -330,14 +335,24 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
             }
             // Sections are content-visibility:auto with an estimated height, so the
             // scroll height changes as the animation passes them; re-aim once it ends.
-            setTimeout(() => this.settleOnCategory(categoryId, 5), 800);
+            this.settleOnCategory(categoryId, this.scrollViewport()?.scrollTop ?? 0, 0, SETTLE_MAX_FRAMES);
         });
     }
 
-    private settleOnCategory(categoryId: string, attemptsLeft: number): void {
+    /**
+     * Waits until the smooth scroll has stopped moving (its length depends on distance and on how
+     * busy the frame loop is, so a fixed delay is a bet), then snaps the heading into place.
+     */
+    private settleOnCategory(categoryId: string, lastTop: number, stableFrames: number, framesLeft: number): void {
+        const top = this.scrollViewport()?.scrollTop ?? 0;
+        const stable = top === lastTop ? stableFrames + 1 : 0;
+        if (framesLeft > 0 && stable < SETTLE_STABLE_FRAMES) {
+            requestAnimationFrame(() => this.settleOnCategory(categoryId, top, stable, framesLeft - 1));
+            return;
+        }
         const offset = this.alignToCategory(categoryId, 'auto');
-        if (offset !== null && Math.abs(offset) > 1 && attemptsLeft > 0) {
-            requestAnimationFrame(() => this.settleOnCategory(categoryId, attemptsLeft - 1));
+        if (offset !== null && Math.abs(offset) > 1 && framesLeft > 0) {
+            requestAnimationFrame(() => this.settleOnCategory(categoryId, top, 0, framesLeft - 1));
             return;
         }
         setTimeout(() => {
@@ -345,9 +360,13 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         });
     }
 
+    private scrollViewport(): HTMLElement | undefined {
+        return this._scrollArea?.viewportRef?.nativeElement;
+    }
+
     /** Scrolls so the section's heading sits at the viewport top; returns how far it was off, or null when the section or viewport is missing. */
     private alignToCategory(categoryId: string, behavior: ScrollBehavior): number | null {
-        const viewport = this._scrollArea?.viewportRef?.nativeElement;
+        const viewport = this.scrollViewport();
         const section = this.el.nativeElement.querySelector(
             `[data-category="${categoryId}"]`
         ) as HTMLElement | null;
