@@ -18,7 +18,7 @@ const meta: Meta<BulletChartComponent> = {
         min: { control: 'number', description: 'Minimum value of the scale.' },
         width: { control: 'number', min: 120, max: 800, step: 10, description: 'Fallback SVG width when no responsive container width is measured.' },
         height: { control: 'number', min: 20, max: 120, step: 2, description: 'SVG height in pixels.' },
-        color: { control: 'color', description: 'Measure bar color; falls back to `hsl(var(--primary))` when empty.' },
+        color: { control: 'color', description: 'Measure bar color; falls back to `var(--primary)` when empty.' },
         label: { control: 'text', description: 'Label announced before the value in the accessible name.' },
         unit: { control: 'text', description: 'Unit suffix appended to displayed/announced values.' },
         title: { control: 'text', description: 'Optional title prefixed to the accessible name.' },
@@ -83,7 +83,7 @@ export const NoRanges: Story = {
 };
 
 export const CustomColor: Story = {
-    args: { value: 70, target: 80, ranges: [50, 75, 100], color: 'hsl(var(--chart-2))', label: 'Custom color', unit: '' },
+    args: { value: 70, target: 80, ranges: [50, 75, 100], color: 'var(--chart-2)', label: 'Custom color', unit: '' },
     render,
 };
 

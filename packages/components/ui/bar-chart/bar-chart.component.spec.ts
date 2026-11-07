@@ -159,6 +159,18 @@ describe('BarChartComponent', () => {
         expect(tooltip.textContent).toContain('B');
     });
 
+    it('parks the tooltip next to the pointer over the hovered bar', () => {
+        const root = fixture.nativeElement.querySelector('[data-slot="bar-chart"]') as HTMLElement;
+        const box = root.getBoundingClientRect();
+        const bar = fixture.nativeElement.querySelectorAll('svg g[tabindex]')[1] as SVGGElement;
+        bar.dispatchEvent(new MouseEvent('mouseenter', { clientX: box.left + 80, clientY: box.top + 40 }));
+        fixture.detectChanges();
+
+        const tooltip = fixture.nativeElement.querySelector('.z-50') as HTMLElement;
+        expect(tooltip.style.left).toBe('92px');
+        expect(tooltip.style.top).toBe('52px');
+    });
+
     it('should not render the tooltip when showTooltip is false', () => {
         fixture.componentRef.setInput('showTooltip', false);
         component.onBarHover(component.bars()[1]);

@@ -48,6 +48,9 @@ export function linearScale(
 
     return {
         scale(value: number): number {
+            // null/undefined/±Infinity reach here from data typed `number` and
+            // must stay a gap (NaN) — `null - d0` would coerce to a finite pixel.
+            if (!Number.isFinite(value)) return Number.NaN;
             if (domainSpan === 0) return r0;
             return r0 + ((value - d0) / domainSpan) * rangeSpan;
         },

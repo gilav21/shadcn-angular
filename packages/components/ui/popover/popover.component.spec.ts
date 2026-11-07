@@ -94,6 +94,18 @@ describe('Popover Integration', () => {
         expect(component.isOpen).toBe(true);
     });
 
+    it('exposes the trigger width as --trigger-width on the open content', async () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="popover-trigger"]')).nativeElement as HTMLElement;
+        trigger.style.display = 'inline-block';
+        trigger.style.width = '137px';
+        trigger.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="popover-content"]')).nativeElement as HTMLElement;
+        expect(content.style.getPropertyValue('--trigger-width')).toBe('137px');
+    });
+
     it('should close on close button click', async () => {
         const trigger = fixture.debugElement.query(By.css('[data-slot="popover-trigger"]'));
         trigger.nativeElement.click();

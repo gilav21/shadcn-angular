@@ -11,6 +11,7 @@ import {
   DestroyRef,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
+import { placeTooltip } from '../../lib/chart-interaction';
 import { observeChartWidth } from '../../lib/chart-responsive';
 import { RangeDataPoint, ChartClickEvent, ChartDirection } from '../../lib/chart.types';
 import {
@@ -259,7 +260,8 @@ export class ColumnRangeChartComponent implements AfterViewInit {
    * {@link tooltipPosition}, which this does not update; there is no hover
    * output, so mirror the highlight from the {@link hoveredIndex} signal.
    */
-  onBarHover(bar: RangeBar): void {
+  onBarHover(bar: RangeBar, evt?: Event): void {
+    placeTooltip(this.tooltipPosition, evt);
     this.hoveredIndex.set(bar.index);
   }
 
