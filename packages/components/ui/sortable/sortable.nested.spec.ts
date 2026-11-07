@@ -200,6 +200,37 @@ describe('SortableComponent — nested lists', () => {
         globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 350, clientY: 350 }));
     });
 
+    it('keeps the drag local while the pointer is over the dragging nested list itself', () => {
+        const child = sortableFor('child-a');
+        stubListRect('root', { left: 0, right: 400, top: 0, bottom: 400 });
+        stubListRect('child-a', { left: 50, right: 200, top: 50, bottom: 200 });
+
+        child.startDrag(0, 0, 0);
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 100, clientY: 100 }));
+        expect(child.hoverPeer()).toBeNull();
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 100, clientY: 100 }));
+    });
+
+    it('lets only the nearest row answer pointer and key events, and only for the primary button', () => {
+        const root = sortableFor('root');
+        const childRow = fixture.nativeElement.querySelector(
+            '[data-slot="sortable"][data-list-id="child-a"] [data-slot="sortable-item"], [data-slot="sortable-item"] [data-slot="sortable-item"]',
+        ) as HTMLElement;
+        const outerRow = childRow.parentElement!.closest('[data-slot="sortable-item"]') as HTMLElement;
+
+        childRow.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+        expect(root.dragSource()).toBeNull();
+        expect(sortableFor('child-a').dragSource()).toBe(0);
+        globalThis.dispatchEvent(new MouseEvent('mouseup'));
+
+        outerRow.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 2 }));
+        expect(root.dragSource()).toBeNull();
+
+        childRow.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+        expect(root.liftedIndex()).toBeNull();
+        expect(sortableFor('child-a').liftedIndex()).toBe(0);
+    });
+
     it('counts only its OWN items, excluding nested lists and the ghost', () => {
         // The unscoped query returned 7 elements for 3 items on this very
         // fixture — every nested child plus the ghost — so every index derived
