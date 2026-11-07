@@ -34,7 +34,7 @@
       starting a signature again, so they need to be findable and — on a phone,
       where this control mostly lives — comfortably hittable.
     -->
-    <div class="border-input flex flex-wrap justify-end gap-2 border-t p-2">
+    <div class="border-input flex flex-wrap justify-end gap-2 border-t" [attr.data-slot]="'signature-pad-toolbar'">
       <ui-button
         type="button"
         variant="ghost"
