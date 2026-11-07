@@ -499,3 +499,21 @@ describe('RichTextEditorComponent — font family via execCommand', () => {
         }
     });
 });
+
+describe('RichTextEditorComponent — entity chip look', () => {
+    it('gives a class-less chip the chip look but lets a live consumer class and text mode keep their own', async () => {
+        const { editor } = await createEditor('html');
+        editor.innerHTML = '<p>'
+            + '<span data-mention="a" id="bare">@A</span>'
+            + '<span data-mention="b" id="own" class="bg-destructive">@B</span>'
+            + '<span data-mention="c" id="text" data-entity-mode="text">@C</span>'
+            + '</p>';
+        const bg = (id: string) => getComputedStyle(editor.querySelector('#' + id)!).backgroundColor;
+        const transparent = 'rgba(0, 0, 0, 0)';
+
+        expect(bg('bare')).not.toBe(transparent);
+        expect(bg('own')).not.toBe(transparent);
+        expect(bg('own')).not.toBe(bg('bare'));
+        expect(bg('text')).toBe(transparent);
+    });
+});

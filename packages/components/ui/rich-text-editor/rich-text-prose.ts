@@ -43,8 +43,10 @@ export const RICH_TEXT_PROSE_CLASSES: readonly string[] = [
     // Mention and tag chips are styled by the data attributes the sanitizer
     // keeps, not by a class: `class` never survives a sanitizing round trip
     // (setContent, paste, saved HTML), so a class-only chip lost its look.
-    // `:where` keeps specificity at one class so a consumer utility wins.
-    '[&_:where(span,a):where([data-mention],[data-tag])]:bg-accent [&_:where(span,a):where([data-mention],[data-tag])]:text-accent-foreground [&_:where(span,a):where([data-mention],[data-tag])]:rounded [&_:where(span,a):where([data-mention],[data-tag])]:px-1',
+    // The rule applies only to a chip with no `class` of its own (a live chip
+    // carries its classes, so a consumer className or a link/text mode keeps its
+    // look) and no `data-entity-mode` (how text/link modes survive the strip).
+    '[&_:where(span,a):where([data-mention],[data-tag]):not([class],[data-entity-mode])]:bg-accent [&_:where(span,a):where([data-mention],[data-tag]):not([class],[data-entity-mode])]:text-accent-foreground [&_:where(span,a):where([data-mention],[data-tag]):not([class],[data-entity-mode])]:rounded [&_:where(span,a):where([data-mention],[data-tag]):not([class],[data-entity-mode])]:px-1',
     '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
     '[&_blockquote]:border-s-4 [&_blockquote]:border-border [&_blockquote]:ps-4 [&_blockquote]:py-1 [&_blockquote]:my-2 [&_blockquote]:text-muted-foreground [&_blockquote]:italic',
     // Syntax highlighting. The classes are the ones the sanitizer has always

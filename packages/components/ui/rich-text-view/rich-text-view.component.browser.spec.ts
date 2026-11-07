@@ -75,6 +75,18 @@ describe('RichTextViewComponent typography (browser)', () => {
         expect(getComputedStyle(content().querySelector('div[data-mention]')!).backgroundColor).toBe('rgba(0, 0, 0, 0)');
     });
 
+    it('leaves text-mode and link-mode entities to their own styling after the class strip', () => {
+        fixture.componentRef.setInput('value',
+            '<p><span data-entity-mode="text" data-mention="ada" data-mention-id="1">@Ada</span>'
+            + ' <a href="https://example.com/u/bob" data-entity-mode="link" data-mention="bob" data-mention-id="2">@Bob</a></p>');
+        fixture.detectChanges();
+
+        const text = styleOf('span[data-mention]');
+        expect(text.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+        expect(px(text.paddingLeft)).toBe(0);
+        expect(styleOf('a[data-mention]').backgroundColor).toBe('rgba(0, 0, 0, 0)');
+    });
+
     it('orders the text size presets sm < default < lg', () => {
         fixture.componentRef.setInput('value', '<p>Body text</p>');
         const sizeFor = (size: 'sm' | 'default' | 'lg'): number => {
