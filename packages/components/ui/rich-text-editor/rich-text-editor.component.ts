@@ -8492,19 +8492,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 continue;
             }
             if (foundPrev === -1) {
-                ops.push('-' + pi, '+' + curLines[ci]);
+                ops.push('+' + curLines[ci]);
                 pi++;
                 ci++;
                 continue;
             }
-            this.pushRemovedOps(ops, pi, foundPrev);
             ops.push('=' + foundPrev);
             pi = foundPrev + 1;
             ci++;
-        }
-        while (pi < prevLines.length) {
-            ops.push('-' + pi);
-            pi++;
         }
         while (ci < curLines.length) {
             ops.push('+' + curLines[ci]);
@@ -8538,12 +8533,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private pushAddedOps(ops: string[], curLines: string[], start: number, end: number): void {
         for (let i = start; i < end; i++) {
             ops.push('+' + curLines[i]);
-        }
-    }
-
-    private pushRemovedOps(ops: string[], start: number, end: number): void {
-        for (let i = start; i < end; i++) {
-            ops.push('-' + i);
         }
     }
 
