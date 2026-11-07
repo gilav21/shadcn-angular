@@ -6,7 +6,7 @@
 // the template. That is the boundary rule saying "base", and these are the
 // assertions that it actually works — the same views, the same layout, values
 // from a past run.
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { NodeEditorComponent } from './node-editor.component';
@@ -127,7 +127,11 @@ describe('replay', () => {
     });
 
     it('shows the status the node had then, not the one it has now', async () => {
-        expect(statusOf('b')).toBe('done');
+        // The automatic run finishes some frames after mount; how many depends on machine load.
+        await vi.waitFor(async () => {
+            await settle();
+            expect(statusOf('b')).toBe('done');
+        }, { timeout: 5000 });
         host.replay.set(PAST);
         await settle();
         expect(statusOf('b')).toBe('error');
