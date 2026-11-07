@@ -7799,6 +7799,31 @@ describe('RichTextEditorComponent — paste max length & overlay handlers', () =
         vi.useRealTimers();
     });
 
+    it.each([0, 50, 150])('overlay inserts %ims apart end with the original inputMode', (gap) => {
+        vi.useFakeTimers();
+        try {
+            component.writeValue('<p>e</p>');
+            fixture.detectChanges();
+            editor.inputMode = 'text';
+            const text = editor.querySelector('p')!.firstChild as Text;
+            const r = document.createRange();
+            r.setStart(text, 1);
+            r.collapse(true);
+            document.getSelection()?.removeAllRanges();
+            document.getSelection()?.addRange(r);
+
+            component.insertTextFromOverlay('a');
+            vi.advanceTimersByTime(gap);
+            component.insertTextFromOverlay('b');
+            expect(editor.inputMode).toBe('none');
+
+            vi.advanceTimersByTime(300);
+            expect(editor.inputMode).toBe('text');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('re-targets the context menu to the cell beneath the overlay point', () => {
         editor.innerHTML = '<table><tbody><tr><td>cell</td></tr></tbody></table>';
         editor.dispatchEvent(new Event('input', { bubbles: true }));

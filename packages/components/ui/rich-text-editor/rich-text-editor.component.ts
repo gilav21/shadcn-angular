@@ -911,7 +911,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     private snapshots: HistoryEntry[] = [];
     private historyIndex = -1;
-    private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private inputModeRestoreTimer: ReturnType<typeof setTimeout> | null = null;
+    private savedInputMode = '';
+    private historyDebounceTimer:ReturnType<typeof setTimeout> | null = null;
     private shortcutHandle: ShortcutComponentHandle | null = null;
     private readonly keydownInterceptors = new Set<(event: KeyboardEvent) => boolean>();
     private readonly exclusivePopovers = new Set<() => void>();
@@ -3214,8 +3216,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.exceedsMaxLength(plainText)) return;
         this.flushPendingHistoryPush();
         const editor = this.editorDiv?.nativeElement;
-        const prevInputMode = editor?.inputMode;
         if (editor) {
+            // A burst keeps the value from before its first insert: a second
+            // insert would otherwise capture our own temporary 'none'.
+            if (this.inputModeRestoreTimer === null) {
+                this.savedInputMode = editor.inputMode;
+            } else {
+                clearTimeout(this.inputModeRestoreTimer);
+            }
             editor.inputMode = 'none';
         }
         insert();
@@ -3225,7 +3233,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             this.savedRange = selection.getRangeAt(0).cloneRange();
         }
         if (editor) {
-            setTimeout(() => { editor.inputMode = prevInputMode ?? ''; }, 100);
+            this.inputModeRestoreTimer = setTimeout(() => {
+                this.inputModeRestoreTimer = null;
+                editor.inputMode = this.savedInputMode;
+            }, 100);
         }
     }
 
