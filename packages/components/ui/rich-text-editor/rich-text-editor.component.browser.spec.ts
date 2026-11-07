@@ -449,5 +449,32 @@ describe('RichTextEditorComponent — font family via execCommand', () => {
         const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
         expect(read(getComputedStyle(chip))).toBeLessThan(600);
     });
-});
 
+    it.each([[0, 5], [3, 8], [6, 11]])('changes only the selected part of a pre-existing <font> (%i-%i)', (start, end) => {
+        const content = 'hello world';
+        editor.innerHTML = `<p><font face="Arial">${content}</font></p>`;
+        editor.focus();
+        const text = editor.querySelector<HTMLElement>('font')!.firstChild as Text;
+        const range = document.createRange();
+        range.setStart(text, start);
+        range.setEnd(text, end);
+        document.getSelection()?.removeAllRanges();
+        document.getSelection()?.addRange(range);
+
+        component.onFontFamilySelect('Georgia');
+
+        const familyAt = (index: number): string => {
+            const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+            let offset = 0;
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                offset += node.textContent!.length;
+                if (index < offset) return getComputedStyle(node.parentElement!).fontFamily;
+            }
+            return '';
+        };
+        for (let i = 0; i < content.length; i++) {
+            const selected = i >= start && i < end;
+            expect(familyAt(i).includes('Georgia'), `char ${i}`).toBe(selected);
+        }
+    });
+});

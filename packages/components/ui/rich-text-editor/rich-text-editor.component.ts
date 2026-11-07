@@ -3693,8 +3693,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const styled: HTMLElement[] = [];
         if (this.editorDiv?.nativeElement) {
+            // Splitting a pre-existing <font> leaves clones of it on both sides
+            // of the selection; those are new elements but not the command's, so
+            // only fonts the selection actually covers take the new family.
+            const selection = this.document.getSelection();
+            const range = selection && selection.rangeCount > 0 && this.editorDiv.nativeElement.contains(selection.getRangeAt(0).commonAncestorContainer)
+                ? selection.getRangeAt(0)
+                : null;
             const fontElements = Array.from(this.editorDiv.nativeElement.querySelectorAll('font[face]'))
-                .filter((font) => facesBefore.get(font) !== font.getAttribute('face'));
+                .filter((font) => facesBefore.get(font) !== font.getAttribute('face') && (!range || range.intersectsNode(font)));
             for (const font of fontElements) {
                 const el = font as HTMLElement;
                 const span = this.document.createElement('span');
