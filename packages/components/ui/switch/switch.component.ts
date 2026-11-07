@@ -72,10 +72,7 @@ export class SwitchComponent implements ControlValueAccessor {
     );
 
     readonly thumbClasses = computed(() =>
-        cn(
-            'pointer-events-none block rounded-full bg-background shadow-lg ring-0 transition-transform',
-            this.checked() ? '' : 'translate-x-0'
-        )
+        cn('pointer-events-none block rounded-full bg-background shadow-lg ring-0 transition-transform')
     );
 
     /** Flips {@link checked} and notifies the form (change + touched). No-op while disabled; this is also the only place touched is raised. */

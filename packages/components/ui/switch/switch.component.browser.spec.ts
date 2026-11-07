@@ -74,6 +74,21 @@ describe('Switch layout (real browser)', () => {
 });
 
 describe('Switch density (real browser)', () => {
+    it('fills the track content box whatever border the consumer gives the track', async () => {
+        const fixture = await render('ltr');
+        const track: HTMLElement = fixture.nativeElement.querySelector('[data-slot="switch"]');
+        track.style.borderWidth = '4px';
+        fixture.componentInstance.checked.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const thumb = track.querySelector('span') as HTMLElement;
+        thumb.getAnimations().forEach(a => a.finish());
+        const [t, th] = [track.getBoundingClientRect(), thumb.getBoundingClientRect()];
+        expect(th.height).toBe(t.height - 8);
+        expect(th.width).toBe(th.height);
+        expect(t.right - th.right).toBe(4);
+    });
+
     it('keeps the thumb vertically centred on whole pixels and at the track end when --density is not 1', async () => {
         for (const density of ['0.75', '1.3', '1.5']) {
             const fixture = await render('ltr');

@@ -1,19 +1,28 @@
 :host {
     --_d: var(--density-switch, var(--density, 1));
-    /* Track height snapped to whole pixels: the thumb is the track minus its 2px
-       borders, so a fractional height splits the leftover half-pixel unevenly
-       and the thumb looks pushed up or down at densities other than 1. */
-    --_h: round(calc(1.25rem * var(--_d)), 1px);
+    --_h: calc(1.25rem * var(--_d));
     --_w: calc(2.25rem * var(--_d));
+}
+/* Track height snapped to whole pixels: the thumb is the track minus its
+   borders, so a fractional height splits the leftover half-pixel unevenly and
+   the thumb looks pushed up or down at densities other than 1. round() needs
+   Chrome 125; older evergreen browsers (Tailwind v4's floor is Chrome 111)
+   keep the unsnapped height instead of an invalid declaration. */
+@supports (height: round(1px, 1px)) {
+    :host {
+        --_h: round(calc(1.25rem * var(--_d)), 1px);
+    }
 }
 @layer components {
     [data-slot="switch"] {
         height: var(--_h);
         width: var(--_w);
     }
+    /* Sized from the track's content box, so a consumer's border class on the
+       track never leaves the thumb over- or under-sized. */
     [data-slot="switch"] > span {
-        height: calc(var(--_h) - 4px);
-        width: calc(var(--_h) - 4px);
+        height: 100%;
+        aspect-ratio: 1;
     }
     [data-slot="switch"][aria-checked="true"] > span {
         translate: calc(var(--_w) - var(--_h)) 0;
