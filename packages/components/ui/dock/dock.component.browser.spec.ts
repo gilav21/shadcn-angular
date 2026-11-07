@@ -21,6 +21,15 @@ class PositionHost {
     readonly position = signal<'bottom' | 'top' | 'left' | 'right'>('bottom');
 }
 
+@Component({
+    template: `<ui-dock [items]="items" [position]="position()" />`,
+    imports: [DockComponent],
+})
+class NaturalHost {
+    readonly items: DockItemData[] = ['A', 'B', 'C', 'D'].map(icon => ({ label: icon, icon }));
+    readonly position = signal<'left' | 'right'>('left');
+}
+
 function render(position: 'bottom' | 'top' | 'left' | 'right') {
     const fixture = TestBed.createComponent(PositionHost);
     fixture.componentInstance.position.set(position);
@@ -58,5 +67,18 @@ describe('DockComponent layout (browser)', () => {
             expect(items[i].top).toBeGreaterThanOrEqual(items[i - 1].bottom);
             expect(items[i].left).toBeCloseTo(items[0].left, 0);
         }
+    });
+
+    it.each(['left', 'right'] as const)('should size the %s column to hold every item, with no consumer height', position => {
+        const fixture = TestBed.createComponent(NaturalHost);
+        fixture.componentInstance.position.set(position);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const bar = root.querySelector<HTMLElement>('[data-slot="dock"]')!;
+        const box = bar.getBoundingClientRect();
+        const items = [...root.querySelectorAll<HTMLElement>('ui-dock-item')].map(el => el.getBoundingClientRect());
+        expect(items).toHaveLength(4);
+        expect(items.at(-1)!.bottom).toBeLessThanOrEqual(box.bottom);
+        expect(bar.scrollHeight).toBeLessThanOrEqual(bar.clientHeight);
     });
 });

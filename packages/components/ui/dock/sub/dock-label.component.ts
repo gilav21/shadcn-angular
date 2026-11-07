@@ -10,10 +10,8 @@ import { cn } from '../../../lib/utils';
 export class DockLabelComponent {
     /**
      * Extra classes merged onto the tooltip bubble above the icon.
-     * It is `hidden` until `group-hover`, and the dock item does **not** carry a
-     * `group` class — so the label stays invisible unless you add `group` to the
-     * enclosing `ui-dock-item`. Hover-driven either way, so it never appears on
-     * touch; put the name in the icon's accessible name too.
+     * It is `hidden` until the enclosing `ui-dock-item` (which carries `group`)
+     * is hovered. Hover-driven, so it never appears on touch; put the name in the icon's accessible name too.
      */
     class = input('');
     classes = computed(() => cn(
