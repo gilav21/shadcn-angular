@@ -6499,6 +6499,37 @@ describe('RichTextEditorComponent — history delta, undo/redo & destroy', () =>
         expect(redone).toEqual(snapshots.slice(1));
     });
 
+    it.each([2, 9, 10])('a branch typed after an undo reconstructs on the entry it was appended to (undone from %i entries)', (depth) => {
+        const lines = (n: number) => Array.from({ length: n }, (...[, k]) => `<p>line ${k}</p>`).join('\n');
+        const type = (html: string) => {
+            component.writeValue(html);
+            fixture.detectChanges();
+            push();
+        };
+        for (let n = 1; n <= depth; n++) type(lines(n));
+        const base = lines(depth);
+        const discarded = `${base}\n<p>old A</p>\n<p>old B</p>`;
+        type(discarded);
+        component.undo();
+        expect(editor.innerHTML).toBe(base);
+
+        // Re-typing exactly the discarded content is a change from the entry
+        // undone to, so it is recorded as a new entry rather than skipped.
+        type(discarded);
+        expect(component.canRedo()).toBe(false);
+        component.undo();
+        expect(editor.innerHTML).toBe(base);
+
+        // A branch that keeps a line only the discarded future had: its delta
+        // must index the base it sits on, not the discarded tail.
+        const branch = `${base}\n<p>old A</p>`;
+        type(branch);
+        component.undo();
+        expect(editor.innerHTML).toBe(base);
+        component.redo();
+        expect(editor.innerHTML).toBe(branch);
+    });
+
     it('trims history to the configured limit, keeping the newest entries undoable', () => {
         fixture.componentRef.setInput('history', { limit: 10 });
         fixture.detectChanges();

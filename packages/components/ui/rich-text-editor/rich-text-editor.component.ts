@@ -8575,10 +8575,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return html;
     }
 
+    /**
+     * Append the current content as a history entry. An entry's delta is
+     * computed against the entry it is appended to (the one at `historyIndex`),
+     * and the redo tail is dropped before that base is trusted: read from the
+     * tail, the base would be a discarded future entry and the delta would
+     * reconstruct on top of the wrong one.
+     */
     private pushHistory(): void {
         const currentHtml = this.htmlContent();
-        const lastEntry = this.snapshots.at(-1);
-        const lastHtml = lastEntry ? this.reconstructHtmlCached(this.snapshots.length - 1) : '';
+        const lastEntry = this.snapshots[this.historyIndex];
+        const lastHtml = lastEntry ? this.reconstructHtmlCached(this.historyIndex) : '';
         if (lastEntry && lastHtml === currentHtml) {
             return;
         }
