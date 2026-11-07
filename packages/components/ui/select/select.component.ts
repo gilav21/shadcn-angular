@@ -608,6 +608,8 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
                 }
                 break;
             case 'Tab':
+                // Same contract as the projected panel: focus the trigger, close, let the Tab walk on from it.
+                this.restoreFocusFromPanel();
                 this.close();
                 break;
         }
