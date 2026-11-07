@@ -471,6 +471,25 @@ describe('RichTextEditorComponent — font family via execCommand', () => {
         expect(chipIsOn()).toBe(true);
     });
 
+    it.each([['Georgia', 'Georgia'], ['"Comic Sans MS", cursive', 'Comic Sans MS']])(
+        'turns a selected <font> that already carries %s into a styled span',
+        (family, face) => {
+            editor.innerHTML = `<p><font face="${face}">hello</font> world</p>`;
+            editor.focus();
+            const text = editor.querySelector<HTMLElement>('font')!.firstChild as Text;
+            const range = document.createRange();
+            range.setStart(text, 0);
+            range.setEnd(text, 5);
+            document.getSelection()?.removeAllRanges();
+            document.getSelection()?.addRange(range);
+
+            component.onFontFamilySelect(family);
+
+            expect(editor.querySelector<HTMLElement>('font')).toBeNull();
+            expect(editor.querySelector<HTMLElement>('span[style*="font-family"]')?.textContent).toBe('hello');
+        },
+    );
+
     it.each([[0, 5], [3, 8], [6, 11]])('changes only the selected part of a pre-existing <font> (%i-%i)', (start, end) => {
         const content = 'hello world';
         editor.innerHTML = `<p><font face="Arial">${content}</font></p>`;
@@ -497,6 +516,31 @@ describe('RichTextEditorComponent — font family via execCommand', () => {
             const selected = i >= start && i < end;
             expect(familyAt(i).includes('Georgia'), `char ${i}`).toBe(selected);
         }
+    });
+});
+
+describe('RichTextEditorComponent — chips-only selection toggles', () => {
+    it.each([
+        ['text-transform', 'text-transform: uppercase', 'whole'],
+        ['partly selected', '', 'partial'],
+    ])('a selection holding only a bold chip (%s) turns bold off', async (...[, extra, how]) => {
+        const { component, editor } = await createEditor('html');
+        editor.focus();
+        editor.innerHTML = `<p><span data-mention="a" contenteditable="false" style="font-weight: bold; ${extra}">@Ada</span></p>`;
+        const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
+        const range = document.createRange();
+        if (how === 'whole') {
+            range.selectNode(chip);
+        } else {
+            range.setStart(chip.firstChild!, 1);
+            range.setEnd(chip.firstChild!, 3);
+        }
+        document.getSelection()?.removeAllRanges();
+        document.getSelection()?.addRange(range);
+
+        component.format('bold');
+
+        expect(Number(getComputedStyle(chip).fontWeight)).toBeLessThan(600);
     });
 });
 

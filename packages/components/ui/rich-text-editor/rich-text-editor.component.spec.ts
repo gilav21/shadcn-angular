@@ -7824,19 +7824,21 @@ describe('RichTextEditorComponent — paste max length & overlay handlers', () =
         }
     });
 
-    it('a throwing overlay insert still gets the original inputMode back, and the next insert sees it', () => {
+    it('an overlay insert that throws still gets the original inputMode back, and the next insert sees it', () => {
         vi.useFakeTimers();
         try {
             component.writeValue('<p>e</p>');
             fixture.detectChanges();
             editor.inputMode = 'text';
-            const insertAt = (component as unknown as { insertAtRestoredCaret: (text: string, insert: () => void) => void }).insertAtRestoredCaret.bind(component);
+            // A consumer's change handler throwing is how an insert fails for real.
+            component.registerOnChange(() => { throw new Error('handler failed'); });
 
-            expect(() => insertAt('x', () => { throw new Error('insert failed'); })).toThrow('insert failed');
+            expect(() => component.insertTextFromOverlay('x')).toThrow('handler failed');
             vi.advanceTimersByTime(150);
             expect(editor.inputMode).toBe('text');
 
-            insertAt('y', () => undefined);
+            component.registerOnChange(() => undefined);
+            component.insertTextFromOverlay('y');
             vi.advanceTimersByTime(150);
             expect(editor.inputMode).toBe('text');
         } finally {
@@ -7844,25 +7846,18 @@ describe('RichTextEditorComponent — paste max length & overlay handlers', () =
         }
     });
 
-    it('destroying the editor within 100ms of an overlay insert cancels the inputMode restore', () => {
+    it('destroying the editor within 100ms of an overlay insert stops the late inputMode restore', () => {
         vi.useFakeTimers();
         try {
             component.writeValue('<p>e</p>');
             fixture.detectChanges();
-            const writes: string[] = [];
-            let mode = 'text';
-            Object.defineProperty(editor, 'inputMode', {
-                configurable: true,
-                get: () => mode,
-                set: (value: string) => { writes.push(value); mode = value; },
-            });
-            const insertAt = (component as unknown as { insertAtRestoredCaret: (text: string, insert: () => void) => void }).insertAtRestoredCaret.bind(component);
+            editor.inputMode = 'text';
 
-            insertAt('x', () => undefined);
+            component.insertTextFromOverlay('x');
             fixture.destroy();
             vi.advanceTimersByTime(300);
 
-            expect(writes).toEqual(['none']);
+            expect(editor.inputMode).toBe('none');
         } finally {
             vi.useRealTimers();
         }

@@ -3706,7 +3706,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 ? selection.getRangeAt(0)
                 : null;
             const fontElements = Array.from(this.editorDiv.nativeElement.querySelectorAll('font[face]'))
-                .filter((font) => facesBefore.get(font) !== font.getAttribute('face') && (!range || range.intersectsNode(font)));
+                .filter((font) => (!range || range.intersectsNode(font))
+                    && (facesBefore.get(font) !== font.getAttribute('face') || this.isSameFontFamily(font.getAttribute('face'), family)));
             for (const font of fontElements) {
                 const el = font as HTMLElement;
                 const span = this.document.createElement('span');
@@ -3723,6 +3724,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.syncContentFromEditor();
         this.reSaveLiveSelection(styled);
         this.pushHistory();
+    }
+
+    /**
+     * A `<font>` already carrying the requested family is left unchanged by
+     * `fontName`, so "did its face move" cannot find it; the sanitizer drops
+     * `<font>`, so it must still become a styled span.
+     */
+    private isSameFontFamily(face: string | null, family: string): boolean {
+        const normalize = (value: string): string => value.replaceAll(/["']/g, '').trim().toLowerCase();
+        return face !== null && normalize(face) === normalize(family);
     }
 
     private getCaretOffset(element: HTMLElement): number {
@@ -6442,19 +6453,30 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         chipHasFormat: (chip: HTMLElement) => boolean,
         setChipFormat: (chip: HTMLElement, on: boolean) => void,
     ): void {
-        const doc = this.document as unknown as { queryCommandState?: (id: string) => boolean };
-        const textHadFormat = this.selectionHoldsOnlyChips(chips) ? undefined : doc.queryCommandState?.(commandId);
+        const textHadFormat = this.selectionHoldsTextOutsideChips() ? this.queryEditorCommandState(commandId) : undefined;
         const turnOn = chips.map((chip) => !(textHadFormat ?? chipHasFormat(chip)));
         this.execEditorCommand(commandId);
         chips.forEach((chip, i) => setChipFormat(chip, turnOn[i]));
     }
 
-    private selectionHoldsOnlyChips(chips: HTMLElement[]): boolean {
-        let rest = this.document.getSelection()?.toString() ?? '';
-        for (const chip of chips) {
-            rest = rest.replace(chip.textContent ?? '', '');
+    /**
+     * Decided on the range, not on `Selection.toString()`: that string follows
+     * rendered text (`text-transform`, a partly selected chip), so comparing it
+     * with a chip's `textContent` misreads a chips-only selection as having text.
+     */
+    private selectionHoldsTextOutsideChips(): boolean {
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) return false;
+        const range = selection.getRangeAt(0);
+        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+            if (!range.intersectsNode(node) || node.parentElement?.closest('[data-mention], [data-tag]')) continue;
+            const from = node === range.startContainer ? range.startOffset : 0;
+            const to = node === range.endContainer ? range.endOffset : node.data.length;
+            if (node.data.slice(from, to).trim() !== '') return true;
         }
-        return rest.trim() === '';
+        return false;
     }
 
     private toggleChipStyle(chips: HTMLElement[], commandId: string, prop: 'fontWeight' | 'fontStyle', onValue: string): void {
@@ -6607,9 +6629,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return doc.execCommand?.(commandId, false, value) ?? false;
     }
 
-    private queryEditorCommandState(commandId: string): boolean {
+    /** `undefined` when the environment has no `queryCommandState`. */
+    private queryEditorCommandState(commandId: string): boolean | undefined {
         const doc = this.document as unknown as { queryCommandState?: (id: string) => boolean };
-        return doc.queryCommandState?.(commandId) ?? false;
+        return doc.queryCommandState?.(commandId);
     }
 
 
