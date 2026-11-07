@@ -8,6 +8,7 @@ import {
   CardHeaderComponent,
   CardTitleComponent,
   ShortcutBindingsDialogComponent,
+  SHORTCUT_BINDINGS_DIALOG_LOCALES,
   type ShortcutBindingsDialogLocale,
 } from '../../../../../packages/components/ui';
 import {
@@ -199,6 +200,7 @@ export class ShortcutBindingsDialogDemoComponent implements OnDestroy {
     const code = this.localeId();
     const strings = this.t();
     return {
+      ...SHORTCUT_BINDINGS_DIALOG_LOCALES['en'],
       code,
       rtl: RTL_LOCALES.has(code),
       searchPlaceholder: strings.customSearchPlaceholder,
