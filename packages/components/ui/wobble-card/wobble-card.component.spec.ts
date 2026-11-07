@@ -75,6 +75,10 @@ describe('WobbleCardComponent', () => {
         return fixture.debugElement.query(By.directive(WobbleCardComponent)).nativeElement as HTMLElement;
     }
 
+    it('should be a block box so width/height utilities apply to the host', () => {
+        expect(getComputedStyle(nativeEl()).display).toBe('block');
+    });
+
     it('should render projected content', () => {
         expect(nativeEl().textContent?.trim()).toBe('Card Content');
     });

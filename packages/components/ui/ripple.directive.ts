@@ -34,8 +34,10 @@ export class UiRippleDirective implements OnDestroy {
 
         const host = this.el.nativeElement as HTMLElement;
         const rect = host.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        // A keyboard-initiated click has no pointer position (detail 0, coords 0,0).
+        const noPointer = event.detail === 0 && event.clientX === 0 && event.clientY === 0;
+        const x = noPointer ? rect.width / 2 : event.clientX - rect.left;
+        const y = noPointer ? rect.height / 2 : event.clientY - rect.top;
         const diameter = Math.max(rect.width, rect.height) * 2;
 
         const ripple = this.renderer.createElement('span') as HTMLSpanElement;

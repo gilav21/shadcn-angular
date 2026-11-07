@@ -209,6 +209,19 @@ describe('Chat Components', () => {
             expect(component.inputValue()).toBe('');
         });
 
+        it('should NOT submit on the Enter that confirms an IME composition', () => {
+            let emitted = false;
+            component.send.subscribe(() => (emitted = true));
+
+            component.inputValue.set('にほん');
+            const event = new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, cancelable: true });
+            component.onEnter(event);
+
+            expect(emitted).toBe(false);
+            expect(event.defaultPrevented).toBe(false);
+            expect(component.inputValue()).toBe('にほん');
+        });
+
         it('should NOT submit on Shift+Enter', () => {
             let emitted = false;
             component.send.subscribe(() => (emitted = true));

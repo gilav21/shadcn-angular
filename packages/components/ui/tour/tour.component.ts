@@ -565,6 +565,8 @@ export class TourComponent {
      * arrows do not also scroll the page behind the highlighted target.
      */
     onKeydown(event: KeyboardEvent): void {
+        // Enter on a card button is that button's own click; advancing here too would double-fire (or fire the wrong action on Previous/Skip).
+        if (event.key === 'Enter' && (event.target as Element | null)?.closest('button')) return;
         switch (event.key) {
             case 'ArrowRight':
             case 'Enter':
