@@ -4,7 +4,7 @@
   height: 100%;
 }
 
-/* Touch screens drag by this grip only, so a swipe that starts on the widget body scrolls the page. */
+/* Any touch screen (a touch laptop has a fine primary pointer) drags by this grip only, so a swipe that starts on the widget body scrolls the page. */
 .bento-drag-handle {
   display: none;
   position: absolute;
@@ -19,7 +19,7 @@
   touch-action: none;
 }
 
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .bento-drag-handle {
     display: flex;
   }
