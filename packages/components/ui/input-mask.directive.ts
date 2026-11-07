@@ -32,6 +32,8 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
     private readonly uiInput = inject(InputComponent, { optional: true, self: true });
 
     private inputElement!: HTMLInputElement;
+    /** True from the capture phase of an `input` event until `handleInput` has re-masked it. */
+    private userEditing = false;
     private readonly destroyValues: (() => void)[] = [];
 
     // Map of mask definitions
@@ -62,6 +64,11 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
     }
 
     private setupListeners(): void {
+        // The form's own `input` listener is registered before ours and pushes the raw text through
+        // `valueChanges`; capture runs first at the target, so it can tell that write from a programmatic one.
+        const onInputStart = (): void => { this.userEditing = true; };
+        this.inputElement.addEventListener('input', onInputStart, { capture: true });
+        this.destroyValues.push(() => this.inputElement.removeEventListener('input', onInputStart, { capture: true }));
         const onInput = this.renderer.listen(this.inputElement, 'input', () => this.handleInput());
         const onKeyDown = this.renderer.listen(this.inputElement, 'keydown', () => this.handleKeyDown());
         const onPaste = this.renderer.listen(this.inputElement, 'paste', () => this.handlePaste());
@@ -79,7 +86,8 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
 
     private formatModelValue(): void {
         const current: unknown = this.ngControl?.value;
-        if (typeof current !== 'string' || current === '') return;
+        // Re-masking here would run before `handleInput` and throw the caret to the end of the field.
+        if (this.userEditing || typeof current !== 'string' || current === '') return;
         const masked = this.applyMask(this.unmask(current));
         if (masked === current) return;
         this.inputElement.value = masked;
@@ -89,6 +97,14 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
     }
 
     private handleInput(): void {
+        try {
+            this.remask();
+        } finally {
+            this.userEditing = false;
+        }
+    }
+
+    private remask(): void {
         const input = this.inputElement;
         const value = input.value;
         const oldCursorPos = input.selectionStart ?? 0;
