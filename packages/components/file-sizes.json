@@ -2,8 +2,8 @@
   "version": 1,
   "ui": {
     "accordion/accordion.component.browser.spec.ts": {
-      "bytes": 2913,
-      "lines": 70
+      "bytes": 3976,
+      "lines": 95
     },
     "accordion/accordion.component.html": {
       "bytes": 81,
@@ -38,7 +38,7 @@
       "lines": 8
     },
     "accordion/sub/accordion-item.component.html": {
-      "bytes": 1576,
+      "bytes": 1571,
       "lines": 47
     },
     "accordion/sub/accordion-item.component.ts": {
@@ -206,7 +206,7 @@
       "lines": 10
     },
     "autocomplete/autocomplete.component.html": {
-      "bytes": 4502,
+      "bytes": 4488,
       "lines": 90
     },
     "autocomplete/autocomplete.component.spec.ts": {
@@ -334,7 +334,7 @@
       "lines": 154
     },
     "bar-chart-drilldown/bar-chart-drilldown.component.html": {
-      "bytes": 4546,
+      "bytes": 4562,
       "lines": 132
     },
     "bar-chart-drilldown/bar-chart-drilldown.component.spec.ts": {
@@ -342,8 +342,8 @@
       "lines": 505
     },
     "bar-chart-drilldown/bar-chart-drilldown.component.ts": {
-      "bytes": 13565,
-      "lines": 371
+      "bytes": 13683,
+      "lines": 373
     },
     "bar-chart-drilldown/bar-chart-drilldown.stories.ts": {
       "bytes": 5766,
@@ -358,16 +358,16 @@
       "lines": 29
     },
     "bar-chart/bar-chart.component.html": {
-      "bytes": 5731,
+      "bytes": 5747,
       "lines": 173
     },
     "bar-chart/bar-chart.component.spec.ts": {
-      "bytes": 18334,
-      "lines": 468
+      "bytes": 18991,
+      "lines": 480
     },
     "bar-chart/bar-chart.component.ts": {
-      "bytes": 13092,
-      "lines": 351
+      "bytes": 13210,
+      "lines": 353
     },
     "bar-chart/bar-chart.stories.ts": {
       "bytes": 4967,
@@ -405,21 +405,25 @@
       "bytes": 86,
       "lines": 2
     },
+    "bento-grid/bento-grid.component.browser.spec.ts": {
+      "bytes": 3616,
+      "lines": 87
+    },
     "bento-grid/bento-grid.component.css": {
-      "bytes": 69,
-      "lines": 5
+      "bytes": 495,
+      "lines": 26
     },
     "bento-grid/bento-grid.component.html": {
-      "bytes": 12091,
-      "lines": 188
+      "bytes": 12637,
+      "lines": 191
     },
     "bento-grid/bento-grid.component.spec.ts": {
-      "bytes": 61171,
-      "lines": 1371
+      "bytes": 61575,
+      "lines": 1379
     },
     "bento-grid/bento-grid.component.ts": {
-      "bytes": 47217,
-      "lines": 1190
+      "bytes": 47466,
+      "lines": 1193
     },
     "bento-grid/bento-grid.stories.ts": {
       "bytes": 8135,
@@ -546,16 +550,16 @@
       "lines": 45
     },
     "bubble-chart/bubble-chart.component.html": {
-      "bytes": 2304,
-      "lines": 81
+      "bytes": 2528,
+      "lines": 90
     },
     "bubble-chart/bubble-chart.component.spec.ts": {
-      "bytes": 11453,
-      "lines": 303
+      "bytes": 12003,
+      "lines": 312
     },
     "bubble-chart/bubble-chart.component.ts": {
-      "bytes": 12357,
-      "lines": 318
+      "bytes": 12508,
+      "lines": 323
     },
     "bubble-chart/bubble-chart.stories.ts": {
       "bytes": 4213,
@@ -570,15 +574,15 @@
       "lines": 46
     },
     "bullet-chart/bullet-chart.component.spec.ts": {
-      "bytes": 8521,
+      "bytes": 8516,
       "lines": 205
     },
     "bullet-chart/bullet-chart.component.ts": {
-      "bytes": 5315,
+      "bytes": 5310,
       "lines": 116
     },
     "bullet-chart/bullet-chart.stories.ts": {
-      "bytes": 3888,
+      "bytes": 3878,
       "lines": 98
     },
     "bullet-chart/index.ts": {
@@ -814,8 +818,8 @@
       "lines": 22
     },
     "card/card.component.spec.ts": {
-      "bytes": 4114,
-      "lines": 102
+      "bytes": 5356,
+      "lines": 128
     },
     "card/card.component.ts": {
       "bytes": 3455,
@@ -846,16 +850,16 @@
       "lines": 13
     },
     "card/sub/card-footer.component.ts": {
-      "bytes": 753,
-      "lines": 26
+      "bytes": 925,
+      "lines": 28
     },
     "card/sub/card-header.component.css": {
       "bytes": 361,
       "lines": 14
     },
     "card/sub/card-header.component.ts": {
-      "bytes": 936,
-      "lines": 29
+      "bytes": 1126,
+      "lines": 32
     },
     "card/sub/card-title.component.ts": {
       "bytes": 699,
@@ -978,8 +982,8 @@
       "lines": 17
     },
     "chat/chat.component.spec.ts": {
-      "bytes": 14549,
-      "lines": 373
+      "bytes": 15104,
+      "lines": 386
     },
     "chat/chat.component.ts": {
       "bytes": 3237,
@@ -994,8 +998,8 @@
       "lines": 3
     },
     "chat/sub/chat-input.component.ts": {
-      "bytes": 3018,
-      "lines": 75
+      "bytes": 3132,
+      "lines": 77
     },
     "chat/sub/chat-list.component.ts": {
       "bytes": 2316,
@@ -1118,12 +1122,12 @@
       "lines": 22
     },
     "color-picker/color-picker.component.html": {
-      "bytes": 18150,
+      "bytes": 18227,
       "lines": 436
     },
     "color-picker/color-picker.component.spec.ts": {
-      "bytes": 44238,
-      "lines": 991
+      "bytes": 44449,
+      "lines": 994
     },
     "color-picker/color-picker.component.ts": {
       "bytes": 31364,
@@ -1150,7 +1154,7 @@
       "lines": 53
     },
     "column-range-chart/column-range-chart.component.html": {
-      "bytes": 3747,
+      "bytes": 3763,
       "lines": 117
     },
     "column-range-chart/column-range-chart.component.spec.ts": {
@@ -1158,8 +1162,8 @@
       "lines": 365
     },
     "column-range-chart/column-range-chart.component.ts": {
-      "bytes": 11055,
-      "lines": 305
+      "bytes": 11173,
+      "lines": 307
     },
     "column-range-chart/column-range-chart.stories.ts": {
       "bytes": 3828,
@@ -1174,15 +1178,15 @@
       "lines": 39
     },
     "combo-chart/combo-chart.component.html": {
-      "bytes": 2790,
+      "bytes": 2768,
       "lines": 106
     },
     "combo-chart/combo-chart.component.spec.ts": {
-      "bytes": 22854,
-      "lines": 561
+      "bytes": 23880,
+      "lines": 580
     },
     "combo-chart/combo-chart.component.ts": {
-      "bytes": 16717,
+      "bytes": 16540,
       "lines": 400
     },
     "combo-chart/combo-chart.stories.ts": {
@@ -1310,7 +1314,7 @@
       "lines": 391
     },
     "confetti.directive.ts": {
-      "bytes": 11430,
+      "bytes": 11452,
       "lines": 348
     },
     "confetti.stories.ts": {
@@ -1402,12 +1406,12 @@
       "lines": 95
     },
     "copy-to.directive.spec.ts": {
-      "bytes": 4006,
-      "lines": 135
+      "bytes": 4925,
+      "lines": 157
     },
     "copy-to.directive.ts": {
-      "bytes": 3485,
-      "lines": 105
+      "bytes": 3591,
+      "lines": 110
     },
     "copy-to.stories.ts": {
       "bytes": 6595,
@@ -1834,20 +1838,20 @@
       "lines": 63
     },
     "dock/dock.component.browser.spec.ts": {
-      "bytes": 2707,
-      "lines": 62
+      "bytes": 8176,
+      "lines": 164
     },
     "dock/dock.component.html": {
-      "bytes": 1157,
-      "lines": 34
+      "bytes": 1193,
+      "lines": 35
     },
     "dock/dock.component.spec.ts": {
       "bytes": 15167,
       "lines": 337
     },
     "dock/dock.component.ts": {
-      "bytes": 8522,
-      "lines": 207
+      "bytes": 10533,
+      "lines": 242
     },
     "dock/dock.stories.ts": {
       "bytes": 6815,
@@ -1882,11 +1886,11 @@
       "lines": 138
     },
     "dock/sub/dock-item.component.ts": {
-      "bytes": 2443,
+      "bytes": 2364,
       "lines": 63
     },
     "dock/sub/dock-label.component.browser.spec.ts": {
-      "bytes": 1555,
+      "bytes": 1541,
       "lines": 37
     },
     "dock/sub/dock-label.component.html": {
@@ -1898,8 +1902,8 @@
       "lines": 52
     },
     "dock/sub/dock-label.component.ts": {
-      "bytes": 995,
-      "lines": 24
+      "bytes": 1875,
+      "lines": 29
     },
     "drawer/drawer.component.browser.spec.ts": {
       "bytes": 1755,
@@ -2050,8 +2054,8 @@
       "lines": 1624
     },
     "emoji-picker/emoji-picker.component.browser.spec.ts": {
-      "bytes": 5986,
-      "lines": 152
+      "bytes": 7363,
+      "lines": 179
     },
     "emoji-picker/emoji-picker.component.spec.ts": {
       "bytes": 17483,
@@ -2070,8 +2074,8 @@
       "lines": 3
     },
     "emoji-picker/sub/emoji-picker-content.component.ts": {
-      "bytes": 16096,
-      "lines": 389
+      "bytes": 17017,
+      "lines": 405
     },
     "emoji-picker/sub/emoji-picker-trigger.component.ts": {
       "bytes": 2198,
@@ -2186,15 +2190,15 @@
       "lines": 2
     },
     "field-mapper/field-mapper.component.browser.spec.ts": {
-      "bytes": 17160,
-      "lines": 358
+      "bytes": 17803,
+      "lines": 369
     },
     "field-mapper/field-mapper.component.css": {
       "bytes": 3925,
       "lines": 158
     },
     "field-mapper/field-mapper.component.html": {
-      "bytes": 12518,
+      "bytes": 12563,
       "lines": 284
     },
     "field-mapper/field-mapper.component.spec.ts": {
@@ -2906,8 +2910,8 @@
       "lines": 1038
     },
     "infinite-canvas/addons/node-editor/node-editor.component.ts": {
-      "bytes": 95294,
-      "lines": 2515
+      "bytes": 95346,
+      "lines": 2516
     },
     "infinite-canvas/addons/node-editor/node-editor.direction.spec.ts": {
       "bytes": 4324,
@@ -2962,7 +2966,7 @@
       "lines": 249
     },
     "infinite-canvas/addons/node-editor/node-editor.materialize.ts": {
-      "bytes": 5485,
+      "bytes": 5524,
       "lines": 141
     },
     "infinite-canvas/addons/node-editor/node-editor.multitouch.spec.ts": {
@@ -2986,8 +2990,8 @@
       "lines": 1042
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.ts": {
-      "bytes": 88865,
-      "lines": 2276
+      "bytes": 89518,
+      "lines": 2287
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.types.ts": {
       "bytes": 11889,
@@ -3008,6 +3012,10 @@
     "infinite-canvas/addons/node-editor/node-editor.stories.ts": {
       "bytes": 16879,
       "lines": 496
+    },
+    "infinite-canvas/addons/node-editor/node-editor.swap.spec.ts": {
+      "bytes": 2345,
+      "lines": 65
     },
     "infinite-canvas/addons/node-editor/node-editor.types.ts": {
       "bytes": 5404,
@@ -3202,12 +3210,12 @@
       "lines": 26
     },
     "input-mask.directive.spec.ts": {
-      "bytes": 7952,
-      "lines": 226
+      "bytes": 9822,
+      "lines": 268
     },
     "input-mask.directive.ts": {
-      "bytes": 9420,
-      "lines": 264
+      "bytes": 10232,
+      "lines": 277
     },
     "input-mask.stories.ts": {
       "bytes": 3835,
@@ -3258,8 +3266,8 @@
       "lines": 1
     },
     "input/input.component.browser.spec.ts": {
-      "bytes": 2952,
-      "lines": 67
+      "bytes": 3694,
+      "lines": 80
     },
     "input/input.component.css": {
       "bytes": 1697,
@@ -3270,12 +3278,12 @@
       "lines": 90
     },
     "input/input.component.spec.ts": {
-      "bytes": 12189,
-      "lines": 315
+      "bytes": 12904,
+      "lines": 328
     },
     "input/input.component.ts": {
-      "bytes": 11612,
-      "lines": 286
+      "bytes": 11892,
+      "lines": 288
     },
     "input/input.stories.ts": {
       "bytes": 5435,
@@ -3290,12 +3298,12 @@
       "lines": 120
     },
     "kanban/kanban.component.spec.ts": {
-      "bytes": 54695,
-      "lines": 1207
+      "bytes": 55291,
+      "lines": 1223
     },
     "kanban/kanban.component.ts": {
-      "bytes": 51148,
-      "lines": 1051
+      "bytes": 51388,
+      "lines": 1056
     },
     "kanban/kanban.locales.ts": {
       "bytes": 26302,
@@ -3398,8 +3406,8 @@
       "lines": 115
     },
     "line-chart/line-chart.component.spec.ts": {
-      "bytes": 13914,
-      "lines": 311
+      "bytes": 13955,
+      "lines": 312
     },
     "line-chart/line-chart.component.ts": {
       "bytes": 13607,
@@ -3585,6 +3593,10 @@
       "bytes": 43,
       "lines": 1
     },
+    "native-select/native-select.component.browser.spec.ts": {
+      "bytes": 1213,
+      "lines": 36
+    },
     "native-select/native-select.component.css": {
       "bytes": 478,
       "lines": 16
@@ -3598,7 +3610,7 @@
       "lines": 71
     },
     "native-select/native-select.component.ts": {
-      "bytes": 4351,
+      "bytes": 4323,
       "lines": 113
     },
     "native-select/native-select.stories.ts": {
@@ -3614,12 +3626,12 @@
       "lines": 41
     },
     "navigation-menu/navigation-menu.component.spec.ts": {
-      "bytes": 19244,
-      "lines": 468
+      "bytes": 22737,
+      "lines": 560
     },
     "navigation-menu/navigation-menu.component.ts": {
-      "bytes": 3578,
-      "lines": 95
+      "bytes": 8003,
+      "lines": 203
     },
     "navigation-menu/navigation-menu.service.ts": {
       "bytes": 1798,
@@ -3642,8 +3654,8 @@
       "lines": 42
     },
     "navigation-menu/sub/navigation-menu-item.component.ts": {
-      "bytes": 3140,
-      "lines": 94
+      "bytes": 3600,
+      "lines": 102
     },
     "navigation-menu/sub/navigation-menu-link.component.css": {
       "bytes": 173,
@@ -3698,12 +3710,12 @@
       "lines": 5
     },
     "number-ticker/number-ticker.component.spec.ts": {
-      "bytes": 17098,
-      "lines": 456
+      "bytes": 17861,
+      "lines": 474
     },
     "number-ticker/number-ticker.component.ts": {
-      "bytes": 5382,
-      "lines": 142
+      "bytes": 5642,
+      "lines": 148
     },
     "number-ticker/number-ticker.stories.ts": {
       "bytes": 3198,
@@ -3746,12 +3758,12 @@
       "lines": 1
     },
     "org-chart/org-chart.component.html": {
-      "bytes": 2978,
-      "lines": 77
+      "bytes": 2858,
+      "lines": 75
     },
     "org-chart/org-chart.component.spec.ts": {
-      "bytes": 9030,
-      "lines": 228
+      "bytes": 9622,
+      "lines": 239
     },
     "org-chart/org-chart.component.ts": {
       "bytes": 12480,
@@ -3770,15 +3782,15 @@
       "lines": 46
     },
     "page-builder/page-builder.component.html": {
-      "bytes": 21038,
-      "lines": 325
+      "bytes": 21961,
+      "lines": 336
     },
     "page-builder/page-builder.component.spec.ts": {
-      "bytes": 36001,
-      "lines": 819
+      "bytes": 36451,
+      "lines": 829
     },
     "page-builder/page-builder.component.ts": {
-      "bytes": 23258,
+      "bytes": 23265,
       "lines": 595
     },
     "page-builder/page-builder.stories.ts": {
@@ -3794,11 +3806,11 @@
       "lines": 188
     },
     "page-builder/sub/property-editor.component.spec.ts": {
-      "bytes": 11774,
-      "lines": 337
+      "bytes": 12862,
+      "lines": 359
     },
     "page-builder/sub/property-editor.component.ts": {
-      "bytes": 5488,
+      "bytes": 5529,
       "lines": 129
     },
     "page-header/index.ts": {
@@ -3850,16 +3862,20 @@
       "lines": 8
     },
     "pagination/pagination.component.browser.spec.ts": {
-      "bytes": 1743,
-      "lines": 46
+      "bytes": 3534,
+      "lines": 84
+    },
+    "pagination/pagination.component.css": {
+      "bytes": 432,
+      "lines": 15
     },
     "pagination/pagination.component.spec.ts": {
       "bytes": 18708,
       "lines": 420
     },
     "pagination/pagination.component.ts": {
-      "bytes": 7842,
-      "lines": 194
+      "bytes": 7965,
+      "lines": 198
     },
     "pagination/pagination.locales.ts": {
       "bytes": 2487,
@@ -3890,23 +3906,23 @@
       "lines": 55
     },
     "pagination/sub/pagination-next.component.ts": {
-      "bytes": 1769,
-      "lines": 41
+      "bytes": 1825,
+      "lines": 42
     },
     "pagination/sub/pagination-previous.component.ts": {
-      "bytes": 1785,
-      "lines": 41
+      "bytes": 1841,
+      "lines": 42
     },
     "particles/index.ts": {
       "bytes": 39,
       "lines": 1
     },
     "particles/particles.component.spec.ts": {
-      "bytes": 16848,
+      "bytes": 16844,
       "lines": 458
     },
     "particles/particles.component.ts": {
-      "bytes": 10019,
+      "bytes": 10046,
       "lines": 287
     },
     "particles/particles.stories.ts": {
@@ -3921,16 +3937,20 @@
       "bytes": 4545,
       "lines": 46
     },
+    "phone-input/phone-input.component.browser.spec.ts": {
+      "bytes": 1292,
+      "lines": 31
+    },
     "phone-input/phone-input.component.html": {
-      "bytes": 2745,
-      "lines": 66
+      "bytes": 2778,
+      "lines": 67
     },
     "phone-input/phone-input.component.spec.ts": {
       "bytes": 17312,
       "lines": 450
     },
     "phone-input/phone-input.component.ts": {
-      "bytes": 10993,
+      "bytes": 10973,
       "lines": 275
     },
     "phone-input/phone-input.coverage.spec.ts": {
@@ -3954,7 +3974,7 @@
       "lines": 55
     },
     "pie-chart-drilldown/pie-chart-drilldown.component.html": {
-      "bytes": 4903,
+      "bytes": 4927,
       "lines": 122
     },
     "pie-chart-drilldown/pie-chart-drilldown.component.spec.ts": {
@@ -3962,8 +3982,8 @@
       "lines": 488
     },
     "pie-chart-drilldown/pie-chart-drilldown.component.ts": {
-      "bytes": 13176,
-      "lines": 327
+      "bytes": 13294,
+      "lines": 329
     },
     "pie-chart-drilldown/pie-chart-drilldown.stories.ts": {
       "bytes": 5078,
@@ -3974,16 +3994,16 @@
       "lines": 1
     },
     "pie-chart/pie-chart.component.html": {
-      "bytes": 3623,
+      "bytes": 3655,
       "lines": 100
     },
     "pie-chart/pie-chart.component.spec.ts": {
-      "bytes": 7456,
-      "lines": 187
+      "bytes": 8139,
+      "lines": 197
     },
     "pie-chart/pie-chart.component.ts": {
-      "bytes": 9618,
-      "lines": 253
+      "bytes": 9736,
+      "lines": 255
     },
     "pie-chart/pie-chart.stories.ts": {
       "bytes": 4349,
@@ -3998,8 +4018,8 @@
       "lines": 115
     },
     "popover/popover.component.spec.ts": {
-      "bytes": 20890,
-      "lines": 523
+      "bytes": 21495,
+      "lines": 535
     },
     "popover/popover.component.ts": {
       "bytes": 6047,
@@ -4022,8 +4042,8 @@
       "lines": 6
     },
     "popover/sub/popover-content.component.ts": {
-      "bytes": 18199,
-      "lines": 450
+      "bytes": 18714,
+      "lines": 462
     },
     "popover/sub/popover-trigger.component.ts": {
       "bytes": 2263,
@@ -4058,16 +4078,16 @@
       "lines": 1
     },
     "radar-chart/radar-chart.component.html": {
-      "bytes": 1734,
-      "lines": 68
+      "bytes": 2279,
+      "lines": 85
     },
     "radar-chart/radar-chart.component.spec.ts": {
-      "bytes": 6158,
-      "lines": 133
+      "bytes": 7294,
+      "lines": 157
     },
     "radar-chart/radar-chart.component.ts": {
-      "bytes": 8675,
-      "lines": 202
+      "bytes": 10298,
+      "lines": 243
     },
     "radar-chart/radar-chart.stories.ts": {
       "bytes": 4582,
@@ -4078,8 +4098,8 @@
       "lines": 2
     },
     "radio-group/radio-group.component.browser.spec.ts": {
-      "bytes": 2373,
-      "lines": 55
+      "bytes": 3225,
+      "lines": 79
     },
     "radio-group/radio-group.component.html": {
       "bytes": 413,
@@ -4106,7 +4126,7 @@
       "lines": 14
     },
     "radio-group/sub/radio-group-item.component.html": {
-      "bytes": 2001,
+      "bytes": 1977,
       "lines": 65
     },
     "radio-group/sub/radio-group-item.component.ts": {
@@ -4118,8 +4138,8 @@
       "lines": 2
     },
     "rating/rating.component.browser.spec.ts": {
-      "bytes": 4229,
-      "lines": 105
+      "bytes": 5071,
+      "lines": 122
     },
     "rating/rating.component.html": {
       "bytes": 3733,
@@ -4130,8 +4150,8 @@
       "lines": 660
     },
     "rating/rating.component.ts": {
-      "bytes": 14357,
-      "lines": 397
+      "bytes": 14808,
+      "lines": 408
     },
     "rating/rating.locales.ts": {
       "bytes": 1501,
@@ -5102,12 +5122,12 @@
       "lines": 201
     },
     "ripple.directive.spec.ts": {
-      "bytes": 8057,
-      "lines": 216
+      "bytes": 8449,
+      "lines": 226
     },
     "ripple.directive.ts": {
-      "bytes": 2743,
-      "lines": 74
+      "bytes": 2980,
+      "lines": 76
     },
     "ripple.stories.ts": {
       "bytes": 6430,
@@ -5189,6 +5209,10 @@
       "bytes": 365,
       "lines": 8
     },
+    "select/select-skeleton.browser.spec.ts": {
+      "bytes": 893,
+      "lines": 22
+    },
     "select/select.component.browser.spec.ts": {
       "bytes": 12115,
       "lines": 278
@@ -5198,8 +5222,8 @@
       "lines": 28
     },
     "select/select.component.spec.ts": {
-      "bytes": 41147,
-      "lines": 1052
+      "bytes": 41960,
+      "lines": 1069
     },
     "select/select.component.ts": {
       "bytes": 26141,
@@ -5214,8 +5238,8 @@
       "lines": 334
     },
     "select/sub/select-content.component.ts": {
-      "bytes": 8604,
-      "lines": 227
+      "bytes": 9019,
+      "lines": 236
     },
     "select/sub/select-group.component.ts": {
       "bytes": 386,
@@ -5242,7 +5266,7 @@
       "lines": 11
     },
     "select/sub/select-trigger.component.ts": {
-      "bytes": 4575,
+      "bytes": 4584,
       "lines": 126
     },
     "select/sub/select-value.component.ts": {
@@ -5350,20 +5374,20 @@
       "lines": 2
     },
     "shortcut-bindings-dialog/shortcut-bindings-dialog.component.html": {
-      "bytes": 10046,
-      "lines": 163
+      "bytes": 10085,
+      "lines": 165
     },
     "shortcut-bindings-dialog/shortcut-bindings-dialog.component.spec.ts": {
-      "bytes": 19476,
-      "lines": 429
+      "bytes": 20842,
+      "lines": 454
     },
     "shortcut-bindings-dialog/shortcut-bindings-dialog.component.ts": {
-      "bytes": 19661,
-      "lines": 499
+      "bytes": 20061,
+      "lines": 509
     },
     "shortcut-bindings-dialog/shortcut-bindings-dialog.locales.ts": {
-      "bytes": 4039,
-      "lines": 90
+      "bytes": 12857,
+      "lines": 246
     },
     "shortcut-bindings-dialog/shortcut-bindings-dialog.stories.ts": {
       "bytes": 7656,
@@ -5374,20 +5398,20 @@
       "lines": 24
     },
     "sidebar/sidebar.component.browser.spec.ts": {
-      "bytes": 4179,
-      "lines": 120
+      "bytes": 5828,
+      "lines": 162
     },
     "sidebar/sidebar.component.spec.ts": {
-      "bytes": 62091,
-      "lines": 1617
+      "bytes": 62352,
+      "lines": 1626
     },
     "sidebar/sidebar.component.ts": {
-      "bytes": 7101,
-      "lines": 201
+      "bytes": 7408,
+      "lines": 206
     },
     "sidebar/sidebar.service.ts": {
-      "bytes": 4672,
-      "lines": 124
+      "bytes": 4773,
+      "lines": 125
     },
     "sidebar/sidebar.stories.ts": {
       "bytes": 16688,
@@ -5442,7 +5466,7 @@
       "lines": 38
     },
     "sidebar/sub/sidebar-menu-link.component.ts": {
-      "bytes": 7470,
+      "bytes": 7471,
       "lines": 174
     },
     "sidebar/sub/sidebar-menu-skeleton.component.ts": {
@@ -5490,15 +5514,15 @@
       "lines": 2
     },
     "signature-pad/signature-pad.component.browser.spec.ts": {
-      "bytes": 6066,
-      "lines": 174
+      "bytes": 6393,
+      "lines": 180
     },
     "signature-pad/signature-pad.component.css": {
-      "bytes": 587,
+      "bytes": 589,
       "lines": 23
     },
     "signature-pad/signature-pad.component.html": {
-      "bytes": 1947,
+      "bytes": 1986,
       "lines": 60
     },
     "signature-pad/signature-pad.component.spec.ts": {
@@ -5534,7 +5558,7 @@
       "lines": 40
     },
     "skeleton/skeleton.component.ts": {
-      "bytes": 1198,
+      "bytes": 1204,
       "lines": 42
     },
     "skeleton/skeleton.stories.ts": {
@@ -5546,15 +5570,15 @@
       "lines": 1
     },
     "slider/slider.component.browser.spec.ts": {
-      "bytes": 868,
-      "lines": 17
+      "bytes": 1543,
+      "lines": 30
     },
     "slider/slider.component.css": {
       "bytes": 311,
       "lines": 13
     },
     "slider/slider.component.html": {
-      "bytes": 1436,
+      "bytes": 1377,
       "lines": 39
     },
     "slider/slider.component.spec.ts": {
@@ -5586,16 +5610,16 @@
       "lines": 1612
     },
     "sortable/sortable.component.ts": {
-      "bytes": 48957,
-      "lines": 1172
+      "bytes": 49558,
+      "lines": 1184
     },
     "sortable/sortable.locales.ts": {
       "bytes": 5073,
       "lines": 93
     },
     "sortable/sortable.nested.spec.ts": {
-      "bytes": 14827,
-      "lines": 326
+      "bytes": 16501,
+      "lines": 357
     },
     "sortable/sortable.stories.ts": {
       "bytes": 28443,
@@ -5614,8 +5638,8 @@
       "lines": 14
     },
     "sortable/sub/sortable-item.component.ts": {
-      "bytes": 4445,
-      "lines": 107
+      "bytes": 5035,
+      "lines": 115
     },
     "sortable/sub/sortable-placeholder.directive.ts": {
       "bytes": 1018,
@@ -5670,24 +5694,24 @@
       "lines": 106
     },
     "speed-dial/speed-dial.component.ts": {
-      "bytes": 10603,
-      "lines": 270
+      "bytes": 10023,
+      "lines": 254
     },
     "speed-dial/speed-dial.coverage.spec.ts": {
-      "bytes": 17177,
-      "lines": 452
+      "bytes": 17087,
+      "lines": 441
     },
     "speed-dial/speed-dial.stories.ts": {
       "bytes": 11361,
       "lines": 234
     },
     "speed-dial/sub/speed-dial-context-trigger.component.ts": {
-      "bytes": 2797,
-      "lines": 82
+      "bytes": 2622,
+      "lines": 79
     },
     "speed-dial/sub/speed-dial-context-trigger.directive.ts": {
-      "bytes": 2285,
-      "lines": 67
+      "bytes": 2189,
+      "lines": 66
     },
     "speed-dial/sub/speed-dial-item.component.ts": {
       "bytes": 6803,
@@ -5714,16 +5738,16 @@
       "lines": 44
     },
     "spinner/spinner.component.html": {
-      "bytes": 1593,
+      "bytes": 1621,
       "lines": 44
     },
     "spinner/spinner.component.spec.ts": {
-      "bytes": 5441,
-      "lines": 137
+      "bytes": 5872,
+      "lines": 145
     },
     "spinner/spinner.component.ts": {
-      "bytes": 3897,
-      "lines": 135
+      "bytes": 4071,
+      "lines": 137
     },
     "spinner/spinner.stories.ts": {
       "bytes": 5756,
@@ -5782,7 +5806,7 @@
       "lines": 1
     },
     "stacked-bar-chart/stacked-bar-chart.component.html": {
-      "bytes": 4381,
+      "bytes": 4397,
       "lines": 129
     },
     "stacked-bar-chart/stacked-bar-chart.component.spec.ts": {
@@ -5790,8 +5814,8 @@
       "lines": 482
     },
     "stacked-bar-chart/stacked-bar-chart.component.ts": {
-      "bytes": 14986,
-      "lines": 414
+      "bytes": 15104,
+      "lines": 416
     },
     "stacked-bar-chart/stacked-bar-chart.stories.ts": {
       "bytes": 5767,
@@ -5866,12 +5890,12 @@
       "lines": 278
     },
     "stepper/stepper.component.ts": {
-      "bytes": 9981,
-      "lines": 250
+      "bytes": 10159,
+      "lines": 254
     },
     "stepper/stepper.coverage.spec.ts": {
-      "bytes": 7473,
-      "lines": 210
+      "bytes": 7823,
+      "lines": 221
     },
     "stepper/stepper.guard.spec.ts": {
       "bytes": 7582,
@@ -5930,12 +5954,12 @@
       "lines": 1
     },
     "switch/switch.component.browser.spec.ts": {
-      "bytes": 3419,
-      "lines": 74
+      "bytes": 4693,
+      "lines": 96
     },
     "switch/switch.component.css": {
-      "bytes": 546,
-      "lines": 19
+      "bytes": 858,
+      "lines": 24
     },
     "switch/switch.component.html": {
       "bytes": 1215,
@@ -5946,7 +5970,7 @@
       "lines": 265
     },
     "switch/switch.component.ts": {
-      "bytes": 4706,
+      "bytes": 4670,
       "lines": 115
     },
     "switch/switch.stories.ts": {
@@ -6042,24 +6066,28 @@
       "lines": 9
     },
     "tabs/sub/tabs-trigger.component.ts": {
-      "bytes": 2424,
-      "lines": 69
+      "bytes": 2643,
+      "lines": 75
     },
     "tabs/tabs-simple.component.spec.ts": {
       "bytes": 8204,
       "lines": 222
     },
     "tabs/tabs.component.browser.spec.ts": {
-      "bytes": 1741,
-      "lines": 40
+      "bytes": 4703,
+      "lines": 105
+    },
+    "tabs/tabs.component.css": {
+      "bytes": 222,
+      "lines": 9
     },
     "tabs/tabs.component.spec.ts": {
       "bytes": 5492,
       "lines": 143
     },
     "tabs/tabs.component.ts": {
-      "bytes": 6489,
-      "lines": 166
+      "bytes": 8000,
+      "lines": 198
     },
     "tabs/tabs.stories.ts": {
       "bytes": 5301,
@@ -6177,9 +6205,13 @@
       "bytes": 887,
       "lines": 29
     },
+    "timeline/sub/timeline-item.component.css": {
+      "bytes": 314,
+      "lines": 8
+    },
     "timeline/sub/timeline-item.component.ts": {
-      "bytes": 4938,
-      "lines": 99
+      "bytes": 5065,
+      "lines": 100
     },
     "timeline/sub/timeline-time.component.ts": {
       "bytes": 841,
@@ -6188,6 +6220,10 @@
     "timeline/sub/timeline-title.component.ts": {
       "bytes": 843,
       "lines": 29
+    },
+    "timeline/timeline.component.browser.spec.ts": {
+      "bytes": 960,
+      "lines": 25
     },
     "timeline/timeline.component.spec.ts": {
       "bytes": 5671,
@@ -6350,16 +6386,16 @@
       "lines": 2
     },
     "tour/tour.component.html": {
-      "bytes": 2483,
+      "bytes": 2325,
       "lines": 54
     },
     "tour/tour.component.spec.ts": {
-      "bytes": 43772,
-      "lines": 1172
+      "bytes": 44362,
+      "lines": 1187
     },
     "tour/tour.component.ts": {
-      "bytes": 36511,
-      "lines": 975
+      "bytes": 36753,
+      "lines": 977
     },
     "tour/tour.features.spec.ts": {
       "bytes": 10149,
@@ -6477,6 +6513,10 @@
       "bytes": 103,
       "lines": 3
     },
+    "treemap/treemap.component.browser.spec.ts": {
+      "bytes": 1953,
+      "lines": 46
+    },
     "treemap/treemap.component.html": {
       "bytes": 2479,
       "lines": 79
@@ -6486,8 +6526,8 @@
       "lines": 333
     },
     "treemap/treemap.component.ts": {
-      "bytes": 10997,
-      "lines": 264
+      "bytes": 11214,
+      "lines": 268
     },
     "treemap/treemap.stories.ts": {
       "bytes": 5552,
@@ -6518,12 +6558,12 @@
       "lines": 8
     },
     "typing-animation/typing-animation.component.spec.ts": {
-      "bytes": 8069,
-      "lines": 259
+      "bytes": 8664,
+      "lines": 272
     },
     "typing-animation/typing-animation.component.ts": {
-      "bytes": 5337,
-      "lines": 134
+      "bytes": 5724,
+      "lines": 144
     },
     "typing-animation/typing-animation.stories.ts": {
       "bytes": 6155,
@@ -6602,11 +6642,11 @@
       "lines": 1
     },
     "wobble-card/wobble-card.component.spec.ts": {
-      "bytes": 5415,
-      "lines": 143
+      "bytes": 5576,
+      "lines": 147
     },
     "wobble-card/wobble-card.component.ts": {
-      "bytes": 2839,
+      "bytes": 2845,
       "lines": 81
     },
     "wobble-card/wobble-card.stories.ts": {
@@ -6692,8 +6732,8 @@
       "lines": 85
     },
     "chart-interaction.ts": {
-      "bytes": 2876,
-      "lines": 91
+      "bytes": 4375,
+      "lines": 125
     },
     "chart-invariants.browser.spec.ts": {
       "bytes": 39102,
@@ -6728,8 +6768,8 @@
       "lines": 356
     },
     "chart-scale.ts": {
-      "bytes": 8583,
-      "lines": 232
+      "bytes": 8809,
+      "lines": 235
     },
     "chart.types.ts": {
       "bytes": 5050,
