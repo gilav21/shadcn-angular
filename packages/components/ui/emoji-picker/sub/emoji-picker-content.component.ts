@@ -30,6 +30,8 @@ const EMOJI_LABEL_WORDS = 3;
 const SETTLE_STABLE_FRAMES = 3;
 /** Upper bound (~4s at 60fps) so a stuck scroll can never leave the scroll-spy suppressed. */
 const SETTLE_MAX_FRAMES = 240;
+/** Re-aims allowed once the scroll stops: each one corrects a height estimate, and a few cover the worst case. */
+const SETTLE_MAX_REAIMS = 5;
 
 @Component({
     selector: 'ui-emoji-picker-content',
@@ -335,7 +337,7 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
             }
             // Sections are content-visibility:auto with an estimated height, so the
             // scroll height changes as the animation passes them; re-aim once it ends.
-            this.settleOnCategory(categoryId, this.scrollViewport()?.scrollTop ?? 0, 0, SETTLE_MAX_FRAMES);
+            this.settleOnCategory(categoryId, this.scrollViewport()?.scrollTop ?? 0, 0, SETTLE_MAX_FRAMES, SETTLE_MAX_REAIMS);
         });
     }
 
@@ -343,16 +345,22 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
      * Waits until the smooth scroll has stopped moving (its length depends on distance and on how
      * busy the frame loop is, so a fixed delay is a bet), then snaps the heading into place.
      */
-    private settleOnCategory(categoryId: string, lastTop: number, stableFrames: number, framesLeft: number): void {
+    private settleOnCategory(
+        categoryId: string,
+        lastTop: number,
+        stableFrames: number,
+        framesLeft: number,
+        reaimsLeft: number,
+    ): void {
         const top = this.scrollViewport()?.scrollTop ?? 0;
         const stable = top === lastTop ? stableFrames + 1 : 0;
         if (framesLeft > 0 && stable < SETTLE_STABLE_FRAMES) {
-            requestAnimationFrame(() => this.settleOnCategory(categoryId, top, stable, framesLeft - 1));
+            requestAnimationFrame(() => this.settleOnCategory(categoryId, top, stable, framesLeft - 1, reaimsLeft));
             return;
         }
         const offset = this.alignToCategory(categoryId, 'auto');
-        if (offset !== null && Math.abs(offset) > 1 && framesLeft > 0) {
-            requestAnimationFrame(() => this.settleOnCategory(categoryId, top, 0, framesLeft - 1));
+        if (offset !== null && Math.abs(offset) > 1 && reaimsLeft > 0) {
+            requestAnimationFrame(() => this.settleOnCategory(categoryId, top, 0, framesLeft - 1, reaimsLeft - 1));
             return;
         }
         setTimeout(() => {
