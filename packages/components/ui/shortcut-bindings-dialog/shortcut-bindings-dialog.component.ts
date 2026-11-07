@@ -99,6 +99,16 @@ export class ShortcutBindingsDialogComponent {
         return typeof loc === 'string' ? loc : loc.code;
     });
 
+    /** Localised "active actions / total" line under a component group's name. */
+    groupSummary(active: number, total: number): string {
+        return interpolate(this.t().activeActions, { active, total });
+    }
+
+    /** Localised active-instance count line for one action. */
+    instanceSummary(count: number): string {
+        return interpolate(this.t().activeInstances, { count });
+    }
+
     /** Interpolated aria-label for the "rebind all instances" capture button. */
     rebindAllAriaLabel(bindingDescription: string): string {
         return interpolate(this.t().rebindAllInstances, { binding: bindingDescription });

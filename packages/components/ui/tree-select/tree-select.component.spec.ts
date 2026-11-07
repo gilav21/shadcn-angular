@@ -92,7 +92,7 @@ class CVATestHostComponent {
                     <span>{{ selectedLabel() }}</span>
                 </button>
             </ui-popover-trigger>
-            <ui-popover-content id="tree-select-custom-popup" class="w-[--trigger-width] p-2" align="start">
+            <ui-popover-content id="tree-select-custom-popup" class="w-(--trigger-width) p-2" align="start">
                 <ui-tree
                     [data]="nodes"
                     [selectable]="'single'"

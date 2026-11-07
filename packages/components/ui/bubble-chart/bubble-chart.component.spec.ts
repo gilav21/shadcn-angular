@@ -174,8 +174,17 @@ describe('BubbleChartComponent', () => {
         const ticks = component.yTicks();
         const lines = [...root().querySelectorAll('line[data-slot="grid-line"]')];
         expect(lines.map(l => Number(l.getAttribute('y1')))).toEqual(ticks.map(t => t.y));
-        expect([...svg().querySelectorAll('text')].map(t => t.textContent!.trim()))
+        expect([...svg().querySelectorAll('text')].map(t => t.textContent!.trim()).slice(0, ticks.length))
             .toEqual(ticks.map(t => String(t.value)));
+    });
+
+    it('labels the x axis with one text per x tick, under the plot', async () => {
+        await setup();
+        const xTicks = component.xTicks();
+        const labels = [...svg().querySelectorAll('text')].slice(component.yTicks().length);
+        expect(xTicks.length).toBeGreaterThan(1);
+        expect(labels.map(t => t.textContent!.trim())).toEqual(xTicks.map(t => String(t.value)));
+        expect(labels.map(t => Number(t.getAttribute('x')))).toEqual(xTicks.map(t => t.x));
     });
 
     it('omits grid lines when showGrid is false', async () => {
@@ -240,7 +249,7 @@ describe('BubbleChartComponent', () => {
     it('mirrors the x axis and the tick labels for an explicit dir', async () => {
         await setup();
         const cx = (label: string): number => Number(circle(label).getAttribute('cx'));
-        const anchors = (): string[] => [...svg().querySelectorAll('text')].map(t => t.getAttribute('text-anchor')!);
+        const anchors = (): string[] => [...svg().querySelectorAll('text')].slice(0, component.yTicks().length).map(t => t.getAttribute('text-anchor')!);
 
         fixture.componentRef.setInput('dir', 'rtl');
         fixture.detectChanges();

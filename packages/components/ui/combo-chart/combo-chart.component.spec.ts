@@ -460,6 +460,25 @@ describe('ComboChartComponent', () => {
         expect(events[0].point.value).toBe(15);
     });
 
+    it('with grouped bar series, a bar reports its own series and dims by its own category', () => {
+        fixture.componentRef.setInput('barSeries', [
+            ...barSeries,
+            { name: 'Rework', data: [{ name: 'A', value: 1 }, { name: 'B', value: 2 }, { name: 'C', value: 3 }, { name: 'D', value: 4 }] },
+        ]);
+        fixture.detectChanges();
+        const events: ChartClickEvent[] = [];
+        component.barClick.subscribe((e) => events.push(e));
+        const bars = Array.from(fixture.nativeElement.querySelectorAll('rect[data-slot="combo-bar"]')) as SVGRectElement[];
+        // bars are category-major: [A/Defects, A/Rework, B/Defects, B/Rework, ...]
+        bars[3].dispatchEvent(new MouseEvent('click'));
+        expect(events[0].index).toBe(1);
+        expect(events[0].point.value).toBe(2);
+
+        component.setHover(2);
+        fixture.detectChanges();
+        expect(bars.map((b) => b.getAttribute('opacity'))).toEqual(['0.55', '0.55', '0.55', '0.55', '1', '1', '0.55', '0.55']);
+    });
+
     it('resolves rtl layout from the dir input', () => {
         fixture.componentRef.setInput('dir', 'rtl');
         fixture.detectChanges();

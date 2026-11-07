@@ -147,7 +147,7 @@ describe('BulletChartComponent', () => {
     });
 
     it('applies default measure color and honors an explicit color input', () => {
-        expect(component.measureColor()).toBe('hsl(var(--primary))');
+        expect(component.measureColor()).toBe('var(--primary)');
         fixture.componentRef.setInput('color', '#ff0000');
         fixture.detectChanges();
         expect(component.measureColor()).toBe('#ff0000');

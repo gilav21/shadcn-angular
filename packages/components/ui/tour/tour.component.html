@@ -43,12 +43,12 @@
         <span class="me-auto text-xs text-muted-foreground" [attr.data-slot]="'tour-pending'">{{ t().loading }}</span>
       }
       @if (showSkip() && !isLastStep()) {
-        <ui-button variant="ghost" size="sm" (click)="skip()" (keydown.enter)="skip()" (keydown.space)="skip()">{{ skipLabel() ?? t().skip }}</ui-button>
+        <ui-button variant="ghost" size="sm" (click)="skip()">{{ skipLabel() ?? t().skip }}</ui-button>
       }
       @if (canGoBack()) {
-        <ui-button variant="outline" size="sm" [disabled]="isPending()" (click)="previous()" (keydown.enter)="previous()" (keydown.space)="previous()">{{ prevLabel() ?? t().previous }}</ui-button>
+        <ui-button variant="outline" size="sm" [disabled]="isPending()" (click)="previous()">{{ prevLabel() ?? t().previous }}</ui-button>
       }
-      <ui-button size="sm" [disabled]="isPending()" (click)="next()" (keydown.enter)="next()" (keydown.space)="next()">{{ isLastStep() ? (finishLabel() ?? t().finish) : (nextLabel() ?? t().next) }}</ui-button>
+      <ui-button size="sm" [disabled]="isPending()" (click)="next()">{{ isLastStep() ? (finishLabel() ?? t().finish) : (nextLabel() ?? t().next) }}</ui-button>
     </div>
   </div>
 }

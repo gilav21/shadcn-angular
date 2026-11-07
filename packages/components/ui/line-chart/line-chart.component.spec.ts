@@ -294,6 +294,7 @@ describe('LineChartComponent', () => {
             { name: 'B', value: Number.NaN },
             { name: 'C', value: 5 },
             { name: 'D', value: undefined },
+            { name: 'D2', value: null },
             { name: 'E', value: 7 },
         ] as unknown as ChartSeries['data'];
         fixture.componentRef.setInput('series', [{ name: 'Gappy', data: missing }, { name: 'Null', data: [{ name: 'A', value: null }] }] as unknown as ChartSeries[]);

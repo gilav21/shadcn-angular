@@ -209,7 +209,7 @@
               [class.ring-ring]="compareActive() === 'a'"
               (click)="setCompareSlot('a')"
               uiTooltip="Edit color A with the picker above"
-              [attr.aria-label]="t().editColorA"
+              [attr.aria-label]="t().editColorA + ' ' + compareAHex()"
             >
               <span
                 class="block h-6 w-6 rounded border"
@@ -225,7 +225,7 @@
               [class.ring-ring]="compareActive() === 'b'"
               (click)="setCompareSlot('b')"
               uiTooltip="Edit color B with the picker above"
-              [attr.aria-label]="t().editColorB"
+              [attr.aria-label]="t().editColorB + ' ' + compareBHex()"
             >
               <span
                 class="block h-6 w-6 rounded border"
@@ -238,7 +238,7 @@
             <span class="font-mono text-xs">{{ contrastRatioDisplay() }}:1</span>
             <span
               class="rounded px-1.5 py-0.5 text-[10px] font-semibold"
-              [class.bg-green-500]="badge.pass"
+              [class.bg-green-700]="badge.pass"
               [class.text-white]="badge.pass"
               [class.bg-destructive]="!badge.pass"
               [class.text-destructive-foreground]="!badge.pass"
@@ -425,7 +425,7 @@
             [style.backgroundColor]="currentColor()"
           ></span>
           <span class="flex-1 text-start text-sm truncate font-mono">{{ currentColor() || 'Select color' }}</span>
-          <ui-icon name="chevron-down" class="h-4 w-4 opacity-50" />
+          <span class="inline-flex opacity-50"><ui-icon name="chevron-down" class="h-4 w-4" /></span>
         </button>
       }
     </ui-popover-trigger>

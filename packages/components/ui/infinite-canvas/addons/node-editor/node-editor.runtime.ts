@@ -2062,7 +2062,18 @@ export class NodeGraphRuntime {
     return existing;
   }
 
-  state(nodeId: NodeId): Signal<unknown> {
+  /**
+   * @param type The node's type, for a node the graph has not been mirrored to
+   *   yet. A card can render in the same pass that swaps the graph in, before
+   *   `setGraph` has registered its node; without the type the signal would be
+   *   minted empty and the view would read `undefined` as its state. Seeding
+   *   the type's `initialState` here is the same thing `setState` before
+   *   `setGraph` does, which `addNode` already honours.
+   */
+  state(nodeId: NodeId, type?: string): Signal<unknown> {
+    if (type !== undefined && !this.nodes.has(nodeId) && !this.stateValues.has(nodeId)) {
+      this.stateValues.set(nodeId, this.definitions.get(type)?.initialState?.());
+    }
     return this.stateSignal(nodeId).asReadonly();
   }
 

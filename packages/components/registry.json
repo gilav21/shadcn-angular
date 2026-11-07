@@ -1185,6 +1185,9 @@
       "dock/sub/dock-label.component.html",
       "dock/sub/dock-label.component.ts"
     ],
+    "libFiles": [
+      "observers.ts"
+    ],
     "testFiles": [
       "dock/dock.component.spec.ts",
       "dock/sub/dock-icon.component.spec.ts",
@@ -3082,6 +3085,7 @@
       "pie-chart/pie-chart.component.ts"
     ],
     "libFiles": [
+      "chart-interaction.ts",
       "chart.types.ts",
       "chart.utils.ts"
     ],
@@ -3106,6 +3110,7 @@
       "pie-chart-drilldown/pie-chart-drilldown.component.ts"
     ],
     "libFiles": [
+      "chart-interaction.ts",
       "chart.types.ts",
       "chart.utils.ts"
     ],
@@ -3130,6 +3135,7 @@
       "bar-chart/index.ts"
     ],
     "libFiles": [
+      "chart-interaction.ts",
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
@@ -3157,6 +3163,7 @@
       "bar-chart-drilldown/index.ts"
     ],
     "libFiles": [
+      "chart-interaction.ts",
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
@@ -3184,6 +3191,7 @@
       "stacked-bar-chart/stacked-bar-chart.component.ts"
     ],
     "libFiles": [
+      "chart-interaction.ts",
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
@@ -3211,6 +3219,7 @@
       "column-range-chart/index.ts"
     ],
     "libFiles": [
+      "chart-interaction.ts",
       "chart-responsive.ts",
       "chart-scale.ts",
       "chart.types.ts",
@@ -4838,7 +4847,8 @@
       "chart.utils.ts"
     ],
     "dependencies": [
-      "chart-legend"
+      "chart-legend",
+      "chart-tooltip"
     ],
     "testFiles": [
       "radar-chart/radar-chart.component.spec.ts"

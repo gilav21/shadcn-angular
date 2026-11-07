@@ -806,7 +806,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         const updatedCards = this.cards().filter(c => c.id !== card.id);
         this.cardsChange.emit(updatedCards);
 
-        this.cancelAllPendingDeletes();
+        this.finalizePendingDeletes();
 
         const totalSeconds = Math.ceil(this.DELETE_DURATION / 1000);
         this.deleteToastVisible.set(true);
@@ -852,6 +852,11 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     /** Toast close button: forfeits the undo window and finalizes every pending delete immediately, emitting {@link cardDeleted} for each. */
     dismissDeleteToast(): void {
         this.deleteToastVisible.set(false);
+        this.finalizePendingDeletes();
+    }
+
+    /** Ends every pending delete's undo window early and emits {@link cardDeleted} for each, so a new delete never silently drops an earlier one. */
+    private finalizePendingDeletes(): void {
         for (const [cardId, pending] of this.pendingDeletes.entries()) {
             clearTimeout(pending.timeoutId);
             clearInterval(pending.countdownIntervalId);

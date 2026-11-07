@@ -95,8 +95,18 @@ export class TypingAnimationComponent implements OnInit, OnDestroy {
         }
     }
 
+    /** `strings` is read live, so the running index may point past a list that shrank mid-run. */
+    private restartIfListShrank(length: number): void {
+        if (this.stringIndex < length) return;
+        this.stringIndex = 0;
+        this.charIndex = 0;
+        this.state.set('typing');
+    }
+
     private tick(): void {
         const strs = this.strings();
+        if (strs.length === 0) return;
+        this.restartIfListShrank(strs.length);
         const current = strs[this.stringIndex];
         const s = this.state();
 

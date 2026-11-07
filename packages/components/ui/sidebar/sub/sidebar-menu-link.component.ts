@@ -167,7 +167,7 @@ export class SidebarMenuLinkComponent {
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       'transition-colors',
       this.isActiveState() && 'bg-sidebar-accent text-sidebar-accent-foreground',
-      isCollapsed && 'justify-center px-2 overflow-hidden [&>span:not(:first-child)]:hidden [&>svg]:shrink-0',
+      isCollapsed && 'justify-center px-2 overflow-hidden [&>span:not(:first-child)]:sr-only [&>svg]:shrink-0',
       this.class()
     );
   });

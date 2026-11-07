@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { placeTooltip } from '../../lib/chart-interaction';
 import {
   DrilldownDataPoint,
   DrilldownSeries,
@@ -246,7 +247,8 @@ export class PieChartDrilldownComponent {
    * and `focus` on the wedge and to `mouseenter` on the legend row, so
    * keyboard and legend users get the same highlight.
    */
-  onSliceHover(slice: PieSlice): void {
+  onSliceHover(slice: PieSlice, evt?: Event): void {
+    placeTooltip(this.tooltipPosition, evt);
     this.hoveredIndex.set(slice.index);
     this.sliceHover.emit({ point: slice.data, index: slice.index });
   }

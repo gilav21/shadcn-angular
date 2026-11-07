@@ -17,19 +17,29 @@ import {
 } from '@angular/core';
 import { cva } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
+import { createMutationObserver, createResizeObserver } from '../../lib/observers';
 import { DockItemComponent } from './sub/dock-item.component';
 import { DockIconComponent } from './sub/dock-icon.component';
 import { DockLabelComponent } from './sub/dock-label.component';
 
+// Below sm the bar scrolls sideways, and a scroll container clips its overflow on both axes, so
+// the bar is 26px taller (76 vs 50) than its pinned items need, leaving the label's row inside the
+// scrollport. From sm up the bar does not scroll and the label simply paints outside it.
+const HORIZONTAL_BAR = 'overflow-x-auto sm:overflow-visible mt-4 sm:mt-8 h-[76px] sm:h-[58px]';
+// Any overflow other than visible clips both axes, which would cut off the label beside an item, so
+// the column scrolls (see DockComponent.scrolls) only once it is taller than max-h.
+const VERTICAL_BAR = 'items-start flex-col h-max max-h-[calc(100vh-2rem)]';
+const SCROLLING_COLUMN = 'overflow-y-auto overflow-x-hidden';
+
 const dockVariants = cva(
-    'mx-auto w-max max-w-[calc(100vw-2rem)] overflow-x-auto mt-4 sm:mt-8 h-[50px] sm:h-[58px] p-1.5 sm:p-2 flex gap-1.5 sm:gap-2 rounded-2xl border supports-backdrop-blur:bg-white/10 supports-backdrop-blur:dark:bg-black/10 backdrop-blur-md',
+    'mx-auto w-max max-w-[calc(100vw-2rem)] p-1.5 sm:p-2 flex gap-1.5 sm:gap-2 rounded-2xl border supports-backdrop-blur:bg-white/10 supports-backdrop-blur:dark:bg-black/10 backdrop-blur-md',
     {
         variants: {
             position: {
-                bottom: 'items-end',
-                top: 'items-start',
-                left: 'items-start flex-col',
-                right: 'items-start flex-col',
+                bottom: HORIZONTAL_BAR + ' items-end',
+                top: HORIZONTAL_BAR + ' items-start',
+                left: VERTICAL_BAR,
+                right: VERTICAL_BAR,
             },
         },
         defaultVariants: {
@@ -95,7 +105,22 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
         this._hasCustomContent.set(this.projectedItems.length > 0);
     }
 
-    classes = computed(() => cn(dockVariants({ position: this.position() }), this.class()));
+    /** True once a vertical dock's items are taller than the bar can grow, which is when it must scroll. */
+    private readonly scrolls = signal(false);
+
+    readonly classes = computed(() => cn(
+        dockVariants({ position: this.position() }),
+        this.isVertical() && this.scrolls() && SCROLLING_COLUMN,
+        this.class(),
+    ));
+
+    private resizeObserver: ResizeObserver | null = null;
+    private mutationObserver: MutationObserver | null = null;
+
+    /** Stable once on: while scrolling, scrollHeight > clientHeight holds exactly as long as the column still overflows. */
+    private measureScroll(bar: HTMLElement): void {
+        this.scrolls.set(bar.scrollHeight > bar.clientHeight);
+    }
 
     private readonly _el = inject(ElementRef);
     private readonly _ngZone = inject(NgZone);
@@ -111,6 +136,14 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
 
     ngAfterViewInit(): void {
         this.recalculateItemCenters();
+        const bar = this._el.nativeElement.querySelector('[data-slot="dock"]') as HTMLElement | null;
+        if (!bar) return;
+        // Neither fires when items are added to a column already at max-h (same box size), hence both.
+        this.resizeObserver = createResizeObserver(() => this.measureScroll(bar));
+        this.mutationObserver = createMutationObserver(() => this.measureScroll(bar));
+        this.resizeObserver?.observe(bar);
+        this.mutationObserver?.observe(bar, { childList: true });
+        this.measureScroll(bar);
     }
 
     ngOnInit(): void {
@@ -122,6 +155,8 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
     }
 
     ngOnDestroy(): void {
+        this.resizeObserver?.disconnect();
+        this.mutationObserver?.disconnect();
         this._el.nativeElement.removeEventListener('mousemove', this.onMouseMoveBound);
         this._el.nativeElement.removeEventListener('mouseleave', this.onMouseLeaveBound);
         this._el.nativeElement.removeEventListener('mouseenter', this.onMouseEnterBound);

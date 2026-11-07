@@ -190,8 +190,12 @@ export class TreemapComponent implements AfterViewInit {
         });
     });
 
-    /** Text anchor for the labels, flipped in RTL so they hug the reading edge of their rectangle. */
-    readonly labelAnchor = computed<'start' | 'end'>(() => (this.isRtl() ? 'end' : 'start'));
+    /**
+     * Text anchor for the labels. SVG `start`/`end` follow the text direction, not the
+     * screen, so the anchor flips whenever the layout side and the inherited DOM
+     * direction disagree — otherwise an RTL page puts the label's left end on the right edge and it spills out.
+     */
+    readonly labelAnchor = computed<'start' | 'end'>(() => (this.isRtl() === this._domRtl() ? 'start' : 'end'));
 
     private readonly hoveredCell = computed(() => {
         const i = this._hover();

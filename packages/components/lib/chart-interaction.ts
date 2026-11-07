@@ -89,3 +89,37 @@ export function pointerToSvg(evt: MouseEvent | TouchEvent, svg: SVGSVGElement): 
     }
     return { x: localX, y: localY };
 }
+
+const TOOLTIP_POINTER_OFFSET = 12;
+
+/**
+ * Where to park a chart tooltip for a hover/focus event, in pixels from the
+ * chart's `relative` wrapper (the tooltip's containing block). A mouse hover
+ * anchors just past the pointer; focus and legend hovers, which have no
+ * pointer over the shape, anchor to the centre of the event's target instead.
+ * Returns `null` when the event has no element or no `relative` ancestor.
+ */
+export function tooltipAnchor(evt: Event): { x: number; y: number } | null {
+    const target = evt.currentTarget;
+    if (!(target instanceof Element)) return null;
+    const container = target.closest('.relative');
+    if (!container) return null;
+    const box = container.getBoundingClientRect();
+    let clientX: number;
+    let clientY: number;
+    if (evt instanceof MouseEvent) {
+        clientX = evt.clientX + TOOLTIP_POINTER_OFFSET;
+        clientY = evt.clientY + TOOLTIP_POINTER_OFFSET;
+    } else {
+        const rect = target.getBoundingClientRect();
+        clientX = rect.left + rect.width / 2;
+        clientY = rect.top + rect.height / 2;
+    }
+    return { x: Math.max(0, clientX - box.left), y: Math.max(0, clientY - box.top) };
+}
+
+/** Parks a chart's tooltip signal at {@link tooltipAnchor} for `evt`; a no-op when there is no event to anchor to. */
+export function placeTooltip(position: { set(value: { x: number; y: number }): void }, evt?: Event): void {
+    const anchor = evt ? tooltipAnchor(evt) : null;
+    if (anchor) position.set(anchor);
+}

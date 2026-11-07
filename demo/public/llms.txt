@@ -949,7 +949,7 @@ Radar (spider) chart comparing multiple series across shared axes, with an inter
 - Import: `import { RadarChartComponent } from '@/components/ui/radar-chart';`
 - Selector: `ui-radar-chart`
 - Category: charts
-- Depends on: `chart-legend`
+- Depends on: `chart-legend`, `chart-tooltip`
 - npm dependencies: none
 - Inputs: `class: string = ''`, `dir: ChartDirection = 'auto'`, `fillOpacity: number = 0.2`, `levels: number = 4`, `maxValueInput: number | undefined`, `series: ChartSeries[]` (required), `showLegend: boolean = true`, `size: number = 320`, `title: string | undefined`
 
@@ -1736,7 +1736,7 @@ Animated loading spinner, available inline or as a full-page overlay.
 - Category: feedback
 - Depends on: none
 - npm dependencies: none
-- Inputs: `class: string = ''`, `customSize: number | null = null`, `size: SpinnerSize = 'default'`, `variant: SpinnerVariant = 'ring'`
+- Inputs: `class: string = ''`, `customSize: number | null = null`, `label: string = 'Loading'`, `size: SpinnerSize = 'default'`, `variant: SpinnerVariant = 'ring'`
 
 ```html
 <ui-spinner>Content</ui-spinner>

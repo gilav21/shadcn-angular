@@ -29,6 +29,7 @@ type PopoverAlign = 'start' | 'center' | 'end';
         #contentEl
         [class]="classes()"
         [style]="positionStyles()"
+        [style.--trigger-width]="triggerWidth()"
         [style.visibility]="strategy() === 'fixed' && !portalReady() ? 'hidden' : null"
         [attr.data-state]="popover?.open() ? 'open' : 'closed'"
         [attr.data-slot]="'popover-content'"
@@ -375,6 +376,17 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         if (flipSide === 'top') return triggerRect.top - boundary.top;
         return boundary.bottom - triggerRect.bottom;
     }
+
+    /**
+     * Width of the trigger, exposed to the content as `--trigger-width` so a
+     * panel can match it (`class="w-(--trigger-width)"`). Re-read on every
+     * open, as the trigger can resize between opens.
+     */
+    readonly triggerWidth = computed((): string | null => {
+        if (!this.popover?.open()) return null;
+        const rect = this.triggerRectSig() ?? this.popover.getTriggerRect();
+        return rect ? `${rect.width}px` : null;
+    });
 
     positionStyles = computed(() => {
         const pos = this.adjustedPosition();

@@ -84,9 +84,9 @@ export class PropertyEditorComponent {
     }
 
     // Binding Helpers
-    /** Whether this input is driven by a binding expression rather than a literal. Note an empty binding string reads as *not* bound, so a freshly toggled, still-blank binding shows as off. */
+    /** Whether this input is driven by a binding expression rather than a literal. An empty expression still counts as bound, so a freshly toggled, still-blank binding stays on until the user clears it with the toggle. */
     hasBinding(name: string): boolean {
-        return !!this.item()?.bindings?.[name];
+        return this.item()?.bindings?.[name] !== undefined;
     }
 
     /** The binding expression for an input, or `''` when it has none — safe to bind straight to a text field. */

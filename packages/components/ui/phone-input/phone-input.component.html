@@ -57,6 +57,7 @@
   </ui-input-group-addon>
   <ui-input
     type="tel"
+    class="disabled:opacity-100"
     [uiInputMask]="selectedCountry().mask"
     [disabled]="isDisabled()"
     [placeholder]="effectivePlaceholder()"

@@ -18,15 +18,15 @@ export interface ConfettiOptions {
     angle?: number;
     /** Spread of the explosion in degrees. Default 45. */
     spread?: number;
-    /** Initial velocity of the particles. Default 45. Lower this to make the burst slower. */
+    /** Initial velocity of the particles. Default 25. Lower this to make the burst slower. */
     startVelocity?: number;
     /** How quickly the particles lose speed. Default 0.9. 1 is no decay. */
     decay?: number;
-    /** How fast the particles fall. Default 1. Lower this to make them fall slower. */
+    /** How fast the particles fall. Default 0.05. Lower this to make them fall slower. */
     gravity?: number;
     /** How much the particles drift sideways. Default 0. */
     drift?: number;
-    /** How many frames the particles last. Default 200. Controls duration, not speed. */
+    /** How many frames the particles last. Default 800. Controls duration, not speed. */
     ticks?: number;
     /** Origin of the explosion. x/y are 0-1 relative to container. Default {x: 0.5, y: 0.5}. */
     origin?: { x: number; y: number };
@@ -93,7 +93,7 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
     private readonly _el = inject(ElementRef);
     private readonly _renderer = inject(Renderer2);
 
-    /** Wait to be fired explicitly rather than bursting as soon as the host appears. */
+    /** Never bursts on its own: fires each time this becomes true. Call `fire()` to burst imperatively. */
     public readonly manualTrigger = input<boolean>(false);
     /** Burst settings — particle count, spread, colours and physics. */
     public readonly options = input<ConfettiOptions>({});
@@ -167,18 +167,18 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
     }
 
     private _launchParticles(opts: ConfettiOptions): void {
-        const particleCount = opts.particleCount || 50;
+        const particleCount = opts.particleCount ?? 50;
         const angle = opts.angle ?? 90;
-        const spread = opts.spread || 45;
-        const startVelocity = opts.startVelocity || 25;
-        const decay = opts.decay || 0.9;
-        const gravity = opts.gravity || 0.05;
+        const spread = opts.spread ?? 45;
+        const startVelocity = opts.startVelocity ?? 25;
+        const decay = opts.decay ?? 0.9;
+        const gravity = opts.gravity ?? 0.05;
         const drift = opts.drift ?? 0;
-        const ticks = opts.ticks || 800;
+        const ticks = opts.ticks ?? 800;
         const origin = opts.origin ?? { x: 0.5, y: 0.5 };
         const colors = opts.colors ?? ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff'];
         const shapes = opts.shapes ?? ['square', 'circle'];
-        const scalar = opts.scalar || 1;
+        const scalar = opts.scalar ?? 1;
 
         const canvas = this._canvas;
         if (!canvas) return;

@@ -128,7 +128,7 @@ export class SortableHandleDirective {
      * handle. No-ops outside a `ui-sortable` / `ui-sortable-item` pair.
      */
     onMouseDown(event: MouseEvent): void {
-        if (!this.parent || !this.item) return;
+        if (!this.parent || !this.item || event.button !== 0) return;
         event.stopPropagation();
         this.parent.startDrag(this.item.index(), event.clientX, event.clientY);
     }
@@ -146,6 +146,11 @@ export class SortableHandleDirective {
         const touch = event.touches[0];
         this.parent.startDrag(this.item.index(), touch.clientX, touch.clientY);
     }
+}
+
+function containsPoint(el: HTMLElement, x: number, y: number): boolean {
+    const r = el.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 }
 
 /** Moves an item from index `from` to index `to` in a copy of `arr`. */
@@ -859,11 +864,18 @@ export class SortableComponent<T> {
         if (groupName === '') return null;
 
         const draggedEl = this.draggedItemElement();
+        // A child list's rect lies inside its parent's, so while the pointer is
+        // over the dragging list itself only an equally deep or deeper peer may
+        // take the drop; otherwise the enclosing list always wins and the list
+        // can never reorder locally.
+        const minDepth = containsPoint(this.registryEntry.element, clientX, clientY)
+            ? entryDepth(this.registryEntry)
+            : 0;
         let best: SortableRegistryEntry | null = null;
         let bestDepth = -1;
         for (const peer of peersInGroup(groupName, this.registryEntry)) {
-            const r = peer.element.getBoundingClientRect();
-            if (clientX < r.left || clientX > r.right || clientY < r.top || clientY > r.bottom) continue;
+            if (!containsPoint(peer.element, clientX, clientY)) continue;
+            if (entryDepth(peer) < minDepth) continue;
             if (this.isInsideDraggedItem(peer, draggedEl)) continue;
             const depth = entryDepth(peer);
             if (depth > bestDepth) {

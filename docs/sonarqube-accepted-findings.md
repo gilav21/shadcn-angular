@@ -101,6 +101,7 @@ not suppressed — this exemption is scoped to the `ui-button` and
 | `signature-pad/signature-pad.component.html` | Undo/Clear are `<ui-button (click)>` — native `<button>` underneath, Enter/Space already fire click. |
 | `data-table/sub/data-table-column-header.component.html` | The sort `<ui-button (click)>`. It also bound Enter/Space, which made one key press sort twice (#165); native activation alone is correct. |
 | `data-table/sub/data-table-pagination.component.html` | First/previous/next/last `<ui-pagination-link (click)>` — native `<button>` underneath. The redundant Enter/Space bindings paged twice per press (#165). |
+| `tour/tour.component.html` | Skip/Previous/Next are `<ui-button (click)>` — native `<button>` underneath. The redundant Enter/Space bindings advanced the tour twice per Enter, and Enter on Previous also ran `next()`; native activation alone is correct. |
 
 **The one raw-`<div>` exception — the `file-upload` dropzone.** It is
 `role="presentation"` and its `(click)`/drag handlers are a *pointer convenience*,

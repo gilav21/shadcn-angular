@@ -51,8 +51,8 @@ export class SpeedDialContextTriggerComponent {
 
     /**
      * Replaces the native context menu: suppresses the browser menu, stops the
-     * event, and opens the speed dial at the pointer via `showAt()`. Coordinates
-     * are passed relative to this element's bounding box, not the viewport.
+     * event, and opens the speed dial at the pointer via `showAt()`. Viewport
+     * coordinates (`clientX`/`clientY`) are passed.
      *
      * Right-click / two-finger-tap only — there is no long-press fallback, so on
      * a touch-only device this trigger cannot be opened at all. Provide a normal
@@ -62,10 +62,7 @@ export class SpeedDialContextTriggerComponent {
         event.preventDefault();
         event.stopPropagation();
 
-        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        this.speedDial?.showAt(x, y);
+        this.speedDial?.showAt(event.clientX, event.clientY);
     }
 
     /**

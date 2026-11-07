@@ -280,6 +280,24 @@ describe('NumberTickerComponent — animation (deterministic frames)', () => {
         expect(cmp.displayValue()).toBe('0');
     });
 
+    it('cancels a pending delayed start when destroyed or retargeted', async () => {
+        const fixture = await makeTicker({ value: 50, duration: 1, delay: 2 });
+        const cmp = fixture.componentInstance;
+
+        fixture.componentRef.setInput('value', 80);
+        fixture.detectChanges();
+        vi.advanceTimersByTime(1999);
+        fixture.destroy();
+        vi.advanceTimersByTime(5000);
+        expect(animationFrames(cmp)).toHaveLength(0);
+    });
+
+    it('follows the theme foreground colour by default', async () => {
+        const fixture = await makeTicker({ value: 1 });
+        expect(fixture.componentInstance.classes()).toContain('text-foreground');
+        expect(fixture.componentInstance.classes()).not.toContain('text-black');
+    });
+
     it('merges a custom class into the computed classes', async () => {
         const fixture = await makeTicker({ value: 1, duration: 1, class: 'text-red-500' });
         const cmp = fixture.componentInstance;

@@ -24,6 +24,16 @@ describe('PieChartComponent', () => {
         fixture.detectChanges();
     });
 
+    it('draws a light slice label in the foreground colour and a dark slice label in white', () => {
+        fixture.componentRef.setInput('data', [{ name: 'Lemons', value: 50, color: 'yellow' }, { name: 'Plums', value: 50, color: 'hsl(270 60% 30%)' }]);
+        fixture.detectChanges();
+        const [light, dark] = Array.from(fixture.nativeElement.querySelectorAll('text.font-medium')) as SVGTextElement[];
+        expect([...light.classList]).toContain('fill-foreground');
+        expect([...light.classList]).not.toContain('fill-white');
+        expect([...dark.classList]).toContain('fill-white');
+        expect([...dark.classList]).not.toContain('fill-foreground');
+    });
+
     it('should set aria-label on container', () => {
         const container = fixture.nativeElement.querySelector('[role="group"]');
         expect(container).toBeTruthy();

@@ -26,6 +26,13 @@ import { EMOJI_PICKER, EMOJI_CATEGORIES, EmojiCategory } from '../emoji-picker.c
 /** How many leading keywords make up an emoji's spoken name. */
 const EMOJI_LABEL_WORDS = 3;
 
+/** Frames the scroll position must hold still before a category jump counts as finished. */
+const SETTLE_STABLE_FRAMES = 3;
+/** Upper bound (~4s at 60fps) so a stuck scroll can never leave the scroll-spy suppressed. */
+const SETTLE_MAX_FRAMES = 240;
+/** Re-aims allowed once the scroll stops: each one corrects a height estimate, and a few cover the worst case. */
+const SETTLE_MAX_REAIMS = 5;
+
 @Component({
     selector: 'ui-emoji-picker-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -315,8 +322,8 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
     /**
      * Jumps the grid to a category section, clearing the search box first so every
      * category is present to scroll to. The scroll is smooth and the scroll-spy that
-     * normally tracks the active tab is suppressed for ~800ms so it cannot fight the
-     * animation.
+     * normally tracks the active tab is suppressed until the animation has settled so it
+     * cannot fight it.
      */
     scrollToCategory(categoryId: string): void {
         this.searchQuery.set('');
@@ -324,24 +331,60 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         this.isScrollingProgrammatically = true;
 
         setTimeout(() => {
-            const viewport = this._scrollArea?.viewportRef?.nativeElement;
-            const section = this.el.nativeElement.querySelector(
-                `[data-category="${categoryId}"]`
-            ) as HTMLElement;
-
-            if (section && viewport) {
-                const relativeTop = section.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
-                const scrollTop = viewport.scrollTop + relativeTop;
-
-                viewport.scrollTo({ top: scrollTop, behavior: 'smooth' });
-
-                setTimeout(() => {
-                    this.isScrollingProgrammatically = false;
-                }, 800);
-            } else {
+            if (this.alignToCategory(categoryId, 'smooth') === null) {
                 this.isScrollingProgrammatically = false;
+                return;
             }
+            // Sections are content-visibility:auto with an estimated height, so the
+            // scroll height changes as the animation passes them; re-aim once it ends.
+            this.settleOnCategory(categoryId, this.scrollViewport()?.scrollTop ?? 0, 0, SETTLE_MAX_FRAMES, SETTLE_MAX_REAIMS);
         });
+    }
+
+    /**
+     * Waits until the smooth scroll has stopped moving (its length depends on distance and on how
+     * busy the frame loop is, so a fixed delay is a bet), then snaps the heading into place.
+     */
+    private settleOnCategory(
+        categoryId: string,
+        lastTop: number,
+        stableFrames: number,
+        framesLeft: number,
+        reaimsLeft: number,
+    ): void {
+        const top = this.scrollViewport()?.scrollTop ?? 0;
+        const stable = top === lastTop ? stableFrames + 1 : 0;
+        if (framesLeft > 0 && stable < SETTLE_STABLE_FRAMES) {
+            requestAnimationFrame(() => this.settleOnCategory(categoryId, top, stable, framesLeft - 1, reaimsLeft));
+            return;
+        }
+        const offset = this.alignToCategory(categoryId, 'auto');
+        if (offset !== null && Math.abs(offset) > 1 && reaimsLeft > 0) {
+            requestAnimationFrame(() => this.settleOnCategory(categoryId, top, 0, framesLeft - 1, reaimsLeft - 1));
+            return;
+        }
+        setTimeout(() => {
+            this.isScrollingProgrammatically = false;
+        });
+    }
+
+    private scrollViewport(): HTMLElement | undefined {
+        return this._scrollArea?.viewportRef?.nativeElement;
+    }
+
+    /** Scrolls so the section's heading sits at the viewport top; returns how far it was off, or null when the section or viewport is missing. */
+    private alignToCategory(categoryId: string, behavior: ScrollBehavior): number | null {
+        const viewport = this.scrollViewport();
+        const section = this.el.nativeElement.querySelector(
+            `[data-category="${categoryId}"]`
+        ) as HTMLElement | null;
+        if (!section || !viewport) return null;
+
+        const relativeTop = section.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+        if (behavior === 'smooth' || Math.abs(relativeTop) > 1) {
+            viewport.scrollTo({ top: viewport.scrollTop + relativeTop, behavior });
+        }
+        return relativeTop;
     }
 
     private setupScrollListener(viewport: HTMLElement): void {

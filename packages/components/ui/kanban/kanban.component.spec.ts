@@ -311,6 +311,22 @@ describe('KanbanComponent', () => {
             vi.useRealTimers();
         });
 
+        it('a second delete emits cardDeleted for the first immediately', () => {
+            vi.useFakeTimers();
+            const kanban = getKanban();
+            const deleted: string[] = [];
+            kanban.cardDeleted.subscribe(id => deleted.push(id));
+            const [first, second] = component.cards();
+
+            kanban.onDeleteCard(first);
+            kanban.onDeleteCard(second);
+            expect(deleted).toEqual([first.id]);
+
+            vi.advanceTimersByTime(6000);
+            expect(deleted).toEqual([first.id, second.id]);
+            vi.useRealTimers();
+        });
+
         it('undo restores the cards before a move and redo re-applies it, tracking canUndo/canRedo', () => {
             const kanban = getKanban();
             const originalCards = [...component.cards()];

@@ -73,6 +73,28 @@ describe('CopyToDirective', () => {
 		expect(copyWriteTextSpy).toHaveBeenCalledWith('Hello, World!');
 	});
 
+	it('should stay silent when the clipboard write is rejected', async () => {
+		vi.mocked(navigator.clipboard.writeText).mockRejectedValueOnce(new Error('denied'));
+		const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+		const initialCount = host.copiedCount;
+		const unhandled: PromiseRejectionEvent[] = [];
+		const record = (e: PromiseRejectionEvent) => {
+			e.preventDefault();
+			unhandled.push(e);
+		};
+		globalThis.addEventListener('unhandledrejection', record);
+
+		clickButton(button);
+		await fixture.whenStable();
+		// The browser reports an unhandled rejection after the microtask queue drains.
+		await new Promise(resolve => setTimeout(resolve, 20));
+		globalThis.removeEventListener('unhandledrejection', record);
+
+		expect(unhandled).toHaveLength(0);
+		expect(host.copiedCount).toBe(initialCount);
+		expect(document.body.querySelector('.ui-copy-indicator')).toBeNull();
+	});
+
 	it('should emit copied output after successful copy', async () => {
 		const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
 		const initialCount = host.copiedCount;

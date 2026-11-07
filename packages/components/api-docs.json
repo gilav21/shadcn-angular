@@ -2490,6 +2490,12 @@
       "projectsContent": false,
       "inputs": [
         {
+          "name": "bordered",
+          "type": "boolean",
+          "description": "Draws a top divider; the existing `border-t` rule supplies the matching 1.5rem top padding.",
+          "default": "false"
+        },
+        {
           "name": "class",
           "type": "string",
           "description": "Extra classes merged onto the footer row. Add `border-t` to get a divider — the built-in `[.border-t]:pt-6` rule then supplies the matching top padding.",
@@ -2507,6 +2513,12 @@
       "description": "",
       "projectsContent": false,
       "inputs": [
+        {
+          "name": "bordered",
+          "type": "boolean",
+          "description": "Draws a bottom divider; the existing `border-b` rule supplies the matching 1.5rem bottom padding.",
+          "default": "false"
+        },
         {
           "name": "class",
           "type": "string",
@@ -3509,7 +3521,7 @@
         {
           "name": "barClick",
           "type": "ChartClickEvent",
-          "description": "Emitted when any bar is clicked. `index` is the category index and `point` the matching {@link barSeries} datum — but the template wires every rect to bar series 0, so with several bar series the payload reports the first series' value for that category regardless of which grouped bar was hit. Call {@link onBarClick} directly if you need the exact series."
+          "description": "Emitted when any bar is clicked. `index` is the category index and `point` the datum of the clicked bar's own {@link barSeries} entry at that category."
         }
       ],
       "methods": []
@@ -4059,7 +4071,7 @@
         {
           "name": "manualTrigger",
           "type": "boolean",
-          "description": "Wait to be fired explicitly rather than bursting as soon as the host appears.",
+          "description": "Never bursts on its own: fires each time this becomes true. Call `fire()` to burst imperatively.",
           "default": "false"
         },
         {
@@ -6174,7 +6186,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Extra classes merged onto the item host. Avoid `w-*` here — width is owned by the dock's hover magnification and written as an inline style. Add `group` if you project a `ui-dock-label`, which reveals itself on `group-hover`.",
+          "description": "Extra classes merged onto the item host. Avoid `w-*` here — width is owned by the dock's hover magnification and written as an inline style.",
           "default": "''"
         }
       ],
@@ -6192,7 +6204,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Extra classes merged onto the tooltip bubble above the icon. It is `hidden` until `group-hover`, and the dock item does **not** carry a `group` class — so the label stays invisible unless you add `group` to the enclosing `ui-dock-item`. Hover-driven either way, so it never appears on touch; put the name in the icon's accessible name too.",
+          "description": "Extra classes merged onto the tooltip bubble. It sits on the side of the icon facing away from the dock's edge (above a bottom dock, below a top one, beside a left or right one) and is `hidden` until the enclosing `ui-dock-item` (which carries `group`) is hovered or holds focus, so a tapped button or link item shows it on touch too. Put the name in the icon's accessible name as well.",
           "default": "''"
         }
       ],
@@ -10564,7 +10576,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Extra classes merged onto the host. The default includes literal `text-black dark:text-white` rather than a theme token, so pass a `text-*` utility here when the ticker must follow the theme.",
+          "description": "Extra classes merged onto the host. The default includes literal `text-foreground` rather than a theme token, so pass a `text-*` utility here when the ticker must follow the theme.",
           "default": "''"
         },
         {
@@ -16080,7 +16092,7 @@
         {
           "name": "uiSpeedDialContextTrigger",
           "type": "SpeedDialComponent",
-          "description": "The `ui-speed-dial` instance this element controls, normally passed as a template reference variable. Required — the directive drives the speed dial from the outside instead of through the `SPEED_DIAL` injection token, so the speed dial can live anywhere in the template. The host element is also what `showAt()` clamps against when it looks for its container.",
+          "description": "The `ui-speed-dial` instance this element controls, normally passed as a template reference variable. Required — the directive drives the speed dial from the outside instead of through the `SPEED_DIAL` injection token, so the speed dial can live anywhere in the template.",
           "required": true
         }
       ],
@@ -16189,6 +16201,12 @@
           "type": "number | null",
           "description": "Exact pixel size, applied inline and taking precedence over {@link size}. Use it when the spinner must match a specific control's height. `null` keeps the preset.",
           "default": "null"
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "description": "Accessible name announced by assistive technology (applies to every variant). Set it to say what is loading, or to localize it.",
+          "default": "'Loading'"
         },
         {
           "name": "size",
@@ -17457,7 +17475,7 @@
         {
           "name": "class",
           "type": "string",
-          "description": "Extra utilities for the item's row wrapper, merged through `cn()` so they override the built-in `relative flex gap-4 pb-8 last:pb-0` — this is where you change the gap between dot and content, or the spacing to the next item.",
+          "description": "Extra utilities for the item's row wrapper, merged through `cn()` so they override the built-in `relative flex gap-4` — this is where you change the gap between dot and content. The 2rem spacing to the next item comes from the component stylesheet (every item but the last), so a `pb-*` utility passed here overrides it.",
           "default": "''"
         },
         {

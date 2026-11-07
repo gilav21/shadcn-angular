@@ -234,6 +234,23 @@ describe('Select Keyboard Navigation', () => {
         expect(content).toBeNull();
     });
 
+    it('closes on Tab and returns focus to the trigger', async () => {
+        const trigger: HTMLButtonElement = fixture.debugElement.query(By.css('[data-slot="select-trigger"]')).nativeElement;
+        trigger.click();
+        fixture.detectChanges();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const item: HTMLElement = fixture.nativeElement.querySelector('[data-slot="select-item"]');
+        item.focus();
+
+        const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+        item.dispatchEvent(tab);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('[data-slot="select-content"]')).toBeNull();
+        expect(document.activeElement).toBe(trigger);
+        expect(tab.defaultPrevented).toBe(true);
+    });
+
     // Note: Focus management tests require attaching to DOM or specific focus spying
     // which might be flaky in JSDOM without full interaction simulation.
     // We will verify logic invocation if possible, or check document.activeElement

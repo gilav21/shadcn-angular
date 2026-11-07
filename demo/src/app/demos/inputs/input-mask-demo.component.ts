@@ -25,7 +25,7 @@ import { INPUT_MASK_DEMO_LOCALES } from './input-mask-demo.locales';
 
         <div class="space-y-2">
           <ui-label>{{ t().licensePlateLabel }}</ui-label>
-          <ui-input uiInputMask="AAA-999" placeholder="ABC-123" />
+          <ui-input uiInputMask="aaa-999" placeholder="ABC-123" />
         </div>
 
         <div class="space-y-2">

@@ -190,32 +190,22 @@ export class SpeedDialComponent implements OnDestroy {
      *
      * The point is clamped so the whole menu stays on screen: circular types are
      * kept `radius + 32`px inside every viewport edge, linear types only against
-     * the edges their {@link direction} grows towards. Clamping is measured
-     * against the nearest `[uiSpeedDialContextTrigger]` ancestor, falling back to
-     * the host's parent element.
+     * the edges their {@link direction} grows towards. Both the point and the
+     * clamp are in viewport coordinates.
      *
      * Opening is deferred by one task (the menu is closed and re-opened) so the
      * items jump to the new origin without animating across the screen.
      * No-op while {@link disabled}.
      *
-     * @param x Horizontal coordinate; the directive passes `event.clientX`.
-     * @param y Vertical coordinate; the directive passes `event.clientY`.
+     * @param x Horizontal viewport coordinate; the triggers pass `event.clientX`.
+     * @param y Vertical viewport coordinate; the triggers pass `event.clientY`.
      */
     showAt(x: number, y: number): void {
         if (this.disabled()) return;
 
-        const container = this.el.nativeElement.closest('[uiSpeedDialContextTrigger]') as HTMLElement | null
-            ?? this.el.nativeElement.parentElement;
-
-        if (container) {
-            const clamped = this.clampToContainer(x, y, container);
-            x = clamped.x;
-            y = clamped.y;
-        }
-
         this.open.set(false);
         this.isRepositioning.set(true);
-        this.contextPosition.set({ x, y });
+        this.contextPosition.set(this.clampToViewport(x, y));
         setTimeout(() => {
             this.isRepositioning.set(false);
             this.open.set(true);
@@ -224,34 +214,28 @@ export class SpeedDialComponent implements OnDestroy {
         }, 0);
     }
 
-    private clampToContainer(x: number, y: number, container: HTMLElement): { x: number; y: number } {
+    /** The menu is `position: fixed`, so the point and the clamp share one space: the viewport. */
+    private clampToViewport(x: number, y: number): { x: number; y: number } {
         const r = this.radius() + 24;
         const type = this.type();
-        const containerRect = container.getBoundingClientRect();
         const vw = globalThis.innerWidth;
         const vh = globalThis.innerHeight;
 
-        const absX = containerRect.left + x;
-        const absY = containerRect.top + y;
-
-        let clampedAbsX = absX;
-        let clampedAbsY = absY;
-
         if (type === 'circle' || type === 'semi-circle' || type === 'quarter-circle') {
-            clampedAbsX = Math.max(r + 8, Math.min(clampedAbsX, vw - r - 8));
-            clampedAbsY = Math.max(r + 8, Math.min(clampedAbsY, vh - r - 8));
-        } else {
-            const dir = this.direction();
-            if (dir.includes('right')) clampedAbsX = Math.min(clampedAbsX, vw - r - 8);
-            if (dir.includes('left')) clampedAbsX = Math.max(clampedAbsX, r + 8);
-            if (dir.includes('down')) clampedAbsY = Math.min(clampedAbsY, vh - r - 8);
-            if (dir.includes('up')) clampedAbsY = Math.max(clampedAbsY, r + 8);
+            return {
+                x: Math.max(r + 8, Math.min(x, vw - r - 8)),
+                y: Math.max(r + 8, Math.min(y, vh - r - 8)),
+            };
         }
 
-        return {
-            x: x + (clampedAbsX - absX),
-            y: y + (clampedAbsY - absY),
-        };
+        const dir = this.direction();
+        let clampedX = x;
+        let clampedY = y;
+        if (dir.includes('right')) clampedX = Math.min(clampedX, vw - r - 8);
+        if (dir.includes('left')) clampedX = Math.max(clampedX, r + 8);
+        if (dir.includes('down')) clampedY = Math.min(clampedY, vh - r - 8);
+        if (dir.includes('up')) clampedY = Math.max(clampedY, r + 8);
+        return { x: clampedX, y: clampedY };
     }
 
     /**
