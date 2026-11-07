@@ -89,6 +89,16 @@ describe('PageBuilderComponent', () => {
         expect(bentoGrid.componentInstance.rowHeight()).toBe('150px');
     });
 
+    it('adds a palette widget with its add button, for devices that cannot drag', () => {
+        const buttons = fixture.nativeElement.querySelectorAll('[data-slot="page-builder-palette-add"]');
+        expect(buttons).toHaveLength(mockComponents.length);
+
+        (buttons[0] as HTMLButtonElement).click();
+
+        expect(component.items()).toHaveLength(1);
+        expect(component.items()[0].content).toBe(mockComponents[0].component);
+    });
+
     it('selecting an item exposes it as the selection, and deleting it clears the selection', () => {
         component.addItem(mockComponents[0]);
         fixture.detectChanges();

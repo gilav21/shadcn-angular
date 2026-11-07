@@ -3,7 +3,7 @@
 }
 
 @layer components {
-    [data-slot="signature-pad"] > div {
+    [data-slot="signature-pad-toolbar"] {
         padding: calc(0.5rem * var(--_d));
     }
 }

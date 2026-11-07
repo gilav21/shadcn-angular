@@ -1,7 +1,33 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { InputMaskDirective } from './input-mask.directive';
+import { InputComponent } from './input';
 import { describe, it, expect, beforeEach } from 'vitest';
+
+@Component({
+    template: `
+        <ui-input [uiInputMask]="'(999) 999-9999'" [ngModel]="'5551234567'" />
+        <input data-testid="native" [uiInputMask]="'(999) 999-9999'" [ngModel]="'5551234567'" />
+    `,
+    imports: [InputMaskDirective, InputComponent, FormsModule],
+})
+class InitialModelHostComponent {}
+
+describe('InputMaskDirective with an initial model value', () => {
+    it('formats the value a form writes in, on a ui-input and on a native input', async () => {
+        await TestBed.configureTestingModule({ imports: [InitialModelHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(InitialModelHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const [uiField, nativeField] = Array.from<HTMLInputElement>(fixture.nativeElement.querySelectorAll('input'));
+        expect(uiField.value).toBe('(555) 123-4567');
+        expect(nativeField.value).toBe('(555) 123-4567');
+    });
+});
 
 @Component({
     template: `<input uiInputMask="(000) 000-0000" />`,

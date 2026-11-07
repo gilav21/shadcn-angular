@@ -205,6 +205,20 @@ describe('ShortcutBindingsDialogComponent — rebind + grouping with live bindin
         expect(groupNames()).toEqual(['viewer']);
     });
 
+    it('keeps the rebind controls out of the accordion triggers and labels the search box', () => {
+        const root = fixture.nativeElement as HTMLElement;
+        root.querySelector<HTMLInputElement>('input[type="text"]')!.value = 'Find in page';
+        root.querySelector('input[type="text"]')!.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        // Searching opens the matching groups and actions, so the action rows exist.
+        expect(root.querySelectorAll('[aria-label^="Rebind all instances"]').length).toBeGreaterThan(0);
+
+        for (const trigger of root.querySelectorAll('[data-slot="accordion-trigger"]')) {
+            expect(trigger.querySelector('button, ui-button')).toBeNull();
+        }
+        expect(root.querySelector('input[type="text"]')!.getAttribute('aria-label')).toBe('Search actions, categories, components, or keys...');
+    });
+
     it('filters bindings by the search query', () => {
         dialog.search.set('Find in page');
         fixture.detectChanges();
@@ -420,6 +434,17 @@ describe('ShortcutBindingsDialogComponent — i18n integration', () => {
         fixture.componentRef.setInput('locale', 'he');
         fixture.detectChanges();
         expect(cmp.rebindAllAriaLabel('Open file')).toBe('מיפוי מחדש של כל המופעים של Open file');
+    });
+
+    it('localises the dialog chrome and the per-group summary, not only the placeholder', async () => {
+        const fixture = await setup({ locale: 'de' });
+        registerConflictingPair();
+        fixture.detectChanges();
+
+        const text = (fixture.nativeElement as HTMLElement).textContent!;
+        expect(text).toContain('Tastenkürzel');
+        expect(text).toContain('Aktive Aktionen: 1 / 1');
+        expect(text).not.toContain('Keyboard Shortcuts');
     });
 
     it('falls back to UI_LOCALE_ID when no locale input is set', async () => {

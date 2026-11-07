@@ -150,3 +150,30 @@ describe('EmojiPickerContentComponent — top layer', () => {
         expect(picker.open()).toBe(false);
     });
 });
+
+describe('EmojiPickerContentComponent — category tab scroll', () => {
+    it('lands the clicked category heading at the top of the grid', async () => {
+        await TestBed.configureTestingModule({ imports: [FixedHost] }).compileComponents();
+        const fixture = TestBed.createComponent(FixedHost);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+        const picker: EmojiPickerComponent = fixture.debugElement
+            .query(By.directive(EmojiPickerComponent)).componentInstance;
+        picker.open.set(true);
+        fixture.detectChanges();
+        await frame();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const panel: HTMLElement = fixture.nativeElement.querySelector('[data-slot="emoji-picker-content"]');
+        const tabs = [...panel.querySelectorAll<HTMLButtonElement>('.border-b button')];
+        tabs[tabs.length - 1].click();
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        const viewport = panel.querySelector('[data-slot="scroll-area-viewport"]') as HTMLElement;
+        const heading = panel.querySelectorAll('[data-category]')[tabs.length - 1];
+        const offset = heading.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+        expect(Math.abs(offset)).toBeLessThanOrEqual(1);
+        fixture.destroy();
+    });
+});

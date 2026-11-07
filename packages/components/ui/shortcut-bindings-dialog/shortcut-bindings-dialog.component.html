@@ -1,9 +1,9 @@
 <ui-dialog [(open)]="open">
   <ui-dialog-content [locale]="dialogLocaleCode()" [class]="classes()">
     <ui-dialog-header class="px-5 pt-5 pb-4 border-b">
-      <ui-dialog-title>Keyboard Shortcuts</ui-dialog-title>
+      <ui-dialog-title>{{ t().title }}</ui-dialog-title>
       <ui-dialog-description>
-        Browse available shortcuts and rebind actions for this app.
+        {{ t().description }}
       </ui-dialog-description>
       <div class="pt-3">
         <input
@@ -11,13 +11,14 @@
           class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           [value]="search()"
           [placeholder]="t().searchPlaceholder"
+          [attr.aria-label]="t().searchPlaceholder"
           (input)="onSearchInput($event)"
         />
       </div>
       @if (allowSaveMapping()) {
         <div class="pt-3 flex justify-end">
           <ui-button type="button" size="sm" variant="secondary" (click)="saveMappingSchema()" (keydown.enter)="saveMappingSchema()" (keydown.space)="saveMappingSchema()">
-            Save Changes
+            {{ t().saveChanges }}
           </ui-button>
         </div>
       }
@@ -32,7 +33,7 @@
                 <div class="min-w-0 space-y-0.5">
                   <h3 class="text-sm font-semibold tracking-tight capitalize">{{ group.componentName }}</h3>
                   <p class="text-xs text-muted-foreground">
-                    {{ group.activeBindings }} active action{{ group.activeBindings === 1 ? '' : 's' }} / {{ group.bindings.length }} total
+                    {{ groupSummary(group.activeBindings, group.bindings.length) }}
                   </p>
                 </div>
               </ui-accordion-trigger>
@@ -40,8 +41,9 @@
                 <ui-accordion type="multiple" class="flex flex-col gap-2" [openValues]="searchActive() ? openActionValuesForGroup(group.componentName) : null">
                   @for (binding of group.bindings; track actionKey(binding.actionId, binding.componentName)) {
                     <ui-accordion-item [value]="actionValue(binding.actionId, binding.componentName)" class="rounded-md border bg-background px-3">
+                      <!-- The rebind/reset controls sit beside the trigger, not inside it: a button nested in the trigger button is invalid and leaves the trigger's name out of step with its visible text. -->
+                      <div class="flex items-start gap-3 [&>h3]:min-w-0 [&>h3]:flex-1">
                       <ui-accordion-trigger class="py-2.5 hover:no-underline">
-                        <div class="flex w-full items-start justify-between gap-3">
                           <div class="min-w-0 space-y-1 text-left">
                             <div class="flex items-center gap-2">
                               <p class="text-sm font-medium leading-5">{{ binding.description }}</p>
@@ -53,14 +55,15 @@
                               }
                             </div>
                             <p class="text-xs text-muted-foreground leading-4">
-                              <span class="font-medium">Action:</span> {{ binding.actionId }}
+                              <span class="font-medium">{{ t().actionLabel }}</span> {{ binding.actionId }}
                             </p>
                             <p class="text-xs text-muted-foreground leading-4">
-                              {{ binding.instances.length }} active instance{{ binding.instances.length === 1 ? '' : 's' }}
+                              {{ instanceSummary(binding.instances.length) }}
                             </p>
                           </div>
+                      </ui-accordion-trigger>
 
-                          <div class="flex items-center gap-1.5" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()" tabindex="-1">
+                          <div class="flex items-center gap-1.5 py-2.5">
                             <button
                               type="button"
                               class="inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-accent"
@@ -71,9 +74,9 @@
                               #captureAllBtn
                             >
                               @if (capturingActionKey() === captureComponentKey(binding.actionId, binding.componentName)) {
-                                Press keys...
+                                {{ t().pressKeys }}
                               } @else {
-                                All: {{ format(binding.effectiveShortcut) }}
+                                {{ t().allPrefix }} {{ format(binding.effectiveShortcut) }}
                               }
                             </button>
 
@@ -87,11 +90,10 @@
                               (keydown.enter)="resetComponent(binding.actionId, binding.componentName)"
                               (keydown.space)="resetComponent(binding.actionId, binding.componentName)"
                             >
-                              Reset all
+                              {{ t().resetAll }}
                             </ui-button>
                           </div>
-                        </div>
-                      </ui-accordion-trigger>
+                      </div>
                       <ui-accordion-content class="pt-1 pb-3">
                         @if (binding.instances.length > 0) {
                           <div class="space-y-2">
@@ -101,7 +103,7 @@
                                   <div class="min-w-0">
                                     <p class="text-xs font-medium">{{ instance.displayName }}</p>
                                     <p class="text-[11px] text-muted-foreground">
-                                      Default: {{ format(instance.defaultShortcut) }}
+                                      {{ t().defaultPrefix }} {{ format(instance.defaultShortcut) }}
                                     </p>
                                   </div>
 
@@ -116,7 +118,7 @@
                                       #captureInstanceBtn
                                     >
                                       @if (capturingActionKey() === captureInstanceKey(binding.actionId, instance.componentId)) {
-                                        Press keys...
+                                        {{ t().pressKeys }}
                                       } @else {
                                         {{ format(instance.effectiveShortcut) }}
                                       }
@@ -132,7 +134,7 @@
                                       (keydown.enter)="resetInstance(binding.actionId, instance.componentId)"
                                       (keydown.space)="resetInstance(binding.actionId, instance.componentId)"
                                     >
-                                      Reset
+                                      {{ t().reset }}
                                     </ui-button>
                                   </div>
                                 </div>
@@ -141,7 +143,7 @@
                           </div>
                         } @else {
                           <div class="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                            No active instances. Use the "All" control to define the shared shortcut for future instances.
+                            {{ t().noInstances }}
                           </div>
                         }
                       </ui-accordion-content>
@@ -154,7 +156,7 @@
         </ui-accordion>
         @if (groupedBindings().length === 0) {
           <div class="rounded-md border border-dashed p-6 text-sm text-muted-foreground text-center">
-            No shortcuts matched your search.
+            {{ t().noMatches }}
           </div>
         }
       </div>

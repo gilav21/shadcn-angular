@@ -211,7 +211,7 @@ export class PageBuilderComponent implements OnDestroy {
      * Starts dragging a palette entry onto the canvas by writing
      * `{ type: 'widget', id }` into the drag payload — the shape the grid's
      * external-drop handling expects. HTML5 drag events do not fire on touch,
-     * so the palette can only be dragged with a mouse.
+     * so each palette entry also has an add button for touch.
      */
     onDragStart(event: DragEvent, comp: ComponentMeta): void {
         if (event.dataTransfer) {

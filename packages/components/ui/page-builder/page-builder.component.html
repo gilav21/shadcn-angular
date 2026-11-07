@@ -16,9 +16,20 @@
                             <div
                                 draggable="true"
                                 (dragstart)="onDragStart($event, comp)"
-                                class="flex flex-col items-center justify-center p-3 rounded-lg border bg-background hover:bg-accent hover:text-accent-foreground cursor-grab active:cursor-grabbing transition-all group border-border/50 hover:border-primary/50 shadow-sm hover:shadow-md"
+                                class="relative flex flex-col items-center justify-center p-3 rounded-lg border bg-background hover:bg-accent hover:text-accent-foreground cursor-grab active:cursor-grabbing transition-all group border-border/50 hover:border-primary/50 shadow-sm hover:shadow-md"
                                 [title]="comp.name"
+                                [attr.data-slot]="'page-builder-palette-item'"
                             >
+                                <!-- HTML5 drag does not fire on touch; this adds the widget without dragging. -->
+                                <button
+                                    type="button"
+                                    class="absolute end-1 top-1 flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    [attr.aria-label]="'Add ' + comp.name"
+                                    [attr.data-slot]="'page-builder-palette-add'"
+                                    (click)="addItem(comp)"
+                                >
+                                    <ui-icon name="plus" class="h-3.5 w-3.5"></ui-icon>
+                                </button>
                                 <div class="p-2 rounded-md bg-muted group-hover:bg-primary/10 transition-colors mb-2">
                                     <ui-icon [name]="comp.icon || 'box'" class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors"></ui-icon>
                                 </div>

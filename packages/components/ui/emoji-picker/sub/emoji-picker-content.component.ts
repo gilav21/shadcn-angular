@@ -324,24 +324,40 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         this.isScrollingProgrammatically = true;
 
         setTimeout(() => {
-            const viewport = this._scrollArea?.viewportRef?.nativeElement;
-            const section = this.el.nativeElement.querySelector(
-                `[data-category="${categoryId}"]`
-            ) as HTMLElement;
-
-            if (section && viewport) {
-                const relativeTop = section.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
-                const scrollTop = viewport.scrollTop + relativeTop;
-
-                viewport.scrollTo({ top: scrollTop, behavior: 'smooth' });
-
-                setTimeout(() => {
-                    this.isScrollingProgrammatically = false;
-                }, 800);
-            } else {
+            if (this.alignToCategory(categoryId, 'smooth') === null) {
                 this.isScrollingProgrammatically = false;
+                return;
             }
+            // Sections are content-visibility:auto with an estimated height, so the
+            // scroll height changes as the animation passes them; re-aim once it ends.
+            setTimeout(() => this.settleOnCategory(categoryId, 5), 800);
         });
+    }
+
+    private settleOnCategory(categoryId: string, attemptsLeft: number): void {
+        const offset = this.alignToCategory(categoryId, 'auto');
+        if (offset !== null && Math.abs(offset) > 1 && attemptsLeft > 0) {
+            requestAnimationFrame(() => this.settleOnCategory(categoryId, attemptsLeft - 1));
+            return;
+        }
+        setTimeout(() => {
+            this.isScrollingProgrammatically = false;
+        });
+    }
+
+    /** Scrolls so the section's heading sits at the viewport top; returns how far it was off, or null when the section or viewport is missing. */
+    private alignToCategory(categoryId: string, behavior: ScrollBehavior): number | null {
+        const viewport = this._scrollArea?.viewportRef?.nativeElement;
+        const section = this.el.nativeElement.querySelector(
+            `[data-category="${categoryId}"]`
+        ) as HTMLElement | null;
+        if (!section || !viewport) return null;
+
+        const relativeTop = section.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+        if (behavior === 'smooth' || Math.abs(relativeTop) > 1) {
+            viewport.scrollTo({ top: viewport.scrollTop + relativeTop, behavior });
+        }
+        return relativeTop;
     }
 
     private setupScrollListener(viewport: HTMLElement): void {

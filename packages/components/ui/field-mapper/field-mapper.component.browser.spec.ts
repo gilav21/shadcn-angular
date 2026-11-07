@@ -355,4 +355,15 @@ describe('FieldMapperComponent (browser)', () => {
             expect(rect.right).toBeLessThanOrEqual(box.right + 0.5);
         }
     });
+
+    it('stretches each row picker to the full width of its row', async () => {
+        const fixture = await mount(host => host.width.set(320));
+        const rows = Array.from(root(fixture).querySelectorAll<HTMLElement>('[data-slot="field-mapper-row"]'));
+        expect(rows.length).toBeGreaterThan(0);
+        for (const row of rows) {
+            const style = getComputedStyle(row);
+            const inner = row.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+            expect(row.querySelector('select')!.getBoundingClientRect().width).toBeGreaterThanOrEqual(inner - 1);
+        }
+    });
 });
