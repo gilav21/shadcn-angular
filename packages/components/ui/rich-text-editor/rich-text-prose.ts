@@ -40,6 +40,11 @@ export const RICH_TEXT_PROSE_CLASSES: readonly string[] = [
     '[&_details]:border [&_details]:border-border [&_details]:rounded-md [&_details]:my-2 [&_details]:overflow-hidden',
     '[&_summary]:bg-muted/40 [&_summary]:px-3 [&_summary]:py-2 [&_summary]:cursor-pointer [&_summary]:font-medium',
     '[&_details>:not(summary)]:px-3 [&_details>:not(summary)]:py-2',
+    // Mention and tag chips are styled by the data attributes the sanitizer
+    // keeps, not by a class: `class` never survives a sanitizing round trip
+    // (setContent, paste, saved HTML), so a class-only chip lost its look.
+    // `:where` keeps specificity at one class so a consumer utility wins.
+    '[&_:where([data-mention],[data-tag])]:bg-accent [&_:where([data-mention],[data-tag])]:text-accent-foreground [&_:where([data-mention],[data-tag])]:rounded [&_:where([data-mention],[data-tag])]:px-1',
     '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
     '[&_blockquote]:border-s-4 [&_blockquote]:border-border [&_blockquote]:ps-4 [&_blockquote]:py-1 [&_blockquote]:my-2 [&_blockquote]:text-muted-foreground [&_blockquote]:italic',
     // Syntax highlighting. The classes are the ones the sanitizer has always
