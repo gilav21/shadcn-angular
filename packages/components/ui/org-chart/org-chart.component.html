@@ -40,8 +40,6 @@
             (mouseenter)="onNodeHover(pos.node)"
             (mouseleave)="onNodeLeave()"
             (click)="onNodeClick($event, pos.node)"
-            (keydown.enter)="onNodeClick($event, pos.node)"
-            (keydown.space)="onNodeClick($event, pos.node)"
           >
             <div class="flex items-center gap-3">
               @if (showImages() && pos.node.image) {

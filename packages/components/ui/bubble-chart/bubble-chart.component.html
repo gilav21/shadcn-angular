@@ -40,6 +40,15 @@
       >{{ g.value }}</text>
     }
 
+    @for (g of xTicks(); track g.value) {
+      <text
+        [attr.x]="g.x"
+        [attr.y]="height() - 10"
+        text-anchor="middle"
+        class="fill-muted-foreground text-[10px]"
+      >{{ g.value }}</text>
+    }
+
     @for (b of bubbles(); track b.seriesIndex + '-' + b.pointIndex) {
       <circle
         [attr.data-slot]="'bubble-point'"
