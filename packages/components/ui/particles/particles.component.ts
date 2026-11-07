@@ -7,8 +7,10 @@ import {
     OnDestroy,
     inject,
     NgZone,
+    computed,
     Renderer2,
 } from '@angular/core';
+import { cn } from '../../lib/utils';
 import { prefersReducedMotion } from '../../lib/media';
 import { createResizeObserver } from '../../lib/observers';
 
@@ -28,8 +30,7 @@ interface Particle {
         '[style.position]': '"absolute"',
         '[style.inset]': '"0"',
         '[style.display]': '"block"',
-        '[style.pointer-events]': 'mouseInteraction() ? "auto" : "none"',
-        '[class]': 'class()',
+        '[class]': 'hostClasses()',
         '[attr.data-slot]': '"particles"',
     },
 })
@@ -70,6 +71,11 @@ export class ParticlesComponent implements OnInit, OnDestroy {
      * where there is no hover position. Read once during setup.
      */
     mouseInteraction = input(true);
+
+    /** Click-through unless the pointer interaction is on; the consumer class comes last so it can override either default. */
+    protected readonly hostClasses = computed(() =>
+        cn(this.mouseInteraction() ? 'pointer-events-auto' : 'pointer-events-none', this.class()),
+    );
 
     private canvas: HTMLCanvasElement | null = null;
     private ctx: CanvasRenderingContext2D | null = null;
