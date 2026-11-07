@@ -42,7 +42,7 @@
                   @for (binding of group.bindings; track actionKey(binding.actionId, binding.componentName)) {
                     <ui-accordion-item [value]="actionValue(binding.actionId, binding.componentName)" class="rounded-md border bg-background px-3">
                       <!-- The rebind/reset controls sit beside the trigger, not inside it: a button nested in the trigger button is invalid and leaves the trigger's name out of step with its visible text. -->
-                      <div class="flex items-start gap-3 [&>h3]:min-w-0 [&>h3]:flex-1">
+                      <div class="flex items-start gap-3 [&_h3]:min-w-0 [&_h3]:flex-1">
                       <ui-accordion-trigger class="py-2.5 hover:no-underline">
                           <div class="min-w-0 space-y-1 text-left">
                             <div class="flex items-center gap-2">
