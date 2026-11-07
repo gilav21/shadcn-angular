@@ -81,8 +81,9 @@ export class StepperComponent {
    * blocks the move, leaves {@link activeStep} alone, emits {@link stepBlocked}
    * and emits no {@link stepChange}.
    *
-   * It runs *after* the {@link linear} gate, so a guard is never asked about a
-   * move linear mode already rejected.
+   * It runs *after* the {@link linear} gate on {@link goToStep}, so a guard is never
+   * asked about a jump linear mode already rejected. {@link nextStep} skips that gate
+   * (it only ever advances by one, which linear mode allows) but is guarded all the same.
    */
   canLeave = input<StepGuard | null>(null);
 
@@ -238,11 +239,11 @@ export class StepperComponent {
     this.stepChange.emit(index);
   }
 
-  /** Advances one step (still subject to {@link canLeave}), clamped at the last step (counted from {@link steps} in simple mode, from the projected items otherwise). This is the only way forward when {@link linear} is set. */
+  /** Advances one step. Skips the {@link linear} gate (advancing by one is what linear mode allows) but is still subject to {@link canLeave}. Clamped at the last step (counted from {@link steps} in simple mode, from the projected items otherwise). This is the only way forward when {@link linear} is set. */
   nextStep(): void {
     const count = this.steps().length > 0 ? this.steps().length : this.items().length;
     const next = Math.min(this.activeStep() + 1, count - 1);
-    // Bypasses canNavigateTo on purpose: linear mode forbids jumping ahead, not advancing one step.
+    // Not goToStep: canNavigateTo also drives the triggers' disabled state, so widening it to active+1 would make the next step clickable in linear mode.
     this.moveTo(next);
   }
 
