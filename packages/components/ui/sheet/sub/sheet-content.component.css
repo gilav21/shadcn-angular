@@ -3,12 +3,10 @@
 }
 @layer components {
     [data-slot="sheet-content"] {
-        gap: calc(1rem * var(--_d));
         padding: calc(1rem * var(--_d));
     }
     @media (min-width: 640px) {
         [data-slot="sheet-content"] {
-            gap: calc(1rem * var(--_d));
             padding: calc(1.5rem * var(--_d));
         }
     }
