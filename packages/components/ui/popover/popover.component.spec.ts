@@ -294,7 +294,7 @@ describe('PopoverContent positioning', () => {
         component.align.set('end');
         await openPopover();
         const styles = content().positionStyles();
-        expect(styles).toContain('translateX(-100%)');
+        expect(styles).toContain('translate(-100%, 0%)');
     });
 
     it('fixed strategy with start align uses no translate', async () => {

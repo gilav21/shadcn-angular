@@ -39,8 +39,8 @@
             </div>
           </button>
         </div>
-        @if (!last && orientation() === 'horizontal') {
-          <div class="flex-1 h-0.5 bg-border mt-4" [class.bg-primary]="getStepStatusByIndex(idx) === 'complete'"></div>
+        @if (!last) {
+          <div [class]="connectorClasses(getStepStatusByIndex(idx) === 'complete')" [attr.data-slot]="'stepper-connector'"></div>
         }
       </li>
     }

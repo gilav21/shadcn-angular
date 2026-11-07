@@ -72,6 +72,7 @@ import { SheetDescriptionComponent } from './sheet-description.component';
       </div>
     }
   `,
+    styleUrl: './sheet-content.component.css',
     host: { class: 'contents' },
 })
 export class SheetContentComponent implements AfterViewInit {

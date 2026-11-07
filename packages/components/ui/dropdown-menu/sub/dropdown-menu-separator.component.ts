@@ -18,5 +18,5 @@ import { cn } from '../../../lib/utils';
 export class DropdownMenuSeparatorComponent {
     /** Extra classes merged onto the element this component renders, after its built-in styling. */
     readonly class = input('');
-    readonly classes = computed(() => cn('-mx-1 my-1 h-px bg-border', this.class()));
+    readonly classes = computed(() => cn('block -mx-1 my-1 h-px bg-border', this.class()));
 }

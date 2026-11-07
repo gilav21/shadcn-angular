@@ -135,6 +135,17 @@ describe('setDensityCore() — per-component density', () => {
         expect(written).toContain('--density-table: 0.875;');
     });
 
+    it('accepts the hyphenated alert-dialog and the sheet panels as per-component targets', async () => {
+        mockFs.readFile = vi.fn(() => Promise.resolve(makeCss()));
+        mockFs.writeFile = vi.fn(() => Promise.resolve());
+
+        await setDensityCore(4, ['alert-dialog', 'sheet'], '/project');
+
+        const writes = (mockFs.writeFile as ReturnType<typeof vi.fn>).mock.calls.map(call => call[1] as string);
+        expect(writes[0]).toContain('--density-alert-dialog: 1.125;');
+        expect(writes[1]).toContain('--density-sheet: 1.125;');
+    });
+
     it('throws for unknown component names', async () => {
         await expect(setDensityCore(3, ['unknown-widget'], '/project')).rejects.toThrow('Unknown component');
     });

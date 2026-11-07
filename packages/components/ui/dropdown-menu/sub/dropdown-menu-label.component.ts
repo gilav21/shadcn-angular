@@ -18,5 +18,5 @@ import { cn } from '../../../lib/utils';
 export class DropdownMenuLabelComponent {
     /** Extra classes merged onto the element this component renders, after its built-in styling. */
     readonly class = input('');
-    readonly classes = computed(() => cn('px-2 py-1.5 text-sm font-semibold', this.class()));
+    readonly classes = computed(() => cn('block px-2 py-1.5 text-sm font-semibold', this.class()));
 }

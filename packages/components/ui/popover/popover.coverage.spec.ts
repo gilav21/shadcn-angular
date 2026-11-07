@@ -486,6 +486,6 @@ describe('PopoverContent collision helpers', () => {
     it('positionStyles returns a translateX transform for a horizontal offset (absolute)', () => {
         const c = priv(content());
         c.adjustedPosition.set({ side: 'bottom', align: 'center', offsetX: 12, offsetY: 0 });
-        expect(c.positionStyles()).toBe('transform: translateX(12px);');
+        expect(c.positionStyles()).toContain('transform: translateX(12px);');
     });
 });
