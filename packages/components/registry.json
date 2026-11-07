@@ -1185,6 +1185,9 @@
       "dock/sub/dock-label.component.html",
       "dock/sub/dock-label.component.ts"
     ],
+    "libFiles": [
+      "observers.ts"
+    ],
     "testFiles": [
       "dock/dock.component.spec.ts",
       "dock/sub/dock-icon.component.spec.ts",
