@@ -21,6 +21,31 @@ describe('bindRichTextActions', () => {
         off(); el.remove();
     });
 
+    it.each(['__proto__', '__defineGetter__', 'constructor', 'toString', 'valueOf', 'hasOwnProperty'])(
+        'a content-supplied id "%s" never resolves to an inherited name, and the catch-all still runs',
+        (id) => {
+            const el = container(`<span data-action-click="${id}" data-action-hover="${id}">t</span>`);
+            const seen: string[] = [];
+            const own = vi.fn();
+            const off = bindRichTextActions(el, { handlers: { registered: own, '*': (e) => seen.push(`${e.trigger}:${e.actionId}`) } });
+            const span = el.querySelector('span') as HTMLElement;
+            expect(() => span.click()).not.toThrow();
+            expect(() => span.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, relatedTarget: el }))).not.toThrow();
+            expect(seen).toEqual([`click:${id}`, `hover:${id}`]);
+            expect(own).not.toHaveBeenCalled();
+            off(); el.remove();
+        },
+    );
+
+    it('calls an app handler that is registered under an Object.prototype name', () => {
+        const el = container('<span data-action-click="toString">t</span>');
+        const seen: string[] = [];
+        const off = bindRichTextActions(el, { handlers: { toString: (e: RichTextActionEvent) => seen.push(e.actionId) } });
+        (el.querySelector('span') as HTMLElement).click();
+        expect(seen).toEqual(['toString']);
+        off(); el.remove();
+    });
+
     it('fires innermost only for nested action spans', () => {
         const el = container('<span data-action-click="outer"><span data-action-click="inner">t</span></span>');
         const ids: string[] = [];

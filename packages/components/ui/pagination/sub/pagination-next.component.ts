@@ -19,6 +19,7 @@ import { PAGINATION_LOCALES, type PaginationLocale } from '../pagination.locales
       </svg>
     </button>
   `,
+  styleUrl: './pagination-next.component.css',
   host: { class: 'contents' },
 })
 export class PaginationNextComponent {
@@ -33,7 +34,7 @@ export class PaginationNextComponent {
   protected readonly t = createLocaleSelector(this.locale, PAGINATION_LOCALES);
 
   readonly classes = computed(() => cn(
-    'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-sm font-medium h-9 px-4 py-2 cursor-pointer',
+    'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-sm font-medium cursor-pointer',
     'hover:bg-accent hover:text-accent-foreground transition-colors',
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
     'disabled:pointer-events-none disabled:opacity-50',

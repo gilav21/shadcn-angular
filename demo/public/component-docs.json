@@ -1348,6 +1348,12 @@
               "default": "'1fr'"
             },
             {
+              "name": "dragHandleLabel",
+              "type": "string",
+              "description": "Accessible name of the touch drag grip each editable widget shows.",
+              "default": "'Drag to reorder'"
+            },
+            {
               "name": "editable",
               "type": "boolean",
               "description": "Master switch for every edit affordance: drag, resize handles, selection, context menus and drops. Turning it off also clears a non-empty selection (and emits an empty {@link selectionChange}) and hides the cell grid overlay.",
@@ -18378,7 +18384,7 @@
             {
               "name": "canLeave",
               "type": "StepGuard | null",
-              "description": "Optional validation gate run before every move that actually changes {@link activeStep} — the \"validate this step before advancing\" hook. `null` (the default) leaves navigation exactly as it was. A guard returning a plain boolean keeps the whole transition synchronous: the step changes (or does not) in the same tick as the click. Returning a promise flips {@link guardPending} on until it settles, and the stepper ignores the result if the user started another move in the meantime. A refusal — `false`, a promise resolving `false`, a rejection, or a throw — blocks the move, leaves {@link activeStep} alone, emits {@link stepBlocked} and emits no {@link stepChange}. It runs *after* the {@link linear} gate, so a guard is never asked about a move linear mode already rejected.",
+              "description": "Optional validation gate run before every move that actually changes {@link activeStep} — the \"validate this step before advancing\" hook. `null` (the default) leaves navigation exactly as it was. A guard returning a plain boolean keeps the whole transition synchronous: the step changes (or does not) in the same tick as the click. Returning a promise flips {@link guardPending} on until it settles, and the stepper ignores the result if the user started another move in the meantime. A refusal — `false`, a promise resolving `false`, a rejection, or a throw — blocks the move, leaves {@link activeStep} alone, emits {@link stepBlocked} and emits no {@link stepChange}. It runs *after* the {@link linear} gate on {@link goToStep}, so a guard is never asked about a jump linear mode already rejected. {@link nextStep} skips that gate (it only ever advances by one, which linear mode allows) but is guarded all the same.",
               "default": "null"
             },
             {

@@ -418,11 +418,11 @@
       "lines": 87
     },
     "bento-grid/bento-grid.component.css": {
-      "bytes": 495,
+      "bytes": 547,
       "lines": 26
     },
     "bento-grid/bento-grid.component.html": {
-      "bytes": 12637,
+      "bytes": 12646,
       "lines": 191
     },
     "bento-grid/bento-grid.component.spec.ts": {
@@ -430,8 +430,8 @@
       "lines": 1379
     },
     "bento-grid/bento-grid.component.ts": {
-      "bytes": 47466,
-      "lines": 1193
+      "bytes": 47610,
+      "lines": 1196
     },
     "bento-grid/bento-grid.stories.ts": {
       "bytes": 8135,
@@ -1850,8 +1850,8 @@
       "lines": 63
     },
     "dock/dock.component.browser.spec.ts": {
-      "bytes": 8176,
-      "lines": 164
+      "bytes": 8750,
+      "lines": 170
     },
     "dock/dock.component.html": {
       "bytes": 1193,
@@ -2074,8 +2074,8 @@
       "lines": 187
     },
     "emoji-picker/emoji-picker.component.spec.ts": {
-      "bytes": 17483,
-      "lines": 435
+      "bytes": 18974,
+      "lines": 464
     },
     "emoji-picker/emoji-picker.component.ts": {
       "bytes": 22596,
@@ -2090,8 +2090,8 @@
       "lines": 3
     },
     "emoji-picker/sub/emoji-picker-content.component.ts": {
-      "bytes": 18243,
-      "lines": 432
+      "bytes": 19220,
+      "lines": 443
     },
     "emoji-picker/sub/emoji-picker-trigger.component.ts": {
       "bytes": 2198,
@@ -3234,12 +3234,12 @@
       "lines": 26
     },
     "input-mask.directive.spec.ts": {
-      "bytes": 9822,
-      "lines": 268
+      "bytes": 11220,
+      "lines": 299
     },
     "input-mask.directive.ts": {
-      "bytes": 10232,
-      "lines": 277
+      "bytes": 11120,
+      "lines": 293
     },
     "input-mask.stories.ts": {
       "bytes": 3835,
@@ -3650,12 +3650,12 @@
       "lines": 41
     },
     "navigation-menu/navigation-menu.component.spec.ts": {
-      "bytes": 22737,
-      "lines": 560
+      "bytes": 23405,
+      "lines": 575
     },
     "navigation-menu/navigation-menu.component.ts": {
-      "bytes": 8003,
-      "lines": 203
+      "bytes": 8115,
+      "lines": 205
     },
     "navigation-menu/navigation-menu.service.ts": {
       "bytes": 1798,
@@ -3810,8 +3810,8 @@
       "lines": 337
     },
     "page-builder/page-builder.component.spec.ts": {
-      "bytes": 37425,
-      "lines": 846
+      "bytes": 38187,
+      "lines": 857
     },
     "page-builder/page-builder.component.ts": {
       "bytes": 24310,
@@ -3898,8 +3898,8 @@
       "lines": 8
     },
     "pagination/pagination.component.browser.spec.ts": {
-      "bytes": 3534,
-      "lines": 84
+      "bytes": 4128,
+      "lines": 95
     },
     "pagination/pagination.component.css": {
       "bytes": 432,
@@ -3910,8 +3910,8 @@
       "lines": 420
     },
     "pagination/pagination.component.ts": {
-      "bytes": 7965,
-      "lines": 198
+      "bytes": 7862,
+      "lines": 195
     },
     "pagination/pagination.locales.ts": {
       "bytes": 2487,
@@ -3941,25 +3941,33 @@
       "bytes": 2174,
       "lines": 55
     },
+    "pagination/sub/pagination-next.component.css": {
+      "bytes": 266,
+      "lines": 10
+    },
     "pagination/sub/pagination-next.component.ts": {
-      "bytes": 1825,
-      "lines": 42
+      "bytes": 1858,
+      "lines": 43
+    },
+    "pagination/sub/pagination-previous.component.css": {
+      "bytes": 270,
+      "lines": 10
     },
     "pagination/sub/pagination-previous.component.ts": {
-      "bytes": 1841,
-      "lines": 42
+      "bytes": 1878,
+      "lines": 43
     },
     "particles/index.ts": {
       "bytes": 39,
       "lines": 1
     },
     "particles/particles.component.spec.ts": {
-      "bytes": 16844,
-      "lines": 458
+      "bytes": 16962,
+      "lines": 459
     },
     "particles/particles.component.ts": {
-      "bytes": 10046,
-      "lines": 287
+      "bytes": 10317,
+      "lines": 293
     },
     "particles/particles.stories.ts": {
       "bytes": 5960,
@@ -4182,16 +4190,16 @@
       "lines": 122
     },
     "rating/rating.component.html": {
-      "bytes": 3733,
-      "lines": 95
+      "bytes": 3753,
+      "lines": 96
     },
     "rating/rating.component.spec.ts": {
       "bytes": 26648,
       "lines": 660
     },
     "rating/rating.component.ts": {
-      "bytes": 14808,
-      "lines": 408
+      "bytes": 14846,
+      "lines": 410
     },
     "rating/rating.locales.ts": {
       "bytes": 1501,
@@ -4270,12 +4278,12 @@
       "lines": 36
     },
     "rich-text-editor/addons/actions/actions-runtime.spec.ts": {
-      "bytes": 10075,
-      "lines": 208
+      "bytes": 11491,
+      "lines": 233
     },
     "rich-text-editor/addons/actions/actions-runtime.ts": {
-      "bytes": 8204,
-      "lines": 189
+      "bytes": 8391,
+      "lines": 190
     },
     "rich-text-editor/addons/actions/index.ts": {
       "bytes": 252,
@@ -5074,12 +5082,12 @@
       "lines": 4183
     },
     "rich-text-editor/rich-text-paste-normalizer.service.spec.ts": {
-      "bytes": 88823,
-      "lines": 1775
+      "bytes": 88993,
+      "lines": 1777
     },
     "rich-text-editor/rich-text-paste-normalizer.service.ts": {
-      "bytes": 48508,
-      "lines": 1272
+      "bytes": 48599,
+      "lines": 1274
     },
     "rich-text-editor/rich-text-prose.ts": {
       "bytes": 5575,
@@ -5262,12 +5270,12 @@
       "lines": 28
     },
     "select/select.component.spec.ts": {
-      "bytes": 41960,
-      "lines": 1069
+      "bytes": 43108,
+      "lines": 1092
     },
     "select/select.component.ts": {
-      "bytes": 26141,
-      "lines": 643
+      "bytes": 26299,
+      "lines": 645
     },
     "select/select.coverage.spec.ts": {
       "bytes": 13240,
@@ -5282,7 +5290,7 @@
       "lines": 334
     },
     "select/sub/select-content.component.ts": {
-      "bytes": 9019,
+      "bytes": 9117,
       "lines": 236
     },
     "select/sub/select-group.component.ts": {
@@ -5938,8 +5946,8 @@
       "lines": 278
     },
     "stepper/stepper.component.ts": {
-      "bytes": 10613,
-      "lines": 261
+      "bytes": 10893,
+      "lines": 262
     },
     "stepper/stepper.coverage.spec.ts": {
       "bytes": 7823,
@@ -6006,12 +6014,12 @@
       "lines": 1
     },
     "switch/switch.component.browser.spec.ts": {
-      "bytes": 4693,
-      "lines": 96
+      "bytes": 5445,
+      "lines": 111
     },
     "switch/switch.component.css": {
-      "bytes": 858,
-      "lines": 24
+      "bytes": 1205,
+      "lines": 33
     },
     "switch/switch.component.html": {
       "bytes": 1215,
@@ -6022,8 +6030,8 @@
       "lines": 265
     },
     "switch/switch.component.ts": {
-      "bytes": 4670,
-      "lines": 115
+      "bytes": 4597,
+      "lines": 112
     },
     "switch/switch.stories.ts": {
       "bytes": 3190,
@@ -6118,16 +6126,16 @@
       "lines": 9
     },
     "tabs/sub/tabs-trigger.component.ts": {
-      "bytes": 2643,
-      "lines": 75
+      "bytes": 2677,
+      "lines": 76
     },
     "tabs/tabs-simple.component.spec.ts": {
       "bytes": 8204,
       "lines": 222
     },
     "tabs/tabs.component.browser.spec.ts": {
-      "bytes": 4703,
-      "lines": 105
+      "bytes": 5608,
+      "lines": 121
     },
     "tabs/tabs.component.css": {
       "bytes": 222,
@@ -6138,8 +6146,8 @@
       "lines": 143
     },
     "tabs/tabs.component.ts": {
-      "bytes": 8000,
-      "lines": 198
+      "bytes": 8317,
+      "lines": 202
     },
     "tabs/tabs.stories.ts": {
       "bytes": 5301,
@@ -6258,8 +6266,8 @@
       "lines": 29
     },
     "timeline/sub/timeline-item.component.css": {
-      "bytes": 314,
-      "lines": 8
+      "bytes": 455,
+      "lines": 10
     },
     "timeline/sub/timeline-item.component.ts": {
       "bytes": 5065,
@@ -6274,8 +6282,8 @@
       "lines": 29
     },
     "timeline/timeline.component.browser.spec.ts": {
-      "bytes": 960,
-      "lines": 25
+      "bytes": 1422,
+      "lines": 35
     },
     "timeline/timeline.component.spec.ts": {
       "bytes": 5671,
@@ -6610,12 +6618,12 @@
       "lines": 8
     },
     "typing-animation/typing-animation.component.spec.ts": {
-      "bytes": 8664,
-      "lines": 272
+      "bytes": 9513,
+      "lines": 295
     },
     "typing-animation/typing-animation.component.ts": {
-      "bytes": 5724,
-      "lines": 144
+      "bytes": 6535,
+      "lines": 171
     },
     "typing-animation/typing-animation.stories.ts": {
       "bytes": 6155,
@@ -6784,7 +6792,7 @@
       "lines": 85
     },
     "chart-interaction.ts": {
-      "bytes": 4375,
+      "bytes": 4370,
       "lines": 125
     },
     "chart-invariants.browser.spec.ts": {

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { InputMaskDirective } from './input-mask.directive';
 import { InputComponent } from './input';
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -95,6 +95,37 @@ describe('InputMaskDirective caret', () => {
 
         expect(input.value).toBe('123-945');
         expect(input.selectionStart).toBe(5);
+    });
+});
+
+@Component({
+    template: `
+        <input data-testid="native" uiInputMask="999-999" [formControl]="nativeControl" />
+        <ui-input uiInputMask="999-999" [formControl]="uiControl" />
+    `,
+    imports: [InputMaskDirective, InputComponent, ReactiveFormsModule],
+})
+class ReactiveCaretHostComponent {
+    readonly nativeControl = new FormControl('');
+    readonly uiControl = new FormControl('');
+}
+
+describe('InputMaskDirective caret in a form-bound field', () => {
+    it('keeps the caret after the typed digit when editing mid-string on a native input and on a ui-input', async () => {
+        await TestBed.configureTestingModule({ imports: [ReactiveCaretHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(ReactiveCaretHostComponent);
+        fixture.detectChanges();
+        const inputs = Array.from<HTMLInputElement>(fixture.nativeElement.querySelectorAll('input'));
+
+        for (const input of inputs) {
+            input.value = '1239-456';
+            input.setSelectionRange(4, 4);
+            input.dispatchEvent(new Event('input'));
+            expect(input.value).toBe('123-945');
+            expect(input.selectionStart).toBe(5);
+        }
+        expect(fixture.componentInstance.nativeControl.value).toBe('123-945');
+        expect(fixture.componentInstance.uiControl.value).toBe('123-945');
     });
 });
 

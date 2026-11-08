@@ -23,6 +23,7 @@ import { TABS } from '../tabs.component';
       [attr.tabindex]="isActive() ? 0 : -1"
       [class]="classes()"
       [attr.data-slot]="'tabs-trigger'"
+      [attr.data-value]="value()"
       (click)="select()"
       (keydown)="onKeydown($event)"
     >

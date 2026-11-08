@@ -161,6 +161,8 @@ export class NavigationMenuComponent implements AfterContentInit {
   private onPanelKey(event: KeyboardEvent, panel: HTMLElement): void {
     const links = Array.from(panel.querySelectorAll<HTMLElement>('a[data-slot="navigation-menu-link"]'));
     const index = links.indexOf(event.target as HTMLElement);
+    // A field projected into a mega-menu panel owns its own arrow/Home/End keys.
+    if (index === -1) return;
     let next: number;
     switch (event.key) {
       case 'ArrowDown': next = index + 1; break;

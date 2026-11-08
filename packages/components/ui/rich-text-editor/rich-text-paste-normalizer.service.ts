@@ -14,6 +14,12 @@ export type PasteSource =
     | 'plain-text';
 
 /** Word's namespaced wrapper elements, unwrapped so the text they hold stays. */
+/** A Map, not an object: the key is the pasted size attribute, and an object would resolve names like constructor through its prototype. */
+const FONT_SIZE_PX = new Map([
+    ['1', '10px'], ['2', '13px'], ['3', '16px'], ['4', '18px'],
+    ['5', '24px'], ['6', '32px'], ['7', '48px'],
+]);
+
 const WORD_WRAPPER_TAGS = new Set(['o:p', 'w:sdtcontent', 'w:sdt', 'w:sdtpr', 'w:sdtendpr', 'o:oleobject']);
 
 /**
@@ -804,11 +810,7 @@ export class RichTextPasteNormalizerService {
 
             const size = font.getAttribute('size');
             if (size) {
-                const sizeMap: Record<string, string> = {
-                    '1': '10px', '2': '13px', '3': '16px', '4': '18px',
-                    '5': '24px', '6': '32px', '7': '48px',
-                };
-                const mapped = sizeMap[size];
+                const mapped = FONT_SIZE_PX.get(size);
                 if (mapped) styles.push(`font-size: ${mapped}`);
             }
 

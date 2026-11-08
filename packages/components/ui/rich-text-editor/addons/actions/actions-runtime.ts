@@ -112,7 +112,8 @@ function paramsFor(el: HTMLElement, trigger: RichTextActionTrigger): ActionParam
 }
 
 function deliver(options: BindRichTextActionsOptions, event: RichTextActionEvent): void {
-    options.handlers[event.actionId]?.(event);
+    // The id comes from untrusted content: only the app's own handlers may run, never inherited names like __proto__ or constructor.
+    if (Object.hasOwn(options.handlers, event.actionId)) options.handlers[event.actionId]?.(event);
     options.handlers['*']?.(event);
 }
 

@@ -95,10 +95,10 @@ describe('stagedFiles (T-2)', () => {
         expect(staged).toHaveLength(293);
     });
 
-    it('data-table stages 186 files', () => {
+    it('data-table stages 188 files', () => {
         const staged = stagedFiles('data-table');
         expect(new Set(staged.map((f) => f.dest))).toEqual(expectedDests('data-table'));
-        expect(staged).toHaveLength(186);
+        expect(staged).toHaveLength(188);
     });
 
     // `sync-registry` never puts a `.spec.ts` / `.stories.ts` into `files[]`, so

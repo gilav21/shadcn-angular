@@ -94,9 +94,9 @@ const TOOLTIP_POINTER_OFFSET = 12;
 
 /**
  * Where to park a chart tooltip for a hover/focus event, in pixels from the
- * chart's `relative` wrapper (the tooltip's containing block). A mouse hover
- * anchors just past the pointer; focus and legend hovers, which have no
- * pointer over the shape, anchor to the centre of the event's target instead.
+ * chart's `relative` wrapper (the tooltip's containing block). Any mouse
+ * event, a legend entry's hover included, anchors just past the pointer; a
+ * focus event, which has no pointer, anchors to the centre of its target.
  * Returns `null` when the event has no element or no `relative` ancestor.
  */
 export function tooltipAnchor(evt: Event): { x: number; y: number } | null {

@@ -261,7 +261,7 @@ describe('ParticlesComponent', () => {
 
     it('enables pointer events on the host when mouse interaction is on', () => {
         fixture.detectChanges();
-        expect(queryHostEl(fixture).style.pointerEvents).toBe('auto');
+        expect(queryHostEl(fixture).classList.contains('pointer-events-auto')).toBe(true);
     });
 
     it('resolves currentColor from the computed host color when present', () => {
@@ -413,7 +413,8 @@ describe('ParticlesComponent without mouse interaction or connections', () => {
 
     it('does not enable pointer events on the host', () => {
         const hostEl = queryHostEl(fixture);
-        expect(hostEl.style.pointerEvents).toBe('none');
+        expect(hostEl.classList.contains('pointer-events-none')).toBe(true);
+        expect(hostEl.classList.contains('pointer-events-auto')).toBe(false);
     });
 
     it('draws the particles but no connecting lines when connectDistance is 0', () => {
