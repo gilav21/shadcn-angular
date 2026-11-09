@@ -4625,6 +4625,12 @@ export class DataTableComponent<T>
       return;
     }
 
+    this.navigateFrom(event, focused, colKeys, totalRows);
+  }
+
+  private navigateFrom(
+    event: KeyboardEvent, focused: { rowIndex: number; columnKey: string }, colKeys: string[], totalRows: number
+  ): void {
     const colIndex = colKeys.indexOf(focused.columnKey);
     const safeColIndex = colIndex === -1 ? 0 : colIndex;
     // A Tab that cannot move the focused cell must reach the browser, or
