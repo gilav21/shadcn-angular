@@ -11,6 +11,12 @@ export default defineConfig({
         ],
         exclude: ['**/node_modules/**', '**/dist/**'],
         reporters: ['default'],
+        // These are not pure unit tests: many scan the whole repo or spawn git and
+        // node, and all ~100 files run in parallel (in the release preflight too).
+        // Under that load the 5s test / 10s hook defaults tripped on specs that take
+        // 3-10s even alone (selector-references' scan, check-completeness' tree walk).
+        testTimeout: 30_000,
+        hookTimeout: 60_000,
         // Coverage for SonarQube — merged with the component lcov via
         // sonar.javascript.lcov.reportPaths. The CLI is a shipped package with
         // its own (node) test suite, so it gets measured here, not in the
