@@ -747,8 +747,17 @@ export function renumberDataRows<T>(rows: readonly DataTableDisplayRow<T>[]): Da
 }
 
 // ── Advanced filter evaluation (A5) ──
-function asString(value: unknown): string {
+/**
+ * A cell as text for matching. `stringifyValue` would JSON-quote a Date
+ * (`"2024-03-05T..."`), so `startsWith` and `equals` could never match one.
+ */
+export function cellText(value: unknown): string {
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? '' : value.toISOString();
     return stringifyValue(value);
+}
+
+function asString(value: unknown): string {
+    return cellText(value);
 }
 
 /** An empty cell is no number, so it never satisfies a numeric comparison (only `isEmpty` selects blanks). */

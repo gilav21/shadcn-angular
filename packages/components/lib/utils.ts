@@ -24,7 +24,6 @@ export function stringifyValue(value: unknown): string {
         case 'symbol':
             return value.toString();
         default:
-            if (value instanceof Date) return Number.isNaN(value.getTime()) ? '' : value.toISOString();
             return value == null ? '' : JSON.stringify(value);
     }
 }

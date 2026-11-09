@@ -106,6 +106,7 @@ import {
   buildPrefixSums,
   partitionIntoGroups,
   renumberDataRows,
+  cellText,
   computeAggregateValue,
   buildFillValues,
   parseClipboardGrid,
@@ -1253,7 +1254,7 @@ export class DataTableComponent<T>
     return data.filter((row) =>
       globallyFilterableColumns.some((col) => {
         const value = this.getCellValue(row, col.accessorKey, col);
-        return stringifyValue(value).toLowerCase().includes(globalFilterValue);
+        return cellText(value).toLowerCase().includes(globalFilterValue);
       }),
     );
   }
@@ -1369,7 +1370,7 @@ export class DataTableComponent<T>
     );
     return globallyFilterable.some((col) => {
       const value = this.getCellValue(row, col.accessorKey, col);
-      return stringifyValue(value).toLowerCase().includes(globalFilterValue);
+      return cellText(value).toLowerCase().includes(globalFilterValue);
     });
   }
 
