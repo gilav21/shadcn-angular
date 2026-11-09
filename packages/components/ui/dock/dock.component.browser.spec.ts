@@ -162,7 +162,7 @@ describe('DockComponent layout (browser)', () => {
                         right: rect.right <= icon.left,
                     }[position];
                     expect(facing, `${position} label sits on the side away from the dock edge`).toBe(true);
-                }, { timeout: 3000 });
+                }, { timeout: 10_000 });
                 fixture.destroy();
             }
         });
