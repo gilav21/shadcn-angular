@@ -142,6 +142,14 @@ describe('DockComponent layout (browser)', () => {
 
                 const label = item.querySelector('[data-slot="dock-label"]')!;
                 const topmost = (x: number, y: number) => document.elementFromPoint(x, y);
+                // The hovered item grows from 40px to the magnification (60px) over one frame plus a 100ms
+                // transition, and the label sits beside the grown item. Asserting at the first frame, while
+                // it is still 40px, passes even when the label clips at full size (that is how this spec
+                // used to pass alone and fail in a full run), so wait for the worst case first.
+                await vi.waitFor(() => {
+                    const size = item.getBoundingClientRect();
+                    expect(Math.max(size.width, size.height)).toBeGreaterThanOrEqual(59);
+                }, { timeout: 10_000 });
                 // The label is display:none until the :hover style lands, and the dock then magnifies its items over
                 // several frames, so assert the SETTLED layout: re-measure and re-probe until it holds. A genuine clip
                 // or overlap never settles into a pass and still fails at the timeout.

@@ -23,9 +23,12 @@ import { DockIconComponent } from './sub/dock-icon.component';
 import { DockLabelComponent } from './sub/dock-label.component';
 
 // Below sm the bar scrolls sideways, and a scroll container clips its overflow on both axes, so
-// the bar is 26px taller (76 vs 50) than its pinned items need, leaving the label's row inside the
-// scrollport. From sm up the bar does not scroll and the label simply paints outside it.
-const HORIZONTAL_BAR = 'overflow-x-auto sm:overflow-visible mt-4 sm:mt-8 h-[76px] sm:h-[58px]';
+// the label's row must lie inside the scrollport. The hovered item grows to `magnification` and the
+// items are pinned to the far edge, so the bar is that size plus 40px: 14px of border and padding
+// and a 26px label row (4px gap + 22px label). Sizing it for the 40px resting item instead clipped
+// the label as soon as the magnification had finished. From sm up the bar does not scroll and the
+// label simply paints outside it.
+const HORIZONTAL_BAR = 'overflow-x-auto sm:overflow-visible mt-4 sm:mt-8 h-[calc(var(--dock-magnification,60px)_+_40px)] sm:h-[58px]';
 // Any overflow other than visible clips both axes, which would cut off the label beside an item, so
 // the column scrolls (see DockComponent.scrolls) only once it is taller than max-h.
 const VERTICAL_BAR = 'items-start flex-col h-max max-h-[calc(100vh-2rem)]';
