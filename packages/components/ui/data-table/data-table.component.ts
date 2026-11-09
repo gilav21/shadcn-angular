@@ -132,12 +132,41 @@ interface EditChange {
 /** Per-instance counter for unique element ids (e.g. inline edit-error links). */
 let dataTableUid = 0;
 
+/** Ids for rows that have no `id` and cannot be serialised (circular, BigInt-holding). Stable per row object. */
+const identityRowIds = new WeakMap<object, string>();
+let identityRowIdSeq = 0;
+
+/** A row without an `id` is identified by its content; it must never throw, whatever the row holds. */
+function contentRowId(row: unknown): string {
+  try {
+    return JSON.stringify(row, (...[, value]: [string, unknown]) => (typeof value === "bigint" ? value.toString() : value)) ?? "";
+  } catch {
+    // Circular structure: JSON cannot describe it, so fall back to the row's identity.
+    if (typeof row !== "object" || row === null) return String(row);
+    let id = identityRowIds.get(row);
+    if (id === undefined) {
+      id = `row-identity-${identityRowIdSeq++}`;
+      identityRowIds.set(row, id);
+    }
+    return id;
+  }
+}
+
 const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   const rec = row as Record<string, unknown>;
-  const id = rec['id'];
-  if (id == null) return JSON.stringify(row);
+  const id = rec["id"];
+  if (id == null) return contentRowId(row);
   return stringifyValue(id);
 };
+
+/**
+ * Quotes a cell holding a tab, line break or quote the way Excel does, so
+ * parseClipboardGrid reads our own copy back into the same cells.
+ */
+function toClipboardCell(cell: string): string {
+  const guarded = guardSpreadsheetFormula(cell);
+  return /[\t\r\n"]/.test(guarded) ?`"${guarded.replaceAll('"', '""')}"` : guarded;
+}
 
 /**
  * Serialises a grid as the TSV every copy path writes: one line per row, cells
@@ -145,7 +174,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
  * The paste path undoes the guard with `restoreSpreadsheetText`.
  */
 function toClipboardText(grid: readonly (readonly string[])[]): string {
-  return grid.map((cells) => cells.map(guardSpreadsheetFormula).join("\t")).join("\n");
+  return grid.map((cells) => cells.map(toClipboardCell).join("\t")).join("\n");
 }
 
 /**
@@ -1224,7 +1253,7 @@ export class DataTableComponent<T>
     return data.filter((row) =>
       globallyFilterableColumns.some((col) => {
         const value = this.getCellValue(row, col.accessorKey, col);
-        return String(value).toLowerCase().includes(globalFilterValue);
+        return stringifyValue(value).toLowerCase().includes(globalFilterValue);
       }),
     );
   }
@@ -1340,7 +1369,7 @@ export class DataTableComponent<T>
     );
     return globallyFilterable.some((col) => {
       const value = this.getCellValue(row, col.accessorKey, col);
-      return String(value).toLowerCase().includes(globalFilterValue);
+      return stringifyValue(value).toLowerCase().includes(globalFilterValue);
     });
   }
 
@@ -2839,12 +2868,20 @@ export class DataTableComponent<T>
     const columnsWindowed =
       this.virtualVisibleMiddleColumns().length < this.scrollableColumns().length;
 
+    // Selection state is already drawn as data-state on every data-row branch; mirror it for assistive tech.
+    const selectable = this.enableRowSelection();
+    if (selectable) grid.setAttribute('aria-multiselectable', 'true');
+    else grid.removeAttribute('aria-multiselectable');
+
     let dataRow = 0;
     for (const [position, row] of rows.entries()) {
       const index = isHeaderRow(row)
         ? position + 1
         : headerRows + offset + ++dataRow;
       row.setAttribute('aria-rowindex', String(index));
+      if (selectable && row.hasAttribute('data-row-index')) {
+        row.setAttribute('aria-selected', String(row.getAttribute('data-state') === 'selected'));
+      }
 
       if (columnsWindowed) continue;
       const cells = Array.from(row.children).filter(cell => !isDecorative(cell));
@@ -2867,6 +2904,8 @@ export class DataTableComponent<T>
     this.processedData();
     this.enhancedColumns();
     this.virtualTotalRows();
+    this.rowSelection();
+    this.enableRowSelection();
     this.stampGridSemantics();
   });
 

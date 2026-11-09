@@ -45,6 +45,8 @@ class NoopResizeObserver {
       [columns]="columns()"
       [enableVirtualScroll]="virtual()"
       [virtualRowHeight]="40"
+      [enableRowSelection]="selectable()"
+      [rowSelection]="selection()"
       [paginationState]="{ pageIndex: 0, pageSize: 10000 }"
     />
   `,
@@ -53,6 +55,8 @@ class HostComponent {
     readonly data = signal<Row[]>(rows(5));
     readonly columns = signal<ColumnDef<Row>[]>(COLUMNS);
     readonly virtual = signal<boolean | 'auto'>(false);
+    readonly selectable = signal(false);
+    readonly selection = signal<Record<string, boolean>>({});
 }
 
 describe('data-table grid semantics', () => {
@@ -118,6 +122,21 @@ describe('data-table grid semantics', () => {
 
         it('publishes the column count', () => {
             expect(grid().getAttribute('aria-colcount')).toBe('3');
+        });
+    });
+
+    describe('selection', () => {
+        it('exposes selected rows and a multi-select grid, and nothing when selection is off', async () => {
+            expect(grid().hasAttribute('aria-multiselectable')).toBe(false);
+            expect(bodyRows()[0].hasAttribute('aria-selected')).toBe(false);
+
+            fixture.componentInstance.selectable.set(true);
+            fixture.componentInstance.selection.set({ '2': true });
+            await settle();
+
+            expect(grid().getAttribute('aria-multiselectable')).toBe('true');
+            expect(bodyRows().map(r => r.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false', 'false', 'false']);
+            expect(headerRows()[0].hasAttribute('aria-selected')).toBe(false);
         });
     });
 

@@ -280,16 +280,28 @@ function computeVariableRowRangeLinear(
     };
 }
 
+/**
+ * Nests a flat list by parent id. Every row appears exactly once: a row whose
+ * parent id names no row surfaces at the root (list order), and a parent cycle
+ * (including a row that is its own parent) is broken at its first row in list
+ * order. The input rows are not mutated.
+ */
 export function buildTreeFromFlat<T>(
     rows: T[],
     getId: (row: T) => string,
     getParentId: (row: T) => string | null,
     setChildren: (row: T, children: T[]) => T
 ): T[] {
-    const childrenMap = new Map<string | null, T[]>();
+    const ids = new Set(rows.map(getId));
+    const roots: T[] = [];
+    const childrenMap = new Map<string, T[]>();
 
     for (const row of rows) {
         const parentId = getParentId(row);
+        if (parentId === null || !ids.has(parentId)) {
+            roots.push(row);
+            continue;
+        }
         const siblings = childrenMap.get(parentId);
         if (siblings) {
             siblings.push(row);
@@ -298,17 +310,20 @@ export function buildTreeFromFlat<T>(
         }
     }
 
+    const placed = new Set<string>();
     function attachChildren(row: T): T {
         const id = getId(row);
-        const children = childrenMap.get(id);
-        if (!children || children.length === 0) {
-            return row;
-        }
-        return setChildren(row, children.map(attachChildren));
+        placed.add(id);
+        const children = (childrenMap.get(id) ?? []).filter((child) => !placed.has(getId(child)));
+        return children.length > 0 ? setChildren(row, children.map(attachChildren)) : row;
     }
 
-    const roots = childrenMap.get(null) ?? [];
-    return roots.map(attachChildren);
+    const tree = roots.map(attachChildren);
+    // Whatever is still unplaced hangs off a cycle and has no root of its own.
+    for (const row of rows) {
+        if (!placed.has(getId(row))) tree.push(attachChildren(row));
+    }
+    return tree;
 }
 
 interface TrailingNumbers {
@@ -585,57 +600,86 @@ export function buildFillValues(source: unknown[], count: number): unknown[] {
     return cycleValues(source, count);
 }
 
-function parseCsvLine(line: string): string[] {
-    const cells: string[] = [];
-    let current = '';
-    let inQuotes = false;
+/**
+ * Splits clipboard text into rows of cells with one quote-aware pass. A cell
+ * that STARTS with a quote may hold the delimiter, doubled quotes and line
+ * breaks (how Excel and Sheets write them); a quote anywhere else is literal.
+ * Line endings are already normalised to LF.
+ */
+function parseDelimited(text: string, delimiter: string): string[][] {
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let cell = '';
+    let quoted = false;
     let i = 0;
-    while (i < line.length) {
-        const ch = line[i];
-        if (ch === '"') {
-            if (inQuotes && line[i + 1] === '"') {
-                current += '"';
+    while (i < text.length) {
+        const ch = text[i];
+        if (quoted) {
+            if (ch !== '"') {
+                cell += ch;
+            } else if (text[i + 1] === '"') {
+                cell += '"';
                 i++;
             } else {
-                inQuotes = !inQuotes;
+                quoted = false;
             }
-        } else if (ch === ',' && !inQuotes) {
-            cells.push(current);
-            current = '';
+        } else if (ch === '"' && cell === '') {
+            quoted = true;
+        } else if (ch === delimiter) {
+            row.push(cell);
+            cell = '';
+        } else if (ch === '\n') {
+            row.push(cell);
+            rows.push(row);
+            row = [];
+            cell = '';
         } else {
-            current += ch;
+            cell += ch;
         }
         i++;
     }
-    cells.push(current);
-    return cells;
+    row.push(cell);
+    rows.push(row);
+    return rows;
 }
 
 /**
- * Parse clipboard text into a grid of cell strings. Tab-separated when any tab
- * is present (Excel / the table's own copy-out), otherwise comma-separated with
- * quoted-cell support. A single trailing newline is dropped.
+ * Parse clipboard text into a grid of cell strings. Tab-separated when that
+ * yields more than one column (Excel / the table's own copy-out), otherwise
+ * comma-separated. Quoted cells may contain the delimiter, `""` and line
+ * breaks. A single trailing newline is dropped.
  */
 export function parseClipboardGrid(text: string): string[][] {
     if (text === '') return [];
     const normalized = text.replaceAll(/\r\n?/g, '\n');
     const body = normalized.endsWith('\n') ? normalized.slice(0, -1) : normalized;
-    const lines = body.split('\n');
-    if (lines.some((line) => line.includes('\t'))) {
-        return lines.map((line) => line.split('\t'));
-    }
-    return lines.map(parseCsvLine);
+    const tabs = parseDelimited(body, '\t');
+    if (tabs.some((cells) => cells.length > 1)) return tabs;
+    return parseDelimited(body, ',');
+}
+
+/**
+ * The cell value as a number, or `null` when it holds none. `Number()` alone
+ * turns `null`, `''`, whitespace and `false` into `0`, which would let an empty
+ * cell pass for a zero.
+ */
+export function toAggregatableNumber(value: unknown): number | null {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    if (typeof value !== 'string' || value.trim() === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
 }
 
 /**
  * Reduce a list of cell values to a single aggregate string. Shared by column
  * footers and the range-selection readout so both compute identically.
- * `count` counts all values; the numeric aggregates ignore non-finite values.
+ * `count` counts all values; the numeric aggregates ignore values holding no
+ * number (`null`, `undefined`, blank strings, text).
  */
 export function computeAggregateValue(values: unknown[], fn: AggregateFn): string {
     if (typeof fn === 'function') return fn(values);
 
-    const nums = values.map(Number).filter(Number.isFinite);
+    const nums = values.map(toAggregatableNumber).filter((n): n is number => n !== null);
     if (nums.length === 0 && fn !== 'count') return '';
 
     switch (fn) {
@@ -707,10 +751,17 @@ function asString(value: unknown): string {
     return stringifyValue(value);
 }
 
+/** An empty cell is no number, so it never satisfies a numeric comparison (only `isEmpty` selects blanks). */
+function compareNumbers(cell: unknown, value: unknown, test: (a: number, b: number) => boolean): boolean {
+    const a = toAggregatableNumber(cell);
+    const b = toAggregatableNumber(value);
+    return a !== null && b !== null && test(a, b);
+}
+
 function looseEquals(cell: unknown, value: unknown): boolean {
-    const a = Number(cell);
-    const b = Number(value);
-    if (Number.isFinite(a) && Number.isFinite(b)) return a === b;
+    const a = toAggregatableNumber(cell);
+    const b = toAggregatableNumber(value);
+    if (a !== null && b !== null) return a === b;
     return asString(cell).toLowerCase() === asString(value).toLowerCase();
 }
 
@@ -723,10 +774,10 @@ const FILTER_OPS: Record<FilterOperator, (cell: unknown, value: unknown) => bool
     notContains: (cell, value) => !asString(cell).toLowerCase().includes(asString(value).toLowerCase()),
     startsWith: (cell, value) => asString(cell).toLowerCase().startsWith(asString(value).toLowerCase()),
     endsWith: (cell, value) => asString(cell).toLowerCase().endsWith(asString(value).toLowerCase()),
-    gt: (cell, value) => Number(cell) > Number(value),
-    gte: (cell, value) => Number(cell) >= Number(value),
-    lt: (cell, value) => Number(cell) < Number(value),
-    lte: (cell, value) => Number(cell) <= Number(value),
+    gt: (cell, value) => compareNumbers(cell, value, (a, b) => a > b),
+    gte: (cell, value) => compareNumbers(cell, value, (a, b) => a >= b),
+    lt: (cell, value) => compareNumbers(cell, value, (a, b) => a < b),
+    lte: (cell, value) => compareNumbers(cell, value, (a, b) => a <= b),
 };
 
 /** Test a single cell value against an advanced-filter operator. */
