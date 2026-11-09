@@ -3,6 +3,7 @@
   [class]="classes()"
   [attr.data-slot]="'dock'"
   [attr.data-position]="position()"
+  [style.--dock-magnification.px]="magnification()"
   tabindex="0"
 >
   @if (hasCustomContent()) {

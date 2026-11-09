@@ -1850,20 +1850,20 @@
       "lines": 63
     },
     "dock/dock.component.browser.spec.ts": {
-      "bytes": 8750,
-      "lines": 170
+      "bytes": 9407,
+      "lines": 178
     },
     "dock/dock.component.html": {
-      "bytes": 1193,
-      "lines": 35
+      "bytes": 1245,
+      "lines": 36
     },
     "dock/dock.component.spec.ts": {
       "bytes": 15167,
       "lines": 337
     },
     "dock/dock.component.ts": {
-      "bytes": 10533,
-      "lines": 242
+      "bytes": 10816,
+      "lines": 245
     },
     "dock/dock.stories.ts": {
       "bytes": 6815,
