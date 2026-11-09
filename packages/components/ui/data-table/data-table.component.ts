@@ -3099,7 +3099,6 @@ export class DataTableComponent<T>
   private readonly _baseCellClass = computed(() => ({
     normal: cn(
       "whitespace-nowrap overflow-hidden text-ellipsis",
-      "bg-background",
       this.showRowBorders() && "border-b",
       this.showColumnBorders() && "border-r",
     ),
@@ -3157,9 +3156,13 @@ export class DataTableComponent<T>
    * the depth indent itself comes from {@link getTreeCellStyle}.
    */
   getCellClass(col: CellStyleColumn, rowIndex?: number, treeDepth?: number): string {
+    // A cell paints over its row, so a plain cell stays transparent or the row's hover and selected tint would
+    // never show. A pinned cell must be opaque so scrolled columns do not show through; its row tint is layered
+    // on by data-table.component.css (.pinned-cell).
+    const pinnedClass = col.sticky || col._pin ? " bg-background pinned-cell" : "";
     const base =
       treeDepth === undefined
-        ? this._baseCellClass().normal
+        ? this._baseCellClass().normal + pinnedClass
         : this._baseCellClass().tree;
     const key = String(col.accessorKey);
     const focused = this.focusedCell();

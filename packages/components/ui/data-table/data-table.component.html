@@ -511,7 +511,7 @@
              scrollbar would sit under the last row. -->
         <ui-table
           class="overflow-visible"
-          [role]="enableSubRows() ? 'treegrid' : 'grid'"
+          [role]="enableSubRows() || groupingActive() ? 'treegrid' : 'grid'"
         >
           <ui-table-header class="bg-background">
             <ui-table-row>
