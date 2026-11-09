@@ -4314,14 +4314,45 @@ describe('DataTableComponent - Keyboard navigation extras', () => {
         expect(component.focusedCell()?.columnKey).toBe('score');
     });
 
-    it('Tab from the last cell of the last row stays put; Tab advances to the next row otherwise', () => {
+    it('Tab is prevented while it moves the focused cell and released at the grid edge so focus can leave', () => {
+        const press = (shiftKey: boolean) => {
+            const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, cancelable: true });
+            component.onTableKeydown(event);
+            return event;
+        };
+
         component.focusedCell.set({ rowIndex: 0, columnKey: 'score' });
-        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'Tab' }));
+        expect(press(false).defaultPrevented).toBe(true);
         expect(component.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
 
         component.focusedCell.set({ rowIndex: 4, columnKey: 'score' });
-        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'Tab' }));
+        expect(press(false).defaultPrevented).toBe(false);
         expect(component.focusedCell()).toEqual({ rowIndex: 4, columnKey: 'score' });
+
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        expect(press(true).defaultPrevented).toBe(false);
+        expect(component.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
+    });
+
+    it('ArrowLeft/ArrowRight move visually: in an RTL grid they swap, Home/End/Tab stay in column order', () => {
+        const press = (key: string) => component.onTableKeydown(new KeyboardEvent('keydown', { key, cancelable: true }));
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'name' });
+        press('ArrowRight');
+        expect(component.focusedCell()?.columnKey).toBe('score');
+
+        fixture.nativeElement.setAttribute('dir', 'rtl');
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'name' });
+        press('ArrowRight');
+        expect(component.focusedCell()?.columnKey).toBe('id');
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'name' });
+        press('ArrowLeft');
+        expect(component.focusedCell()?.columnKey).toBe('score');
+
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'name' });
+        press('Tab');
+        expect(component.focusedCell()?.columnKey).toBe('score');
+        press('Home');
+        expect(component.focusedCell()?.columnKey).toBe('id');
     });
 
     it('Shift+Tab wraps to previous row last column', () => {
@@ -4538,6 +4569,17 @@ describe('DataTableComponent - Inline edit keyboard flow', () => {
         expect(component.data()[0].name).toBe('Alice');
         expect(component.editErrorFor(0, nameCol)).toBe('Name is required');
         expect(component.editErrorFor(1, nameCol)).toBeNull();
+    });
+
+    it('Tab in the editor of the last cell commits but is not prevented, so focus can leave the grid', () => {
+        component.focusedCell.set({ rowIndex: 4, columnKey: 'score' });
+        component.startEditing(4, 'score');
+        component.onEditValueChange('99');
+        const event = new KeyboardEvent('keydown', { key: 'Tab', cancelable: true });
+        component.onEditKeydown(event);
+        expect(event.defaultPrevented).toBe(false);
+        expect(component.editingCell()).toBeNull();
+        expect(component.data()[4].score).toBe(99);
     });
 
     it('Tab with nothing focused still commits the edit', () => {

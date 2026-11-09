@@ -4545,9 +4545,11 @@ export class DataTableComponent<T>
       case 'ArrowDown':
         return { row: this.findNextEnabledRow(rowIndex, 1, totalRows), col: nextCol };
       case 'ArrowLeft':
-        return { row: nextRow, col: Math.max(0, nextCol - 1) };
-      case 'ArrowRight':
-        return { row: nextRow, col: Math.min(colKeys.length - 1, nextCol + 1) };
+      case 'ArrowRight': {
+        // Arrows are visual; columns render right-to-left in RTL, so they swap.
+        const step = (key === 'ArrowRight') === this.isRtl() ? -1 : 1;
+        return { row: nextRow, col: Math.min(colKeys.length - 1, Math.max(0, nextCol + step)) };
+      }
       case 'Tab':
         return this.computeTabTarget(shiftKey, rowIndex, colIndex, colKeys, totalRows);
       case 'Home':
@@ -4574,6 +4576,13 @@ export class DataTableComponent<T>
     if (colIndex < colKeys.length - 1) return { row: rowIndex, col: colIndex + 1 };
     if (rowIndex < totalRows - 1) return { row: rowIndex + 1, col: 0 };
     return { row: rowIndex, col: colIndex };
+  }
+
+  private isTabAtGridEdge(
+    shiftKey: boolean, rowIndex: number, colIndex: number, colKeys: string[], totalRows: number
+  ): boolean {
+    const target = this.computeTabTarget(shiftKey, rowIndex, colIndex, colKeys, totalRows);
+    return target.row === rowIndex && target.col === colIndex;
   }
 
   private getPageSize(): number {
@@ -4616,9 +4625,12 @@ export class DataTableComponent<T>
       return;
     }
 
-    event.preventDefault();
     const colIndex = colKeys.indexOf(focused.columnKey);
     const safeColIndex = colIndex === -1 ? 0 : colIndex;
+    // A Tab that cannot move the focused cell must reach the browser, or
+    // keyboard users are trapped in the grid (WCAG 2.1.2).
+    if (event.key === 'Tab' && this.isTabAtGridEdge(event.shiftKey, focused.rowIndex, safeColIndex, colKeys, totalRows)) return;
+    event.preventDefault();
     const next = this.computeNextCell(
       event.key, event.shiftKey, event.ctrlKey || event.metaKey,
       focused.rowIndex, safeColIndex, colKeys, totalRows
@@ -4988,11 +5000,25 @@ export class DataTableComponent<T>
     }
 
     if (event.key === 'Tab') {
-      event.preventDefault();
       event.stopPropagation();
+      if (this.isEditTabAtGridEdge(event.shiftKey)) {
+        // Commit but let the browser move focus out of the grid.
+        this.commitEdit();
+        return;
+      }
+      event.preventDefault();
       this.commitEdit();
       this.advanceEditToNextCell(event.shiftKey);
     }
+  }
+
+  private isEditTabAtGridEdge(shiftKey: boolean): boolean {
+    const editing = this.focusedCell();
+    if (!editing) return false;
+    const colKeys = this.navigableColumnKeys();
+    return this.isTabAtGridEdge(
+      shiftKey, editing.rowIndex, colKeys.indexOf(editing.columnKey), colKeys, this.totalVisibleRows()
+    );
   }
 
   private advanceEditToNextCell(shiftKey: boolean): void {
