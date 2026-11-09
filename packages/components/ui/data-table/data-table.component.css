@@ -136,8 +136,11 @@
  * selected tint. Layer the same tint over the opaque colour as an image: the cell stays opaque and the tint shows.
  */
 @layer components {
-  [data-slot="table-row"]:hover > .pinned-cell {
-    background-image: linear-gradient(color-mix(in oklab, var(--muted) 50%, transparent), color-mix(in oklab, var(--muted) 50%, transparent));
+  /* The row's own hover tint is hover-gated too; a bare :hover would stick after a tap on touch screens. */
+  @media (hover: hover) {
+    [data-slot="table-row"]:hover > .pinned-cell {
+      background-image: linear-gradient(color-mix(in oklab, var(--muted) 50%, transparent), color-mix(in oklab, var(--muted) 50%, transparent));
+    }
   }
   [data-slot="table-row"][data-state="selected"] > .pinned-cell {
     background-image: linear-gradient(var(--muted), var(--muted));

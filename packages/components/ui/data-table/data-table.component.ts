@@ -160,14 +160,26 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
+/** Mirrors a data row's selection to assistive tech, and clears it when the grid stops being selectable. */
+function stampRowSelection(row: Element, selectable: boolean): void {
+  if (!(row instanceof HTMLElement) || row.dataset['rowIndex'] === undefined) return;
+  if (selectable) row.setAttribute('aria-selected', String(row.dataset['state'] === 'selected'));
+  else row.removeAttribute('aria-selected');
+}
+
 /**
  * Quotes a cell holding a tab, line break or quote the way Excel does, so
  * parseClipboardGrid reads our own copy back into the same cells.
  */
-function toClipboardCell(cell: string): string {
+function toClipboardCell(cell: string, quotedChars: RegExp): string {
   const guarded = guardSpreadsheetFormula(cell);
-  return /[\t\r\n"]/.test(guarded) ?`"${guarded.replaceAll('"', '""')}"` : guarded;
+  return quotedChars.test(guarded) ? `"${guarded.replaceAll('"', '""')}"` : guarded;
 }
+
+// A one-column copy has no tab for parseClipboardGrid to find, so it reads the text as CSV: a comma in a
+// cell must be quoted there or the paste splits that cell in two.
+const QUOTED_IN_TSV = /[\t\r\n"]/;
+const QUOTED_IN_SINGLE_COLUMN = /[\t\r\n",]/;
 
 /**
  * Serialises a grid as the TSV every copy path writes: one line per row, cells
@@ -175,7 +187,8 @@ function toClipboardCell(cell: string): string {
  * The paste path undoes the guard with `restoreSpreadsheetText`.
  */
 function toClipboardText(grid: readonly (readonly string[])[]): string {
-  return grid.map((cells) => cells.map(toClipboardCell).join("\t")).join("\n");
+  const quotedChars = grid.every((cells) => cells.length === 1) ? QUOTED_IN_SINGLE_COLUMN : QUOTED_IN_TSV;
+  return grid.map((cells) => cells.map((cell) => toClipboardCell(cell, quotedChars)).join("\t")).join("\n");
 }
 
 /**
@@ -2880,9 +2893,7 @@ export class DataTableComponent<T>
         ? position + 1
         : headerRows + offset + ++dataRow;
       row.setAttribute('aria-rowindex', String(index));
-      if (selectable && row instanceof HTMLElement && row.dataset['rowIndex'] !== undefined) {
-        row.setAttribute('aria-selected', String(row.dataset['state'] === 'selected'));
-      }
+      stampRowSelection(row, selectable);
 
       if (columnsWindowed) continue;
       const cells = Array.from(row.children).filter(cell => !isDecorative(cell));
@@ -3096,18 +3107,13 @@ export class DataTableComponent<T>
     return map;
   });
 
-  private readonly _baseCellClass = computed(() => ({
-    normal: cn(
+  private readonly _baseCellClass = computed(() =>
+    cn(
       "whitespace-nowrap overflow-hidden text-ellipsis",
       this.showRowBorders() && "border-b",
       this.showColumnBorders() && "border-r",
     ),
-    tree: cn(
-      "whitespace-nowrap overflow-hidden text-ellipsis",
-      this.showRowBorders() && "border-b",
-      this.showColumnBorders() && "border-r",
-    ),
-  }));
+  );
 
   // `pointer-coarse:h-auto`: a header cell grows to hold its 44px touch controls
   // instead of clipping them at the fixed desktop header height.
@@ -3160,10 +3166,7 @@ export class DataTableComponent<T>
     // never show. A pinned cell must be opaque so scrolled columns do not show through; its row tint is layered
     // on by data-table.component.css (.pinned-cell).
     const pinnedClass = col.sticky || col._pin ? " bg-background pinned-cell" : "";
-    const base =
-      treeDepth === undefined
-        ? this._baseCellClass().normal + pinnedClass
-        : this._baseCellClass().tree;
+    const base = treeDepth === undefined ? this._baseCellClass() + pinnedClass : this._baseCellClass();
     const key = String(col.accessorKey);
     const focused = this.focusedCell();
     if (

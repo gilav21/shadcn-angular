@@ -4091,6 +4091,20 @@ describe('DataTableComponent - Export & Clipboard', () => {
         }
     });
 
+    it('copies a one-column grid so a comma inside a cell survives the paste round trip', async () => {
+        fixture.componentRef.setInput('columns', [{ accessorKey: 'name', header: 'Name' }]);
+        fixture.componentRef.setInput('data', [{ id: '1', name: 'Smith, John' }, { id: '2', name: 'Ada' }]);
+        fixture.detectChanges();
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        try {
+            await component.copyAllToClipboard();
+            expect(parseClipboardGrid(writeText.mock.calls[0][0])).toEqual([['Name'], ['Smith, John'], ['Ada']]);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
     it('copySelectedToClipboard writes only selected rows with header', async () => {
         fixture.componentRef.setInput('enableRowSelection', true);
         fixture.detectChanges();

@@ -600,13 +600,21 @@ export function buildFillValues(source: unknown[], count: number): unknown[] {
     return cycleValues(source, count);
 }
 
+/** A closing quote must be the last character of its cell; anything after it means the field was never quoted. */
+function endsCell(text: string, index: number, delimiter: string): boolean {
+    return index >= text.length || text[index] === delimiter || text[index] === '\n';
+}
+
 /**
  * Splits clipboard text into rows of cells with one quote-aware pass. A cell
  * that STARTS with a quote may hold the delimiter, doubled quotes and line
  * breaks (how Excel and Sheets write them); a quote anywhere else is literal.
- * Line endings are already normalised to LF.
+ * Line endings are already normalised to LF. Returns `null` when a quote opens
+ * and never closes properly (a lone `"5 inch`, or `"quoted" text`): that text
+ * did not come from a quoting writer, and honouring the quote would swallow
+ * the rest.
  */
-function parseDelimited(text: string, delimiter: string): string[][] {
+function parseDelimited(text: string, delimiter: string): string[][] | null {
     const rows: string[][] = [];
     let row: string[] = [];
     let cell = '';
@@ -620,8 +628,10 @@ function parseDelimited(text: string, delimiter: string): string[][] {
             } else if (text[i + 1] === '"') {
                 cell += '"';
                 i++;
-            } else {
+            } else if (endsCell(text, i + 1, delimiter)) {
                 quoted = false;
+            } else {
+                return null;
             }
         } else if (ch === '"' && cell === '') {
             quoted = true;
@@ -638,9 +648,14 @@ function parseDelimited(text: string, delimiter: string): string[][] {
         }
         i++;
     }
+    if (quoted) return null;
     row.push(cell);
     rows.push(row);
     return rows;
+}
+
+function splitPlain(text: string, delimiter: string): string[][] {
+    return text.split('\n').map((line) => line.split(delimiter));
 }
 
 /**
@@ -653,9 +668,9 @@ export function parseClipboardGrid(text: string): string[][] {
     if (text === '') return [];
     const normalized = text.replaceAll(/\r\n?/g, '\n');
     const body = normalized.endsWith('\n') ? normalized.slice(0, -1) : normalized;
-    const tabs = parseDelimited(body, '\t');
+    const tabs = parseDelimited(body, '\t') ?? splitPlain(body, '\t');
     if (tabs.some((cells) => cells.length > 1)) return tabs;
-    return parseDelimited(body, ',');
+    return parseDelimited(body, ',') ?? splitPlain(body, ',');
 }
 
 /**
@@ -756,10 +771,6 @@ export function cellText(value: unknown): string {
     return stringifyValue(value);
 }
 
-function asString(value: unknown): string {
-    return cellText(value);
-}
-
 /** An empty cell is no number, so it never satisfies a numeric comparison (only `isEmpty` selects blanks). */
 function compareNumbers(cell: unknown, value: unknown, test: (a: number, b: number) => boolean): boolean {
     const a = toAggregatableNumber(cell);
@@ -771,18 +782,18 @@ function looseEquals(cell: unknown, value: unknown): boolean {
     const a = toAggregatableNumber(cell);
     const b = toAggregatableNumber(value);
     if (a !== null && b !== null) return a === b;
-    return asString(cell).toLowerCase() === asString(value).toLowerCase();
+    return cellText(cell).toLowerCase() === cellText(value).toLowerCase();
 }
 
 const FILTER_OPS: Record<FilterOperator, (cell: unknown, value: unknown) => boolean> = {
-    isEmpty: (cell) => asString(cell).trim() === '',
-    isNotEmpty: (cell) => asString(cell).trim() !== '',
+    isEmpty: (cell) => cellText(cell).trim() === '',
+    isNotEmpty: (cell) => cellText(cell).trim() !== '',
     equals: (cell, value) => looseEquals(cell, value),
     notEquals: (cell, value) => !looseEquals(cell, value),
-    contains: (cell, value) => asString(cell).toLowerCase().includes(asString(value).toLowerCase()),
-    notContains: (cell, value) => !asString(cell).toLowerCase().includes(asString(value).toLowerCase()),
-    startsWith: (cell, value) => asString(cell).toLowerCase().startsWith(asString(value).toLowerCase()),
-    endsWith: (cell, value) => asString(cell).toLowerCase().endsWith(asString(value).toLowerCase()),
+    contains: (cell, value) => cellText(cell).toLowerCase().includes(cellText(value).toLowerCase()),
+    notContains: (cell, value) => !cellText(cell).toLowerCase().includes(cellText(value).toLowerCase()),
+    startsWith: (cell, value) => cellText(cell).toLowerCase().startsWith(cellText(value).toLowerCase()),
+    endsWith: (cell, value) => cellText(cell).toLowerCase().endsWith(cellText(value).toLowerCase()),
     gt: (cell, value) => compareNumbers(cell, value, (a, b) => a > b),
     gte: (cell, value) => compareNumbers(cell, value, (a, b) => a >= b),
     lt: (cell, value) => compareNumbers(cell, value, (a, b) => a < b),

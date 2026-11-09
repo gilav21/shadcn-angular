@@ -52,6 +52,11 @@ describe('parseClipboardGrid (B2)', () => {
     expect(parseClipboardGrid('5" pipe\tb')).toEqual([['5" pipe', 'b']]);
   });
 
+  it('keeps text from a non-quoting source verbatim when a leading quote never closes', () => {
+    expect(parseClipboardGrid('"5 inch\tA\n12\tB')).toEqual([['"5 inch', 'A'], ['12', 'B']]);
+    expect(parseClipboardGrid('"quoted" text\tA')).toEqual([['"quoted" text', 'A']]);
+  });
+
   it('keeps a single cell per line when there is no delimiter', () => {
     expect(parseClipboardGrid('one\ntwo')).toEqual([['one'], ['two']]);
   });

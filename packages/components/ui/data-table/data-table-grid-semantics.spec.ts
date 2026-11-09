@@ -139,6 +139,12 @@ describe('data-table grid semantics', () => {
             expect(grid().getAttribute('aria-multiselectable')).toBe('true');
             expect(bodyRows().map(r => r.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false', 'false', 'false']);
             expect(headerRows()[0].hasAttribute('aria-selected')).toBe(false);
+
+            fixture.componentInstance.selectable.set(false);
+            await settle();
+
+            expect(grid().hasAttribute('aria-multiselectable')).toBe(false);
+            expect(bodyRows().some(r => r.hasAttribute('aria-selected'))).toBe(false);
         });
     });
 
