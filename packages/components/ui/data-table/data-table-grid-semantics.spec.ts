@@ -56,7 +56,8 @@ class HostComponent {
     readonly columns = signal<ColumnDef<Row>[]>(COLUMNS);
     readonly virtual = signal<boolean | 'auto'>(false);
     readonly selectable = signal(false);
-    readonly selection = signal<Record<string, boolean>>({});
+    // Bound from creation on purpose: a selection present at first render is its own path (the row's host binding must not clobber it).
+    readonly selection = signal<Record<string, boolean>>({ '2': true });
 }
 
 describe('data-table grid semantics', () => {
@@ -131,7 +132,6 @@ describe('data-table grid semantics', () => {
             expect(bodyRows()[0].hasAttribute('aria-selected')).toBe(false);
 
             fixture.componentInstance.selectable.set(true);
-            fixture.componentInstance.selection.set({ '2': true });
             await settle();
 
             expect(grid().getAttribute('aria-multiselectable')).toBe('true');

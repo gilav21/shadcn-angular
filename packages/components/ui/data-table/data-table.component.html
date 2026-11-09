@@ -824,9 +824,7 @@
                 ) {
                   <ui-table-row
                     #virtualRow
-                    [attr.data-state]="
-                      isRowSelected(treeRow.row) ? 'selected' : null
-                    "
+                    [selected]="isRowSelected(treeRow.row)"
                     [attr.data-disabled]="isDisabled(treeRow.row) || null"
                     [class.opacity-50]="isDisabled(treeRow.row)"
                     [attr.data-row-index]="getVirtualRowIndex(i)"
@@ -986,7 +984,7 @@
                 ) {
                   <ui-table-row
                     #virtualRow
-                    [attr.data-state]="isRowSelected(row) ? 'selected' : null"
+                    [selected]="isRowSelected(row)"
                     [attr.data-disabled]="isDisabled(row) || null"
                     [class.opacity-50]="isDisabled(row)"
                     [class.opacity-30]="isRowBeingDragged(row)"
@@ -1163,7 +1161,7 @@
                   let i = $index
                 ) {
                   <ui-table-row
-                    [attr.data-state]="isRowSelected(treeRow.row) ? 'selected' : null"
+                    [selected]="isRowSelected(treeRow.row)"
                     [attr.data-disabled]="isDisabled(treeRow.row) || null"
                     [class.opacity-50]="isDisabled(treeRow.row)"
                     [class.opacity-30]="isRowBeingDragged(treeRow.row)"
@@ -1299,7 +1297,7 @@
                     </ui-table-row>
                   } @else {
                     <ui-table-row
-                      [attr.data-state]="isRowSelected(displayRow.row) ? 'selected' : null"
+                      [selected]="isRowSelected(displayRow.row)"
                       [attr.data-disabled]="isDisabled(displayRow.row) || null"
                       [class.opacity-50]="isDisabled(displayRow.row)"
                       [attr.data-row-index]="displayRow.index"
@@ -1347,7 +1345,7 @@
               ) {
                 @if (isFullWidthRow(row)) {
                   <ui-table-row
-                    [attr.data-state]="isRowSelected(row) ? 'selected' : null"
+                    [selected]="isRowSelected(row)"
                     [attr.data-disabled]="isDisabled(row) || null"
                     [class.opacity-50]="isDisabled(row)"
                     [attr.data-row-index]="i"
@@ -1375,7 +1373,7 @@
                   </ui-table-row>
                 } @else {
                   <ui-table-row
-                    [attr.data-state]="isRowSelected(row) ? 'selected' : null"
+                    [selected]="isRowSelected(row)"
                     [attr.data-disabled]="isDisabled(row) || null"
                     [class.opacity-50]="isDisabled(row)"
                     [class.opacity-30]="isRowBeingDragged(row)"
