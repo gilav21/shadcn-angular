@@ -287,7 +287,7 @@ export class DataTableComponent<T>
   isRtl(): boolean {
     return isRtl(this._el.nativeElement);
   }
-  private _isRtlResize = false;
+  private _resizeGrowthSign: 1 | -1 = 1;
 
   /**
    * The row array. A `model`, and the table *does* write back to it: inline
@@ -6192,6 +6192,18 @@ export class DataTableComponent<T>
     return `${base} bg-transparent group-hover/resize:bg-primary/50`;
   }
 
+  /**
+   * Which way a drag moves the column's far edge: +1 grows the column toward the right, -1 toward the left.
+   * The handle sits on the inline-end edge, and a pinned column is anchored by its `left`/`right` offset, so a
+   * right-pinned column grows leftwards and a left-pinned one rightwards whatever the direction. Unpinned columns
+   * flow with the writing direction.
+   */
+  private resizeGrowthSign(col: CellStyleColumn): 1 | -1 {
+    if (col._pin === "right") return -1;
+    if (col._pin === "left" || col.sticky) return 1;
+    return this.isRtl() ? -1 : 1;
+  }
+
   private startResize(clientX: number, col: CellStyleColumn): void {
     const key = String(col.accessorKey);
     this._resizingColumn.set(col);
@@ -6199,7 +6211,7 @@ export class DataTableComponent<T>
     const actualWidth = this.getColumnActualWidth(key);
     this.resizeStartWidth = Number.parseInt(col._width, 10) || actualWidth || 150;
     this.resizeOldWidth = this.columnWidths()[key] ?? col._width ?? "auto";
-    this._isRtlResize = this.isRtl();
+    this._resizeGrowthSign = this.resizeGrowthSign(col);
 
     const onMouseMove = (e: MouseEvent): void => this.onResizeMove(e.clientX);
     const onTouchMove = (e: TouchEvent): void => {
@@ -6233,8 +6245,7 @@ export class DataTableComponent<T>
     if (!resizing) return;
 
     const delta = clientX - this.resizeStartX;
-    const effectiveDelta = this._isRtlResize ? -delta : delta;
-    const newWidth = Math.max(columnMinWidthPx(resizing), this.resizeStartWidth + effectiveDelta);
+    const newWidth = Math.max(columnMinWidthPx(resizing), this.resizeStartWidth + delta * this._resizeGrowthSign);
     const key = String(resizing.accessorKey);
 
     this.columnWidths.update((widths) => ({

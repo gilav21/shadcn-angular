@@ -5377,6 +5377,28 @@ describe('DataTableComponent - Column resize drag', () => {
         expect(resizeSpy).toHaveBeenCalledWith({ columnKey: 'id', oldWidth: '100px', newWidth: '130px' });
     });
 
+    // The handle sits on the inline-end edge, but a pinned column is anchored by its left/right offset: a
+    // right-pinned column grows leftwards and a left-pinned one rightwards, in either writing direction.
+    it.each([
+        { dir: 'ltr', pin: undefined, drag: +60 },
+        { dir: 'ltr', pin: 'left', drag: +60 },
+        { dir: 'ltr', pin: 'right', drag: -60 },
+        { dir: 'rtl', pin: undefined, drag: -60 },
+        { dir: 'rtl', pin: 'left', drag: +60 },
+        { dir: 'rtl', pin: 'right', drag: -60 },
+    ] as const)('dragging $drag px widens a $dir column pinned $pin by 60px', ({ dir, pin, drag }) => {
+        component.pinColumn('name', pin);
+        fixture.detectChanges();
+        fixture.nativeElement.setAttribute('dir', dir);
+        const nameCol = component.enhancedColumns().find((c) => c.accessorKey === 'name')!;
+
+        component.onResizeStart(new MouseEvent('mousedown', { clientX: 300 }), nameCol);
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 300 + drag }));
+        document.dispatchEvent(new MouseEvent('mouseup'));
+
+        expect(component.columnWidths()['name']).toBe('260px');
+    });
+
     it('clamps the column width to its minWidth', () => {
         const idCol = component.enhancedColumns().find((c) => c.accessorKey === 'id')!;
         component.onResizeStart(new MouseEvent('mousedown', { clientX: 100 }), idCol);
