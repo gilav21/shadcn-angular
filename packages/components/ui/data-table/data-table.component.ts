@@ -2880,8 +2880,8 @@ export class DataTableComponent<T>
         ? position + 1
         : headerRows + offset + ++dataRow;
       row.setAttribute('aria-rowindex', String(index));
-      if (selectable && row instanceof HTMLElement && row.dataset.rowIndex !== undefined) {
-        row.setAttribute('aria-selected', String(row.dataset.state === 'selected'));
+      if (selectable && row instanceof HTMLElement && row.dataset['rowIndex'] !== undefined) {
+        row.setAttribute('aria-selected', String(row.dataset['state'] === 'selected'));
       }
 
       if (columnsWindowed) continue;
