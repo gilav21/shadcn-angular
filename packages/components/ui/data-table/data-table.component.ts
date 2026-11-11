@@ -2921,6 +2921,57 @@ export class DataTableComponent<T>
     this.stampGridSemantics();
   });
 
+  /**
+   * Roving tabindex: the focused cell is the one tab stop inside the grid and
+   * holds real DOM focus, so assistive tech announces it and the context-menu
+   * key targets it. Done on the rendered DOM for the same reason as
+   * {@link stampGridSemantics}: rows come from many template branches.
+   *
+   * DOM focus only follows when focus is already on the scroller or a data
+   * row, so a programmatic `focusedCell` change never steals it from a filter
+   * input, an editor or the rest of the page. The scroller stays the tab stop
+   * while no focused cell is rendered (none picked yet, or scrolled out of the
+   * virtual window), so the grid is never unreachable.
+   */
+  private syncFocusedCellDom(): void {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+    // Read before stripping tabindex: removing it from the focused cell blurs it.
+    const active = this._document.activeElement;
+    for (const stale of container.querySelectorAll('[data-row-index] [data-column][tabindex]')) {
+      stale.removeAttribute('tabindex');
+    }
+    const focused = this.focusedCell();
+    const cell = focused === null ? undefined : this.renderedCell(container, focused);
+    container.tabIndex = cell ? -1 : 0;
+    if (!cell) return;
+    cell.tabIndex = 0;
+    const focusIsInGrid = active === container || (active !== null && active !== cell && container.contains(active) && active.closest('[data-row-index]') !== null);
+    if (focusIsInGrid && this.editingCell() === null && !active?.closest('input,textarea,select,[contenteditable]')) {
+      cell.focus({ preventScroll: true });
+    }
+  }
+
+  private renderedCell(container: HTMLElement, target: { rowIndex: number; columnKey: string }): HTMLElement | undefined {
+    for (const row of container.querySelectorAll<HTMLElement>('[data-row-index]')) {
+      if (row.dataset['rowIndex'] !== String(target.rowIndex)) continue;
+      for (const cell of row.querySelectorAll<HTMLElement>('[data-column]')) {
+        if (cell.dataset['column'] === target.columnKey) return cell;
+      }
+    }
+    return undefined;
+  }
+
+  // protected, not private: nothing reads this handle; the field only creates the effect in field order.
+  protected readonly _focusedCellDomEffect = afterRenderEffect(() => {
+    this.focusedCell();
+    this.virtualRowRange();
+    this.processedData();
+    this.enhancedColumns();
+    this.editingCell();
+    this.syncFocusedCellDom();
+  });
+
   /** Id of the row the open editor belongs to; {@link editingCell} only holds where that row was drawn. */
   private editingRowId: string | undefined;
 
@@ -5016,7 +5067,10 @@ export class DataTableComponent<T>
 
   private refocusTable(): void {
     requestAnimationFrame(() => {
-      this.scrollContainerRef()?.nativeElement?.focus();
+      const container = this.scrollContainerRef()?.nativeElement;
+      const focused = this.focusedCell();
+      const cell = container && focused ? this.renderedCell(container, focused) : undefined;
+      (cell ?? container)?.focus({ preventScroll: true });
     });
   }
 
