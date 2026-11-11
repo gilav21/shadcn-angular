@@ -6194,14 +6194,30 @@ export class DataTableComponent<T>
 
   /**
    * Which way a drag moves the column's far edge: +1 grows the column toward the right, -1 toward the left.
-   * The handle sits on the inline-end edge, and a pinned column is anchored by its `left`/`right` offset, so a
-   * right-pinned column grows leftwards and a left-pinned one rightwards whatever the direction. Unpinned columns
-   * flow with the writing direction.
+   * A pinned column that is actually stuck to its viewport edge is held there by its `left`/`right` offset, so a
+   * right-pinned one grows leftwards and a left-pinned one rightwards. Everything else, including a pinned column
+   * sitting at its natural position because the table does not overflow, flows with the writing direction.
+   * Whether it is stuck is measured: the pin setting alone cannot tell.
    */
   private resizeGrowthSign(col: CellStyleColumn): 1 | -1 {
-    if (col._pin === "right") return -1;
-    if (col._pin === "left" || col.sticky) return 1;
-    return this.isRtl() ? -1 : 1;
+    const flow = this.isRtl() ? -1 : 1;
+    const key = String(col.accessorKey);
+    if (col._pin === "right") return this.isStuckToViewportEdge(key, "right") ? -1 : flow;
+    if (col._pin === "left" || col.sticky) return this.isStuckToViewportEdge(key, "left") ? 1 : flow;
+    return flow;
+  }
+
+  /** Whether a pinned column's header cell touches its pinned edge of the scroll viewport (unmeasurable: assume so). */
+  private isStuckToViewportEdge(columnKey: string, edge: "left" | "right"): boolean {
+    const container = this.scrollContainerRef()?.nativeElement;
+    const cell = container?.querySelector(`[data-column-id="${columnKey}"]`);
+    if (!container || !cell) return true;
+    const rect = cell.getBoundingClientRect();
+    const viewport = container.getBoundingClientRect();
+    const tolerance = 2;
+    return edge === "right"
+      ? rect.right >= viewport.left + container.clientLeft + container.clientWidth - tolerance
+      : rect.left <= viewport.left + container.clientLeft + tolerance;
   }
 
   private startResize(clientX: number, col: CellStyleColumn): void {
