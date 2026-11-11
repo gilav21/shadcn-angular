@@ -6152,9 +6152,10 @@ export class DataTableComponent<T>
 
   /**
    * Begins a mouse column resize from the header's drag handle, capturing the
-   * start width and attaching document move/up listeners. The RTL delta is
-   * inverted from the host's live direction, so the handle drags the way the
-   * column visually grows.
+   * start width and attaching document move/up listeners. The drag delta is
+   * signed by which way the column's edge actually moves (`resizeGrowthSign`):
+   * flow direction (RTL-aware), reversed for a pinned column stuck to the
+   * viewport edge.
    */
   onResizeStart(event: MouseEvent, col: CellStyleColumn): void {
     event.preventDefault();
