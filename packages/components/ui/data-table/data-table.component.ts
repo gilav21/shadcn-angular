@@ -2938,7 +2938,7 @@ export class DataTableComponent<T>
     if (!container) return;
     // Read before stripping tabindex: removing it from the focused cell blurs it.
     const active = this._document.activeElement;
-    for (const stale of container.querySelectorAll('[data-row-index] [data-column][tabindex]')) {
+    for (const stale of Array.from(container.querySelectorAll('[data-row-index] [data-column][tabindex]'))) {
       stale.removeAttribute('tabindex');
     }
     const focused = this.focusedCell();
@@ -2953,9 +2953,9 @@ export class DataTableComponent<T>
   }
 
   private renderedCell(container: HTMLElement, target: { rowIndex: number; columnKey: string }): HTMLElement | undefined {
-    for (const row of container.querySelectorAll<HTMLElement>('[data-row-index]')) {
+    for (const row of Array.from(container.querySelectorAll<HTMLElement>('[data-row-index]'))) {
       if (row.dataset['rowIndex'] !== String(target.rowIndex)) continue;
-      for (const cell of row.querySelectorAll<HTMLElement>('[data-column]')) {
+      for (const cell of Array.from(row.querySelectorAll<HTMLElement>('[data-column]'))) {
         if (cell.dataset['column'] === target.columnKey) return cell;
       }
     }
