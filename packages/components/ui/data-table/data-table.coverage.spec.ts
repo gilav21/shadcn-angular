@@ -481,14 +481,17 @@ describe('DataTableComponent branch coverage', () => {
   });
 
   describe('sub-row tree operations', () => {
-    it('expands only to the requested depth', async () => {
+    it('expands only to the requested depth, even when every level is open by default', async () => {
       const { component } = await makeFixture(TREE_DATA, TREE_COLUMNS, {
         enableSubRows: true,
+        subRowDefaultExpanded: -1,
       });
       component.expandAllSubRows(1);
+      expect(component.isSubRowExpanded(TREE_DATA[0])).toBe(true);
+      expect(component.isSubRowExpanded(TREE_DATA[0].children![0])).toBe(false);
       const expanded = component.subRowExpandedRows();
       expect(expanded['a']).toBe(true);
-      expect(expanded['a1']).toBeUndefined();
+      expect(expanded['a1']).toBe(false);
     });
 
     it('returns an empty child list for a leaf row', async () => {

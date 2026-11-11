@@ -5059,7 +5059,8 @@ export class DataTableComponent<T>
 
   /**
    * Expands every node with children, or only those above `toDepth` (0-based,
-   * exclusive) when given. Walks the *unfiltered* {@link data} and **replaces**
+   * exclusive) when given; the deeper nodes are pinned closed, like
+   * {@link collapseAllSubRows}. Walks the *unfiltered* {@link data} and **replaces**
    * {@link subRowExpandedRows} wholesale, discarding any node you had explicitly
    * collapsed.
    */
@@ -5073,9 +5074,9 @@ export class DataTableComponent<T>
       for (const row of rows) {
         const children = getChildrenFn(row);
         if (children && children.length > 0) {
-          if (targetDepth === -1 || depth < targetDepth) {
-            next[getId(row)] = true;
-          }
+          // Pin the deeper nodes closed too: unpinned they would fall back to subRowDefaultExpanded
+          // (-1 opens every level) and `toDepth` would open the whole tree.
+          next[getId(row)] = targetDepth === -1 || depth < targetDepth;
           walk(children, depth + 1);
         }
       }
