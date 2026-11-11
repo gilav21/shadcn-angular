@@ -6201,23 +6201,20 @@ export class DataTableComponent<T>
    */
   private resizeGrowthSign(col: CellStyleColumn): 1 | -1 {
     const flow = this.isRtl() ? -1 : 1;
-    const key = String(col.accessorKey);
-    if (col._pin === "right") return this.isStuckToViewportEdge(key, "right") ? -1 : flow;
-    if (col._pin === "left" || col.sticky) return this.isStuckToViewportEdge(key, "left") ? 1 : flow;
+    if (!this.scrollsHorizontally()) return flow;
+    if (col._pin === "right") return -1;
+    if (col._pin === "left" || col.sticky) return 1;
     return flow;
   }
 
-  /** Whether a pinned column's header cell touches its pinned edge of the scroll viewport (unmeasurable: assume so). */
-  private isStuckToViewportEdge(columnKey: string, edge: "left" | "right"): boolean {
+  /**
+   * With horizontal overflow a pinned column is always held at its edge (stuck, or already at the end of the row);
+   * without it the column keeps its natural position. Comparing the cell's rect with the viewport is fragile
+   * (scrollbar, padding), so the overflow itself is the test. Unmeasurable: assume overflow.
+   */
+  private scrollsHorizontally(): boolean {
     const container = this.scrollContainerRef()?.nativeElement;
-    const cell = container?.querySelector(`[data-column-id="${columnKey}"]`);
-    if (!container || !cell) return true;
-    const rect = cell.getBoundingClientRect();
-    const viewport = container.getBoundingClientRect();
-    const tolerance = 2;
-    return edge === "right"
-      ? rect.right >= viewport.left + container.clientLeft + container.clientWidth - tolerance
-      : rect.left <= viewport.left + container.clientLeft + tolerance;
+    return !container || container.scrollWidth > container.clientWidth + 1;
   }
 
   private startResize(clientX: number, col: CellStyleColumn): void {
