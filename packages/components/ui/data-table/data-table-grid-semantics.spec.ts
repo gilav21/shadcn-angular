@@ -45,6 +45,9 @@ class NoopResizeObserver {
       [columns]="columns()"
       [enableVirtualScroll]="virtual()"
       [virtualRowHeight]="40"
+      [enableRowSelection]="selectable()"
+      [rowSelection]="selection()"
+      [groupBy]="group()"
       [paginationState]="{ pageIndex: 0, pageSize: 10000 }"
     />
   `,
@@ -53,6 +56,10 @@ class HostComponent {
     readonly data = signal<Row[]>(rows(5));
     readonly columns = signal<ColumnDef<Row>[]>(COLUMNS);
     readonly virtual = signal<boolean | 'auto'>(false);
+    readonly selectable = signal(false);
+    readonly group = signal<string | undefined>(undefined);
+    // Bound from creation on purpose: a selection present at first render is its own path (the row's host binding must not clobber it).
+    readonly selection = signal<Record<string, boolean>>({ '2': true });
 }
 
 describe('data-table grid semantics', () => {
@@ -118,6 +125,52 @@ describe('data-table grid semantics', () => {
 
         it('publishes the column count', () => {
             expect(grid().getAttribute('aria-colcount')).toBe('3');
+        });
+    });
+
+    describe('selection', () => {
+        it('exposes selected rows and a multi-select grid, and nothing when selection is off', async () => {
+            expect(grid().hasAttribute('aria-multiselectable')).toBe(false);
+            expect(bodyRows()[0].hasAttribute('aria-selected')).toBe(false);
+
+            fixture.componentInstance.selectable.set(true);
+            await settle();
+
+            expect(grid().getAttribute('aria-multiselectable')).toBe('true');
+            expect(bodyRows().map(r => r.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false', 'false', 'false']);
+            expect(headerRows()[0].hasAttribute('aria-selected')).toBe(false);
+
+            fixture.componentInstance.selectable.set(false);
+            await settle();
+
+            expect(grid().hasAttribute('aria-multiselectable')).toBe(false);
+            expect(bodyRows().some(r => r.hasAttribute('aria-selected'))).toBe(false);
+        });
+    });
+
+    describe('row state is visible', () => {
+        it('plain cells let the row tint show; pinned cells stay opaque and carry the tint over it', async () => {
+            fixture.componentInstance.selectable.set(true);
+            await settle();
+            const [selected, other] = [bodyRows()[1], bodyRows()[0]];
+            const bg = (el: Element) => getComputedStyle(el).backgroundColor;
+            const image = (el: Element) => getComputedStyle(el).backgroundImage;
+            const pinned = (row: HTMLElement) => row.children[0];
+            const plain = (row: HTMLElement) => row.children[1];
+
+            expect(bg(plain(selected))).toBe('rgba(0, 0, 0, 0)');
+            expect(bg(pinned(selected))).not.toBe('rgba(0, 0, 0, 0)');
+            expect(image(pinned(selected))).toContain('gradient');
+            expect(image(pinned(other))).toBe('none');
+        });
+    });
+
+    describe('grouping', () => {
+        it('is a treegrid, because group rows carry aria-expanded', async () => {
+            expect(grid().getAttribute('role')).toBe('grid');
+            fixture.componentInstance.group.set('city');
+            await settle();
+            expect(grid().getAttribute('role')).toBe('treegrid');
         });
     });
 

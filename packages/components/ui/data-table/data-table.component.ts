@@ -106,6 +106,7 @@ import {
   buildPrefixSums,
   partitionIntoGroups,
   renumberDataRows,
+  cellText,
   computeAggregateValue,
   buildFillValues,
   parseClipboardGrid,
@@ -132,12 +133,53 @@ interface EditChange {
 /** Per-instance counter for unique element ids (e.g. inline edit-error links). */
 let dataTableUid = 0;
 
+/** Ids for rows that have no `id` and cannot be serialised (circular, BigInt-holding). Stable per row object. */
+const identityRowIds = new WeakMap<object, string>();
+let identityRowIdSeq = 0;
+
+/** A row without an `id` is identified by its content; it must never throw, whatever the row holds. */
+function contentRowId(row: unknown): string {
+  try {
+    return JSON.stringify(row, (...[, value]: [string, unknown]) => (typeof value === "bigint" ? value.toString() : value)) ?? "";
+  } catch {
+    // Circular structure: JSON cannot describe it, so fall back to the row's identity.
+    if (typeof row !== "object" || row === null) return String(row);
+    let id = identityRowIds.get(row);
+    if (id === undefined) {
+      id = `row-identity-${identityRowIdSeq++}`;
+      identityRowIds.set(row, id);
+    }
+    return id;
+  }
+}
+
 const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   const rec = row as Record<string, unknown>;
-  const id = rec['id'];
-  if (id == null) return JSON.stringify(row);
+  const id = rec["id"];
+  if (id == null) return contentRowId(row);
   return stringifyValue(id);
 };
+
+/** Mirrors a data row's selection to assistive tech, and clears it when the grid stops being selectable. */
+function stampRowSelection(row: Element, selectable: boolean): void {
+  if (!(row instanceof HTMLElement) || row.dataset['rowIndex'] === undefined) return;
+  if (selectable) row.setAttribute('aria-selected', String(row.dataset['state'] === 'selected'));
+  else row.removeAttribute('aria-selected');
+}
+
+/**
+ * Quotes a cell holding a tab, line break or quote the way Excel does, so
+ * parseClipboardGrid reads our own copy back into the same cells.
+ */
+function toClipboardCell(cell: string, quotedChars: RegExp): string {
+  const guarded = guardSpreadsheetFormula(cell);
+  return quotedChars.test(guarded) ? `"${guarded.replaceAll('"', '""')}"` : guarded;
+}
+
+// A one-column copy has no tab for parseClipboardGrid to find, so it reads the text as CSV: a comma in a
+// cell must be quoted there or the paste splits that cell in two.
+const QUOTED_IN_TSV = /[\t\r\n"]/;
+const QUOTED_IN_SINGLE_COLUMN = /[\t\r\n",]/;
 
 /**
  * Serialises a grid as the TSV every copy path writes: one line per row, cells
@@ -145,7 +187,8 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
  * The paste path undoes the guard with `restoreSpreadsheetText`.
  */
 function toClipboardText(grid: readonly (readonly string[])[]): string {
-  return grid.map((cells) => cells.map(guardSpreadsheetFormula).join("\t")).join("\n");
+  const quotedChars = grid.every((cells) => cells.length === 1) ? QUOTED_IN_SINGLE_COLUMN : QUOTED_IN_TSV;
+  return grid.map((cells) => cells.map((cell) => toClipboardCell(cell, quotedChars)).join("\t")).join("\n");
 }
 
 /**
@@ -1224,7 +1267,7 @@ export class DataTableComponent<T>
     return data.filter((row) =>
       globallyFilterableColumns.some((col) => {
         const value = this.getCellValue(row, col.accessorKey, col);
-        return String(value).toLowerCase().includes(globalFilterValue);
+        return cellText(value).toLowerCase().includes(globalFilterValue);
       }),
     );
   }
@@ -1340,7 +1383,7 @@ export class DataTableComponent<T>
     );
     return globallyFilterable.some((col) => {
       const value = this.getCellValue(row, col.accessorKey, col);
-      return String(value).toLowerCase().includes(globalFilterValue);
+      return cellText(value).toLowerCase().includes(globalFilterValue);
     });
   }
 
@@ -2839,12 +2882,18 @@ export class DataTableComponent<T>
     const columnsWindowed =
       this.virtualVisibleMiddleColumns().length < this.scrollableColumns().length;
 
+    // Selection state is already drawn as data-state on every data-row branch; mirror it for assistive tech.
+    const selectable = this.enableRowSelection();
+    if (selectable) grid.setAttribute('aria-multiselectable', 'true');
+    else grid.removeAttribute('aria-multiselectable');
+
     let dataRow = 0;
     for (const [position, row] of rows.entries()) {
       const index = isHeaderRow(row)
         ? position + 1
         : headerRows + offset + ++dataRow;
       row.setAttribute('aria-rowindex', String(index));
+      stampRowSelection(row, selectable);
 
       if (columnsWindowed) continue;
       const cells = Array.from(row.children).filter(cell => !isDecorative(cell));
@@ -2867,6 +2916,8 @@ export class DataTableComponent<T>
     this.processedData();
     this.enhancedColumns();
     this.virtualTotalRows();
+    this.rowSelection();
+    this.enableRowSelection();
     this.stampGridSemantics();
   });
 
@@ -3056,19 +3107,13 @@ export class DataTableComponent<T>
     return map;
   });
 
-  private readonly _baseCellClass = computed(() => ({
-    normal: cn(
-      "whitespace-nowrap overflow-hidden text-ellipsis",
-      "bg-background",
-      this.showRowBorders() && "border-b",
-      this.showColumnBorders() && "border-r",
-    ),
-    tree: cn(
+  private readonly _baseCellClass = computed(() =>
+    cn(
       "whitespace-nowrap overflow-hidden text-ellipsis",
       this.showRowBorders() && "border-b",
       this.showColumnBorders() && "border-r",
     ),
-  }));
+  );
 
   // `pointer-coarse:h-auto`: a header cell grows to hold its 44px touch controls
   // instead of clipping them at the fixed desktop header height.
@@ -3117,10 +3162,11 @@ export class DataTableComponent<T>
    * the depth indent itself comes from {@link getTreeCellStyle}.
    */
   getCellClass(col: CellStyleColumn, rowIndex?: number, treeDepth?: number): string {
-    const base =
-      treeDepth === undefined
-        ? this._baseCellClass().normal
-        : this._baseCellClass().tree;
+    // A cell paints over its row, so a plain cell stays transparent or the row's hover and selected tint would
+    // never show. A pinned cell must be opaque so scrolled columns do not show through; its row tint is layered
+    // on by data-table.component.css (.pinned-cell).
+    const pinnedClass = col.sticky || col._pin ? " bg-background pinned-cell" : "";
+    const base = treeDepth === undefined ? this._baseCellClass() + pinnedClass : this._baseCellClass();
     const key = String(col.accessorKey);
     const focused = this.focusedCell();
     if (

@@ -3,7 +3,7 @@ import { Component, input } from '@angular/core';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext } from './data-table.types';
-import { buildTreeFromFlat, computeAggregateValue } from './data-table.utils';
+import { buildTreeFromFlat, computeAggregateValue, parseClipboardGrid } from './data-table.utils';
 import type { DataTableLocale } from './data-table.locales';
 import { dateFilterFn } from './sub/data-table-date-filter.component';
 import { dateRangeFilterFn } from './sub/data-table-date-range-filter.component';
@@ -1977,6 +1977,20 @@ describe('DataTableComponent', () => {
             fixture.detectChanges();
         });
 
+        it('default getRowId never throws for id-less rows: content for plain rows, a stable identity for circular or BigInt ones', () => {
+            // The default accepts any row shape; the component is typed to this fixture's rows.
+            const getId = component.getRowId() as unknown as (row: unknown) => string;
+            expect(getId({ id: 7 })).toBe('7');
+            expect(getId({ name: 'a' })).toBe('{"name":"a"}');
+            expect(getId({ big: 10n })).toBe('{"big":"10"}');
+            const loop: Record<string, unknown> = { name: 'loop' };
+            loop['self'] = loop;
+            const other: Record<string, unknown> = { name: 'loop' };
+            other['self'] = other;
+            expect(getId(loop)).toBe(getId(loop));
+            expect(getId(loop)).not.toBe(getId(other));
+        });
+
         it('should return false from isAllExpanded when there are no rows at all', () => {
             fixture.componentRef.setInput('data', []);
             fixture.detectChanges();
@@ -2991,6 +3005,21 @@ describe('buildTreeFromFlat', () => {
             (r, children) => ({ ...r, children })
         );
         expect(tree).toEqual([]);
+    });
+
+    it('keeps every row exactly once: orphans surface at the root, a cycle breaks at its first row', () => {
+        const flat: FlatItem[] = [
+            { id: 'a', parentId: 'c', name: '' },
+            { id: 'b', parentId: 'a', name: '' },
+            { id: 'c', parentId: 'b', name: '' },
+            { id: 'd', parentId: 'gone', name: '' },
+            { id: 'd1', parentId: 'd', name: '' },
+            { id: 'e', parentId: 'e', name: '' },
+            { id: 'r', parentId: null, name: '' },
+        ];
+        const tree = buildTreeFromFlat(flat, r => r.id, r => r.parentId, (r, children) => ({ ...r, children }));
+        const nested = (rows: FlatItem[]): string[] => rows.map(r => r.children ? `${r.id}(${nested(r.children).join(',')})` : r.id);
+        expect(nested(tree)).toEqual(['d(d1)', 'r', 'a(b(c))', 'e']);
     });
 });
 
@@ -4042,18 +4071,35 @@ describe('DataTableComponent - Export & Clipboard', () => {
             { id: '1', name: '=HYPERLINK("http://evil.example","click")', score: -12 },
             { id: '2', name: '@SUM(A1:A2)', score: 3.5 },
             { id: '3', name: '- item', score: 4 },
+            { id: '4', name: 'two\nlines\tand "quotes"', score: 5 },
         ]);
         fixture.detectChanges();
         const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
         vi.stubGlobal('navigator', { clipboard: { writeText } });
         try {
             await component.copyAllToClipboard();
-            expect(writeText.mock.calls[0][0].split('\n').map((line) => line.split('\t'))).toEqual([
+            // Parsing our own copy back proves it is quoted the way Excel writes it.
+            expect(parseClipboardGrid(writeText.mock.calls[0][0])).toEqual([
                 ['ID', 'Name', 'Score'],
                 ['1', '\'=HYPERLINK("http://evil.example","click")', '-12'],
                 ['2', "'@SUM(A1:A2)", '3.5'],
                 ['3', "'- item", '4'],
+                ['4', 'two\nlines\tand "quotes"', '5'],
             ]);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('copies a one-column grid so a comma inside a cell survives the paste round trip', async () => {
+        fixture.componentRef.setInput('columns', [{ accessorKey: 'name', header: 'Name' }]);
+        fixture.componentRef.setInput('data', [{ id: '1', name: 'Smith, John' }, { id: '2', name: 'Ada' }]);
+        fixture.detectChanges();
+        const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        try {
+            await component.copyAllToClipboard();
+            expect(parseClipboardGrid(writeText.mock.calls[0][0])).toEqual([['Name'], ['Smith, John'], ['Ada']]);
         } finally {
             vi.unstubAllGlobals();
         }
@@ -6394,7 +6440,7 @@ describe('DataTableComponent conditional formatting (A1)', () => {
 
 describe('computeAggregateValue (A2 util)', () => {
     it('sums, averages, min/max numeric values and ignores non-numeric', () => {
-        const values = ['Alice', 10, 20, 'Bob', 30, 40];
+        const values = ['Alice', 10, null, 20, '', 'Bob', 30, '  ', 40];
         expect(computeAggregateValue(values, 'sum')).toBe('100');
         expect(computeAggregateValue(values, 'avg')).toBe('25');
         expect(computeAggregateValue(values, 'min')).toBe('10');

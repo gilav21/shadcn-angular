@@ -42,6 +42,21 @@ describe('parseClipboardGrid (B2)', () => {
     ]);
   });
 
+  it('keeps a quoted cell with a line break in one cell, tab- or comma-separated (Excel / Sheets)', () => {
+    expect(parseClipboardGrid('"a\nb",c\n1,2')).toEqual([['a\nb', 'c'], ['1', '2']]);
+    expect(parseClipboardGrid('"a\nb"\tc\n1\t2')).toEqual([['a\nb', 'c'], ['1', '2']]);
+    expect(parseClipboardGrid('"say ""hi"""\t"x\ty"\r\n1\t2\r\n')).toEqual([['say "hi"', 'x\ty'], ['1', '2']]);
+  });
+
+  it('treats a quote inside a cell as literal text', () => {
+    expect(parseClipboardGrid('5" pipe\tb')).toEqual([['5" pipe', 'b']]);
+  });
+
+  it('keeps text from a non-quoting source verbatim when a leading quote never closes', () => {
+    expect(parseClipboardGrid('"5 inch\tA\n12\tB')).toEqual([['"5 inch', 'A'], ['12', 'B']]);
+    expect(parseClipboardGrid('"quoted" text\tA')).toEqual([['"quoted" text', 'A']]);
+  });
+
   it('keeps a single cell per line when there is no delimiter', () => {
     expect(parseClipboardGrid('one\ntwo')).toEqual([['one'], ['two']]);
   });

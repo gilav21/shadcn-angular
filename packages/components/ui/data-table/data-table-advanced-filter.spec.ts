@@ -50,6 +50,22 @@ describe('matchesCondition (A5)', () => {
     expect(matchesCondition('500', 'equals', 500)).toBe(true); // numeric loose-equals
   });
 
+  it('an empty cell is no number: it never satisfies a numeric comparison', () => {
+    for (const empty of [null, undefined, '', '  ']) {
+      expect(matchesCondition(empty, 'lt', 5)).toBe(false);
+      expect(matchesCondition(empty, 'lte', 0)).toBe(false);
+      expect(matchesCondition(empty, 'gte', 0)).toBe(false);
+      expect(matchesCondition(empty, 'equals', 0)).toBe(false);
+      expect(matchesCondition(empty, 'isEmpty', undefined)).toBe(true);
+    }
+  });
+
+  it('matches a Date cell by its ISO text, not by a quoted JSON string', () => {
+    const cell = new Date('2024-03-05T00:00:00Z');
+    expect(matchesCondition(cell, 'startsWith', '2024-03')).toBe(true);
+    expect(matchesCondition(cell, 'equals', '2024-03-05T00:00:00.000Z')).toBe(true);
+  });
+
   it('handles empty / not-empty', () => {
     expect(matchesCondition('', 'isEmpty', undefined)).toBe(true);
     expect(matchesCondition('  ', 'isEmpty', undefined)).toBe(true);
