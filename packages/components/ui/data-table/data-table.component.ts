@@ -165,15 +165,19 @@ const CONTROL_OWNED_KEYS = new Set(['Enter', 'F2', ' ', 'Tab']);
 
 const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'file', 'range', 'color', 'hidden']);
 
-/** Ctrl/Cmd + C, V, Z or Y: the grid's copy, paste, undo and redo. */
+/** Ctrl/Cmd + C, V, Z or Y (the grid's copy, paste, undo, redo) and Escape (clears the cell range). */
 function isShortcut(event: KeyboardEvent): boolean {
+  if (event.key === 'Escape') return true;
   return (event.ctrlKey || event.metaKey) && ['c', 'v', 'z', 'y'].includes(event.key.toLowerCase());
 }
 
-/** A control whose own Ctrl+C/V/Z/Y mean text operations (caret, selection, its own undo). */
+const TEXT_ENTRY_ROLES = '[role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"]';
+
+/** A control whose own shortcuts mean text operations or its own dismissal (caret, selection, undo, type-ahead, Escape). */
 function isTextEntry(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
+  if (target.isContentEditable || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
+  if (target.closest(TEXT_ENTRY_ROLES) !== null) return true;
   return target instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.has(target.type);
 }
 
@@ -4400,8 +4404,10 @@ export class DataTableComponent<T>
       return;
     // A click must not reach onTableClick (it clears the focus). A key from the cell itself must reach
     // onTableKeydown (Enter / F2 edit); one bubbling up from a control inside the cell stays with that control.
-    const isEnterOnCell = event instanceof KeyboardEvent && event.key === 'Enter' && event.target === event.currentTarget;
+    const isKeyFromControl = event instanceof KeyboardEvent && event.target !== event.currentTarget;
+    const isEnterOnCell = event instanceof KeyboardEvent && event.key === 'Enter' && !isKeyFromControl;
     if (!isEnterOnCell) event.stopPropagation();
+    if (isKeyFromControl) return;
     // When range selection is on, focus + range are managed by the pointer-drag
     // handler (onTableMouseDown); a plain click just focuses here for keyboard.
     this.focusedCell.set({ rowIndex, columnKey: key });
@@ -4736,8 +4742,17 @@ export class DataTableComponent<T>
   private isGridKey(event: KeyboardEvent): boolean {
     if (event.defaultPrevented) return false;
     if (this.isGridKeyTarget(event.target)) return true;
-    if (isShortcut(event)) return !isTextEntry(event.target);
+    if (isShortcut(event)) return !isTextEntry(event.target) && !this.inNestedGrid(event.target);
     return !CONTROL_OWNED_KEYS.has(event.key) && this.isGridChromeControl(event.target);
+  }
+
+  /** Whether the target sits in a grid nested in one of this grid's cells: that grid decides its own keys. */
+  private inNestedGrid(target: EventTarget | null): boolean {
+    const scroller = this.scrollContainerRef()?.nativeElement;
+    if (!scroller || !(target instanceof HTMLElement)) return false;
+    const table = target.closest('[data-slot="table"]');
+    const hostCell = table?.closest('[data-column]');
+    return hostCell != null && scroller.contains(hostCell);
   }
 
   private isGridKeyTarget(target: EventTarget | null): boolean {

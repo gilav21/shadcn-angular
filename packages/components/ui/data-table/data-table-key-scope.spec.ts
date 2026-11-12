@@ -193,4 +193,36 @@ describe('data-table keydown scope', () => {
         expect(event.defaultPrevented).toBe(true);
         expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
     });
+
+    it('a select, and a grid nested in a cell, keep the shortcuts the grid would otherwise take', async () => {
+        const { root, table, pressedKeysPrevented } = await mount();
+        const shortcuts = KEYS.filter((init) => init.ctrlKey);
+        const select = document.createElement('select');
+        const nested = document.createElement('div');
+        nested.dataset['slot'] = 'table';
+        const nestedCell = document.createElement('div');
+        nestedCell.dataset['column'] = 'name';
+        nested.append(nestedCell);
+        root.querySelector('[data-row-index="0"] [data-column="name"]')!.append(select, nested);
+        expect(pressedKeysPrevented(select, shortcuts)).toEqual([]);
+        expect(pressedKeysPrevented(nestedCell, shortcuts)).toEqual([]);
+        expect(table.editingCell()).toBeNull();
+    });
+
+    it('Escape clears the cell range from a header control', async () => {
+        const { root, table } = await mount();
+        table.cellRange.set({ startRow: 0, startCol: 'id', endRow: 1, endCol: 'name' });
+        root.querySelector('[data-slot="table-header"] button')!
+            .dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        expect(table.cellRange()).toBeNull();
+    });
+
+    it('a key from a control inside a cell does not move the focused cell', async () => {
+        const { root, table } = await mount();
+        const button = document.createElement('button');
+        root.querySelector('[data-row-index="1"] [data-column="name"]')!.append(button);
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        button.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        expect(table.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
+    });
 });
