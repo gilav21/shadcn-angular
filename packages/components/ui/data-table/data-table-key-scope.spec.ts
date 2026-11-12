@@ -93,10 +93,11 @@ describe('data-table keydown scope', () => {
         let reachedAncestor = false;
         root.addEventListener('keydown', () => (reachedAncestor = true));
         table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
-        root.querySelector('[data-row-index="0"] [data-column="id"]')!
-            .dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+        root.querySelector('[data-row-index="0"] [data-column="id"]')!.dispatchEvent(event);
         expect(table.editingCell()).toBeNull();
         expect(reachedAncestor).toBe(true);
+        expect(event.defaultPrevented).toBe(false);
     });
 
     it('a grid nested in a cell is not this grid', async () => {
@@ -113,7 +114,7 @@ describe('data-table keydown scope', () => {
 
     it('arrow keys still move from the row checkbox, but its Enter is not a grid key', async () => {
         const { root, table } = await mount();
-        const checkbox = root.querySelector('[data-row-index="0"] [data-column="_selection"] button, [data-row-index="0"] [data-column="_selection"] input')!;
+        const checkbox = root.querySelector('[data-row-index="0"] [data-column="_selection"] input[type="checkbox"]')!;
         const press = (key: string) => {
             const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
             checkbox.dispatchEvent(event);
@@ -123,5 +124,19 @@ describe('data-table keydown scope', () => {
         expect(press('ArrowDown')).toBe(true);
         expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
         expect(press('Enter')).toBe(false);
+    });
+
+    it('a text input hosted in the selection cell keeps its caret keys, and Space is not a grid key leak', async () => {
+        const { root, table, pressedKeysPrevented } = await mount();
+        const input = document.createElement('input');
+        root.querySelector('[data-row-index="0"] [data-column="_selection"]')!.append(input);
+        expect(pressedKeysPrevented(input)).toEqual([]);
+        expect(table.editingCell()).toBeNull();
+
+        let reachedAncestor = false;
+        root.addEventListener('keydown', () => (reachedAncestor = true));
+        root.querySelector('[data-row-index="0"] [data-column="name"]')!
+            .dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+        expect(reachedAncestor).toBe(false);
     });
 });

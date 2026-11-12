@@ -4385,7 +4385,8 @@ export class DataTableComponent<T>
       return;
     // A click must not reach onTableClick (it clears the focus). A key from the cell itself must reach
     // onTableKeydown (Enter / F2 edit); one bubbling up from a control inside the cell stays with that control.
-    if (event.type === 'click' || event.target !== event.currentTarget) event.stopPropagation();
+    const isEnterOnCell = event instanceof KeyboardEvent && event.key === 'Enter' && event.target === event.currentTarget;
+    if (!isEnterOnCell) event.stopPropagation();
     // When range selection is on, focus + range are managed by the pointer-drag
     // handler (onTableMouseDown); a plain click just focuses here for keyboard.
     this.focusedCell.set({ rowIndex, columnKey: key });
@@ -4698,20 +4699,27 @@ export class DataTableComponent<T>
 
   /** The grid this table owns; a grid nested in a cell has its own, so a bare `data-column` is not proof of ownership. */
   private ownsElement(el: HTMLElement): boolean {
-    return el.closest('[data-slot="table"]') === this._el.nativeElement.querySelector('[data-slot="table"]');
+    const own = this.scrollContainerRef()?.nativeElement.querySelector('[data-slot="table"]');
+    return own != null && el.closest('[data-slot="table"]') === own;
   }
 
   private isGridKeyTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) return true;
+    if (target === null) return true;
+    if (!(target instanceof HTMLElement)) return false;
     if (target === this.scrollContainerRef()?.nativeElement) return true;
     return target.dataset['column'] !== undefined && this.ownsElement(target);
   }
 
-  /** A control the grid draws in its own cells (row checkbox, tree expander, actions). */
+  /**
+   * The grid's own checkbox and expander button in its selection / expander cells. Not the actions
+   * cell: it hosts consumer menus and inputs that own their arrows. Tab is deliberately not a grid move from
+   * here: from a checkbox it leaves the grid naturally.
+   */
   private isGridChromeControl(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
     const column = target.closest<HTMLElement>('[data-column]')?.dataset['column'];
-    return (column === '_selection' || column === '_expander' || column === '_actions') && this.ownsElement(target);
+    const isGridControl = target.matches('input[type="checkbox"], button');
+    return isGridControl && (column === '_selection' || column === '_expander') && this.ownsElement(target);
   }
 
   private handleNavigationKeydown(event: KeyboardEvent): void {
@@ -4726,10 +4734,12 @@ export class DataTableComponent<T>
     if (event.key === 'Enter' || event.key === 'F2') {
       const focused = this.focusedCell();
       if (focused) {
-        event.preventDefault();
         this.startEditing(focused.rowIndex, focused.columnKey);
         // Only an edit that opened has handled the key; otherwise an ancestor's Enter (a dialog's submit) still fires.
-        if (this.editingCell() !== null) event.stopPropagation();
+        if (this.editingCell() !== null) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
       }
       return;
     }
