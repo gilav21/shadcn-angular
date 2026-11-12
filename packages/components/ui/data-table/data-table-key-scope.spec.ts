@@ -225,4 +225,24 @@ describe('data-table keydown scope', () => {
         expect(prevented).toEqual([]);
         expect(table.editingCell()).toBeNull();
     });
+
+    it('a role inside a shadow root that owns its keys is left alone, and so is Enter from a selection cell', async () => {
+        const { root, table, cell, press } = await mount();
+        const host = document.createElement('div');
+        const slider = document.createElement('div');
+        slider.setAttribute('role', 'slider');
+        const thumb = document.createElement('span'); // the key's origin: the role is on an ancestor, inside the shadow tree
+        slider.append(thumb);
+        host.attachShadow({ mode: 'open' }).append(slider);
+        root.querySelector('[data-row-index]')!.closest('[tabindex]')!.append(host);
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        const event = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true, composed: true });
+        thumb.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(false);
+        expect(table.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
+
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
+        press(cell(0, '_selection'), { key: 'Enter' });
+        expect(table.editingCell()).toBeNull();
+    });
 });

@@ -163,22 +163,33 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
 /** Inputs whose keys are not the control's own: a checkbox or button has no arrows, caret or undo (a range and a radio do). */
 const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'button', 'submit', 'reset', 'image', 'file', 'color', 'hidden']);
 
-const TEXT_ENTRY_ROLES = [
+/** The columns the grid draws itself (selection, expander, actions), as opposed to data columns. */
+function isGridColumnKey(key: string): boolean {
+  return key === '_selection' || key === '_expander' || key === '_actions';
+}
+
+/** Widget roles whose keys (arrows, Home/End, Enter, type-ahead, Escape) belong to the widget. The grid's own roles are not here. */
+const KEY_OWNING_ROLES = [
   'textbox', 'combobox', 'searchbox', 'spinbutton', 'slider', 'listbox', 'option', 'menu', 'menuitem',
-  'menuitemcheckbox', 'menuitemradio', 'radiogroup', 'radio', 'tablist', 'tab',
+  'menuitemcheckbox', 'menuitemradio', 'menubar', 'radiogroup', 'radio', 'tablist', 'tab', 'tree', 'treeitem',
+  'scrollbar', 'dialog',
 ].map((role) => `[role="${role}"]`).join(', ');
 
 /**
- * A control that owns its keys: caret movement, the arrows of a slider, radio group, list or menu, Enter, its own
- * undo and copy, type-ahead, Escape. The role is looked for only inside `boundary`: a grid embedded in a textbox
- * or combobox of the host page is not itself one.
+ * Whether a key comes from a control that owns its keys: caret movement, the arrows of a slider, radio group, list,
+ * menu or tree, Enter, its own undo and copy, type-ahead, Escape. `path` is the event's composed path, origin
+ * first, so a control inside a shadow root is seen and the role search stops at `boundary`: a grid embedded in a
+ * textbox or combobox of the host page is not itself one.
  */
-function isTextEntry(target: EventTarget | null, boundary: Element): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
-  const roleHost = target.closest(TEXT_ENTRY_ROLES);
-  if (roleHost !== null && boundary.contains(roleHost)) return true;
-  return target instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.has(target.type);
+function ownsItsKeys(path: EventTarget[], boundary: Element): boolean {
+  const origin = path[0];
+  if (!(origin instanceof HTMLElement)) return false;
+  if (origin.isContentEditable || origin instanceof HTMLTextAreaElement || origin instanceof HTMLSelectElement) return true;
+  for (const node of path) {
+    if (node === boundary) break;
+    if (node instanceof Element && node.matches(KEY_OWNING_ROLES)) return true;
+  }
+  return origin instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.has(origin.type);
 }
 
 /** Mirrors a data row's selection to assistive tech, and clears it when the grid stops being selectable. */
@@ -4404,7 +4415,7 @@ export class DataTableComponent<T>
       return;
     // A click must not reach onTableClick (it clears the focus). A key from the cell itself must reach
     // onTableKeydown (Enter / F2 edit); one bubbling up from a control inside the cell stays with that control.
-    if (event instanceof KeyboardEvent) {
+    if ('key' in event) {
       if (event.target !== event.currentTarget) {
         event.stopPropagation();
         return;
@@ -4600,9 +4611,11 @@ export class DataTableComponent<T>
    * cell, and an Enter / F2 that opened an editor does not propagate further.
    */
   onTableKeydown(event: KeyboardEvent): void {
-    // composedPath()[0] is the real origin: `target` is retargeted to the host when the key comes from a shadow root.
-    const origin = event.composedPath()[0] ?? event.target;
-    if (event.defaultPrevented || isTextEntry(origin, this._el.nativeElement)) return;
+    // composedPath() starts at the real origin: `target` is retargeted to the host when the key comes from a shadow root.
+    const path = event.composedPath();
+    const fallback = event.target === null ? [] : [event.target];
+    const origin = path.length > 0 ? path : fallback;
+    if (event.defaultPrevented || ownsItsKeys(origin, this._el.nativeElement)) return;
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
     if (this.handleHistoryKeydown(event)) return;
@@ -4732,7 +4745,9 @@ export class DataTableComponent<T>
   private isEditKeyTarget(target: EventTarget | null): boolean {
     if (target === null) return true;
     if (!(target instanceof HTMLElement)) return false;
-    return target === this.scrollContainerRef()?.nativeElement || target.dataset['column'] !== undefined;
+    if (target === this.scrollContainerRef()?.nativeElement) return true;
+    const column = target.dataset['column'];
+    return column !== undefined && !isGridColumnKey(column);
   }
 
   private handleNavigationKeydown(event: KeyboardEvent): void {
