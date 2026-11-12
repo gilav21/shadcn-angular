@@ -54,17 +54,19 @@ describe('data-table keydown scope', () => {
     afterEach(() => vi.restoreAllMocks());
 
     it('keys typed into a floating-filter input or a select are left to the control', async () => {
-        const { root, table, cell, pressedKeysPrevented } = await mount();
+        const { root, table, pressedKeysPrevented } = await mount();
         // With row selection on, the header's select-all checkbox is also an input outside the data rows.
         const scroller = root.querySelector('[data-row-index]')!.closest('[tabindex]')!;
         const filter = Array.from(scroller.querySelectorAll('input')).find((el) => el.type === 'text' && !el.closest('[data-row-index]'))!;
         expect(filter).toBeDefined(); // inside the scroller, so its keys really do reach the grid handler
         const range = document.createElement('input');
         range.type = 'range';
-        const targets = [filter, document.createElement('select'), range, document.createElement('div'), document.createElement('div')];
+        const targets = [filter, document.createElement('select'), range, document.createElement('div'), document.createElement('div'), document.createElement('div')];
         targets[3].setAttribute('role', 'textbox');
         targets[4].contentEditable = 'true';
-        cell(0, 'id').append(...targets.slice(1));
+        targets[5].setAttribute('role', 'menuitem');
+        // Directly in the scroller, not in a cell: a key from a control inside a cell is stopped at the cell and would not test the guard.
+        scroller.append(...targets.slice(1));
         for (const target of targets) expect(pressedKeysPrevented(target), target.outerHTML.slice(0, 40)).toEqual([]);
         expect(table.editingCell()).toBeNull();
     });
@@ -194,5 +196,33 @@ describe('data-table keydown scope', () => {
         table.cellRange.set({ startRow: 0, startCol: 'id', endRow: 1, endCol: 'name' });
         press(headerButton, { key: 'Escape' });
         expect(table.cellRange()).toBeNull();
+    });
+
+    it('a held Enter does not commit the editor the first Enter just opened', async () => {
+        const { fixture, root, table } = await mount();
+        table.startEditing(0, 'name');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const editor = root.querySelector<HTMLInputElement>('[data-row-index] input[data-edit-input]')!;
+        editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true }));
+        expect(table.editingCell()).not.toBeNull();
+        editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        expect(table.editingCell()).toBeNull();
+    });
+
+    it('keys typed into a control inside a shadow root are left to it', async () => {
+        const { root, table } = await mount();
+        const host = document.createElement('div');
+        const input = document.createElement('input');
+        host.attachShadow({ mode: 'open' }).append(input);
+        root.querySelector('[data-row-index]')!.closest('[tabindex]')!.append(host);
+        const keys = KEYS.map((init) => ({ ...init, composed: true }));
+        const prevented = keys.filter((init) => {
+            const event = new KeyboardEvent('keydown', { ...init, bubbles: true, cancelable: true });
+            input.dispatchEvent(event);
+            return event.defaultPrevented;
+        });
+        expect(prevented).toEqual([]);
+        expect(table.editingCell()).toBeNull();
     });
 });

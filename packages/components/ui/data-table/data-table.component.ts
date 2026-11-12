@@ -163,12 +163,15 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
 /** Inputs whose keys are not the control's own: a checkbox or button has no arrows, caret or undo (a range and a radio do). */
 const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'button', 'submit', 'reset', 'image', 'file', 'color', 'hidden']);
 
-const TEXT_ENTRY_ROLES = '[role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"], [role="slider"]';
+const TEXT_ENTRY_ROLES = [
+  'textbox', 'combobox', 'searchbox', 'spinbutton', 'slider', 'listbox', 'option', 'menu', 'menuitem',
+  'menuitemcheckbox', 'menuitemradio', 'radiogroup', 'radio', 'tablist', 'tab',
+].map((role) => `[role="${role}"]`).join(', ');
 
 /**
- * A control that owns its keys: caret movement, a slider's or radio group's arrows, Enter, its own undo and copy,
- * type-ahead, Escape. The role is looked
- * for only inside `boundary`: a grid embedded in a textbox or combobox of the host page is not itself one.
+ * A control that owns its keys: caret movement, the arrows of a slider, radio group, list or menu, Enter, its own
+ * undo and copy, type-ahead, Escape. The role is looked for only inside `boundary`: a grid embedded in a textbox
+ * or combobox of the host page is not itself one.
  */
 function isTextEntry(target: EventTarget | null, boundary: Element): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -4401,10 +4404,15 @@ export class DataTableComponent<T>
       return;
     // A click must not reach onTableClick (it clears the focus). A key from the cell itself must reach
     // onTableKeydown (Enter / F2 edit); one bubbling up from a control inside the cell stays with that control.
-    const isKeyFromControl = event instanceof KeyboardEvent && event.target !== event.currentTarget;
-    const isEnterOnCell = event instanceof KeyboardEvent && event.key === 'Enter' && !isKeyFromControl;
-    if (!isEnterOnCell) event.stopPropagation();
-    if (isKeyFromControl) return;
+    if (event instanceof KeyboardEvent) {
+      if (event.target !== event.currentTarget) {
+        event.stopPropagation();
+        return;
+      }
+      if (event.key !== 'Enter') event.stopPropagation();
+    } else {
+      event.stopPropagation();
+    }
     // When range selection is on, focus + range are managed by the pointer-drag
     // handler (onTableMouseDown); a plain click just focuses here for keyboard.
     this.focusedCell.set({ rowIndex, columnKey: key });
@@ -4592,10 +4600,9 @@ export class DataTableComponent<T>
    * cell, and an Enter / F2 that opened an editor does not propagate further.
    */
   onTableKeydown(event: KeyboardEvent): void {
-    // The scroller also holds the floating-filter row and the open cell editor. A text control owns its keys
-    // (caret movement, Enter, Ctrl+Z/C/V, Escape), and a key something below already handled (a nested grid, a
-    // consumer's control) is not handled twice.
-    if (event.defaultPrevented || isTextEntry(event.target, this._el.nativeElement)) return;
+    // composedPath()[0] is the real origin: `target` is retargeted to the host when the key comes from a shadow root.
+    const origin = event.composedPath()[0] ?? event.target;
+    if (event.defaultPrevented || isTextEntry(origin, this._el.nativeElement)) return;
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
     if (this.handleHistoryKeydown(event)) return;
@@ -5146,7 +5153,8 @@ export class DataTableComponent<T>
     if (event.key === 'Enter') {
       event.preventDefault();
       event.stopPropagation();
-      this.commitEdit();
+      // The Enter that opened this editor repeats while held and would commit it at once.
+      if (!event.repeat) this.commitEdit();
       return;
     }
 
