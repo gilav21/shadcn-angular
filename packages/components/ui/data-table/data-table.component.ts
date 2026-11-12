@@ -160,8 +160,22 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
-/** Keys the grid's own checkbox / expander button keep for themselves; every other grid shortcut still works from them. */
+/** Keys the grid's own checkbox / expander button keep for themselves; arrows and the like still move the grid from them. */
 const CONTROL_OWNED_KEYS = new Set(['Enter', 'F2', ' ', 'Tab']);
+
+const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'file', 'range', 'color', 'hidden']);
+
+/** Ctrl/Cmd + C, V, Z or Y: the grid's copy, paste, undo and redo. */
+function isShortcut(event: KeyboardEvent): boolean {
+  return (event.ctrlKey || event.metaKey) && ['c', 'v', 'z', 'y'].includes(event.key.toLowerCase());
+}
+
+/** A control whose own Ctrl+C/V/Z/Y mean text operations (caret, selection, its own undo). */
+function isTextEntry(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
+  return target instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.has(target.type);
+}
 
 /** Mirrors a data row's selection to assistive tech, and clears it when the grid stops being selectable. */
 function stampRowSelection(row: Element, selectable: boolean): void {
@@ -4711,12 +4725,18 @@ export class DataTableComponent<T>
   }
 
   /**
-   * A key is the grid's when it comes from the scroller or one of its own data cells, or when it is a key the
-   * grid's own checkbox / expander button does not keep for itself (they keep DOM focus after a click, so copying
-   * the selected rows, undo and arrows from a focused cell still work from them).
+   * Whether a key is the grid's. A key something below it already handled (a nested grid, a consumer's control) is
+   * not: it called preventDefault. Otherwise, by the kind of key:
+   * - from the scroller or one of its own data cells: every key;
+   * - copy, paste, undo, redo: from any control that does not edit text, because they mean nothing to a button,
+   *   checkbox or menu and the focus a click leaves there (row or header checkbox, an action button) must not
+   *   lose them; a text control keeps its own;
+   * - navigation: also from the grid's own row checkbox and expander button, except the keys they keep.
    */
   private isGridKey(event: KeyboardEvent): boolean {
+    if (event.defaultPrevented) return false;
     if (this.isGridKeyTarget(event.target)) return true;
+    if (isShortcut(event)) return !isTextEntry(event.target);
     return !CONTROL_OWNED_KEYS.has(event.key) && this.isGridChromeControl(event.target);
   }
 

@@ -51,7 +51,9 @@ describe('data-table keydown scope', () => {
 
     it('keys typed into a floating-filter input are left to the input', async () => {
         const { root, table, pressedKeysPrevented } = await mount();
-        const filter = Array.from(root.querySelectorAll('input')).find((el) => !el.closest('[data-row-index]'))!;
+        // With row selection on, the header's select-all checkbox is also an input outside the data rows.
+        const filter = Array.from(root.querySelectorAll('input')).find((el) => el.type === 'text' && !el.closest('[data-row-index]'))!;
+        expect(filter).toBeDefined();
         expect(pressedKeysPrevented(filter)).toEqual([]);
         expect(table.editingCell()).toBeNull();
     });
@@ -76,19 +78,15 @@ describe('data-table keydown scope', () => {
         expect(reachedAncestor).toBe(false);
     });
 
-    it('a control inside a cell keeps its own keys', async () => {
+    it('a button in a header or in a cell keeps its navigation and activation keys', async () => {
         const { root, table, pressedKeysPrevented } = await mount();
-        const button = document.createElement('button');
-        root.querySelector('[data-row-index="0"] [data-column="name"]')!.append(button);
-        expect(pressedKeysPrevented(button)).toEqual([]);
+        const headerButton = root.querySelector('[data-slot="table-header"] button')!;
+        const cellButton = document.createElement('button');
+        root.querySelector('[data-row-index="0"] [data-column="name"]')!.append(cellButton);
+        const keys = [{ key: 'ArrowLeft' }, { key: 'ArrowDown' }, { key: 'Home' }, { key: 'Enter' }, { key: 'F2' }];
+        expect(pressedKeysPrevented(headerButton, keys)).toEqual([]);
+        expect(pressedKeysPrevented(cellButton, keys)).toEqual([]);
         expect(table.editingCell()).toBeNull();
-    });
-
-    it('keys from a header control are not grid keys', async () => {
-        const { root, pressedKeysPrevented } = await mount();
-        const headerButton = root.querySelector('[data-slot="table-header"] button');
-        expect(headerButton).not.toBeNull();
-        expect(pressedKeysPrevented(headerButton!)).toEqual([]);
     });
 
     it('Enter on a cell that cannot be edited is not swallowed', async () => {
@@ -111,8 +109,17 @@ describe('data-table keydown scope', () => {
         innerCell.dataset['column'] = 'name';
         inner.append(innerCell);
         root.querySelector('[data-row-index="0"] [data-column="name"]')!.append(inner);
-        expect(pressedKeysPrevented(innerCell)).toEqual([]);
+        expect(pressedKeysPrevented(innerCell, KEYS.filter((init) => !init.ctrlKey))).toEqual([]);
         expect(table.editingCell()).toBeNull();
+    });
+
+    it('a key something below the grid already handled is not handled again', async () => {
+        const { root, table } = await mount();
+        const cell = root.querySelector('[data-row-index="0"] [data-column="id"]')!;
+        cell.addEventListener('keydown', (event) => event.preventDefault()); // what a nested grid or a control does
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        cell.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+        expect(table.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
     });
 
     it('from the row checkbox, which keeps focus after a click, ArrowDown still enters the grid but its own Enter and Tab stay with it', async () => {
@@ -151,7 +158,7 @@ describe('data-table keydown scope', () => {
         expect(reachedAncestor).toBe(false);
     });
 
-    it('copying the selected rows works from the row checkbox that keeps focus after a click', async () => {
+    it('copying the selected rows works from any control that does not edit text, such as the checkboxes a click leaves focus on', async () => {
         const { root, table } = await mount();
         const written: string[] = [];
         vi.spyOn(navigator.clipboard, 'writeText').mockImplementation((text: string) => {
@@ -160,9 +167,18 @@ describe('data-table keydown scope', () => {
         });
         table.focusedCell.set(null);
         table.rowSelection.set({ '1': true });
-        const checkbox = root.querySelector('[data-row-index="0"] [data-column="_selection"] input[type="checkbox"]')!;
-        checkbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true }));
-        expect(written.join('')).toContain('Ann');
+        const actionButton = document.createElement('button');
+        root.querySelector('[data-row-index="0"] [data-column="name"]')!.append(actionButton);
+        const holders = [
+            root.querySelector('[data-row-index="0"] [data-column="_selection"] input[type="checkbox"]')!,
+            root.querySelector('[data-slot="table-header"] input[type="checkbox"]')!,
+            actionButton,
+        ];
+        for (const holder of holders) {
+            written.length = 0;
+            holder.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true }));
+            expect(written.join(''), holder.outerHTML.slice(0, 40)).toContain('Ann');
+        }
     });
 
     it('a table in consumer content ahead of the grid does not take over ownership', async () => {
