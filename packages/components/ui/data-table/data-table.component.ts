@@ -160,20 +160,11 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
-/** Keys the grid's own checkbox / expander button keep for themselves; arrows and the like still move the grid from them. */
-const CONTROL_OWNED_KEYS = new Set(['Enter', 'F2', ' ', 'Tab']);
-
 const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'file', 'range', 'color', 'hidden']);
-
-/** Ctrl/Cmd + C, V, Z or Y (the grid's copy, paste, undo, redo) and Escape (clears the cell range). */
-function isShortcut(event: KeyboardEvent): boolean {
-  if (event.key === 'Escape') return true;
-  return (event.ctrlKey || event.metaKey) && ['c', 'v', 'z', 'y'].includes(event.key.toLowerCase());
-}
 
 const TEXT_ENTRY_ROLES = '[role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"]';
 
-/** A control whose own shortcuts mean text operations or its own dismissal (caret, selection, undo, type-ahead, Escape). */
+/** A control that owns its keys: caret movement, Enter, its own undo and copy, type-ahead, Escape. */
 function isTextEntry(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
@@ -4588,10 +4579,10 @@ export class DataTableComponent<T>
    * handle the event stops the chain.
    */
   onTableKeydown(event: KeyboardEvent): void {
-    // The scroller also holds the floating-filter row, the header controls and the open cell editor.
-    // Their keys (caret movement, Enter, Ctrl+Z/C/V, arrows) belong to them: the grid acts only on
-    // keys that are the grid's, whatever the control is.
-    if (!this.isGridKey(event)) return;
+    // The scroller also holds the floating-filter row and the open cell editor. A text control owns its keys
+    // (caret movement, Enter, Ctrl+Z/C/V, Escape), and a key something below already handled (a nested grid, a
+    // consumer's control) is not handled twice.
+    if (event.defaultPrevented || isTextEntry(event.target)) return;
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
     if (this.handleHistoryKeydown(event)) return;
@@ -4717,60 +4708,10 @@ export class DataTableComponent<T>
     return container ? Math.floor(container.clientHeight / this.effectiveRowHeight()) : 10;
   }
 
-  /**
-   * Whether an element belongs to this grid rather than to a grid nested in one of its cells (or to other
-   * consumer content in the scroller): its table sits inside the scroller and is not itself inside one of
-   * this grid's cells. This grid may in turn sit in another grid's cell, which is outside its scroller.
-   */
-  private ownsElement(el: HTMLElement): boolean {
-    const scroller = this.scrollContainerRef()?.nativeElement;
-    const table = el.closest('[data-slot="table"]');
-    if (!scroller || !table || !scroller.contains(table)) return false;
-    const hostCell = table.closest('[data-column]');
-    return hostCell === null || !scroller.contains(hostCell);
-  }
-
-  /**
-   * Whether a key is the grid's. A key something below it already handled (a nested grid, a consumer's control) is
-   * not: it called preventDefault. Otherwise, by the kind of key:
-   * - from the scroller or one of its own data cells: every key;
-   * - copy, paste, undo, redo: from any control that does not edit text, because they mean nothing to a button,
-   *   checkbox or menu and the focus a click leaves there (row or header checkbox, an action button) must not
-   *   lose them; a text control keeps its own;
-   * - navigation: also from the grid's own row checkbox and expander button, except the keys they keep.
-   */
-  private isGridKey(event: KeyboardEvent): boolean {
-    if (event.defaultPrevented) return false;
-    if (this.isGridKeyTarget(event.target)) return true;
-    if (isShortcut(event)) return !isTextEntry(event.target) && !this.inNestedGrid(event.target);
-    return !CONTROL_OWNED_KEYS.has(event.key) && this.isGridChromeControl(event.target);
-  }
-
-  /** Whether the target sits in a grid nested in one of this grid's cells: that grid decides its own keys. */
-  private inNestedGrid(target: EventTarget | null): boolean {
-    const scroller = this.scrollContainerRef()?.nativeElement;
-    if (!scroller || !(target instanceof HTMLElement)) return false;
-    const table = target.closest('[data-slot="table"]');
-    const hostCell = table?.closest('[data-column]');
-    return hostCell != null && scroller.contains(hostCell);
-  }
-
-  private isGridKeyTarget(target: EventTarget | null): boolean {
-    if (target === null) return true;
-    if (!(target instanceof HTMLElement)) return false;
-    if (target === this.scrollContainerRef()?.nativeElement) return true;
-    return target.dataset['column'] !== undefined && this.ownsElement(target);
-  }
-
-  /**
-   * The grid's own checkbox and expander button in its selection / expander cells. Not the actions
-   * cell: it hosts consumer menus and inputs that own their arrows. See {@link CONTROL_OWNED_KEYS}.
-   */
-  private isGridChromeControl(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) return false;
-    const column = target.closest<HTMLElement>('[data-column]')?.dataset['column'];
-    const isGridControl = target.matches('input[type="checkbox"], button');
-    return isGridControl && (column === '_selection' || column === '_expander') && this.ownsElement(target);
+  /** Enter / F2 open the editor only from the scroller or a data cell, not from a header or cell control that keeps its own Enter. */
+  private isEditKeyTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return true;
+    return target === this.scrollContainerRef()?.nativeElement || target.dataset['column'] !== undefined;
   }
 
   private handleNavigationKeydown(event: KeyboardEvent): void {
@@ -4784,7 +4725,7 @@ export class DataTableComponent<T>
 
     if (event.key === 'Enter' || event.key === 'F2') {
       const focused = this.focusedCell();
-      if (focused) {
+      if (focused && this.isEditKeyTarget(event.target)) {
         this.startEditing(focused.rowIndex, focused.columnKey);
         // Only an edit that opened has handled the key; otherwise an ancestor's Enter (a dialog's submit) still fires.
         if (this.editingCell() !== null) {
