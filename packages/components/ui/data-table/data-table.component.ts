@@ -160,16 +160,6 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
-const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'file', 'range', 'color']);
-
-/** Whether a key event came from a control that edits text, so its keys belong to that control and not to the grid. */
-function isTextEntryTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable) return true;
-  if (target instanceof HTMLInputElement) return !NON_TEXT_INPUT_TYPES.has(target.type);
-  return target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
-}
-
 /** Mirrors a data row's selection to assistive tech, and clears it when the grid stops being selectable. */
 function stampRowSelection(row: Element, selectable: boolean): void {
   if (!(row instanceof HTMLElement) || row.dataset['rowIndex'] === undefined) return;
@@ -4391,8 +4381,9 @@ export class DataTableComponent<T>
     const key = String(col.accessorKey);
     if (key === "_selection" || key === "_expander" || key === "_actions")
       return;
-    // A click must not reach onTableClick (it clears the focus); a key must reach onTableKeydown (Enter / F2 edit).
-    if (event.type === 'click') event.stopPropagation();
+    // A click must not reach onTableClick (it clears the focus). A key from the cell itself must reach
+    // onTableKeydown (Enter / F2 edit); one bubbling up from a control inside the cell stays with that control.
+    if (event.type === 'click' || event.target !== event.currentTarget) event.stopPropagation();
     // When range selection is on, focus + range are managed by the pointer-drag
     // handler (onTableMouseDown); a plain click just focuses here for keyboard.
     this.focusedCell.set({ rowIndex, columnKey: key });
@@ -4573,9 +4564,10 @@ export class DataTableComponent<T>
    * handle the event stops the chain.
    */
   onTableKeydown(event: KeyboardEvent): void {
-    // The scroller also holds the floating-filter row and the open cell editor. A text-entry
-    // control owns its keys (caret movement, Enter, Ctrl+Z/C/V): the grid must not act on them.
-    if (isTextEntryTarget(event.target)) return;
+    // The scroller also holds the floating-filter row, the header controls and the open cell editor.
+    // Their keys (caret movement, Enter, Ctrl+Z/C/V, arrows) belong to them: the grid acts only on
+    // keys from the scroller or a data cell, whatever the control is.
+    if (!this.isGridKeyTarget(event.target)) return;
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
     if (this.handleHistoryKeydown(event)) return;
@@ -4717,9 +4709,10 @@ export class DataTableComponent<T>
 
     if (event.key === 'Enter' || event.key === 'F2') {
       const focused = this.focusedCell();
-      // A button or link inside a cell keeps its own Enter.
-      if (focused && this.isGridKeyTarget(event.target)) {
+      if (focused) {
         event.preventDefault();
+        // Handled here: an ancestor's Enter handler (a dialog's submit) must not also fire.
+        event.stopPropagation();
         this.startEditing(focused.rowIndex, focused.columnKey);
       }
       return;

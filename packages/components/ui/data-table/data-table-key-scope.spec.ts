@@ -63,10 +63,28 @@ describe('data-table keydown scope', () => {
         expect(pressedKeysPrevented(editor).filter((key) => key !== 'Enter')).toEqual([]);
     });
 
-    it('the grid still handles the same keys from a cell', async () => {
+    it('the grid handles Enter from a cell, and does not let it reach an ancestor handler', async () => {
         const { root, table } = await mount();
+        let reachedAncestor = false;
+        root.addEventListener('keydown', () => (reachedAncestor = true));
         const cell = root.querySelector('[data-row-index="0"] [data-column="name"]')!;
         cell.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
         expect(table.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
+        expect(reachedAncestor).toBe(false);
+    });
+
+    it('a control inside a cell keeps its own keys', async () => {
+        const { root, table, pressedKeysPrevented } = await mount();
+        const button = document.createElement('button');
+        root.querySelector('[data-row-index="0"] [data-column="name"]')!.append(button);
+        expect(pressedKeysPrevented(button)).toEqual([]);
+        expect(table.editingCell()).toBeNull();
+    });
+
+    it('keys from a header control are not grid keys', async () => {
+        const { root, pressedKeysPrevented } = await mount();
+        const headerButton = root.querySelector('[data-slot="table-header"] button');
+        expect(headerButton).not.toBeNull();
+        expect(pressedKeysPrevented(headerButton!)).toEqual([]);
     });
 });
