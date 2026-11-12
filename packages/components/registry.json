@@ -930,6 +930,7 @@
       "data-table/data-table-paste.spec.ts",
       "data-table/data-table-pinned-resize.spec.ts",
       "data-table/data-table-query.spec.ts",
+      "data-table/data-table-roving-focus.spec.ts",
       "data-table/data-table-view-state.spec.ts",
       "data-table/data-table-virtual-scroll.spec.ts",
       "data-table/data-table.component.spec.ts",
