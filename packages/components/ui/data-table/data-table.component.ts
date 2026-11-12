@@ -160,12 +160,14 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
-const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'file', 'range', 'color', 'hidden']);
+/** Inputs whose keys are not the control's own: a checkbox or button has no arrows, caret or undo (a range and a radio do). */
+const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'button', 'submit', 'reset', 'image', 'file', 'color', 'hidden']);
 
-const TEXT_ENTRY_ROLES = '[role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"]';
+const TEXT_ENTRY_ROLES = '[role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"], [role="slider"]';
 
 /**
- * A control that owns its keys: caret movement, Enter, its own undo and copy, type-ahead, Escape. The role is looked
+ * A control that owns its keys: caret movement, a slider's or radio group's arrows, Enter, its own undo and copy,
+ * type-ahead, Escape. The role is looked
  * for only inside `boundary`: a grid embedded in a textbox or combobox of the host page is not itself one.
  */
 function isTextEntry(target: EventTarget | null, boundary: Element): boolean {

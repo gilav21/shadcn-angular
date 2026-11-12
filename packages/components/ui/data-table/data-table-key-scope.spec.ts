@@ -59,9 +59,11 @@ describe('data-table keydown scope', () => {
         const scroller = root.querySelector('[data-row-index]')!.closest('[tabindex]')!;
         const filter = Array.from(scroller.querySelectorAll('input')).find((el) => el.type === 'text' && !el.closest('[data-row-index]'))!;
         expect(filter).toBeDefined(); // inside the scroller, so its keys really do reach the grid handler
-        const targets = [filter, document.createElement('select'), document.createElement('div'), document.createElement('div')];
-        targets[2].setAttribute('role', 'textbox');
-        targets[3].contentEditable = 'true';
+        const range = document.createElement('input');
+        range.type = 'range';
+        const targets = [filter, document.createElement('select'), range, document.createElement('div'), document.createElement('div')];
+        targets[3].setAttribute('role', 'textbox');
+        targets[4].contentEditable = 'true';
         cell(0, 'id').append(...targets.slice(1));
         for (const target of targets) expect(pressedKeysPrevented(target), target.outerHTML.slice(0, 40)).toEqual([]);
         expect(table.editingCell()).toBeNull();
@@ -97,17 +99,30 @@ describe('data-table keydown scope', () => {
         expect(table.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
     });
 
-    it('Enter from a cell opens the editor and stops there; from a cell that cannot be edited it is left alone', async () => {
+    it('Enter on the cell that holds focus opens the editor and stops there', async () => {
+        const { root, table, press } = await mount();
+        let reachedAncestor = false;
+        root.addEventListener('keydown', () => {
+            reachedAncestor = true;
+        });
+        const scroller = root.querySelector('[data-row-index]')!.closest<HTMLElement>('[tabindex]')!;
+        table.focusedCell.set(null);
+        scroller.focus();
+        press(document.activeElement!, { key: 'ArrowDown' }); // focus moves onto the first cell, as a user's would
+        press(document.activeElement!, { key: 'ArrowRight' });
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        reachedAncestor = false;
+        press(document.activeElement!, { key: 'Enter' });
+        expect(table.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
+        expect(reachedAncestor).toBe(false);
+    });
+
+    it('Enter on a cell that cannot be edited is left alone', async () => {
         const { root, table, cell, press } = await mount();
         let reachedAncestor = false;
         root.addEventListener('keydown', () => {
             reachedAncestor = true;
         });
-        press(cell(0, 'name'), { key: 'Enter' });
-        expect(table.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
-        expect(reachedAncestor).toBe(false);
-
-        table.cancelEdit();
         table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
         const event = press(cell(0, 'id'), { key: 'Enter' });
         expect(table.editingCell()).toBeNull();
@@ -127,14 +142,17 @@ describe('data-table keydown scope', () => {
         expect(table.editingCell()).toBeNull();
     });
 
-    it('a key from a control inside a cell does not move the focused cell, and Space stops at the cell', async () => {
-        const { root, table, cell, press } = await mount();
+    it('a key from a control inside a cell does not move the focused cell', async () => {
+        const { table, cell, press } = await mount();
         const button = document.createElement('button');
         cell(1, 'name').append(button);
         table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
         press(button, { key: 'Enter' });
         expect(table.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
+    });
 
+    it('Space on a cell stops at the cell', async () => {
+        const { root, cell, press } = await mount();
         let reachedAncestor = false;
         root.addEventListener('keydown', () => {
             reachedAncestor = true;
