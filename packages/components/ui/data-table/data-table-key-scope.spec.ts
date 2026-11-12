@@ -16,7 +16,7 @@ const columns: ColumnDef<Row>[] = [
 @Component({
     standalone: true,
     imports: [DataTableComponent],
-    template: `<ui-data-table [data]="data()" [columns]="columns" [enableFloatingFilters]="true" [enableEditHistory]="true" [paginationState]="{ pageIndex: 0, pageSize: 100 }" />`,
+    template: `<ui-data-table [data]="data()" [columns]="columns" [enableFloatingFilters]="true" [enableEditHistory]="true" [enableRowSelection]="true" [paginationState]="{ pageIndex: 0, pageSize: 100 }" />`,
 })
 class Host {
     readonly table = viewChild.required(DataTableComponent<Row>);
@@ -86,5 +86,42 @@ describe('data-table keydown scope', () => {
         const headerButton = root.querySelector('[data-slot="table-header"] button');
         expect(headerButton).not.toBeNull();
         expect(pressedKeysPrevented(headerButton!)).toEqual([]);
+    });
+
+    it('Enter on a cell that cannot be edited is not swallowed', async () => {
+        const { root, table } = await mount();
+        let reachedAncestor = false;
+        root.addEventListener('keydown', () => (reachedAncestor = true));
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        root.querySelector('[data-row-index="0"] [data-column="id"]')!
+            .dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        expect(table.editingCell()).toBeNull();
+        expect(reachedAncestor).toBe(true);
+    });
+
+    it('a grid nested in a cell is not this grid', async () => {
+        const { root, table, pressedKeysPrevented } = await mount();
+        const inner = document.createElement('div');
+        inner.dataset['slot'] = 'table';
+        const innerCell = document.createElement('div');
+        innerCell.dataset['column'] = 'name';
+        inner.append(innerCell);
+        root.querySelector('[data-row-index="0"] [data-column="name"]')!.append(inner);
+        expect(pressedKeysPrevented(innerCell)).toEqual([]);
+        expect(table.editingCell()).toBeNull();
+    });
+
+    it('arrow keys still move from the row checkbox, but its Enter is not a grid key', async () => {
+        const { root, table } = await mount();
+        const checkbox = root.querySelector('[data-row-index="0"] [data-column="_selection"] button, [data-row-index="0"] [data-column="_selection"] input')!;
+        const press = (key: string) => {
+            const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+            checkbox.dispatchEvent(event);
+            return event.defaultPrevented;
+        };
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        expect(press('ArrowDown')).toBe(true);
+        expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
+        expect(press('Enter')).toBe(false);
     });
 });

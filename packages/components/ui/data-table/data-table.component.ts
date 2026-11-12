@@ -160,6 +160,8 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
+const GRID_MOVE_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']);
+
 /** Mirrors a data row's selection to assistive tech, and clears it when the grid stops being selectable. */
 function stampRowSelection(row: Element, selectable: boolean): void {
   if (!(row instanceof HTMLElement) || row.dataset['rowIndex'] === undefined) return;
@@ -4566,8 +4568,9 @@ export class DataTableComponent<T>
   onTableKeydown(event: KeyboardEvent): void {
     // The scroller also holds the floating-filter row, the header controls and the open cell editor.
     // Their keys (caret movement, Enter, Ctrl+Z/C/V, arrows) belong to them: the grid acts only on
-    // keys from the scroller or a data cell, whatever the control is.
-    if (!this.isGridKeyTarget(event.target)) return;
+    // keys from the scroller or one of its own data cells, whatever the control is. The one exception
+    // is moving: the row checkbox and tree expander keep DOM focus after a click, and arrows still move.
+    if (!this.isGridKeyTarget(event.target) && !(GRID_MOVE_KEYS.has(event.key) && this.isGridChromeControl(event.target))) return;
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
     if (this.handleHistoryKeydown(event)) return;
@@ -4693,9 +4696,22 @@ export class DataTableComponent<T>
     return container ? Math.floor(container.clientHeight / this.effectiveRowHeight()) : 10;
   }
 
+  /** The grid this table owns; a grid nested in a cell has its own, so a bare `data-column` is not proof of ownership. */
+  private ownsElement(el: HTMLElement): boolean {
+    return el.closest('[data-slot="table"]') === this._el.nativeElement.querySelector('[data-slot="table"]');
+  }
+
   private isGridKeyTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return true;
-    return target === this.scrollContainerRef()?.nativeElement || target.dataset['column'] !== undefined;
+    if (target === this.scrollContainerRef()?.nativeElement) return true;
+    return target.dataset['column'] !== undefined && this.ownsElement(target);
+  }
+
+  /** A control the grid draws in its own cells (row checkbox, tree expander, actions). */
+  private isGridChromeControl(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+    const column = target.closest<HTMLElement>('[data-column]')?.dataset['column'];
+    return (column === '_selection' || column === '_expander' || column === '_actions') && this.ownsElement(target);
   }
 
   private handleNavigationKeydown(event: KeyboardEvent): void {
@@ -4711,9 +4727,9 @@ export class DataTableComponent<T>
       const focused = this.focusedCell();
       if (focused) {
         event.preventDefault();
-        // Handled here: an ancestor's Enter handler (a dialog's submit) must not also fire.
-        event.stopPropagation();
         this.startEditing(focused.rowIndex, focused.columnKey);
+        // Only an edit that opened has handled the key; otherwise an ancestor's Enter (a dialog's submit) still fires.
+        if (this.editingCell() !== null) event.stopPropagation();
       }
       return;
     }
