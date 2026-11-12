@@ -56,12 +56,14 @@ describe('data-table keydown scope', () => {
     it('keys typed into a floating-filter input or a select are left to the control', async () => {
         const { root, table, cell, pressedKeysPrevented } = await mount();
         // With row selection on, the header's select-all checkbox is also an input outside the data rows.
-        const filter = Array.from(root.querySelectorAll('input')).find((el) => el.type === 'text' && !el.closest('[data-row-index]'))!;
-        const select = document.createElement('select');
-        cell(0, 'id').append(select);
-        expect(filter).toBeDefined();
-        expect(pressedKeysPrevented(filter)).toEqual([]);
-        expect(pressedKeysPrevented(select)).toEqual([]);
+        const scroller = root.querySelector('[data-row-index]')!.closest('[tabindex]')!;
+        const filter = Array.from(scroller.querySelectorAll('input')).find((el) => el.type === 'text' && !el.closest('[data-row-index]'))!;
+        expect(filter).toBeDefined(); // inside the scroller, so its keys really do reach the grid handler
+        const targets = [filter, document.createElement('select'), document.createElement('div'), document.createElement('div')];
+        targets[2].setAttribute('role', 'textbox');
+        targets[3].contentEditable = 'true';
+        cell(0, 'id').append(...targets.slice(1));
+        for (const target of targets) expect(pressedKeysPrevented(target), target.outerHTML.slice(0, 40)).toEqual([]);
         expect(table.editingCell()).toBeNull();
     });
 
@@ -75,6 +77,18 @@ describe('data-table keydown scope', () => {
         expect(pressedKeysPrevented(editor, KEYS.filter((init) => init.key !== 'Enter' && init.key !== 'Escape'))).toEqual([]);
     });
 
+    it('a grid embedded in a textbox of the host page still handles its keys', async () => {
+        const { root, table, cell, press } = await mount();
+        const wrapper = document.createElement('div');
+        wrapper.setAttribute('role', 'textbox');
+        document.body.append(wrapper);
+        wrapper.append(root);
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        press(cell(0, 'id'), { key: 'ArrowDown' });
+        expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
+        wrapper.remove();
+    });
+
     it('a key something below the grid already handled is not handled again', async () => {
         const { table, cell, press } = await mount();
         cell(0, 'id').addEventListener('keydown', (event) => event.preventDefault()); // what a nested grid or a control does
@@ -86,7 +100,9 @@ describe('data-table keydown scope', () => {
     it('Enter from a cell opens the editor and stops there; from a cell that cannot be edited it is left alone', async () => {
         const { root, table, cell, press } = await mount();
         let reachedAncestor = false;
-        root.addEventListener('keydown', () => (reachedAncestor = true));
+        root.addEventListener('keydown', () => {
+            reachedAncestor = true;
+        });
         press(cell(0, 'name'), { key: 'Enter' });
         expect(table.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
         expect(reachedAncestor).toBe(false);
@@ -120,7 +136,9 @@ describe('data-table keydown scope', () => {
         expect(table.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
 
         let reachedAncestor = false;
-        root.addEventListener('keydown', () => (reachedAncestor = true));
+        root.addEventListener('keydown', () => {
+            reachedAncestor = true;
+        });
         press(cell(0, 'name'), { key: ' ' });
         expect(reachedAncestor).toBe(false);
     });

@@ -164,11 +164,15 @@ const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', '
 
 const TEXT_ENTRY_ROLES = '[role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"]';
 
-/** A control that owns its keys: caret movement, Enter, its own undo and copy, type-ahead, Escape. */
-function isTextEntry(target: EventTarget | null): boolean {
+/**
+ * A control that owns its keys: caret movement, Enter, its own undo and copy, type-ahead, Escape. The role is looked
+ * for only inside `boundary`: a grid embedded in a textbox or combobox of the host page is not itself one.
+ */
+function isTextEntry(target: EventTarget | null, boundary: Element): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
-  if (target.closest(TEXT_ENTRY_ROLES) !== null) return true;
+  const roleHost = target.closest(TEXT_ENTRY_ROLES);
+  if (roleHost !== null && boundary.contains(roleHost)) return true;
   return target instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.has(target.type);
 }
 
@@ -4577,12 +4581,19 @@ export class DataTableComponent<T>
    * (`Ctrl/Cmd+V`), undo/redo (`Ctrl/Cmd+Z`/`Y`), then arrow/Home/End/Enter cell
    * navigation. Each stage is gated by its feature input, and the first one to
    * handle the event stops the chain.
+   *
+   * A text-entry control (text input, textarea, select, contenteditable, a
+   * textbox / combobox / searchbox / spinbutton role) inside the grid owns its
+   * keys, as does anything that already called `preventDefault` below the grid
+   * (a nested grid, a consumer's control): the grid does not act on those. Enter
+   * and F2 open the editor only when they come from the scroller or a data
+   * cell, and an Enter / F2 that opened an editor does not propagate further.
    */
   onTableKeydown(event: KeyboardEvent): void {
     // The scroller also holds the floating-filter row and the open cell editor. A text control owns its keys
     // (caret movement, Enter, Ctrl+Z/C/V, Escape), and a key something below already handled (a nested grid, a
     // consumer's control) is not handled twice.
-    if (event.defaultPrevented || isTextEntry(event.target)) return;
+    if (event.defaultPrevented || isTextEntry(event.target, this._el.nativeElement)) return;
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
     if (this.handleHistoryKeydown(event)) return;
@@ -4710,7 +4721,8 @@ export class DataTableComponent<T>
 
   /** Enter / F2 open the editor only from the scroller or a data cell, not from a header or cell control that keeps its own Enter. */
   private isEditKeyTarget(target: EventTarget | null): boolean {
-    if (!(target instanceof HTMLElement)) return true;
+    if (target === null) return true;
+    if (!(target instanceof HTMLElement)) return false;
     return target === this.scrollContainerRef()?.nativeElement || target.dataset['column'] !== undefined;
   }
 
