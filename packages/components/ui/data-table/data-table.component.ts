@@ -330,7 +330,7 @@ export class DataTableComponent<T>
   isRtl(): boolean {
     return isRtl(this._el.nativeElement);
   }
-  private _isRtlResize = false;
+  private _resizeGrowthSign: 1 | -1 = 1;
 
   /**
    * The row array. A `model`, and the table *does* write back to it: inline
@@ -6285,9 +6285,10 @@ export class DataTableComponent<T>
 
   /**
    * Begins a mouse column resize from the header's drag handle, capturing the
-   * start width and attaching document move/up listeners. The RTL delta is
-   * inverted from the host's live direction, so the handle drags the way the
-   * column visually grows.
+   * start width and attaching document move/up listeners. The drag delta is
+   * signed by which way the column's edge actually moves (`resizeGrowthSign`):
+   * flow direction (RTL-aware), reversed for a pinned column stuck to the
+   * viewport edge.
    */
   onResizeStart(event: MouseEvent, col: CellStyleColumn): void {
     event.preventDefault();
@@ -6325,6 +6326,31 @@ export class DataTableComponent<T>
     return `${base} bg-transparent group-hover/resize:bg-primary/50`;
   }
 
+  /**
+   * Which way a drag moves the column's far edge: +1 grows the column toward the right, -1 toward the left.
+   * A pinned column that is actually stuck to its viewport edge is held there by its `left`/`right` offset, so a
+   * right-pinned one grows leftwards and a left-pinned one rightwards. Everything else, including a pinned column
+   * sitting at its natural position because the table does not overflow, flows with the writing direction.
+   * Whether it is stuck is measured: the pin setting alone cannot tell.
+   */
+  private resizeGrowthSign(col: CellStyleColumn): 1 | -1 {
+    const flow = this.isRtl() ? -1 : 1;
+    if (!this.scrollsHorizontally()) return flow;
+    if (col._pin === "right") return -1;
+    if (col._pin === "left" || col.sticky) return 1;
+    return flow;
+  }
+
+  /**
+   * With horizontal overflow a pinned column is always held at its edge (stuck, or already at the end of the row);
+   * without it the column keeps its natural position. Comparing the cell's rect with the viewport is fragile
+   * (scrollbar, padding), so the overflow itself is the test. Unmeasurable: assume overflow.
+   */
+  private scrollsHorizontally(): boolean {
+    const container = this.scrollContainerRef()?.nativeElement;
+    return !container || container.scrollWidth > container.clientWidth + 1;
+  }
+
   private startResize(clientX: number, col: CellStyleColumn): void {
     const key = String(col.accessorKey);
     this._resizingColumn.set(col);
@@ -6332,7 +6358,7 @@ export class DataTableComponent<T>
     const actualWidth = this.getColumnActualWidth(key);
     this.resizeStartWidth = Number.parseInt(col._width, 10) || actualWidth || 150;
     this.resizeOldWidth = this.columnWidths()[key] ?? col._width ?? "auto";
-    this._isRtlResize = this.isRtl();
+    this._resizeGrowthSign = this.resizeGrowthSign(col);
 
     const onMouseMove = (e: MouseEvent): void => this.onResizeMove(e.clientX);
     const onTouchMove = (e: TouchEvent): void => {
@@ -6366,8 +6392,7 @@ export class DataTableComponent<T>
     if (!resizing) return;
 
     const delta = clientX - this.resizeStartX;
-    const effectiveDelta = this._isRtlResize ? -delta : delta;
-    const newWidth = Math.max(columnMinWidthPx(resizing), this.resizeStartWidth + effectiveDelta);
+    const newWidth = Math.max(columnMinWidthPx(resizing), this.resizeStartWidth + delta * this._resizeGrowthSign);
     const key = String(resizing.accessorKey);
 
     this.columnWidths.update((widths) => ({
