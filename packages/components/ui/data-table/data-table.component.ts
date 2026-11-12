@@ -5970,6 +5970,8 @@ export class DataTableComponent<T>
     if (blocked) return;
 
     const draggedRow = this.processedData().find(r => getId(r) === draggedId);
+    if (draggedRow && row && this.enableSubRows() && getId(draggedRow) !== getId(row)
+      && this.subtreeContains(draggedRow, getId(row), getId, this.getChildren())) return;
     const allowDropFn = this.rowDragAllowDrop();
     if (draggedRow && row && allowDropFn && !allowDropFn(draggedRow, row, position)) return;
 
@@ -6115,7 +6117,17 @@ export class DataTableComponent<T>
 
     const { remaining, removed } = this.removeFromTree(data, rowId, getId, getChildrenFn, setChildrenFn);
     if (!removed) return data;
+    // A node cannot move into itself or its own subtree: the target left the tree with it, so
+    // inserting would never match and the moved subtree would be dropped from the data.
+    if (this.subtreeContains(removed, targetId, getId, getChildrenFn)) return data;
     return this.insertIntoTree(remaining, removed, targetId, event.position, getId, getChildrenFn, setChildrenFn);
+  }
+
+  private subtreeContains(
+    node: T, id: string, getId: (r: T) => string, getChildrenFn: (r: T) => T[] | undefined
+  ): boolean {
+    if (getId(node) === id) return true;
+    return (getChildrenFn(node) ?? []).some(child => this.subtreeContains(child, id, getId, getChildrenFn));
   }
 
   private removeFromTree(

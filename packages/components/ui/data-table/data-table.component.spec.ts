@@ -5248,6 +5248,26 @@ describe('DataTableComponent - Tree row drag (tree mode)', () => {
         expect(unchanged).toEqual(T_DATA);
     });
 
+    it('a node cannot be dropped into its own subtree: reorderData keeps the tree, and the drag-over refuses the target', () => {
+        const a = T_DATA[0];
+        for (const target of [a, a.children![0]]) {
+            for (const position of ['above', 'on', 'below'] as const) {
+                const result = component.reorderData(structuredClone(T_DATA), {
+                    row: a, targetRow: target, position, previousId: null, nextId: null, fromIndex: 0, toIndex: 1,
+                });
+                expect(result, `${target.id} ${position}`).toEqual(T_DATA);
+            }
+        }
+
+        component.onRowDragStart({ dataTransfer: { effectAllowed: '', setData: vi.fn() } } as unknown as DragEvent, a);
+        const preventDefault = vi.fn();
+        component.onRowDragOver({
+            currentTarget: { getBoundingClientRect: () => ({ top: 0, height: 100, bottom: 100, left: 0, width: 100 }) },
+            clientY: 50, dataTransfer: { dropEffect: '' }, preventDefault, stopPropagation: vi.fn(),
+        } as unknown as DragEvent, 1); // row 1 is 'a1', a descendant of the dragged 'a'
+        expect(preventDefault).not.toHaveBeenCalled();
+    });
+
     function makeRowEl(top: number, height: number): HTMLElement {
         return { getBoundingClientRect: () => ({ top, height, bottom: top + height, left: 0, width: 100 }) } as unknown as HTMLElement;
     }
