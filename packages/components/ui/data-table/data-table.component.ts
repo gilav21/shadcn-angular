@@ -160,7 +160,8 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
-const GRID_MOVE_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown']);
+/** Keys the grid's own checkbox / expander button keep for themselves; every other grid shortcut still works from them. */
+const CONTROL_OWNED_KEYS = new Set(['Enter', 'F2', ' ', 'Tab']);
 
 /** Mirrors a data row's selection to assistive tech, and clears it when the grid stops being selectable. */
 function stampRowSelection(row: Element, selectable: boolean): void {
@@ -4570,8 +4571,9 @@ export class DataTableComponent<T>
     // The scroller also holds the floating-filter row, the header controls and the open cell editor.
     // Their keys (caret movement, Enter, Ctrl+Z/C/V, arrows) belong to them: the grid acts only on
     // keys from the scroller or one of its own data cells, whatever the control is. The one exception
-    // is moving: the row checkbox and tree expander keep DOM focus after a click, and arrows still move.
-    if (!this.isGridKeyTarget(event.target) && !(GRID_MOVE_KEYS.has(event.key) && this.isGridChromeControl(event.target))) return;
+    // is the grid's own row checkbox and tree expander: they keep DOM focus after a click, so moving, copying
+    // the selected rows and undo still work from them.
+    if (!this.isGridKeyTarget(event.target) && !(!CONTROL_OWNED_KEYS.has(event.key) && this.isGridChromeControl(event.target))) return;
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
     if (this.handleHistoryKeydown(event)) return;
@@ -4712,8 +4714,7 @@ export class DataTableComponent<T>
 
   /**
    * The grid's own checkbox and expander button in its selection / expander cells. Not the actions
-   * cell: it hosts consumer menus and inputs that own their arrows. Tab is deliberately not a grid move from
-   * here: from a checkbox it leaves the grid naturally.
+   * cell: it hosts consumer menus and inputs that own their arrows. See {@link CONTROL_OWNED_KEYS}.
    */
   private isGridChromeControl(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;

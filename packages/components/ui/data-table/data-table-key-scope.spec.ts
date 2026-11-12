@@ -2,7 +2,7 @@
 // into text controls. Those keys belong to the control: caret movement, Enter, Ctrl+Z/C/V must reach the browser.
 import { TestBed } from '@angular/core/testing';
 import { Component, signal, viewChild } from '@angular/core';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import type { ColumnDef } from './data-table.types';
 
@@ -123,20 +123,42 @@ describe('data-table keydown scope', () => {
         table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
         expect(press('ArrowDown')).toBe(true);
         expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
+        table.focusedCell.set({ rowIndex: 1, columnKey: 'name' }); // an editable cell, so a leaked Enter would open its editor
         expect(press('Enter')).toBe(false);
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' }); // mid-grid, where the grid would move on Tab
+        expect(press('Tab')).toBe(false);
+        expect(table.editingCell()).toBeNull();
     });
 
-    it('a text input hosted in the selection cell keeps its caret keys, and Space is not a grid key leak', async () => {
+    it('a text input hosted in the selection cell keeps its caret keys', async () => {
         const { root, table, pressedKeysPrevented } = await mount();
         const input = document.createElement('input');
         root.querySelector('[data-row-index="0"] [data-column="_selection"]')!.append(input);
         expect(pressedKeysPrevented(input)).toEqual([]);
         expect(table.editingCell()).toBeNull();
+    });
 
+    it('Space on a cell does not leak to an ancestor', async () => {
+        const { root } = await mount();
         let reachedAncestor = false;
         root.addEventListener('keydown', () => (reachedAncestor = true));
         root.querySelector('[data-row-index="0"] [data-column="name"]')!
             .dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
         expect(reachedAncestor).toBe(false);
+    });
+
+    it('copying the selected rows works from the row checkbox that keeps focus after a click', async () => {
+        const { root, table } = await mount();
+        const written: string[] = [];
+        vi.spyOn(navigator.clipboard, 'writeText').mockImplementation((text: string) => {
+            written.push(text);
+            return Promise.resolve();
+        });
+        table.focusedCell.set(null);
+        table.rowSelection.set({ '1': true });
+        const checkbox = root.querySelector('[data-row-index="0"] [data-column="_selection"] input[type="checkbox"]')!;
+        checkbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true }));
+        expect(written.join('')).toContain('Ann');
+        vi.restoreAllMocks();
     });
 });
