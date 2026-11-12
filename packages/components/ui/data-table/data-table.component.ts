@@ -4570,10 +4570,8 @@ export class DataTableComponent<T>
   onTableKeydown(event: KeyboardEvent): void {
     // The scroller also holds the floating-filter row, the header controls and the open cell editor.
     // Their keys (caret movement, Enter, Ctrl+Z/C/V, arrows) belong to them: the grid acts only on
-    // keys from the scroller or one of its own data cells, whatever the control is. The one exception
-    // is the grid's own row checkbox and tree expander: they keep DOM focus after a click, so moving, copying
-    // the selected rows and undo still work from them.
-    if (!this.isGridKeyTarget(event.target) && !(!CONTROL_OWNED_KEYS.has(event.key) && this.isGridChromeControl(event.target))) return;
+    // keys that are the grid's, whatever the control is.
+    if (!this.isGridKey(event)) return;
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
     if (this.handleHistoryKeydown(event)) return;
@@ -4699,10 +4697,27 @@ export class DataTableComponent<T>
     return container ? Math.floor(container.clientHeight / this.effectiveRowHeight()) : 10;
   }
 
-  /** The grid this table owns; a grid nested in a cell has its own, so a bare `data-column` is not proof of ownership. */
+  /**
+   * Whether an element belongs to this grid rather than to a grid nested in one of its cells (or to other
+   * consumer content in the scroller): its table sits inside the scroller and is not itself inside one of
+   * this grid's cells. This grid may in turn sit in another grid's cell, which is outside its scroller.
+   */
   private ownsElement(el: HTMLElement): boolean {
-    const own = this.scrollContainerRef()?.nativeElement.querySelector('[data-slot="table"]');
-    return own != null && el.closest('[data-slot="table"]') === own;
+    const scroller = this.scrollContainerRef()?.nativeElement;
+    const table = el.closest('[data-slot="table"]');
+    if (!scroller || !table || !scroller.contains(table)) return false;
+    const hostCell = table.closest('[data-column]');
+    return hostCell === null || !scroller.contains(hostCell);
+  }
+
+  /**
+   * A key is the grid's when it comes from the scroller or one of its own data cells, or when it is a key the
+   * grid's own checkbox / expander button does not keep for itself (they keep DOM focus after a click, so copying
+   * the selected rows, undo and arrows from a focused cell still work from them).
+   */
+  private isGridKey(event: KeyboardEvent): boolean {
+    if (this.isGridKeyTarget(event.target)) return true;
+    return !CONTROL_OWNED_KEYS.has(event.key) && this.isGridChromeControl(event.target);
   }
 
   private isGridKeyTarget(target: EventTarget | null): boolean {

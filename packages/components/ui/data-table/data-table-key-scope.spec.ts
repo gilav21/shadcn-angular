@@ -2,7 +2,7 @@
 // into text controls. Those keys belong to the control: caret movement, Enter, Ctrl+Z/C/V must reach the browser.
 import { TestBed } from '@angular/core/testing';
 import { Component, signal, viewChild } from '@angular/core';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import type { ColumnDef } from './data-table.types';
 
@@ -37,8 +37,8 @@ async function mount() {
     const root: HTMLElement = fixture.nativeElement;
     const table = fixture.componentInstance.table();
     table.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
-    const pressedKeysPrevented = (input: Element) =>
-        KEYS.filter((init) => {
+    const pressedKeysPrevented = (input: Element, keys = KEYS) =>
+        keys.filter((init) => {
             const event = new KeyboardEvent('keydown', { ...init, bubbles: true, cancelable: true });
             input.dispatchEvent(event);
             return event.defaultPrevented;
@@ -47,6 +47,8 @@ async function mount() {
 }
 
 describe('data-table keydown scope', () => {
+    afterEach(() => vi.restoreAllMocks());
+
     it('keys typed into a floating-filter input are left to the input', async () => {
         const { root, table, pressedKeysPrevented } = await mount();
         const filter = Array.from(root.querySelectorAll('input')).find((el) => !el.closest('[data-row-index]'))!;
@@ -60,7 +62,8 @@ describe('data-table keydown scope', () => {
         fixture.detectChanges();
         await fixture.whenStable();
         const editor = root.querySelector<HTMLInputElement>('[data-row-index] input[data-edit-input]')!;
-        expect(pressedKeysPrevented(editor).filter((key) => key !== 'Enter')).toEqual([]);
+        // Enter is the editor's own commit and would detach the input mid-sequence, so it is not in the list.
+        expect(pressedKeysPrevented(editor, KEYS.filter((init) => init.key !== 'Enter'))).toEqual([]);
     });
 
     it('the grid handles Enter from a cell, and does not let it reach an ancestor handler', async () => {
@@ -112,7 +115,7 @@ describe('data-table keydown scope', () => {
         expect(table.editingCell()).toBeNull();
     });
 
-    it('arrow keys still move from the row checkbox, but its Enter is not a grid key', async () => {
+    it('from the row checkbox, which keeps focus after a click, ArrowDown still enters the grid but its own Enter and Tab stay with it', async () => {
         const { root, table } = await mount();
         const checkbox = root.querySelector('[data-row-index="0"] [data-column="_selection"] input[type="checkbox"]')!;
         const press = (key: string) => {
@@ -120,13 +123,14 @@ describe('data-table keydown scope', () => {
             checkbox.dispatchEvent(event);
             return event.defaultPrevented;
         };
-        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        table.focusedCell.set(null); // a click on the checkbox bubbles to the scroller, which clears it
         expect(press('ArrowDown')).toBe(true);
-        expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
-        table.focusedCell.set({ rowIndex: 1, columnKey: 'name' }); // an editable cell, so a leaked Enter would open its editor
-        expect(press('Enter')).toBe(false);
-        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' }); // mid-grid, where the grid would move on Tab
+        expect(table.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
+
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' }); // mid-grid, where a leaked Tab would move on
         expect(press('Tab')).toBe(false);
+        table.focusedCell.set({ rowIndex: 1, columnKey: 'name' }); // editable, so a leaked Enter would open its editor
+        expect(press('Enter')).toBe(false);
         expect(table.editingCell()).toBeNull();
     });
 
@@ -159,6 +163,18 @@ describe('data-table keydown scope', () => {
         const checkbox = root.querySelector('[data-row-index="0"] [data-column="_selection"] input[type="checkbox"]')!;
         checkbox.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true, cancelable: true }));
         expect(written.join('')).toContain('Ann');
-        vi.restoreAllMocks();
+    });
+
+    it('a table in consumer content ahead of the grid does not take over ownership', async () => {
+        const { root, table } = await mount();
+        const scroller = root.querySelector('[data-row-index]')!.closest('[tabindex]')!;
+        const foreign = document.createElement('div');
+        foreign.dataset['slot'] = 'table';
+        scroller.prepend(foreign);
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        const event = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+        root.querySelector('[data-row-index="0"] [data-column="id"]')!.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+        expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
     });
 });
