@@ -160,6 +160,16 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
+const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'file', 'range', 'color']);
+
+/** Whether a key event came from a control that edits text, so its keys belong to that control and not to the grid. */
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  if (target instanceof HTMLInputElement) return !NON_TEXT_INPUT_TYPES.has(target.type);
+  return target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
+}
+
 /** Mirrors a data row's selection to assistive tech, and clears it when the grid stops being selectable. */
 function stampRowSelection(row: Element, selectable: boolean): void {
   if (!(row instanceof HTMLElement) || row.dataset['rowIndex'] === undefined) return;
@@ -4381,7 +4391,8 @@ export class DataTableComponent<T>
     const key = String(col.accessorKey);
     if (key === "_selection" || key === "_expander" || key === "_actions")
       return;
-    event.stopPropagation();
+    // A click must not reach onTableClick (it clears the focus); a key must reach onTableKeydown (Enter / F2 edit).
+    if (event.type === 'click') event.stopPropagation();
     // When range selection is on, focus + range are managed by the pointer-drag
     // handler (onTableMouseDown); a plain click just focuses here for keyboard.
     this.focusedCell.set({ rowIndex, columnKey: key });
@@ -4562,6 +4573,9 @@ export class DataTableComponent<T>
    * handle the event stops the chain.
    */
   onTableKeydown(event: KeyboardEvent): void {
+    // The scroller also holds the floating-filter row and the open cell editor. A text-entry
+    // control owns its keys (caret movement, Enter, Ctrl+Z/C/V): the grid must not act on them.
+    if (isTextEntryTarget(event.target)) return;
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
     if (this.handleHistoryKeydown(event)) return;
@@ -4687,6 +4701,11 @@ export class DataTableComponent<T>
     return container ? Math.floor(container.clientHeight / this.effectiveRowHeight()) : 10;
   }
 
+  private isGridKeyTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return true;
+    return target === this.scrollContainerRef()?.nativeElement || target.dataset['column'] !== undefined;
+  }
+
   private handleNavigationKeydown(event: KeyboardEvent): void {
     if (this.editingCell()) return;
 
@@ -4698,7 +4717,8 @@ export class DataTableComponent<T>
 
     if (event.key === 'Enter' || event.key === 'F2') {
       const focused = this.focusedCell();
-      if (focused) {
+      // A button or link inside a cell keeps its own Enter.
+      if (focused && this.isGridKeyTarget(event.target)) {
         event.preventDefault();
         this.startEditing(focused.rowIndex, focused.columnKey);
       }
