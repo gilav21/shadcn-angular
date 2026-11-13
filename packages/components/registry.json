@@ -925,6 +925,7 @@
       "data-table/data-table-ai.spec.ts",
       "data-table/data-table-autofit.spec.ts",
       "data-table/data-table-column-builder.spec.ts",
+      "data-table/data-table-editor-types.spec.ts",
       "data-table/data-table-fill.spec.ts",
       "data-table/data-table-grid-semantics.spec.ts",
       "data-table/data-table-paste.spec.ts",

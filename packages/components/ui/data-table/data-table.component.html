@@ -253,7 +253,7 @@
           [attr.aria-invalid]="editErr ? true : null"
           [attr.aria-describedby]="editErr ? cellEditErrorId : null"
           [value]="editValue()"
-          (change)="onEditValueChange($any($event.target).value); commitEdit()"
+          (change)="onEditValueChange(selectedEditOption($any($event.target), col)); commitEdit()"
           (keydown)="onEditKeydown($event)"
         >
           @for (opt of col.editOptions; track opt.value) {
@@ -271,7 +271,7 @@
           [attr.aria-invalid]="editErr ? true : null"
           [attr.aria-describedby]="editErr ? cellEditErrorId : null"
           [value]="editValue()"
-          (input)="onEditValueChange($any($event.target).value)"
+          (input)="onEditValueChange(typedEditValue($any($event.target), col))"
           (keydown)="onEditKeydown($event)"
           (blur)="editingCell() ? commitEdit() : null"
         />

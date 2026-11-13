@@ -5074,6 +5074,17 @@ export class DataTableComponent<T>
     });
   }
 
+  /** What a text or number editor reports: a number (null when empty) for `editType: 'number'`, else the text. */
+  typedEditValue(input: HTMLInputElement, col: ColumnDef<T>): unknown {
+    if (col.editType !== 'number') return input.value;
+    return input.value === '' || Number.isNaN(input.valueAsNumber) ? null : input.valueAsNumber;
+  }
+
+  /** The chosen option's own value, not its string form, so numbers and booleans keep their type. */
+  selectedEditOption(select: HTMLSelectElement, col: ColumnDef<T>): unknown {
+    return col.editOptions?.[select.selectedIndex]?.value;
+  }
+
   /**
    * Stores the editor's in-progress value and clears any visible validation
    * message, so the error disappears as soon as the user types. Nothing is
