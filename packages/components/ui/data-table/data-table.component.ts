@@ -5130,10 +5130,18 @@ export class DataTableComponent<T>
     });
   }
 
-  /** What a text or number editor reports: a number (null when empty) for `editType: 'number'`, else the text. */
-  typedEditValue(input: HTMLInputElement, col: ColumnDef<T>): unknown {
-    if (col.editType !== 'number') return input.value;
-    return input.value === '' || Number.isNaN(input.valueAsNumber) ? null : input.valueAsNumber;
+  /**
+   * Stores what a text or number editor holds: a number (null when cleared) for `editType: 'number'`, else the
+   * text. A half-typed number ("-", "1e") is not a value and keeps the last valid one, so leaving the field
+   * does not delete the cell.
+   */
+  onEditInput(input: HTMLInputElement, col: ColumnDef<T>): void {
+    if (col.editType !== 'number') {
+      this.onEditValueChange(input.value);
+      return;
+    }
+    if (input.validity.badInput) return;
+    this.onEditValueChange(input.value === '' ? null : input.valueAsNumber);
   }
 
   /** The chosen option's own value, not its string form, so numbers and booleans keep their type. */

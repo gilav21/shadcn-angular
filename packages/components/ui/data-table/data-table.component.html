@@ -252,12 +252,11 @@
           [class.ring-destructive]="editErr"
           [attr.aria-invalid]="editErr ? true : null"
           [attr.aria-describedby]="editErr ? cellEditErrorId : null"
-          [value]="editValue()"
           (change)="onEditValueChange(selectedEditOption($any($event.target), col)); commitEdit()"
           (keydown)="onEditKeydown($event)"
         >
           @for (opt of col.editOptions; track opt.value) {
-            <option [value]="opt.value">{{ opt.label }}</option>
+            <option [value]="opt.value" [selected]="opt.value === editValue()">{{ opt.label }}</option>
           }
         </select>
       } @else {
@@ -271,7 +270,7 @@
           [attr.aria-invalid]="editErr ? true : null"
           [attr.aria-describedby]="editErr ? cellEditErrorId : null"
           [value]="editValue()"
-          (input)="onEditValueChange(typedEditValue($any($event.target), col))"
+          (input)="onEditInput($any($event.target), col)"
           (keydown)="onEditKeydown($event)"
           (blur)="editingCell() ? commitEdit() : null"
         />

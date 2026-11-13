@@ -2,6 +2,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Component, viewChild } from '@angular/core';
 import { describe, it, expect, vi } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { DataTableComponent } from './data-table.component';
 import type { ColumnDef } from './data-table.types';
 
@@ -104,5 +105,54 @@ describe('data-table editor value types', () => {
             expect(edits, key).toEqual([expected]);
             expect(setter, key).toHaveBeenCalledWith(expect.anything(), expected, key);
         }
+    });
+
+    it('typing a minus sign over a number keeps the typed text and does not delete the cell', async () => {
+        const { input, table, edits, settle } = await edit('qty');
+        input!.focus();
+        await userEvent.keyboard('{Control>}a{/Control}-');
+        await settle();
+        expect(input!.validity.badInput).toBe(true); // the "-" is still in the field, not wiped by a re-bind
+        table.commitEdit();
+        await settle();
+        expect(edits).toEqual([]);
+    });
+
+    it('typing a decimal over a number keeps every keystroke and commits the number', async () => {
+        const { input, table, edits, settle } = await edit('qty');
+        input!.focus();
+        await userEvent.keyboard('{Control>}a{/Control}1.25');
+        await settle();
+        expect(input!.value).toBe('1.25'); // a re-bind of the typed number would have turned '1.' into '1'
+        table.commitEdit();
+        await settle();
+        expect(edits).toEqual([1.25]);
+    });
+
+    it('a select shows a null option as the current one', async () => {
+        TestBed.resetTestingModule();
+        const nullable: ColumnDef<Row>[] = [{
+            accessorKey: 'plan', header: 'Plan', editable: true, editType: 'select',
+            editOptions: [{ label: 'Free', value: 'free' }, { label: 'None', value: null }],
+        }];
+        @Component({
+            standalone: true,
+            imports: [DataTableComponent],
+            template: `<ui-data-table [data]="data" [columns]="columns" [paginationState]="{ pageIndex: 0, pageSize: 100 }" />`,
+        })
+        class NullableHost {
+            readonly table = viewChild.required(DataTableComponent<Row>);
+            readonly columns = nullable;
+            readonly data = [{ id: 1, name: 'Ann', qty: 5, level: 1, flag: true, plan: null }] as unknown as Row[];
+        }
+        await TestBed.configureTestingModule({ imports: [NullableHost] }).compileComponents();
+        const fixture = TestBed.createComponent(NullableHost);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.table().startEditing(0, 'plan');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const select = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('select[data-edit-input]')!;
+        expect(select.selectedIndex).toBe(1);
     });
 });
