@@ -160,6 +160,41 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
+/** Inputs whose keys are not the control's own: a checkbox or button has no arrows, caret or undo (a range and a radio do). */
+const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'button', 'submit', 'reset', 'image', 'file', 'color', 'hidden']);
+
+/** The columns the grid draws itself (selection, expander, actions), as opposed to data columns. */
+function isGridColumnKey(key: PropertyKey | undefined): boolean {
+  return key === '_selection' || key === '_expander' || key === '_actions';
+}
+
+/** Widget roles whose keys (arrows, Home/End, Enter, type-ahead, Escape) belong to the widget. The grid's own roles are not here. */
+const KEY_OWNING_ROLES = [
+  'textbox', 'combobox', 'searchbox', 'spinbutton', 'slider', 'listbox', 'option', 'menu', 'menuitem',
+  'menuitemcheckbox', 'menuitemradio', 'menubar', 'radiogroup', 'radio', 'tablist', 'tab', 'tree', 'treeitem',
+  'scrollbar', 'dialog', 'application', 'toolbar',
+].map((role) => `[role="${role}"]`).join(', ');
+
+/**
+ * Whether a key comes from a control that owns its keys: caret movement, the arrows of a slider, radio group, list,
+ * menu or tree, Enter, its own undo and copy, type-ahead, Escape. `path` is the event's composed path, origin
+ * first, so a control inside a shadow root is seen and the role search stops at `boundary`: a grid embedded in a
+ * textbox or combobox of the host page is not itself one.
+ */
+function ownsItsKeys(path: EventTarget[], boundary: Element): boolean {
+  const origin = path[0];
+  if (origin instanceof HTMLTextAreaElement || origin instanceof HTMLSelectElement) return true;
+  if (origin instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.has(origin.type)) return true;
+  for (const node of path) {
+    if (node === boundary) break;
+    if (!(node instanceof Element)) continue;
+    // isContentEditable is inherited from outside the grid too, so the attribute is read on the way up.
+    const editable = node instanceof HTMLElement && (node.contentEditable === 'true' || node.contentEditable === 'plaintext-only');
+    if (editable || node.matches(KEY_OWNING_ROLES)) return true;
+  }
+  return false;
+}
+
 /** Mirrors a data row's selection to assistive tech, and clears it when the grid stops being selectable. */
 function stampRowSelection(row: Element, selectable: boolean): void {
   if (!(row instanceof HTMLElement) || row.dataset['rowIndex'] === undefined) return;
@@ -267,7 +302,7 @@ const DEFAULT_COLUMN_MIN_WIDTH = "80px";
 function resolveColumnMinWidth(col: { accessorKey?: PropertyKey; minWidth?: string }): string {
   if (col.minWidth) return col.minWidth;
   const key = col.accessorKey;
-  const isSpecial = key === "_selection" || key === "_expander" || key === "_actions";
+  const isSpecial = isGridColumnKey(key);
   return isSpecial ? "0px" : DEFAULT_COLUMN_MIN_WIDTH;
 }
 
@@ -1251,9 +1286,7 @@ export class DataTableComponent<T>
   private applyGlobalFilterToData(data: T[], globalFilterValue: string): T[] {
     const columns = this.enhancedColumns().filter(
       (col) =>
-        col.accessorKey !== "_selection" &&
-        col.accessorKey !== "_expander" &&
-        col.accessorKey !== "_actions",
+        !isGridColumnKey(col.accessorKey),
     );
     const globalFilterFn = this.globalFilterFn();
     if (globalFilterFn) {
@@ -1492,9 +1525,7 @@ export class DataTableComponent<T>
     const colFilters = this.columnFilters();
     const columns = this.enhancedColumns().filter(
       (col) =>
-        col.accessorKey !== "_selection" &&
-        col.accessorKey !== "_expander" &&
-        col.accessorKey !== "_actions",
+        !isGridColumnKey(col.accessorKey),
     );
     const hasGlobalFilter = !!globalFilterValue;
     const hasColumnFilters = Object.keys(colFilters).some(
@@ -2263,9 +2294,7 @@ export class DataTableComponent<T>
     col: ColumnDef<T>,
   ): "ascending" | "descending" | "none" | null {
     const key = String(col.accessorKey);
-    const isSpecialColumn =
-      key === "_selection" || key === "_actions" || key === "_expander";
-    if (isSpecialColumn || col.enableSorting === false) {
+    if (isGridColumnKey(key) || col.enableSorting === false) {
       return null;
     }
     const direction = this.getSortDirection(col.accessorKey);
@@ -2411,7 +2440,7 @@ export class DataTableComponent<T>
     const hasUserTreeExpander = allCols.some(c => c.treeExpander);
     const targetIdx = hasUserTreeExpander
       ? cols.findIndex(c => c.treeExpander)
-      : cols.findIndex(c => c.accessorKey !== '_selection' && c.accessorKey !== '_expander' && c.accessorKey !== '_actions');
+      : cols.findIndex(c => !isGridColumnKey(c.accessorKey));
 
     if (targetIdx !== -1) {
       cols[targetIdx] = { ...cols[targetIdx], _isTreeExpanderHost: true };
@@ -2537,11 +2566,7 @@ export class DataTableComponent<T>
    */
   hasFloatingFilter(col: ColumnDef<T>): boolean {
     if (col.floatingFilter === false) return false;
-    if (
-      col.accessorKey === '_selection' ||
-      col.accessorKey === '_expander' ||
-      col.accessorKey === '_actions'
-    ) {
+    if (isGridColumnKey(col.accessorKey)) {
       return false;
     }
     if (col.floatingFilterComponent) return true;
@@ -4190,15 +4215,11 @@ export class DataTableComponent<T>
     const columns = onlyVisible
       ? this.enhancedColumns().filter(
           (col) =>
-            col.accessorKey !== "_selection" &&
-            col.accessorKey !== "_expander" &&
-            col.accessorKey !== "_actions",
+            !isGridColumnKey(col.accessorKey),
         )
       : this.columns().filter(
           (col) =>
-            col.accessorKey !== "_selection" &&
-            col.accessorKey !== "_expander" &&
-            col.accessorKey !== "_actions",
+            !isGridColumnKey(col.accessorKey),
         );
 
     const rows =
@@ -4315,9 +4336,7 @@ export class DataTableComponent<T>
     if (!this.enableCopy()) return;
     const columns = this.enhancedColumns().filter(
       (col) =>
-        col.accessorKey !== "_selection" &&
-        col.accessorKey !== "_expander" &&
-        col.accessorKey !== "_actions",
+        !isGridColumnKey(col.accessorKey),
     );
     const values = columns.map((col) => this.getCellStringValue(row, col));
     await navigator.clipboard.writeText(toClipboardText([values]));
@@ -4332,9 +4351,7 @@ export class DataTableComponent<T>
     if (!this.enableCopy()) return;
     const columns = this.enhancedColumns().filter(
       (col) =>
-        col.accessorKey !== "_selection" &&
-        col.accessorKey !== "_expander" &&
-        col.accessorKey !== "_actions",
+        !isGridColumnKey(col.accessorKey),
     );
     const selectedIds = this.rowSelection();
     // Grouping reorders the rows on screen; the copy follows the screen, collapsed groups included.
@@ -4379,9 +4396,12 @@ export class DataTableComponent<T>
    */
   onCellClick(rowIndex: number, col: ColumnDef<T>, event: Event): void {
     const key = String(col.accessorKey);
-    if (key === "_selection" || key === "_expander" || key === "_actions")
+    if (isGridColumnKey(key))
       return;
-    event.stopPropagation();
+    // A click must not reach onTableClick (it clears the focus), and a key from a control inside the cell stays
+    // with that control. Only Enter on the cell itself goes on to onTableKeydown, where it opens the editor.
+    const passesToGrid = 'key' in event && event.key === 'Enter' && event.target === event.currentTarget;
+    if (!passesToGrid) event.stopPropagation();
     // When range selection is on, focus + range are managed by the pointer-drag
     // handler (onTableMouseDown); a plain click just focuses here for keyboard.
     this.focusedCell.set({ rowIndex, columnKey: key });
@@ -4400,7 +4420,7 @@ export class DataTableComponent<T>
     if (rawRow === undefined || columnKey === undefined) return null;
     const rowIndex = Number(rawRow);
     if (!Number.isFinite(rowIndex)) return null;
-    const special = columnKey === "_selection" || columnKey === "_expander" || columnKey === "_actions";
+    const special = isGridColumnKey(columnKey);
     return special ? null : { rowIndex, columnKey };
   }
 
@@ -4470,7 +4490,7 @@ export class DataTableComponent<T>
    */
   onCellDblClick(rowIndex: number, col: ColumnDef<T>, event: Event): void {
     const key = String(col.accessorKey);
-    if (key === "_selection" || key === "_expander" || key === "_actions")
+    if (isGridColumnKey(key))
       return;
     event.stopPropagation();
     this.startEditing(rowIndex, key);
@@ -4492,7 +4512,7 @@ export class DataTableComponent<T>
     col: ColumnDef<T>
   ): void {
     const key = String(col.accessorKey);
-    if (key === "_selection" || key === "_expander" || key === "_actions")
+    if (isGridColumnKey(key))
       return;
     const now = Date.now();
     const isSameCell =
@@ -4514,9 +4534,7 @@ export class DataTableComponent<T>
     return this.enhancedColumns()
       .filter(
         (c) =>
-          c.accessorKey !== "_selection" &&
-          c.accessorKey !== "_expander" &&
-          c.accessorKey !== "_actions",
+          !isGridColumnKey(c.accessorKey),
       )
       .map((c) => String(c.accessorKey));
   });
@@ -4560,8 +4578,24 @@ export class DataTableComponent<T>
    * (`Ctrl/Cmd+V`), undo/redo (`Ctrl/Cmd+Z`/`Y`), then arrow/Home/End/Enter cell
    * navigation. Each stage is gated by its feature input, and the first one to
    * handle the event stops the chain.
+   *
+   * A control inside the grid that owns its keys (see `ownsItsKeys`: text
+   * inputs, selects, contenteditable, slider / list / menu / tab / tree
+   * roles, in a shadow root too) is left alone, as is anything that already
+   * called `preventDefault` below the grid (a nested grid, a consumer's
+   * control): the grid does not act on those. Known limit: a grid nested in a
+   * cell leaves unhandled keys (arrows past its last row) to this one.
+   *
+   * Enter and F2 open the editor only when they come from the scroller or a
+   * data cell and are not a held-key repeat; an Enter / F2 that opened an
+   * editor does not propagate further.
    */
   onTableKeydown(event: KeyboardEvent): void {
+    // composedPath() starts at the real origin: `target` is retargeted to the host when the key comes from a shadow root.
+    const path = event.composedPath();
+    const fallback = event.target === null ? [] : [event.target];
+    const origin = path.length > 0 ? path : fallback;
+    if (event.defaultPrevented || ownsItsKeys(origin, this._el.nativeElement)) return;
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
     if (this.handleHistoryKeydown(event)) return;
@@ -4687,6 +4721,32 @@ export class DataTableComponent<T>
     return container ? Math.floor(container.clientHeight / this.effectiveRowHeight()) : 10;
   }
 
+  /** Enter / F2 open the editor only from the scroller or a data cell, not from a header or cell control that keeps its own Enter. */
+  private isEditKeyTarget(target: EventTarget | null): boolean {
+    if (target === null) return true;
+    if (!(target instanceof HTMLElement)) return false;
+    if (target === this.scrollContainerRef()?.nativeElement) return true;
+    const column = target.dataset['column'];
+    return column !== undefined && !isGridColumnKey(column);
+  }
+
+  private editFromKey(event: KeyboardEvent): void {
+    const focused = this.focusedCell();
+    if (!focused || !this.isEditKeyTarget(event.target)) return;
+    // A held key repeats past the commit that just returned focus here: it must not reopen the editor, and
+    // it is claimed so an ancestor's Enter handler (a dialog's submit) does not fire on every repeat.
+    if (event.repeat) {
+      event.stopPropagation();
+      return;
+    }
+    this.startEditing(focused.rowIndex, focused.columnKey);
+    // Only an edit that opened has handled the key; otherwise an ancestor's Enter (a dialog's submit) still fires.
+    if (this.editingCell() !== null) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+
   private handleNavigationKeydown(event: KeyboardEvent): void {
     if (this.editingCell()) return;
 
@@ -4697,11 +4757,7 @@ export class DataTableComponent<T>
     }
 
     if (event.key === 'Enter' || event.key === 'F2') {
-      const focused = this.focusedCell();
-      if (focused) {
-        event.preventDefault();
-        this.startEditing(focused.rowIndex, focused.columnKey);
-      }
+      this.editFromKey(event);
       return;
     }
 
@@ -5102,6 +5158,9 @@ export class DataTableComponent<T>
    * All three stop propagation so the grid's own navigation does not also run.
    */
   onEditKeydown(event: KeyboardEvent): void {
+    // The Enter / Escape that confirms an IME composition belongs to the IME, not to the editor. (Safari sends that
+    // key after compositionend with isComposing already false; only keyCode 229 tells, and it is deprecated.)
+    if (event.isComposing) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
@@ -5112,7 +5171,8 @@ export class DataTableComponent<T>
     if (event.key === 'Enter') {
       event.preventDefault();
       event.stopPropagation();
-      this.commitEdit();
+      // The Enter that opened this editor repeats while held and would commit it at once.
+      if (!event.repeat) this.commitEdit();
       return;
     }
 
@@ -5639,7 +5699,7 @@ export class DataTableComponent<T>
 
   private isColumnReorderable(col: ColumnDef<T>): boolean {
     const key = String(col.accessorKey);
-    if (key === "_selection" || key === "_expander" || key === "_actions") {
+    if (isGridColumnKey(key)) {
       return false;
     }
     return col.enableReordering !== false;
@@ -5955,34 +6015,70 @@ export class DataTableComponent<T>
     const targetTreeRow = treeRows[index];
     if (draggedTreeRow && targetTreeRow && draggedTreeRow.depth !== targetTreeRow.depth) {
       if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
-      this.dragOverIndex.set(-1);
+      this.dragOverIndex.set(null);
       return { blocked: true, position };
     }
     return { blocked: false, position: position === 'on' ? 'below' : position };
   }
 
   /**
+   * Whether dropping the dragged tree node at `row` would move it into its own subtree: onto a descendant, or
+   * "on" itself. Such a drop would lose the subtree (or make the node its own parent), so it is refused.
+   */
+  private refusesOwnSubtree(draggedId: string, row: T | undefined, position: RowDragPosition): boolean {
+    if (!row || !this.enableSubRows()) return false;
+    const getId = this.getRowId();
+    const dragged = this.processedData().find(r => getId(r) === draggedId);
+    if (!dragged) return false;
+    if (getId(dragged) === getId(row)) return position === 'on';
+    return this.subtreeContains(dragged, getId(row), getId, this.getChildren());
+  }
+
+  /**
+   * Refuses the row under the pointer as a drop target. Not just "no preventDefault": the container's dragover
+   * would still accept the drop and `onRowDrop` would use the row hovered before, so the target is cleared and
+   * the event stopped. Edge auto-scroll keeps working, or a tall refused subtree could not be scrolled past.
+   */
+  private refuseDrop(event: DragEvent): void {
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+    this.dragOverIndex.set(null);
+    event.stopPropagation();
+    this.handleDragAutoScroll(event.clientY);
+  }
+
+  /**
    * Tracks the hovered row during a row drag and decides the drop position from
    * the pointer's position within the row: above/below at the halves in `"flat"`
    * mode, above/on/below at the quarters in `"tree"` mode. Rejects the target
-   * when the row is disabled, when a flat drag would cross tree depths, or when
-   * {@link rowDragAllowDrop} vetoes it, and auto-scrolls near the edges.
+   * when the row is disabled, when a flat drag would cross tree depths, when a
+   * tree drag would land in its own subtree (on a descendant, or "on" itself),
+   * or when {@link rowDragAllowDrop} vetoes it, and auto-scrolls near the edges.
    */
   onRowDragOver(event: DragEvent, index: number): void {
     const draggedId = this.draggedRowId();
     if (!this.enableRowDrag() || !draggedId) return;
 
     const row = this.processedData()[index];
-    if (row && this.isDisabled(row)) return;
+    if (row && this.isDisabled(row)) {
+      this.refuseDrop(event);
+      return;
+    }
 
     const getId = this.getRowId();
     const rawPosition = this.computeDragPosition(event);
     const { blocked, position } = this.checkFlatTreeDragCompatibility(event, index, draggedId, getId, rawPosition);
     if (blocked) return;
 
+    if (this.refusesOwnSubtree(draggedId, row, position)) {
+      this.refuseDrop(event);
+      return;
+    }
     const draggedRow = this.processedData().find(r => getId(r) === draggedId);
     const allowDropFn = this.rowDragAllowDrop();
-    if (draggedRow && row && allowDropFn && !allowDropFn(draggedRow, row, position)) return;
+    if (draggedRow && row && allowDropFn && !allowDropFn(draggedRow, row, position)) {
+      this.refuseDrop(event);
+      return;
+    }
 
     event.preventDefault();
     event.stopPropagation();
@@ -6018,7 +6114,8 @@ export class DataTableComponent<T>
     const lastRowRect = lastRow.getBoundingClientRect();
 
     if (event.clientY > lastRowRect.bottom) {
-      this.dragOverIndex.set(lastIndex);
+      const refused = this.refusesOwnSubtree(this.draggedRowId() ?? '', this.processedData()[lastIndex], 'below');
+      this.dragOverIndex.set(refused ? null : lastIndex);
       this.dragOverPosition.set('below');
     }
 
@@ -6126,7 +6223,17 @@ export class DataTableComponent<T>
 
     const { remaining, removed } = this.removeFromTree(data, rowId, getId, getChildrenFn, setChildrenFn);
     if (!removed) return data;
+    // A node cannot move into itself or its own subtree: the target left the tree with it, so
+    // inserting would never match and the moved subtree would be dropped from the data.
+    if (this.subtreeContains(removed, targetId, getId, getChildrenFn)) return data;
     return this.insertIntoTree(remaining, removed, targetId, event.position, getId, getChildrenFn, setChildrenFn);
+  }
+
+  private subtreeContains(
+    node: T, id: string, getId: (r: T) => string, getChildrenFn: (r: T) => T[] | undefined
+  ): boolean {
+    if (getId(node) === id) return true;
+    return (getChildrenFn(node) ?? []).some(child => this.subtreeContains(child, id, getId, getChildrenFn));
   }
 
   private removeFromTree(
