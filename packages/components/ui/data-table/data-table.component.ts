@@ -4732,8 +4732,13 @@ export class DataTableComponent<T>
 
   private editFromKey(event: KeyboardEvent): void {
     const focused = this.focusedCell();
-    // A held key repeats past the commit that just returned focus here and must not reopen the editor.
-    if (!focused || event.repeat || !this.isEditKeyTarget(event.target)) return;
+    if (!focused || !this.isEditKeyTarget(event.target)) return;
+    // A held key repeats past the commit that just returned focus here: it must not reopen the editor, and
+    // it is claimed so an ancestor's Enter handler (a dialog's submit) does not fire on every repeat.
+    if (event.repeat) {
+      event.stopPropagation();
+      return;
+    }
     this.startEditing(focused.rowIndex, focused.columnKey);
     // Only an edit that opened has handled the key; otherwise an ancestor's Enter (a dialog's submit) still fires.
     if (this.editingCell() !== null) {

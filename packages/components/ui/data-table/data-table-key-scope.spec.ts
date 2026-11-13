@@ -257,12 +257,17 @@ describe('data-table keydown scope', () => {
         expect(table.editingCell()).toBeNull();
     });
 
-    it('Enter and F2 do not start an edit from a repeating key', async () => {
-        const { table, cell, press } = await mount();
+    it('Enter and F2 do not start an edit from a repeating key, and the repeat stops at the grid', async () => {
+        const { root, table, cell, press } = await mount();
+        let reachedAncestor = false;
+        root.addEventListener('keydown', () => {
+            reachedAncestor = true;
+        });
         table.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
         const target = cell(0, 'name');
         target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true }));
         expect(table.editingCell()).toBeNull();
+        expect(reachedAncestor).toBe(false);
         press(target, { key: 'Enter' });
         expect(table.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
     });
