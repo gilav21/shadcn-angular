@@ -5288,6 +5288,22 @@ describe('DataTableComponent - Tree row drag (tree mode)', () => {
             expect(dropped()).toEqual([]);
         });
 
+        it('a vetoed or disabled row does not leave the previously hovered row as the drop target', () => {
+            fixture.componentRef.setInput('rowDragAllowDrop', (_dragged: TNode, target: TNode) => target.id !== 'a2');
+            fixture.detectChanges();
+            startDrag(T_DATA[1]);
+            over(1); // 'a1' is allowed
+            expect(over(2).preventDefault).not.toHaveBeenCalled(); // 'a2' is vetoed
+            expect(dropped()).toEqual([]);
+        });
+
+        it('keeps auto-scrolling while the pointer is over a refused row', () => {
+            const scroll = vi.spyOn(component as unknown as { handleDragAutoScroll: (y: number) => void }, 'handleDragAutoScroll');
+            startDrag(T_DATA[0]);
+            over(1, 99); // inside the dragged node's own subtree
+            expect(scroll).toHaveBeenCalledWith(99);
+        });
+
         it('refuses dropping a node on itself', () => {
             startDrag(T_DATA[0]);
             over(3);

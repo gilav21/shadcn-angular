@@ -5964,6 +5964,18 @@ export class DataTableComponent<T>
   }
 
   /**
+   * Refuses the row under the pointer as a drop target. Not just "no preventDefault": the container's dragover
+   * would still accept the drop and `onRowDrop` would use the row hovered before, so the target is cleared and
+   * the event stopped. Edge auto-scroll keeps working, or a tall refused subtree could not be scrolled past.
+   */
+  private refuseDrop(event: DragEvent): void {
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+    this.dragOverIndex.set(-1);
+    event.stopPropagation();
+    this.handleDragAutoScroll(event.clientY);
+  }
+
+  /**
    * Tracks the hovered row during a row drag and decides the drop position from
    * the pointer's position within the row: above/below at the halves in `"flat"`
    * mode, above/on/below at the quarters in `"tree"` mode. Rejects the target
@@ -5976,7 +5988,10 @@ export class DataTableComponent<T>
     if (!this.enableRowDrag() || !draggedId) return;
 
     const row = this.processedData()[index];
-    if (row && this.isDisabled(row)) return;
+    if (row && this.isDisabled(row)) {
+      this.refuseDrop(event);
+      return;
+    }
 
     const getId = this.getRowId();
     const rawPosition = this.computeDragPosition(event);
@@ -5984,15 +5999,15 @@ export class DataTableComponent<T>
     if (blocked) return;
 
     if (this.refusesOwnSubtree(draggedId, row, position)) {
-      // Not just "no preventDefault": the container's dragover would still accept the drop with the stale target.
-      if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
-      this.dragOverIndex.set(-1);
-      event.stopPropagation();
+      this.refuseDrop(event);
       return;
     }
     const draggedRow = this.processedData().find(r => getId(r) === draggedId);
     const allowDropFn = this.rowDragAllowDrop();
-    if (draggedRow && row && allowDropFn && !allowDropFn(draggedRow, row, position)) return;
+    if (draggedRow && row && allowDropFn && !allowDropFn(draggedRow, row, position)) {
+      this.refuseDrop(event);
+      return;
+    }
 
     event.preventDefault();
     event.stopPropagation();
