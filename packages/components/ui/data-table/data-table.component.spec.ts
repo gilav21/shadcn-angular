@@ -5298,11 +5298,14 @@ describe('DataTableComponent - Tree row drag (tree mode)', () => {
             expect(dropped()).toEqual([]);
         });
 
-        it('keeps auto-scrolling while the pointer is over a refused row', () => {
-            const scroll = vi.spyOn(component as unknown as { handleDragAutoScroll: (y: number) => void }, 'handleDragAutoScroll');
+        it('keeps auto-scrolling while the pointer is over a refused row', async () => {
+            const container = component.scrollContainerRef()!.nativeElement;
+            // Shorter than the four rows, so there is something to scroll (the container is a flex child of the host).
+            Object.assign(container.style, { flex: 'none', height: '60px', maxHeight: '60px', overflow: 'auto' });
             startDrag(T_DATA[0]);
-            over(1, 99); // inside the dragged node's own subtree
-            expect(scroll).toHaveBeenCalledWith(99);
+            over(1, container.getBoundingClientRect().bottom - 5); // inside the dragged node's own subtree, at the bottom edge
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            expect(container.scrollTop).toBeGreaterThan(0);
         });
 
         it('refuses dropping a node on itself', () => {
@@ -5316,6 +5319,7 @@ describe('DataTableComponent - Tree row drag (tree mode)', () => {
             const nested: TNode[] = [{ id: 'b', name: 'B' }, T_DATA[0]]; // last rendered row is 'a2', inside 'a'
             fixture.componentRef.setInput('data', structuredClone(nested));
             fixture.detectChanges();
+            expect(component.processedData().at(-1)!.id).toBe('a2'); // the precondition: the last row is inside the dragged node
             startDrag(nested[1]);
             over(0); // a valid target first
             component.onContainerDragOver({ clientY: 100000, preventDefault: vi.fn() } as unknown as DragEvent);
