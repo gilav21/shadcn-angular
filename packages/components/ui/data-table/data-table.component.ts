@@ -4857,7 +4857,7 @@ export class DataTableComponent<T>
     const currentValue = this.getCellValue(row, col.accessorKey, col);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
-    this.editText.set(currentValue == null ? '' : String(currentValue));
+    this.editText.set(typeof currentValue === 'number' || typeof currentValue === 'string' ? String(currentValue) : '');
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
