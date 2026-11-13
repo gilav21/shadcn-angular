@@ -550,6 +550,12 @@ export class DataTableComponent<T>
   readonly editError = output<CellEditErrorEvent<T>>();
   readonly editingCell = signal<EditingCell | null>(null);
   readonly editValue = signal<unknown>(null);
+  /**
+   * The text a number input shows: what it started with, then the text of each valid keystroke. The input is bound
+   * to this, not to {@link editValue}: typing "-0" parses to -0, and writing that back would turn the field into
+   * "0" and lose the minus sign. It stays in step with {@link editValue}, so a re-created input shows what commits.
+   */
+  readonly editText = signal('');
   readonly cellEditError = signal<CellEditError | null>(null);
   /** Stable id for the inline edit-error message, linked via `aria-describedby`. */
   readonly cellEditErrorId = `ui-data-table-cell-edit-error-${dataTableUid++}`;
@@ -4851,6 +4857,7 @@ export class DataTableComponent<T>
     const currentValue = this.getCellValue(row, col.accessorKey, col);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
+    this.editText.set(typeof currentValue === 'number' || typeof currentValue === 'string' ? String(currentValue) : '');
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
@@ -5128,6 +5135,44 @@ export class DataTableComponent<T>
       const cell = container && focused ? this.renderedCell(container, focused) : undefined;
       (cell ?? container)?.focus({ preventScroll: true });
     });
+  }
+
+  /**
+   * Stores what a text or number editor holds: a number (null when cleared) for `editType: 'number'`, else the
+   * text. A half-typed number ("-", "1e") is not a value and keeps the last valid one, so leaving the field
+   * does not delete the cell.
+   */
+  onEditInput(input: HTMLInputElement, col: ColumnDef<T>): void {
+    if (col.editType !== 'number') {
+      this.onEditValueChange(input.value);
+      return;
+    }
+    if (input.validity.badInput) return;
+    this.editText.set(input.value);
+    this.onEditValueChange(input.value === '' ? null : input.valueAsNumber);
+  }
+
+  /**
+   * Which option the select shows as current: the one whose value is the edit value, else the first whose scalar
+   * has its string form (as data from JSON does); -1 when no option stands for it, and the select then shows blank.
+   */
+  editOptionIndex(col: ColumnDef<T>): number {
+    const options = col.editOptions ?? [];
+    const value = this.editValue();
+    const exact = options.findIndex((option) => option.value === value);
+    if (exact !== -1) return exact;
+    const isScalar = (v: unknown): v is string | number | boolean | bigint =>
+      ['string', 'number', 'boolean', 'bigint'].includes(typeof v);
+    if (!isScalar(value)) return -1;
+    return options.findIndex((option) => isScalar(option.value) && String(option.value) === String(value));
+  }
+
+  /** Commits the chosen option's own value, not its string form, so numbers and booleans keep their type. */
+  onEditSelect(select: HTMLSelectElement, col: ColumnDef<T>): void {
+    const option = select.value === '' ? undefined : col.editOptions?.[Number(select.value)];
+    if (!option) return;
+    this.onEditValueChange(option.value);
+    this.commitEdit();
   }
 
   /**

@@ -58,7 +58,9 @@ export interface ColumnDef<T> {
     /**
      * Which editor an inline edit opens. `date` uses the library's own
      * `ui-date-picker`, and writes back in whatever shape the cell already
-     * held — an ISO string stays an ISO string.
+     * held — an ISO string stays an ISO string. `number` reports a number
+     * (`null` when cleared) and `select` the chosen option's own `value`, not
+     * its string form, to `editValidator`, `valueSetter` and `cellEdit`.
      */
     editType?: 'text' | 'number' | 'select' | 'checkbox' | 'date';
     editOptions?: Array<{ label: string; value: unknown }>;
