@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import type { ColumnDef } from './data-table.types';
 
-interface Row { id: number; name: string; qty: number | null; level: number; flag: boolean; plan: string; team?: unknown }
+interface Row { id: number; name: string; qty: number | null; level: number; flag: boolean; plan: string; team?: unknown; code?: unknown }
 
 const setter = vi.fn((row: Row, value: unknown, key: keyof Row) => ({ ...row, [key]: value }));
 const validator = vi.fn<(value: unknown, row: Row) => boolean>(() => true);
@@ -27,6 +27,10 @@ const columns: ColumnDef<Row>[] = [
         accessorKey: 'plan', header: 'Plan', editable: true, editType: 'select',
         editOptions: [{ label: 'Free', value: 'free' }, { label: 'Pro', value: 'pro' }],
         valueSetter: (row, value) => setter(row, value, 'plan'),
+    },
+    {
+        accessorKey: 'code', header: 'Code', editable: true, editType: 'select',
+        editOptions: [{ label: 'Number', value: 1 }, { label: 'Text', value: '1' }],
     },
     {
         accessorKey: 'team', header: 'Team', editable: true, editType: 'select',
@@ -188,5 +192,12 @@ describe('data-table editor value types', () => {
     it('object options are matched by identity, not by the same "[object Object]" string', async () => {
         const { select } = await edit('team', { team: { id: 3 } }); // not one of the options
         expect(select!.value).toBe(''); // the string form of every object is equal, so it would otherwise select "Red"
+    });
+
+    it('an exact option wins over one that only has the same string form', async () => {
+        for (const [cell, label] of [[1, 'Number'], ['1', 'Text']] as const) {
+            const { select } = await edit('code', { code: cell });
+            expect(select!.options[select!.selectedIndex].text, String(typeof cell)).toBe(label);
+        }
     });
 });

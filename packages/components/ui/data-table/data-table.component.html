@@ -255,11 +255,12 @@
           (change)="onEditSelect($any($event.target), col)"
           (keydown)="onEditKeydown($event)"
         >
-          @if (!editHasOption(col)) {
+          @let chosen = editOptionIndex(col);
+          @if (chosen === -1) {
             <option value="" selected disabled hidden></option>
           }
           @for (opt of col.editOptions; track opt.value; let i = $index) {
-            <option [value]="i" [selected]="isEditOptionSelected(opt.value)">{{ opt.label }}</option>
+            <option [value]="i" [selected]="i === chosen">{{ opt.label }}</option>
           }
         </select>
       } @else {
@@ -272,7 +273,7 @@
           [class.ring-destructive]="editErr"
           [attr.aria-invalid]="editErr ? true : null"
           [attr.aria-describedby]="editErr ? cellEditErrorId : null"
-          [value]="col.editType === 'number' ? editStartValue() : editValue()"
+          [value]="col.editType === 'number' ? editText() : editValue()"
           (input)="onEditInput($any($event.target), col)"
           (keydown)="onEditKeydown($event)"
           (blur)="editingCell() ? commitEdit() : null"

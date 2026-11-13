@@ -551,10 +551,11 @@ export class DataTableComponent<T>
   readonly editingCell = signal<EditingCell | null>(null);
   readonly editValue = signal<unknown>(null);
   /**
-   * The value the open editor started with. A number input is bound to this, not to {@link editValue}: typing "-0"
-   * parses to -0, and writing that back would turn the field into "0" and lose the minus sign.
+   * The text a number input shows: what it started with, then the text of each valid keystroke. The input is bound
+   * to this, not to {@link editValue}: typing "-0" parses to -0, and writing that back would turn the field into
+   * "0" and lose the minus sign. It stays in step with {@link editValue}, so a re-created input shows what commits.
    */
-  readonly editStartValue = signal<unknown>(null);
+  readonly editText = signal('');
   readonly cellEditError = signal<CellEditError | null>(null);
   /** Stable id for the inline edit-error message, linked via `aria-describedby`. */
   readonly cellEditErrorId = `ui-data-table-cell-edit-error-${dataTableUid++}`;
@@ -4856,7 +4857,7 @@ export class DataTableComponent<T>
     const currentValue = this.getCellValue(row, col.accessorKey, col);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
-    this.editStartValue.set(currentValue);
+    this.editText.set(currentValue == null ? '' : String(currentValue));
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
@@ -5147,24 +5148,23 @@ export class DataTableComponent<T>
       return;
     }
     if (input.validity.badInput) return;
+    this.editText.set(input.value);
     this.onEditValueChange(input.value === '' ? null : input.valueAsNumber);
   }
 
-  /** An option is the current one when its value is the edit value, or has its string form (as data from JSON does). */
-  private sameOption(optionValue: unknown, value: unknown): boolean {
-    if (optionValue === value) return true;
+  /**
+   * Which option the select shows as current: the one whose value is the edit value, else the first whose scalar
+   * has its string form (as data from JSON does); -1 when no option stands for it, and the select then shows blank.
+   */
+  editOptionIndex(col: ColumnDef<T>): number {
+    const options = col.editOptions ?? [];
+    const value = this.editValue();
+    const exact = options.findIndex((option) => option.value === value);
+    if (exact !== -1) return exact;
     const isScalar = (v: unknown): v is string | number | boolean | bigint =>
       ['string', 'number', 'boolean', 'bigint'].includes(typeof v);
-    return isScalar(optionValue) && isScalar(value) && String(optionValue) === String(value);
-  }
-
-  isEditOptionSelected(optionValue: unknown): boolean {
-    return this.sameOption(optionValue, this.editValue());
-  }
-
-  /** False when the cell holds a value no option stands for; the select then shows blank, not the first option. */
-  editHasOption(col: ColumnDef<T>): boolean {
-    return col.editOptions?.some((option) => this.sameOption(option.value, this.editValue())) ?? false;
+    if (!isScalar(value)) return -1;
+    return options.findIndex((option) => isScalar(option.value) && String(option.value) === String(value));
   }
 
   /** Commits the chosen option's own value, not its string form, so numbers and booleans keep their type. */
