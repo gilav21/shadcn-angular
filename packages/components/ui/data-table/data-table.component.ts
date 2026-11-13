@@ -164,7 +164,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
 const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'button', 'submit', 'reset', 'image', 'file', 'color', 'hidden']);
 
 /** The columns the grid draws itself (selection, expander, actions), as opposed to data columns. */
-function isGridColumnKey(key: string): boolean {
+function isGridColumnKey(key: PropertyKey | undefined): boolean {
   return key === '_selection' || key === '_expander' || key === '_actions';
 }
 
