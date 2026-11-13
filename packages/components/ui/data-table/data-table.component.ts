@@ -1286,9 +1286,7 @@ export class DataTableComponent<T>
   private applyGlobalFilterToData(data: T[], globalFilterValue: string): T[] {
     const columns = this.enhancedColumns().filter(
       (col) =>
-        col.accessorKey !== "_selection" &&
-        col.accessorKey !== "_expander" &&
-        col.accessorKey !== "_actions",
+        !isGridColumnKey(col.accessorKey),
     );
     const globalFilterFn = this.globalFilterFn();
     if (globalFilterFn) {
@@ -1527,9 +1525,7 @@ export class DataTableComponent<T>
     const colFilters = this.columnFilters();
     const columns = this.enhancedColumns().filter(
       (col) =>
-        col.accessorKey !== "_selection" &&
-        col.accessorKey !== "_expander" &&
-        col.accessorKey !== "_actions",
+        !isGridColumnKey(col.accessorKey),
     );
     const hasGlobalFilter = !!globalFilterValue;
     const hasColumnFilters = Object.keys(colFilters).some(
@@ -2298,9 +2294,7 @@ export class DataTableComponent<T>
     col: ColumnDef<T>,
   ): "ascending" | "descending" | "none" | null {
     const key = String(col.accessorKey);
-    const isSpecialColumn =
-      key === "_selection" || key === "_actions" || key === "_expander";
-    if (isSpecialColumn || col.enableSorting === false) {
+    if (isGridColumnKey(key) || col.enableSorting === false) {
       return null;
     }
     const direction = this.getSortDirection(col.accessorKey);
@@ -4225,15 +4219,11 @@ export class DataTableComponent<T>
     const columns = onlyVisible
       ? this.enhancedColumns().filter(
           (col) =>
-            col.accessorKey !== "_selection" &&
-            col.accessorKey !== "_expander" &&
-            col.accessorKey !== "_actions",
+            !isGridColumnKey(col.accessorKey),
         )
       : this.columns().filter(
           (col) =>
-            col.accessorKey !== "_selection" &&
-            col.accessorKey !== "_expander" &&
-            col.accessorKey !== "_actions",
+            !isGridColumnKey(col.accessorKey),
         );
 
     const rows =
@@ -4350,9 +4340,7 @@ export class DataTableComponent<T>
     if (!this.enableCopy()) return;
     const columns = this.enhancedColumns().filter(
       (col) =>
-        col.accessorKey !== "_selection" &&
-        col.accessorKey !== "_expander" &&
-        col.accessorKey !== "_actions",
+        !isGridColumnKey(col.accessorKey),
     );
     const values = columns.map((col) => this.getCellStringValue(row, col));
     await navigator.clipboard.writeText(toClipboardText([values]));
@@ -4367,9 +4355,7 @@ export class DataTableComponent<T>
     if (!this.enableCopy()) return;
     const columns = this.enhancedColumns().filter(
       (col) =>
-        col.accessorKey !== "_selection" &&
-        col.accessorKey !== "_expander" &&
-        col.accessorKey !== "_actions",
+        !isGridColumnKey(col.accessorKey),
     );
     const selectedIds = this.rowSelection();
     // Grouping reorders the rows on screen; the copy follows the screen, collapsed groups included.
@@ -4559,9 +4545,7 @@ export class DataTableComponent<T>
     return this.enhancedColumns()
       .filter(
         (c) =>
-          c.accessorKey !== "_selection" &&
-          c.accessorKey !== "_expander" &&
-          c.accessorKey !== "_actions",
+          !isGridColumnKey(c.accessorKey),
       )
       .map((c) => String(c.accessorKey));
   });
@@ -4610,9 +4594,12 @@ export class DataTableComponent<T>
    * inputs, selects, contenteditable, slider / list / menu / tab / tree
    * roles, in a shadow root too) is left alone, as is anything that already
    * called `preventDefault` below the grid (a nested grid, a consumer's
-   * control): the grid does not act on those. Enter
-   * and F2 open the editor only when they come from the scroller or a data
-   * cell, and an Enter / F2 that opened an editor does not propagate further.
+   * control): the grid does not act on those. Known limit: a grid nested in a
+   * cell leaves unhandled keys (arrows past its last row) to this one.
+   *
+   * Enter and F2 open the editor only when they come from the scroller or a
+   * data cell and are not a held-key repeat; an Enter / F2 that opened an
+   * editor does not propagate further.
    */
   onTableKeydown(event: KeyboardEvent): void {
     // composedPath() starts at the real origin: `target` is retargeted to the host when the key comes from a shadow root.
@@ -4754,6 +4741,18 @@ export class DataTableComponent<T>
     return column !== undefined && !isGridColumnKey(column);
   }
 
+  private editFromKey(event: KeyboardEvent): void {
+    const focused = this.focusedCell();
+    // A held key repeats past the commit that just returned focus here and must not reopen the editor.
+    if (!focused || event.repeat || !this.isEditKeyTarget(event.target)) return;
+    this.startEditing(focused.rowIndex, focused.columnKey);
+    // Only an edit that opened has handled the key; otherwise an ancestor's Enter (a dialog's submit) still fires.
+    if (this.editingCell() !== null) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+
   private handleNavigationKeydown(event: KeyboardEvent): void {
     if (this.editingCell()) return;
 
@@ -4764,15 +4763,7 @@ export class DataTableComponent<T>
     }
 
     if (event.key === 'Enter' || event.key === 'F2') {
-      const focused = this.focusedCell();
-      if (focused && this.isEditKeyTarget(event.target)) {
-        this.startEditing(focused.rowIndex, focused.columnKey);
-        // Only an edit that opened has handled the key; otherwise an ancestor's Enter (a dialog's submit) still fires.
-        if (this.editingCell() !== null) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-      }
+      this.editFromKey(event);
       return;
     }
 

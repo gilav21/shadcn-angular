@@ -263,4 +263,14 @@ describe('data-table keydown scope', () => {
         expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
         host.remove();
     });
+
+    it('a held Enter that committed the editor does not reopen it', async () => {
+        const { table, cell, press } = await mount();
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
+        const target = cell(0, 'name');
+        target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true }));
+        expect(table.editingCell()).toBeNull();
+        press(target, { key: 'Enter' });
+        expect(table.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
+    });
 });
