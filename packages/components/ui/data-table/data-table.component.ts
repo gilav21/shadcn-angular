@@ -4044,8 +4044,10 @@ export class DataTableComponent<T>
    * the first null/undefined link rather than throwing.
    */
   getCellValue(row: T, key: string | keyof T, column?: ColumnDef<T>): unknown {
-    if (column?.accessorFn) {
-      return column.accessorFn(row);
+    // An addon (pivot, export) asks by key alone; the column's accessorFn is still the cell's value.
+    const resolved = column ?? this.enhancedColumns().find((col) => String(col.accessorKey) === String(key));
+    if (resolved?.accessorFn) {
+      return resolved.accessorFn(row);
     }
 
     if (typeof key === "string" && key.includes(".")) {
