@@ -172,7 +172,7 @@ function isGridColumnKey(key: PropertyKey | undefined): boolean {
 const KEY_OWNING_ROLES = [
   'textbox', 'combobox', 'searchbox', 'spinbutton', 'slider', 'listbox', 'option', 'menu', 'menuitem',
   'menuitemcheckbox', 'menuitemradio', 'menubar', 'radiogroup', 'radio', 'tablist', 'tab', 'tree', 'treeitem',
-  'scrollbar', 'dialog', 'application',
+  'scrollbar', 'dialog', 'application', 'toolbar',
 ].map((role) => `[role="${role}"]`).join(', ');
 
 /**
@@ -2440,7 +2440,7 @@ export class DataTableComponent<T>
     const hasUserTreeExpander = allCols.some(c => c.treeExpander);
     const targetIdx = hasUserTreeExpander
       ? cols.findIndex(c => c.treeExpander)
-      : cols.findIndex(c => c.accessorKey !== '_selection' && c.accessorKey !== '_expander' && c.accessorKey !== '_actions');
+      : cols.findIndex(c => !isGridColumnKey(c.accessorKey));
 
     if (targetIdx !== -1) {
       cols[targetIdx] = { ...cols[targetIdx], _isTreeExpanderHost: true };
@@ -2566,11 +2566,7 @@ export class DataTableComponent<T>
    */
   hasFloatingFilter(col: ColumnDef<T>): boolean {
     if (col.floatingFilter === false) return false;
-    if (
-      col.accessorKey === '_selection' ||
-      col.accessorKey === '_expander' ||
-      col.accessorKey === '_actions'
-    ) {
+    if (isGridColumnKey(col.accessorKey)) {
       return false;
     }
     if (col.floatingFilterComponent) return true;
@@ -5146,7 +5142,8 @@ export class DataTableComponent<T>
    * All three stop propagation so the grid's own navigation does not also run.
    */
   onEditKeydown(event: KeyboardEvent): void {
-    // The Enter / Escape that confirms an IME composition belongs to the IME, not to the editor.
+    // The Enter / Escape that confirms an IME composition belongs to the IME, not to the editor. (Safari sends that
+    // key after compositionend with isComposing already false; only keyCode 229 tells, and it is deprecated.)
     if (event.isComposing) return;
     if (event.key === 'Escape') {
       event.preventDefault();
