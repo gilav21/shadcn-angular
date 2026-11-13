@@ -5944,7 +5944,7 @@ export class DataTableComponent<T>
     const targetTreeRow = treeRows[index];
     if (draggedTreeRow && targetTreeRow && draggedTreeRow.depth !== targetTreeRow.depth) {
       if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
-      this.dragOverIndex.set(-1);
+      this.dragOverIndex.set(null);
       return { blocked: true, position };
     }
     return { blocked: false, position: position === 'on' ? 'below' : position };
@@ -5970,7 +5970,7 @@ export class DataTableComponent<T>
    */
   private refuseDrop(event: DragEvent): void {
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
-    this.dragOverIndex.set(-1);
+    this.dragOverIndex.set(null);
     event.stopPropagation();
     this.handleDragAutoScroll(event.clientY);
   }
@@ -6044,7 +6044,7 @@ export class DataTableComponent<T>
 
     if (event.clientY > lastRowRect.bottom) {
       const refused = this.refusesOwnSubtree(this.draggedRowId() ?? '', this.processedData()[lastIndex], 'below');
-      this.dragOverIndex.set(refused ? -1 : lastIndex);
+      this.dragOverIndex.set(refused ? null : lastIndex);
       this.dragOverPosition.set('below');
     }
 

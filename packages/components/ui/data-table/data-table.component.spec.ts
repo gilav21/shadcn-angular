@@ -5289,11 +5289,12 @@ describe('DataTableComponent - Tree row drag (tree mode)', () => {
         });
 
         it('a vetoed or disabled row does not leave the previously hovered row as the drop target', () => {
-            fixture.componentRef.setInput('rowDragAllowDrop', (_dragged: TNode, target: TNode) => target.id !== 'a2');
+            fixture.componentRef.setInput('rowDragAllowDrop', (...[, target]: [TNode, TNode]) => target.id !== 'a2');
             fixture.detectChanges();
             startDrag(T_DATA[1]);
-            over(1); // 'a1' is allowed
-            expect(over(2).preventDefault).not.toHaveBeenCalled(); // 'a2' is vetoed
+            over(1, 90); // 'a1' is allowed, lower band: a preview would reorder
+            expect(over(2, 90).preventDefault).not.toHaveBeenCalled(); // 'a2' is vetoed
+            expect(component.dragPreviewData()).toBeNull(); // the table does not keep reordering under the pointer
             expect(dropped()).toEqual([]);
         });
 
