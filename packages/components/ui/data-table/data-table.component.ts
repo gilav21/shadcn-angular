@@ -2508,6 +2508,16 @@ export class DataTableComponent<T>
     return rightOffsets;
   }
 
+  /** Every column the table was given, hidden ones included, by accessor key (the first wins a duplicate). */
+  private readonly columnsByKey = computed(() => {
+    const byKey = new Map<string, ColumnDef<T>>();
+    for (const col of this.columns()) {
+      const key = String(col.accessorKey);
+      if (!byKey.has(key)) byKey.set(key, col);
+    }
+    return byKey;
+  });
+
   readonly enhancedColumns = computed(() => {
     const cols = this.columns();
     const widths = this.columnWidths();
@@ -4044,8 +4054,8 @@ export class DataTableComponent<T>
    * the first null/undefined link rather than throwing.
    */
   getCellValue(row: T, key: string | keyof T, column?: ColumnDef<T>): unknown {
-    // An addon (pivot, export) asks by key alone; the column's accessorFn is still the cell's value.
-    const resolved = column ?? this.enhancedColumns().find((col) => String(col.accessorKey) === String(key));
+    // An addon (the pivot) asks by key alone; the column's accessorFn is still the cell's value, hidden or not.
+    const resolved = column ?? this.columnsByKey().get(String(key));
     if (resolved?.accessorFn) {
       return resolved.accessorFn(row);
     }

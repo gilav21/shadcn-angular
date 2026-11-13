@@ -218,4 +218,15 @@ describe('DataTablePivotDirective', () => {
     const result = directive.getPivot({ rows: ['label'], column: 'region', value: 'sales', aggregate: 'sum' });
     expect(result.rows.map((row) => row['label'])).toEqual(['NA-A', 'NA-B', 'EU-A']);
   });
+
+  it('reads a hidden computed column through its accessorFn too', () => {
+    fixture.debugElement.query(By.directive(DataTablePivotDirective)).componentInstance.columnVisibility.set({ label: false });
+    fixture.detectChanges();
+    const directive = fixture.debugElement
+      .query(By.directive(DataTablePivotDirective))
+      .injector.get<DataTablePivotDirective<Sale>>(DataTablePivotDirective);
+
+    const result = directive.getPivot({ rows: ['label'], column: 'region', value: 'sales', aggregate: 'sum' });
+    expect(result.rows.map((row) => row['label'])).toEqual(['NA-A', 'NA-B', 'EU-A']);
+  });
 });
