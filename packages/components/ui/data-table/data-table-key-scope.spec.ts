@@ -81,16 +81,19 @@ describe('data-table keydown scope', () => {
         expect(pressedKeysPrevented(editor, KEYS.filter((init) => init.key !== 'Enter' && init.key !== 'Escape'))).toEqual([]);
     });
 
-    it('a grid embedded in a textbox of the host page still handles its keys', async () => {
+    it('a grid embedded in a textbox or contenteditable host of the page still handles its keys', async () => {
         const { root, table, cell, press } = await mount();
-        const wrapper = document.createElement('div');
-        wrapper.setAttribute('role', 'textbox');
-        document.body.append(wrapper);
-        wrapper.append(root);
+        const textbox = document.createElement('div');
+        textbox.setAttribute('role', 'textbox');
+        const editable = document.createElement('div');
+        editable.contentEditable = 'true';
+        document.body.append(textbox);
+        textbox.append(editable);
+        editable.append(root);
         table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
         press(cell(0, 'id'), { key: 'ArrowDown' });
         expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
-        wrapper.remove();
+        textbox.remove();
     });
 
     it('a key something below the grid already handled is not handled again', async () => {
@@ -102,7 +105,7 @@ describe('data-table keydown scope', () => {
     });
 
     it('Enter on the cell that holds focus opens the editor and stops there', async () => {
-        const { root, table, press } = await mount();
+        const { fixture, root, table, press } = await mount();
         let reachedAncestor = false;
         root.addEventListener('keydown', () => {
             reachedAncestor = true;
@@ -112,7 +115,8 @@ describe('data-table keydown scope', () => {
         scroller.focus();
         press(document.activeElement!, { key: 'ArrowDown' }); // focus moves onto the first cell, as a user's would
         press(document.activeElement!, { key: 'ArrowRight' });
-        await new Promise((resolve) => requestAnimationFrame(resolve));
+        fixture.detectChanges();
+        await fixture.whenStable();
         reachedAncestor = false;
         press(document.activeElement!, { key: 'Enter' });
         expect(table.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
@@ -144,13 +148,14 @@ describe('data-table keydown scope', () => {
         expect(table.editingCell()).toBeNull();
     });
 
-    it('a key from a control inside a cell does not move the focused cell', async () => {
+    it('a key from a control inside a cell focuses that cell, as a click does, without opening its editor', async () => {
         const { table, cell, press } = await mount();
         const button = document.createElement('button');
         cell(1, 'name').append(button);
         table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
         press(button, { key: 'Enter' });
-        expect(table.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
+        expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'name' });
+        expect(table.editingCell()).toBeNull();
     });
 
     it('Space on a cell, or on a control inside it, stops there', async () => {
@@ -245,26 +250,14 @@ describe('data-table keydown scope', () => {
         expect(table.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
     });
 
-    it('Enter from a selection cell does not edit the stale focused cell', async () => {
+    it('Enter from a selection cell does not edit the focused cell elsewhere', async () => {
         const { table, cell, press } = await mount();
         table.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
         press(cell(0, '_selection'), { key: 'Enter' });
         expect(table.editingCell()).toBeNull();
     });
 
-    it('a grid embedded in a contenteditable host still handles its keys', async () => {
-        const { root, table, cell, press } = await mount();
-        const host = document.createElement('div');
-        host.contentEditable = 'true';
-        document.body.append(host);
-        host.append(root);
-        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
-        press(cell(0, 'id'), { key: 'ArrowDown' });
-        expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
-        host.remove();
-    });
-
-    it('a held Enter that committed the editor does not reopen it', async () => {
+    it('Enter and F2 do not start an edit from a repeating key', async () => {
         const { table, cell, press } = await mount();
         table.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
         const target = cell(0, 'name');
@@ -272,5 +265,15 @@ describe('data-table keydown scope', () => {
         expect(table.editingCell()).toBeNull();
         press(target, { key: 'Enter' });
         expect(table.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
+    });
+
+    it('the Enter that confirms an IME composition does not commit the editor', async () => {
+        const { fixture, root, table } = await mount();
+        table.startEditing(0, 'name');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const editor = root.querySelector<HTMLInputElement>('[data-row-index] input[data-edit-input]')!;
+        editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true, cancelable: true }));
+        expect(table.editingCell()).not.toBeNull();
     });
 });

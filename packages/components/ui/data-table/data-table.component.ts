@@ -172,7 +172,7 @@ function isGridColumnKey(key: PropertyKey | undefined): boolean {
 const KEY_OWNING_ROLES = [
   'textbox', 'combobox', 'searchbox', 'spinbutton', 'slider', 'listbox', 'option', 'menu', 'menuitem',
   'menuitemcheckbox', 'menuitemradio', 'menubar', 'radiogroup', 'radio', 'tablist', 'tab', 'tree', 'treeitem',
-  'scrollbar', 'dialog',
+  'scrollbar', 'dialog', 'application',
 ].map((role) => `[role="${role}"]`).join(', ');
 
 /**
@@ -4402,17 +4402,10 @@ export class DataTableComponent<T>
     const key = String(col.accessorKey);
     if (isGridColumnKey(key))
       return;
-    // A click must not reach onTableClick (it clears the focus). A key from the cell itself must reach
-    // onTableKeydown (Enter / F2 edit); one bubbling up from a control inside the cell stays with that control.
-    if ('key' in event) {
-      if (event.target !== event.currentTarget) {
-        event.stopPropagation();
-        return;
-      }
-      if (event.key !== 'Enter') event.stopPropagation();
-    } else {
-      event.stopPropagation();
-    }
+    // A click must not reach onTableClick (it clears the focus), and a key from a control inside the cell stays
+    // with that control. Only Enter on the cell itself goes on to onTableKeydown, where it opens the editor.
+    const passesToGrid = 'key' in event && event.key === 'Enter' && event.target === event.currentTarget;
+    if (!passesToGrid) event.stopPropagation();
     // When range selection is on, focus + range are managed by the pointer-drag
     // handler (onTableMouseDown); a plain click just focuses here for keyboard.
     this.focusedCell.set({ rowIndex, columnKey: key });
@@ -5153,6 +5146,8 @@ export class DataTableComponent<T>
    * All three stop propagation so the grid's own navigation does not also run.
    */
   onEditKeydown(event: KeyboardEvent): void {
+    // The Enter / Escape that confirms an IME composition belongs to the IME, not to the editor.
+    if (event.isComposing) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       event.stopPropagation();
