@@ -5944,34 +5944,70 @@ export class DataTableComponent<T>
     const targetTreeRow = treeRows[index];
     if (draggedTreeRow && targetTreeRow && draggedTreeRow.depth !== targetTreeRow.depth) {
       if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
-      this.dragOverIndex.set(-1);
+      this.dragOverIndex.set(null);
       return { blocked: true, position };
     }
     return { blocked: false, position: position === 'on' ? 'below' : position };
   }
 
   /**
+   * Whether dropping the dragged tree node at `row` would move it into its own subtree: onto a descendant, or
+   * "on" itself. Such a drop would lose the subtree (or make the node its own parent), so it is refused.
+   */
+  private refusesOwnSubtree(draggedId: string, row: T | undefined, position: RowDragPosition): boolean {
+    if (!row || !this.enableSubRows()) return false;
+    const getId = this.getRowId();
+    const dragged = this.processedData().find(r => getId(r) === draggedId);
+    if (!dragged) return false;
+    if (getId(dragged) === getId(row)) return position === 'on';
+    return this.subtreeContains(dragged, getId(row), getId, this.getChildren());
+  }
+
+  /**
+   * Refuses the row under the pointer as a drop target. Not just "no preventDefault": the container's dragover
+   * would still accept the drop and `onRowDrop` would use the row hovered before, so the target is cleared and
+   * the event stopped. Edge auto-scroll keeps working, or a tall refused subtree could not be scrolled past.
+   */
+  private refuseDrop(event: DragEvent): void {
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+    this.dragOverIndex.set(null);
+    event.stopPropagation();
+    this.handleDragAutoScroll(event.clientY);
+  }
+
+  /**
    * Tracks the hovered row during a row drag and decides the drop position from
    * the pointer's position within the row: above/below at the halves in `"flat"`
    * mode, above/on/below at the quarters in `"tree"` mode. Rejects the target
-   * when the row is disabled, when a flat drag would cross tree depths, or when
-   * {@link rowDragAllowDrop} vetoes it, and auto-scrolls near the edges.
+   * when the row is disabled, when a flat drag would cross tree depths, when a
+   * tree drag would land in its own subtree (on a descendant, or "on" itself),
+   * or when {@link rowDragAllowDrop} vetoes it, and auto-scrolls near the edges.
    */
   onRowDragOver(event: DragEvent, index: number): void {
     const draggedId = this.draggedRowId();
     if (!this.enableRowDrag() || !draggedId) return;
 
     const row = this.processedData()[index];
-    if (row && this.isDisabled(row)) return;
+    if (row && this.isDisabled(row)) {
+      this.refuseDrop(event);
+      return;
+    }
 
     const getId = this.getRowId();
     const rawPosition = this.computeDragPosition(event);
     const { blocked, position } = this.checkFlatTreeDragCompatibility(event, index, draggedId, getId, rawPosition);
     if (blocked) return;
 
+    if (this.refusesOwnSubtree(draggedId, row, position)) {
+      this.refuseDrop(event);
+      return;
+    }
     const draggedRow = this.processedData().find(r => getId(r) === draggedId);
     const allowDropFn = this.rowDragAllowDrop();
-    if (draggedRow && row && allowDropFn && !allowDropFn(draggedRow, row, position)) return;
+    if (draggedRow && row && allowDropFn && !allowDropFn(draggedRow, row, position)) {
+      this.refuseDrop(event);
+      return;
+    }
 
     event.preventDefault();
     event.stopPropagation();
@@ -6007,7 +6043,8 @@ export class DataTableComponent<T>
     const lastRowRect = lastRow.getBoundingClientRect();
 
     if (event.clientY > lastRowRect.bottom) {
-      this.dragOverIndex.set(lastIndex);
+      const refused = this.refusesOwnSubtree(this.draggedRowId() ?? '', this.processedData()[lastIndex], 'below');
+      this.dragOverIndex.set(refused ? null : lastIndex);
       this.dragOverPosition.set('below');
     }
 
@@ -6115,7 +6152,17 @@ export class DataTableComponent<T>
 
     const { remaining, removed } = this.removeFromTree(data, rowId, getId, getChildrenFn, setChildrenFn);
     if (!removed) return data;
+    // A node cannot move into itself or its own subtree: the target left the tree with it, so
+    // inserting would never match and the moved subtree would be dropped from the data.
+    if (this.subtreeContains(removed, targetId, getId, getChildrenFn)) return data;
     return this.insertIntoTree(remaining, removed, targetId, event.position, getId, getChildrenFn, setChildrenFn);
+  }
+
+  private subtreeContains(
+    node: T, id: string, getId: (r: T) => string, getChildrenFn: (r: T) => T[] | undefined
+  ): boolean {
+    if (getId(node) === id) return true;
+    return (getChildrenFn(node) ?? []).some(child => this.subtreeContains(child, id, getId, getChildrenFn));
   }
 
   private removeFromTree(
