@@ -100,7 +100,10 @@ export abstract class DataTableAddonHost<T = unknown> {
   abstract getSortedRows(): readonly T[];
   /** The raw, unfiltered input rows (the `data` input), for transforms like pivot. */
   abstract getRawRows(): readonly T[];
-  /** Resolve a cell's raw value for a row + column key (accessor or valueGetter). */
+  /**
+   * Resolve a cell's raw value for a row + column key. A column's `accessorFn` wins; with no `column` passed it is
+   * looked up by `key` among all the table's columns (hidden ones too), then a dotted path or `row[key]`.
+   */
   abstract getCellValue(row: T, key: string | keyof T, column?: ColumnDef<T>): unknown;
   /** The active filter + sort query, for a server-side export provider. */
   abstract queryState(): DataTableExportQuery;

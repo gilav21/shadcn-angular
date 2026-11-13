@@ -143,6 +143,7 @@ class TestHostComponent {
     { accessorKey: 'region', header: 'Region' },
     { accessorKey: 'product', header: 'Product' },
     { accessorKey: 'sales', header: 'Sales' },
+    { accessorKey: 'label', header: 'Label', accessorFn: (row) => `${row.region}-${row.product}` },
   ];
 }
 
@@ -207,5 +208,25 @@ describe('DataTablePivotDirective', () => {
     expect(result.columns.map((c) => c.header)).toEqual(['region', 'A', 'B', 'Total']);
     const [pa, pb] = result.pivotColumnKeys;
     expect(result.rows[0]).toMatchObject({ region: 'NA', [pa]: 120, [pb]: 50, __total__: 170 });
+  });
+
+  it('reads a computed column through its accessorFn, not row[key]', () => {
+    const directive = fixture.debugElement
+      .query(By.directive(DataTablePivotDirective))
+      .injector.get<DataTablePivotDirective<Sale>>(DataTablePivotDirective);
+
+    const result = directive.getPivot({ rows: ['label'], column: 'region', value: 'sales', aggregate: 'sum' });
+    expect(result.rows.map((row) => row['label'])).toEqual(['NA-A', 'NA-B', 'EU-A']);
+  });
+
+  it('reads a hidden computed column through its accessorFn too', () => {
+    fixture.debugElement.query(By.directive(DataTablePivotDirective)).componentInstance.columnVisibility.set({ label: false });
+    fixture.detectChanges();
+    const directive = fixture.debugElement
+      .query(By.directive(DataTablePivotDirective))
+      .injector.get<DataTablePivotDirective<Sale>>(DataTablePivotDirective);
+
+    const result = directive.getPivot({ rows: ['label'], column: 'region', value: 'sales', aggregate: 'sum' });
+    expect(result.rows.map((row) => row['label'])).toEqual(['NA-A', 'NA-B', 'EU-A']);
   });
 });
