@@ -183,13 +183,16 @@ const KEY_OWNING_ROLES = [
  */
 function ownsItsKeys(path: EventTarget[], boundary: Element): boolean {
   const origin = path[0];
-  if (!(origin instanceof HTMLElement)) return false;
-  if (origin.isContentEditable || origin instanceof HTMLTextAreaElement || origin instanceof HTMLSelectElement) return true;
+  if (origin instanceof HTMLTextAreaElement || origin instanceof HTMLSelectElement) return true;
+  if (origin instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.has(origin.type)) return true;
   for (const node of path) {
     if (node === boundary) break;
-    if (node instanceof Element && node.matches(KEY_OWNING_ROLES)) return true;
+    if (!(node instanceof Element)) continue;
+    // isContentEditable is inherited from outside the grid too, so the attribute is read on the way up.
+    const editable = node instanceof HTMLElement && (node.contentEditable === 'true' || node.contentEditable === 'plaintext-only');
+    if (editable || node.matches(KEY_OWNING_ROLES)) return true;
   }
-  return origin instanceof HTMLInputElement && !NON_TEXT_INPUT_TYPES.has(origin.type);
+  return false;
 }
 
 /** Mirrors a data row's selection to assistive tech, and clears it when the grid stops being selectable. */
@@ -299,7 +302,7 @@ const DEFAULT_COLUMN_MIN_WIDTH = "80px";
 function resolveColumnMinWidth(col: { accessorKey?: PropertyKey; minWidth?: string }): string {
   if (col.minWidth) return col.minWidth;
   const key = col.accessorKey;
-  const isSpecial = key === "_selection" || key === "_expander" || key === "_actions";
+  const isSpecial = isGridColumnKey(key);
   return isSpecial ? "0px" : DEFAULT_COLUMN_MIN_WIDTH;
 }
 
@@ -4411,7 +4414,7 @@ export class DataTableComponent<T>
    */
   onCellClick(rowIndex: number, col: ColumnDef<T>, event: Event): void {
     const key = String(col.accessorKey);
-    if (key === "_selection" || key === "_expander" || key === "_actions")
+    if (isGridColumnKey(key))
       return;
     // A click must not reach onTableClick (it clears the focus). A key from the cell itself must reach
     // onTableKeydown (Enter / F2 edit); one bubbling up from a control inside the cell stays with that control.
@@ -4442,7 +4445,7 @@ export class DataTableComponent<T>
     if (rawRow === undefined || columnKey === undefined) return null;
     const rowIndex = Number(rawRow);
     if (!Number.isFinite(rowIndex)) return null;
-    const special = columnKey === "_selection" || columnKey === "_expander" || columnKey === "_actions";
+    const special = isGridColumnKey(columnKey);
     return special ? null : { rowIndex, columnKey };
   }
 
@@ -4512,7 +4515,7 @@ export class DataTableComponent<T>
    */
   onCellDblClick(rowIndex: number, col: ColumnDef<T>, event: Event): void {
     const key = String(col.accessorKey);
-    if (key === "_selection" || key === "_expander" || key === "_actions")
+    if (isGridColumnKey(key))
       return;
     event.stopPropagation();
     this.startEditing(rowIndex, key);
@@ -4534,7 +4537,7 @@ export class DataTableComponent<T>
     col: ColumnDef<T>
   ): void {
     const key = String(col.accessorKey);
-    if (key === "_selection" || key === "_expander" || key === "_actions")
+    if (isGridColumnKey(key))
       return;
     const now = Date.now();
     const isSameCell =
@@ -4603,10 +4606,11 @@ export class DataTableComponent<T>
    * navigation. Each stage is gated by its feature input, and the first one to
    * handle the event stops the chain.
    *
-   * A text-entry control (text input, textarea, select, contenteditable, a
-   * textbox / combobox / searchbox / spinbutton role) inside the grid owns its
-   * keys, as does anything that already called `preventDefault` below the grid
-   * (a nested grid, a consumer's control): the grid does not act on those. Enter
+   * A control inside the grid that owns its keys (see `ownsItsKeys`: text
+   * inputs, selects, contenteditable, slider / list / menu / tab / tree
+   * roles, in a shadow root too) is left alone, as is anything that already
+   * called `preventDefault` below the grid (a nested grid, a consumer's
+   * control): the grid does not act on those. Enter
    * and F2 open the editor only when they come from the scroller or a data
    * cell, and an Enter / F2 that opened an editor does not propagate further.
    */
@@ -5696,7 +5700,7 @@ export class DataTableComponent<T>
 
   private isColumnReorderable(col: ColumnDef<T>): boolean {
     const key = String(col.accessorKey);
-    if (key === "_selection" || key === "_expander" || key === "_actions") {
+    if (isGridColumnKey(key)) {
       return false;
     }
     return col.enableReordering !== false;

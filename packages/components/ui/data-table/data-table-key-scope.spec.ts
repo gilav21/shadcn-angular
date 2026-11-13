@@ -153,14 +153,17 @@ describe('data-table keydown scope', () => {
         expect(table.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
     });
 
-    it('Space on a cell stops at the cell', async () => {
+    it('Space on a cell, or on a control inside it, stops there', async () => {
         const { root, cell, press } = await mount();
-        let reachedAncestor = false;
-        root.addEventListener('keydown', () => {
-            reachedAncestor = true;
+        const button = document.createElement('button');
+        cell(0, 'name').append(button);
+        const reached: string[] = [];
+        root.addEventListener('keydown', (event) => {
+            reached.push(event.target === button ? 'button' : 'cell');
         });
         press(cell(0, 'name'), { key: ' ' });
-        expect(reachedAncestor).toBe(false);
+        press(button, { key: ' ' });
+        expect(reached).toEqual([]);
     });
 
     it('copying the selected rows works from the checkboxes and buttons a click leaves focus on', async () => {
@@ -226,8 +229,8 @@ describe('data-table keydown scope', () => {
         expect(table.editingCell()).toBeNull();
     });
 
-    it('a role inside a shadow root that owns its keys is left alone, and so is Enter from a selection cell', async () => {
-        const { root, table, cell, press } = await mount();
+    it('a role inside a shadow root that owns its keys is left alone', async () => {
+        const { root, table } = await mount();
         const host = document.createElement('div');
         const slider = document.createElement('div');
         slider.setAttribute('role', 'slider');
@@ -240,9 +243,24 @@ describe('data-table keydown scope', () => {
         thumb.dispatchEvent(event);
         expect(event.defaultPrevented).toBe(false);
         expect(table.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
+    });
 
+    it('Enter from a selection cell does not edit the stale focused cell', async () => {
+        const { table, cell, press } = await mount();
         table.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
         press(cell(0, '_selection'), { key: 'Enter' });
         expect(table.editingCell()).toBeNull();
+    });
+
+    it('a grid embedded in a contenteditable host still handles its keys', async () => {
+        const { root, table, cell, press } = await mount();
+        const host = document.createElement('div');
+        host.contentEditable = 'true';
+        document.body.append(host);
+        host.append(root);
+        table.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        press(cell(0, 'id'), { key: 'ArrowDown' });
+        expect(table.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'id' });
+        host.remove();
     });
 });
