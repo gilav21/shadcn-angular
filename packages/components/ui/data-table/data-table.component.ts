@@ -5951,11 +5951,25 @@ export class DataTableComponent<T>
   }
 
   /**
+   * Whether dropping the dragged tree node at `row` would move it into its own subtree: onto a descendant, or
+   * "on" itself. Such a drop would lose the subtree (or make the node its own parent), so it is refused.
+   */
+  private refusesOwnSubtree(draggedId: string, row: T | undefined, position: RowDragPosition): boolean {
+    if (!row || !this.enableSubRows()) return false;
+    const getId = this.getRowId();
+    const dragged = this.processedData().find(r => getId(r) === draggedId);
+    if (!dragged) return false;
+    if (getId(dragged) === getId(row)) return position === 'on';
+    return this.subtreeContains(dragged, getId(row), getId, this.getChildren());
+  }
+
+  /**
    * Tracks the hovered row during a row drag and decides the drop position from
    * the pointer's position within the row: above/below at the halves in `"flat"`
    * mode, above/on/below at the quarters in `"tree"` mode. Rejects the target
-   * when the row is disabled, when a flat drag would cross tree depths, or when
-   * {@link rowDragAllowDrop} vetoes it, and auto-scrolls near the edges.
+   * when the row is disabled, when a flat drag would cross tree depths, when a
+   * tree drag would land in its own subtree (on a descendant, or "on" itself),
+   * or when {@link rowDragAllowDrop} vetoes it, and auto-scrolls near the edges.
    */
   onRowDragOver(event: DragEvent, index: number): void {
     const draggedId = this.draggedRowId();
@@ -5969,9 +5983,14 @@ export class DataTableComponent<T>
     const { blocked, position } = this.checkFlatTreeDragCompatibility(event, index, draggedId, getId, rawPosition);
     if (blocked) return;
 
+    if (this.refusesOwnSubtree(draggedId, row, position)) {
+      // Not just "no preventDefault": the container's dragover would still accept the drop with the stale target.
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+      this.dragOverIndex.set(-1);
+      event.stopPropagation();
+      return;
+    }
     const draggedRow = this.processedData().find(r => getId(r) === draggedId);
-    if (draggedRow && row && this.enableSubRows() && getId(draggedRow) !== getId(row)
-      && this.subtreeContains(draggedRow, getId(row), getId, this.getChildren())) return;
     const allowDropFn = this.rowDragAllowDrop();
     if (draggedRow && row && allowDropFn && !allowDropFn(draggedRow, row, position)) return;
 
@@ -6009,7 +6028,8 @@ export class DataTableComponent<T>
     const lastRowRect = lastRow.getBoundingClientRect();
 
     if (event.clientY > lastRowRect.bottom) {
-      this.dragOverIndex.set(lastIndex);
+      const refused = this.refusesOwnSubtree(this.draggedRowId() ?? '', this.processedData()[lastIndex], 'below');
+      this.dragOverIndex.set(refused ? -1 : lastIndex);
       this.dragOverPosition.set('below');
     }
 
