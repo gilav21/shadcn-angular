@@ -41,12 +41,13 @@ class Host {
     readonly data: Row[] = [{ id: 1, name: 'Ann', qty: 5, level: 1, flag: true, plan: 'free' }];
 }
 
-async function edit(columnKey: string) {
+async function edit(columnKey: string, cell: Partial<Row> = {}) {
     TestBed.resetTestingModule();
     setter.mockClear();
     validator.mockClear();
     await TestBed.configureTestingModule({ imports: [Host] }).compileComponents();
     const fixture = TestBed.createComponent(Host);
+    Object.assign(fixture.componentInstance.data[0], cell);
     fixture.detectChanges();
     await fixture.whenStable();
     const table = fixture.componentInstance.table();
@@ -151,5 +152,32 @@ describe('data-table editor value types', () => {
         await fixture.whenStable();
         const select = (fixture.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('select[data-edit-input]')!;
         expect(select.selectedIndex).toBe(1);
+    });
+
+    it('a negative decimal being typed keeps its text and commits as a number', async () => {
+        const { input, table, edits, settle } = await edit('qty');
+        for (const text of ['-0', '-0.5']) {
+            input!.value = text;
+            input!.dispatchEvent(new Event('input'));
+            await settle();
+            expect(input!.value, text).toBe(text); // writing the parsed -0 back would have turned "-0" into "0"
+        }
+        table.commitEdit();
+        await settle();
+        expect(edits).toEqual([-0.5]);
+    });
+
+    it('a select whose cell matches no option shows blank, and every option stays choosable', async () => {
+        const { select, edits, settle } = await edit('level', { level: 99 });
+        expect(select!.value).toBe('');
+        select!.selectedIndex = 1; // the first real option; with it pre-selected this would fire no change
+        select!.dispatchEvent(new Event('change'));
+        await settle();
+        expect(edits).toEqual([1]);
+    });
+
+    it('a select matches an option whose value is the string form of the cell value', async () => {
+        const { select } = await edit('level', { level: '2' as unknown as number });
+        expect(select!.options[select!.selectedIndex].text).toBe('High');
     });
 });

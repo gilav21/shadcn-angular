@@ -550,6 +550,11 @@ export class DataTableComponent<T>
   readonly editError = output<CellEditErrorEvent<T>>();
   readonly editingCell = signal<EditingCell | null>(null);
   readonly editValue = signal<unknown>(null);
+  /**
+   * The value the open editor started with. A number input is bound to this, not to {@link editValue}: typing "-0"
+   * parses to -0, and writing that back would turn the field into "0" and lose the minus sign.
+   */
+  readonly editStartValue = signal<unknown>(null);
   readonly cellEditError = signal<CellEditError | null>(null);
   /** Stable id for the inline edit-error message, linked via `aria-describedby`. */
   readonly cellEditErrorId = `ui-data-table-cell-edit-error-${dataTableUid++}`;
@@ -4851,6 +4856,7 @@ export class DataTableComponent<T>
     const currentValue = this.getCellValue(row, col.accessorKey, col);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
+    this.editStartValue.set(currentValue);
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
@@ -5144,9 +5150,27 @@ export class DataTableComponent<T>
     this.onEditValueChange(input.value === '' ? null : input.valueAsNumber);
   }
 
-  /** The chosen option's own value, not its string form, so numbers and booleans keep their type. */
-  selectedEditOption(select: HTMLSelectElement, col: ColumnDef<T>): unknown {
-    return col.editOptions?.[select.selectedIndex]?.value;
+  /** An option is the current one when its value is the edit value, or has its string form (as data from JSON does). */
+  private sameOption(optionValue: unknown, value: unknown): boolean {
+    if (optionValue === value) return true;
+    return optionValue != null && value != null && String(optionValue) === String(value);
+  }
+
+  isEditOptionSelected(optionValue: unknown): boolean {
+    return this.sameOption(optionValue, this.editValue());
+  }
+
+  /** False when the cell holds a value no option stands for; the select then shows blank, not the first option. */
+  editHasOption(col: ColumnDef<T>): boolean {
+    return col.editOptions?.some((option) => this.sameOption(option.value, this.editValue())) ?? false;
+  }
+
+  /** Commits the chosen option's own value, not its string form, so numbers and booleans keep their type. */
+  onEditSelect(select: HTMLSelectElement, col: ColumnDef<T>): void {
+    const option = select.value === '' ? undefined : col.editOptions?.[Number(select.value)];
+    if (!option) return;
+    this.onEditValueChange(option.value);
+    this.commitEdit();
   }
 
   /**

@@ -252,11 +252,14 @@
           [class.ring-destructive]="editErr"
           [attr.aria-invalid]="editErr ? true : null"
           [attr.aria-describedby]="editErr ? cellEditErrorId : null"
-          (change)="onEditValueChange(selectedEditOption($any($event.target), col)); commitEdit()"
+          (change)="onEditSelect($any($event.target), col)"
           (keydown)="onEditKeydown($event)"
         >
-          @for (opt of col.editOptions; track opt.value) {
-            <option [value]="opt.value" [selected]="opt.value === editValue()">{{ opt.label }}</option>
+          @if (!editHasOption(col)) {
+            <option value="" selected disabled hidden></option>
+          }
+          @for (opt of col.editOptions; track opt.value; let i = $index) {
+            <option [value]="i" [selected]="isEditOptionSelected(opt.value)">{{ opt.label }}</option>
           }
         </select>
       } @else {
@@ -269,7 +272,7 @@
           [class.ring-destructive]="editErr"
           [attr.aria-invalid]="editErr ? true : null"
           [attr.aria-describedby]="editErr ? cellEditErrorId : null"
-          [value]="editValue()"
+          [value]="col.editType === 'number' ? editStartValue() : editValue()"
           (input)="onEditInput($any($event.target), col)"
           (keydown)="onEditKeydown($event)"
           (blur)="editingCell() ? commitEdit() : null"
