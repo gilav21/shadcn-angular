@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import type { ColumnDef } from './data-table.types';
 
-interface Row { id: number; name: string; qty: number | null; level: number; flag: boolean; plan: string }
+interface Row { id: number; name: string; qty: number | null; level: number; flag: boolean; plan: string; team?: unknown }
 
 const setter = vi.fn((row: Row, value: unknown, key: keyof Row) => ({ ...row, [key]: value }));
 const validator = vi.fn<(value: unknown, row: Row) => boolean>(() => true);
@@ -27,6 +27,10 @@ const columns: ColumnDef<Row>[] = [
         accessorKey: 'plan', header: 'Plan', editable: true, editType: 'select',
         editOptions: [{ label: 'Free', value: 'free' }, { label: 'Pro', value: 'pro' }],
         valueSetter: (row, value) => setter(row, value, 'plan'),
+    },
+    {
+        accessorKey: 'team', header: 'Team', editable: true, editType: 'select',
+        editOptions: [{ label: 'Red', value: { id: 1 } }, { label: 'Blue', value: { id: 2 } }],
     },
 ];
 
@@ -179,5 +183,10 @@ describe('data-table editor value types', () => {
     it('a select matches an option whose value is the string form of the cell value', async () => {
         const { select } = await edit('level', { level: '2' as unknown as number });
         expect(select!.options[select!.selectedIndex].text).toBe('High');
+    });
+
+    it('object options are matched by identity, not by the same "[object Object]" string', async () => {
+        const { select } = await edit('team', { team: { id: 3 } }); // not one of the options
+        expect(select!.value).toBe(''); // the string form of every object is equal, so it would otherwise select "Red"
     });
 });

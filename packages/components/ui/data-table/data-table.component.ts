@@ -5153,7 +5153,9 @@ export class DataTableComponent<T>
   /** An option is the current one when its value is the edit value, or has its string form (as data from JSON does). */
   private sameOption(optionValue: unknown, value: unknown): boolean {
     if (optionValue === value) return true;
-    return optionValue != null && value != null && String(optionValue) === String(value);
+    const isScalar = (v: unknown): v is string | number | boolean | bigint =>
+      ['string', 'number', 'boolean', 'bigint'].includes(typeof v);
+    return isScalar(optionValue) && isScalar(value) && String(optionValue) === String(value);
   }
 
   isEditOptionSelected(optionValue: unknown): boolean {
