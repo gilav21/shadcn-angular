@@ -78,3 +78,49 @@ describe('Input inside an input group', () => {
         expect(style.borderTopWidth).toBe('0px');
     });
 });
+
+/**
+ * Anything that forces the bordered container layout (clearable, loading, prefix,
+ * suffix) must draw its frame from the same effective variant as a plain input:
+ * the group owns the border inside a group, and `ghost`/`underline` are honoured.
+ */
+describe('Input container chrome follows the effective variant', () => {
+    const GROUP = { provide: UI_INPUT_GROUP, useValue: { disabled: () => false } };
+
+    function containerStyle(attrs: string, inGroup: boolean): CSSStyleDeclaration {
+        if (inGroup) TestBed.configureTestingModule({ providers: [GROUP] });
+        TestBed.overrideComponent(PaddingHost, { set: { template: `<ui-input ${attrs} />` } });
+        const fixture = TestBed.createComponent(PaddingHost);
+        fixture.detectChanges();
+        return getComputedStyle((fixture.nativeElement as HTMLElement).querySelector('[data-slot="input-container"]')!);
+    }
+
+    it.each(['[clearable]="true" value="x"', '[loading]="true"', 'prefix="$"', 'suffix="kg"'])(
+        'draws no frame of its own inside a group, so the group draws the only border: %s',
+        (attrs) => {
+            const style = containerStyle(attrs, true);
+            expect(style.borderTopWidth).toBe('0px');
+            expect(style.borderBottomWidth).toBe('0px');
+            expect(style.boxShadow).toBe('none');
+        },
+    );
+
+    it('draws no frame for an explicit ghost variant outside a group', () => {
+        const style = containerStyle('variant="ghost" [clearable]="true" value="x"', false);
+        expect(style.borderTopWidth).toBe('0px');
+        expect(style.boxShadow).toBe('none');
+    });
+
+    it('draws only the bottom rule for the underline variant', () => {
+        const style = containerStyle('variant="underline" [clearable]="true" value="x"', false);
+        expect(style.borderBottomWidth).toBe('1px');
+        expect(style.borderTopWidth).toBe('0px');
+        expect(style.borderLeftWidth).toBe('0px');
+    });
+
+    it('keeps the full border for the default outline variant outside a group', () => {
+        const style = containerStyle('[clearable]="true" value="x"', false);
+        expect(style.borderTopWidth).toBe('1px');
+        expect(style.borderLeftWidth).toBe('1px');
+    });
+});

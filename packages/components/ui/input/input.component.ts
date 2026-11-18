@@ -33,6 +33,22 @@ const inputVariants = cva(
     }
 );
 
+const containerVariants = cva(
+    'relative flex w-full items-center bg-transparent transition-[color,box-shadow]',
+    {
+        variants: {
+            variant: {
+                outline: 'rounded-lg border border-input shadow-xs dark:bg-input/30 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50',
+                underline: 'rounded-none border-b border-input has-[input:focus-visible]:border-ring',
+                ghost: '',
+            },
+        },
+        defaultVariants: {
+            variant: 'outline',
+        },
+    }
+);
+
 export type InputVariant = VariantProps<typeof inputVariants>['variant'];
 
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
@@ -203,11 +219,12 @@ export class InputComponent implements ControlValueAccessor {
         cn(inputVariants({ variant: this.effectiveVariant() }), this.class())
     );
 
+    /**
+     * The container's frame follows the same effective variant as a plain input, so
+     * inside a group (variant `ghost`) it draws nothing and the group owns the one border.
+     */
     readonly containerClasses = computed(() => cn(
-        'relative flex w-full items-center rounded-lg border border-input shadow-xs',
-        'transition-[color,box-shadow]',
-        'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50',
-        'dark:bg-input/30 bg-transparent',
+        containerVariants({ variant: this.effectiveVariant() }),
         this.isDisabled() && 'opacity-50 pointer-events-none cursor-not-allowed',
         this.class()
     ));
