@@ -67,7 +67,7 @@ describe('number editor, driven by real keystrokes', () => {
             await settle(); // the editor re-renders the valid text; a keystroke racing that render would be overwritten
             await userEvent.keyboard('e');
         }],
-    ])('a field that holds a half-typed number refuses to commit, whichever way it got there: %s', async (_label, type) => {
+    ])('a field that holds a half-typed number refuses to commit, whichever way it got there: %s', async (...[, type]: [string, (input: HTMLInputElement, settle: () => Promise<void>) => Promise<void>]) => {
         const { table, edits, root, settle, message } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
@@ -105,7 +105,7 @@ describe('number editor, driven by real keystrokes', () => {
     it.each([
         ['a half-typed number', '-', 'Enter a valid number'],
         ['a value the validator rejects', '0', 'Zero is not allowed'],
-    ])('Tab does not move on from %s: the editor, its text and its message stay', async (_label, typed, expectedMessage) => {
+    ])('Tab does not move on from %s: the editor, its text and its message stay', async (...[, typed, expectedMessage]: [string, string, string]) => {
         const { table, edits, root, settle, message } = await openEditor('qty');
         table.focusedCell.set({ rowIndex: 0, columnKey: 'qty' }); // what clicking the cell does; Tab moves on from the focused cell
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
