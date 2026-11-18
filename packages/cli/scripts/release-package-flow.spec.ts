@@ -166,10 +166,10 @@ describe('packageCommits', () => {
         expect(packageCommits('base', new Set(['ui/rte/a.ts']), fakeGit({ [LOG_KEY]: '' }))).toEqual([]);
     });
 
-    // A probe answers null when git failed (an unknown ref, or output past the buffer). That must not read as "no
-    // commits": the release would be planned with an empty changelog and nothing would say so.
+    // A failing git (an unknown ref, output past the buffer) must not read as "no commits": the release would be
+    // planned with an empty changelog and nothing would say so. `run` throws, where a probe would answer null.
     it('fails loudly when git itself fails, instead of building an empty changelog', () => {
-        expect(() => packageCommits('base', new Set(['ui/rte/a.ts']), fakeGit({}))).toThrow(/git log base\.\.HEAD failed/);
+        expect(() => packageCommits('base', new Set(['ui/rte/a.ts']), fakeGit({}))).toThrow(/log base\.\.HEAD.* failed/);
     });
 
     // Against real git, because the parser rests on how `git log --name-only` lays its output out and on what it does
@@ -189,9 +189,9 @@ describe('packageCommits', () => {
                     env: { ...process.env, GIT_CONFIG_GLOBAL: NO_CONFIG, GIT_CONFIG_NOSYSTEM: '1' },
                 },
             );
-        // The same shape as the release script's probe: trimmed output, null when git exits non-zero.
+        // The same shape as the release script's git: trimmed output; `probe` answers null when git exits non-zero.
         const probe: GitProbe = {
-            run: git,
+            run: (...args) => git(...args).trim(),
             probe: (...args) => {
                 try {
                     return git(...args).trim();
@@ -209,6 +209,8 @@ describe('packageCommits', () => {
             git('commit', '-q', '-m', subject);
         };
         const accented = `ui/rte/caf${String.fromCodePoint(0xe9)}.ts`;
+        // Each of these spawns git a dozen times; a loaded Windows machine can take far longer than vitest's 10 s default.
+        const GIT_TIMEOUT_MS = 30_000;
 
         beforeAll(() => {
             repo = mkdtempSync(join(tmpdir(), 'release-package-commits-'));
@@ -217,7 +219,7 @@ describe('packageCommits', () => {
                 write(file, 'v1\n');
             }
             commit('base');
-        });
+        }, GIT_TIMEOUT_MS);
 
         afterAll(() => rmSync(repo, { recursive: true, force: true }));
 
@@ -246,7 +248,7 @@ describe('packageCommits', () => {
                 'refactor(rte): rename b',
                 'fix(rte): a',
             ]);
-        });
+        }, GIT_TIMEOUT_MS);
     });
 });
 
@@ -596,10 +598,7 @@ function world(
             },
             probe: (...args) => {
                 calls.push(`git? ${args.join(' ')}`);
-                // A history query names every closure directory, so it is not worth a transcript key: unless a test
-                // records one, the repo has no commits since the tag. (packageCommits' own tests cover a failing git.)
-                const history = args.includes('log') ? '' : null;
-                return transcript[args.join(' ')] ?? history;
+                return transcript[args.join(' ')] ?? null;
             },
         },
         npm: (command) => {
