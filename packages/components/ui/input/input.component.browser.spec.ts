@@ -63,7 +63,7 @@ describe('Input rendering', () => {
 describe('Input inside an input group', () => {
     function mountInGroup(variant?: InputVariant): HTMLInputElement {
         TestBed.configureTestingModule({
-            providers: [{ provide: UI_INPUT_GROUP, useValue: { disabled: () => false } }],
+            providers: [{ provide: UI_INPUT_GROUP, useValue: { disabled: () => false, variant: () => 'outline' } }],
         });
         return mount(variant ? { variant } : {}).querySelector('input')!;
     }
@@ -85,7 +85,7 @@ describe('Input inside an input group', () => {
  * the group owns the border inside a group, and `ghost`/`underline` are honoured.
  */
 describe('Input container chrome follows the effective variant', () => {
-    const GROUP = { provide: UI_INPUT_GROUP, useValue: { disabled: () => false } };
+    const GROUP = { provide: UI_INPUT_GROUP, useValue: { disabled: () => false, variant: () => 'outline' } };
 
     function containerStyle(attrs: string, inGroup: boolean): CSSStyleDeclaration {
         if (inGroup) TestBed.configureTestingModule({ providers: [GROUP] });
@@ -211,26 +211,22 @@ describe('Input container frame details', () => {
         }
     });
 
-    it('treats a group that reports no variant as a framed outline group', () => {
-        TestBed.configureTestingModule({ providers: [{ provide: UI_INPUT_GROUP, useValue: { disabled: () => false } }] });
-        TestBed.overrideComponent(PaddingHost, { set: { template: '<ui-input [clearable]="true" value="x" />' } });
-        const fixture = TestBed.createComponent(PaddingHost);
-        fixture.detectChanges();
-        const input = (fixture.nativeElement as HTMLElement).querySelector('input')!;
-        expect(getComputedStyle(input).paddingLeft).not.toBe('0px');
-    });
-
     it.each([
-        { group: 'outline' as const, inset: true },
-        { group: 'underline' as const, inset: false },
-        { group: 'ghost' as const, inset: false },
-    ])('insets a container input from a $group group only if the group draws a frame', ({ group, inset }) => {
-        const root = mountContainers(['[clearable]="true" value="x"'], group);
-        const paddingLeft = getComputedStyle(root.querySelector('input')!).paddingLeft;
-        if (inset) {
-            expect(paddingLeft).not.toBe('0px');
+        { attrs: 'variant="ghost" [clearable]="true" value="x"', target: 'button ui-icon', group: undefined, flush: true },
+        { attrs: 'variant="underline" [loading]="true"', target: '[data-slot="spinner"]', group: undefined, flush: true },
+        { attrs: '[clearable]="true" value="x"', target: 'button ui-icon', group: undefined, flush: false },
+        { attrs: '[loading]="true"', target: '[data-slot="spinner"]', group: undefined, flush: false },
+        { attrs: '[clearable]="true" value="x"', target: 'button ui-icon', group: 'outline' as const, flush: false },
+        { attrs: '[clearable]="true" value="x"', target: 'button ui-icon', group: 'underline' as const, flush: true },
+        { attrs: '[loading]="true"', target: '[data-slot="spinner"]', group: 'ghost' as const, flush: true },
+    ])('ends the clear button and spinner at the frame only where one exists: $attrs (group: $group)', ({ attrs, target, group, flush }) => {
+        const root = mountContainers([attrs], group);
+        const container = root.querySelector('[data-slot="input-container"]')!.getBoundingClientRect();
+        const endGap = container.right - root.querySelector(target)!.getBoundingClientRect().right;
+        if (flush) {
+            expect(endGap).toBeCloseTo(0, 0);
         } else {
-            expect(paddingLeft).toBe('0px');
+            expect(endGap).toBeGreaterThan(4);
         }
     });
 });

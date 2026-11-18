@@ -10,9 +10,9 @@ export interface UiInputGroupContext {
     /**
      * The group's shell style. Controls read it to know whether the group draws a
      * frame on their start and end edges (`outline`) or not (`underline`, `ghost`).
-     * Optional so a group that does not report one is treated as `outline`.
+     * `null`/`undefined` (an unset variant input) means the default, `outline`.
      */
-    readonly variant?: Signal<'outline' | 'underline' | 'ghost' | null | undefined>;
+    readonly variant: Signal<'outline' | 'underline' | 'ghost' | null | undefined>;
 }
 
 export const UI_INPUT_GROUP = new InjectionToken<UiInputGroupContext>('UI_INPUT_GROUP');

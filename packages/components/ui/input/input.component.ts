@@ -236,7 +236,7 @@ export class InputComponent implements ControlValueAccessor {
      * ghost/underline group) the container stays flush like a plain input.
      */
     protected readonly framed = computed(() => {
-        if (this.group !== null) return (this.group.variant?.() ?? 'outline') === 'outline';
+        if (this.group !== null) return (this.group.variant() ?? 'outline') === 'outline';
         return this.effectiveVariant() === 'outline';
     });
 
