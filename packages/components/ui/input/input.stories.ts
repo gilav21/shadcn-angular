@@ -129,6 +129,19 @@ export const WithPrefixAndSuffix: Story = {
     }),
 };
 
+/** Anything that needs the container layout (clearable, loading, prefix, suffix) keeps the chosen variant's frame. */
+export const ContainerVariants: Story = {
+    render: () => ({
+        template: `
+            <div class="flex flex-col gap-4 w-full sm:w-[300px]">
+                <ui-input variant="outline" [clearable]="true" value="Outline" prefix="$" suffix="kg" ariaLabel="Outline with prefix, suffix and clear button" />
+                <ui-input variant="underline" [clearable]="true" value="Underline" prefix="$" suffix="kg" ariaLabel="Underline with prefix, suffix and clear button" />
+                <ui-input variant="ghost" [clearable]="true" value="Ghost" prefix="$" suffix="kg" ariaLabel="Ghost with prefix, suffix and clear button" />
+                <ui-input variant="underline" [loading]="true" placeholder="Underline, loading" />
+            </div>`,
+    }),
+};
+
 export const FloatingLabel: Story = {
     args: { floating: true, label: 'Email address' },
     render,

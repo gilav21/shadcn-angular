@@ -4,6 +4,7 @@ import { InputGroupAddonComponent } from './sub/input-group-addon.component';
 import { InputGroupTextComponent } from './sub/input-group-text.component';
 import { InputGroupInputComponent } from './sub/input-group-input.component';
 import { InputComponent } from '../input';
+import { ButtonComponent } from '../button';
 
 const meta: Meta<InputGroupComponent> = {
     title: 'UI/InputGroup',
@@ -17,6 +18,7 @@ const meta: Meta<InputGroupComponent> = {
                 InputGroupAddonComponent,
                 InputGroupTextComponent,
                 InputGroupInputComponent,
+                ButtonComponent,
             ],
         }),
     ],
@@ -133,5 +135,26 @@ export const LegacyInputGroupInput: Story = {
                 <ui-input-group-addon>@</ui-input-group-addon>
                 <ui-input-group-input placeholder="Legacy input-group-input" />
             </ui-input-group>`,
+    }),
+};
+
+/** A clearable input and a trailing button share the group's single border, in each group variant. */
+export const ClearableWithButton: Story = {
+    render: () => ({
+        template: `
+            <div class="flex flex-col gap-4 w-full sm:w-[300px]">
+                <ui-input-group>
+                    <ui-input [clearable]="true" value="Outline group" placeholder="Search" />
+                    <ui-button size="sm">Go</ui-button>
+                </ui-input-group>
+                <ui-input-group variant="underline">
+                    <ui-input [clearable]="true" value="Underline group" placeholder="Search" />
+                    <ui-button size="sm">Go</ui-button>
+                </ui-input-group>
+                <ui-input-group variant="ghost">
+                    <ui-input [clearable]="true" value="Ghost group" placeholder="Search" />
+                    <ui-button size="sm">Go</ui-button>
+                </ui-input-group>
+            </div>`,
     }),
 };

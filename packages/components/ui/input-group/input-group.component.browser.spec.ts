@@ -4,6 +4,45 @@ import { describe, it, expect } from 'vitest';
 import { InputGroupComponent } from './input-group.component';
 import { InputGroupInputComponent } from './sub/input-group-input.component';
 import { InputGroupAddonComponent } from './sub/input-group-addon.component';
+import { InputComponent } from '../input';
+
+@Component({
+    template: `
+    <ui-input-group [variant]="variant">
+      <ui-input [clearable]="true" value="x" />
+    </ui-input-group>
+  `,
+    imports: [InputGroupComponent, InputComponent],
+})
+class ClearableHost {
+    variant: 'outline' | 'underline' | 'ghost' = 'outline';
+}
+
+/** The real group reports its variant to the input through the token, which a fake group in the input's own spec cannot prove. */
+describe('InputGroup with a clearable ui-input (browser)', () => {
+    it.each([
+        { variant: 'outline' as const, framed: true },
+        { variant: 'underline' as const, framed: false },
+        { variant: 'ghost' as const, framed: false },
+    ])('insets the text from a $variant group only where the group draws a side frame', ({ variant, framed }) => {
+        const fixture = TestBed.createComponent(ClearableHost);
+        fixture.componentInstance.variant = variant;
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+
+        // The group alone owns the border: the input's container draws none.
+        const container = getComputedStyle(root.querySelector('[data-slot="input-container"]')!);
+        expect(container.borderTopWidth).toBe('0px');
+        expect(container.borderBottomWidth).toBe('0px');
+
+        const padding = getComputedStyle(root.querySelector('input')!).paddingLeft;
+        if (framed) {
+            expect(padding).not.toBe('0px');
+        } else {
+            expect(padding).toBe('0px');
+        }
+    });
+});
 
 /** Real-browser layout check: the one-row arrangement is geometry, which jsdom cannot lay out. */
 @Component({
