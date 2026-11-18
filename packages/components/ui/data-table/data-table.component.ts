@@ -161,6 +161,11 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
 };
 
 /** Inputs whose keys are not the control's own: a checkbox or button has no arrows, caret or undo (a range and a radio do). */
+/** A select option's value that has a string form to match against (data from JSON stores 1 as '1'). */
+function isScalarOptionValue(value: unknown): value is string | number | boolean | bigint {
+  return ['string', 'number', 'boolean', 'bigint'].includes(typeof value);
+}
+
 const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'button', 'submit', 'reset', 'image', 'file', 'color', 'hidden']);
 
 /** The columns the grid draws itself (selection, expander, actions), as opposed to data columns. */
@@ -556,11 +561,6 @@ export class DataTableComponent<T>
    * "0" and lose the minus sign. It stays in step with {@link editValue}, so a re-created input shows what commits.
    */
   readonly editText = signal('');
-  /**
-   * True while a number editor holds text that is not a number (a half-typed "-" or "1e"). The field then has no value,
-   * so {@link commitEdit} commits nothing; {@link editValue} is only the last valid one, which is not what the user sees.
-   */
-  private editHoldsPartialNumber = false;
   readonly cellEditError = signal<CellEditError | null>(null);
   /** Stable id for the inline edit-error message, linked via `aria-describedby`. */
   readonly cellEditErrorId = `ui-data-table-cell-edit-error-${dataTableUid++}`;
@@ -4875,7 +4875,6 @@ export class DataTableComponent<T>
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
     this.editText.set(typeof currentValue === 'number' || typeof currentValue === 'string' ? String(currentValue) : '');
-    this.editHoldsPartialNumber = false;
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
@@ -4909,8 +4908,13 @@ export class DataTableComponent<T>
     if (rows.length > 0) this.keepEditorOnItsRow(rows);
     const editing = this.editingCell();
     if (!editing) return;
-    if (this.editHoldsPartialNumber) {
-      this.cancelEdit();
+    if (this.editorHoldsPartialNumber()) {
+      this.cellEditError.set({
+        rowIndex: editing.rowIndex,
+        columnKey: editing.columnKey,
+        value: this.editValue(),
+        message: 'Enter a valid number',
+      });
       return;
     }
 
@@ -5134,7 +5138,6 @@ export class DataTableComponent<T>
   private dropEdit(): void {
     this.editingCell.set(null);
     this.editingRowId = undefined;
-    this.editHoldsPartialNumber = false;
     this.editValue.set(null);
     this.cellEditError.set(null);
   }
@@ -5161,18 +5164,26 @@ export class DataTableComponent<T>
   }
 
   /**
+   * Whether the open number editor holds text that is not a number. Read from the field itself: it is the one place
+   * that knows, and it stays right if the input is re-created while the editor is open.
+   */
+  private editorHoldsPartialNumber(): boolean {
+    const input = (this._el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[data-edit-input]');
+    return input?.validity.badInput ?? false;
+  }
+
+  /**
    * Stores what a text or number editor holds: a number (null when cleared) for `editType: 'number'`, else the
-   * text. A half-typed number ("-", "1e") is not a value: while the field holds one, Enter, Tab and blur commit
-   * nothing and leave the cell as it was, as Escape does, however the text got there (after clearing the field
-   * or after selecting the digits).
+   * text. A half-typed number ("-", "1e") is not a value: while the field holds one, Enter, Tab and blur refuse
+   * to commit and show "Enter a valid number", as a validator rejection does, and the cell keeps its value however
+   * the text got there (after clearing the field or after selecting the digits).
    */
   onEditInput(input: HTMLInputElement, col: ColumnDef<T>): void {
     if (col.editType !== 'number') {
       this.onEditValueChange(input.value);
       return;
     }
-    this.editHoldsPartialNumber = input.validity.badInput;
-    if (this.editHoldsPartialNumber) {
+    if (input.validity.badInput) {
       // The text changed, so a message about the previous value no longer describes it.
       this.cellEditError.set(null);
       return;
@@ -5190,10 +5201,8 @@ export class DataTableComponent<T>
     const value = this.editValue();
     const exact = options.findIndex((option) => option.value === value);
     if (exact !== -1) return exact;
-    const isScalar = (v: unknown): v is string | number | boolean | bigint =>
-      ['string', 'number', 'boolean', 'bigint'].includes(typeof v);
-    if (!isScalar(value)) return -1;
-    return options.findIndex((option) => isScalar(option.value) && String(option.value) === String(value));
+    if (!isScalarOptionValue(value)) return -1;
+    return options.findIndex((option) => isScalarOptionValue(option.value) && String(option.value) === String(value));
   }
 
   /** Commits the chosen option's own value, not its string form, so numbers and booleans keep their type. */

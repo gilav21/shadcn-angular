@@ -17,7 +17,7 @@ const columns: ColumnDef<Row>[] = [
     },
     {
         accessorKey: 'tier', header: 'Tier', editable: true, editType: 'select',
-        editOptions: [{ label: 'Basic', value: 1 }, { label: 'Premium', value: 2 }, { label: 'Standard', value: 3 }],
+        editOptions: [{ label: 'Basic', value: 1 }, { label: 'Premium', value: 2 }],
         editValidator: (value) => value !== 2 || 'Premium is full',
         valueSetter: (row, value) => ({ ...row, tier: value as number }),
     },
@@ -53,18 +53,25 @@ async function openEditor(columnKey: 'qty' | 'tier') {
         fixture.detectChanges();
         await fixture.whenStable();
     };
-    return { table, edits, errors, root, settle };
+    const message = () => root.querySelector('[data-slot="cell-edit-error"]')?.textContent?.trim() ?? null;
+    return { table, edits, errors, root, settle, message };
 }
 
 describe('number editor, driven by real keystrokes', () => {
     it.each([
         ['after clearing the field', async (input: HTMLInputElement) => { await userEvent.clear(input); await userEvent.keyboard('-'); }],
         ['after selecting the digits', async (input: HTMLInputElement) => { input.select(); await userEvent.keyboard('-'); }],
-    ])('leaving a field that holds only "-" commits nothing, whichever way it got there: %s', async (_label, type) => {
-        const { table, edits, root, settle } = await openEditor('qty');
+        ['after a valid number was typed first', async (input: HTMLInputElement, settle: () => Promise<void>) => {
+            await userEvent.clear(input);
+            await userEvent.keyboard('12');
+            await settle(); // the editor re-renders the valid text; a keystroke racing that render would be overwritten
+            await userEvent.keyboard('e');
+        }],
+    ])('a field that holds a half-typed number refuses to commit, whichever way it got there: %s', async (_label, type) => {
+        const { table, edits, root, settle, message } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
-        await type(input);
+        await type(input, settle);
         expect(input.validity.badInput, 'the field really holds half-typed text').toBe(true);
 
         input.blur();
@@ -72,35 +79,55 @@ describe('number editor, driven by real keystrokes', () => {
 
         expect(edits).toEqual([]);
         expect(table.data()[0].qty).toBe(5);
-        expect(table.editingCell()).toBeNull();
+        expect(message()).toBe('Enter a valid number');
+        expect(table.editingCell(), 'the editor stays open so the text can be fixed').not.toBeNull();
     });
 
-    it('commits a number typed key by key through the half-typed state, on Enter', async () => {
+    it('commits the corrected number after a refused half-typed one', async () => {
+        const { table, edits, root, settle, message } = await openEditor('qty');
+        const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
+        input.focus();
+        await userEvent.clear(input);
+        await userEvent.keyboard('12');
+        await settle();
+        await userEvent.keyboard('e{Enter}');
+        await settle();
+        expect(message()).toBe('Enter a valid number');
+
+        await userEvent.keyboard('{Backspace}{Enter}');
+        await settle();
+
+        expect(edits).toEqual([12]);
+        expect(table.data()[0].qty).toBe(12);
+        expect(message()).toBeNull();
+    });
+
+    it.each([['-5', -5], ['-0.5', -0.5], ['1.25', 1.25]])('commits %s typed key by key through its half-typed states, on Enter', async (typed, expected) => {
         const { table, edits, root, settle } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
         await userEvent.clear(input);
-        await userEvent.keyboard('-5{Enter}');
+        await userEvent.keyboard(`${typed}{Enter}`);
         await settle();
 
-        expect(edits).toEqual([-5]);
-        expect(table.data()[0].qty).toBe(-5);
+        expect(edits).toEqual([expected]);
+        expect(table.data()[0].qty).toBe(expected);
     });
 
     it('drops the validation message once the text is no longer the value it described', async () => {
-        const { root, errors, settle } = await openEditor('qty');
+        const { root, errors, settle, message } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
         await userEvent.clear(input);
         await userEvent.keyboard('0{Enter}');
         await settle();
         expect(errors).toEqual(['Zero is not allowed']);
-        expect(root.querySelector('[data-slot="cell-edit-error"]')).not.toBeNull();
+        expect(message()).toBe('Zero is not allowed');
 
         await userEvent.keyboard('-'); // '0-': half-typed straight from a rejected value, with no valid keystroke in between
         expect(input.validity.badInput).toBe(true);
         await settle();
-        expect(root.querySelector('[data-slot="cell-edit-error"]')).toBeNull();
+        expect(message()).toBeNull();
     });
 
     it('undoes a committed number back to the number it was', async () => {
@@ -119,23 +146,6 @@ describe('number editor, driven by real keystrokes', () => {
 });
 
 describe('select editor, driven by a real choice', () => {
-    it('commits a choice after a half-typed number was abandoned in another editor', async () => {
-        const { table, edits, root, settle } = await openEditor('qty');
-        const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
-        input.focus();
-        await userEvent.clear(input);
-        await userEvent.keyboard('-');
-        input.blur();
-        await settle();
-
-        table.startEditing(0, 'tier');
-        await settle();
-        await userEvent.selectOptions(root.querySelector<HTMLSelectElement>('select[data-edit-input]')!, 'Standard');
-        await settle();
-
-        expect(edits).toEqual([3]);
-    });
-
     it('keeps the editor open on a rejected option, shows the reason and shows the option that was picked', async () => {
         const { table, edits, errors, root, settle } = await openEditor('tier');
         const select = root.querySelector<HTMLSelectElement>('select[data-edit-input]')!;
