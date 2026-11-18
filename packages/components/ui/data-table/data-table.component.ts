@@ -160,12 +160,12 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
-/** Inputs whose keys are not the control's own: a checkbox or button has no arrows, caret or undo (a range and a radio do). */
 /** A select option's value that has a string form to match against (data from JSON stores 1 as '1'). */
 function isScalarOptionValue(value: unknown): value is string | number | boolean | bigint {
   return ['string', 'number', 'boolean', 'bigint'].includes(typeof value);
 }
 
+/** Inputs whose keys are not the control's own: a checkbox or button has no arrows, caret or undo (a range and a radio do). */
 const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'button', 'submit', 'reset', 'image', 'file', 'color', 'hidden']);
 
 /** The columns the grid draws itself (selection, expander, actions), as opposed to data columns. */
@@ -5175,8 +5175,9 @@ export class DataTableComponent<T>
   /**
    * Stores what a text or number editor holds: a number (null when cleared) for `editType: 'number'`, else the
    * text. A half-typed number ("-", "1e") is not a value: while the field holds one, Enter, Tab and blur refuse
-   * to commit and show "Enter a valid number", as a validator rejection does, and the cell keeps its value however
-   * the text got there (after clearing the field or after selecting the digits).
+   * to commit and show "Enter a valid number" inline, and the cell keeps its value however the text got there (after
+   * clearing the field or after selecting the digits). Like a validator rejection the editor stays open so the text
+   * can be fixed; unlike one it emits no editError, since no validator was involved.
    */
   onEditInput(input: HTMLInputElement, col: ColumnDef<T>): void {
     if (col.editType !== 'number') {
@@ -5250,15 +5251,25 @@ export class DataTableComponent<T>
 
     if (event.key === 'Tab') {
       event.stopPropagation();
-      if (this.isEditTabAtGridEdge(event.shiftKey)) {
-        // Commit but let the browser move focus out of the grid.
-        this.commitEdit();
-        return;
-      }
-      event.preventDefault();
-      this.commitEdit();
-      this.advanceEditToNextCell(event.shiftKey);
+      this.onEditTab(event);
     }
+  }
+
+  /**
+   * Tab commits, then moves on. A refused commit (a validator rejection, a half-typed number) keeps the editor and
+   * its text where they are: moving on would drop them without a word.
+   */
+  private onEditTab(event: KeyboardEvent): void {
+    const leavesGrid = this.isEditTabAtGridEdge(event.shiftKey);
+    this.commitEdit();
+    if (this.editingCell() !== null) {
+      event.preventDefault();
+      return;
+    }
+    // At the grid edge the browser moves focus out of the grid on its own.
+    if (leavesGrid) return;
+    event.preventDefault();
+    this.advanceEditToNextCell(event.shiftKey);
   }
 
   private isEditTabAtGridEdge(shiftKey: boolean): boolean {
