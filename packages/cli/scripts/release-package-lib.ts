@@ -209,37 +209,49 @@ export function resolveBaseRef(id: PackageId, git: GitProbe): BaseRef {
     return resolveBaseRefFor({ tagPattern: `${id}-v*`, versionFile: `${packageDir(id)}/package.json` }, git);
 }
 
+function parentDir(file: string): string {
+    return file.split('/').slice(0, -1).join('/');
+}
+
 /**
- * The directories the changelog query is scoped to: the parent of every closure
- * path. `git log -- <dirs>` needs directories, and scoping is the point — the
- * changelog is about what the CONSUMER gets, not about every commit in the repo.
+ * The directories the changelog query starts from: the parent of every closure path. This is only a coarse
+ * pre-filter. The closure is a couple of hundred files, too many to pass one by one on a Windows command line, and a
+ * flat closure file such as `ui/ripple.ts` puts `ui` itself in the list, so git also returns commits to other
+ * packages' files under `ui/`. {@link packageCommits} does the exact scoping afterwards.
  */
 export function closureDirs(paths: ReadonlySet<string>): string[] {
     const dirs = new Set<string>();
     for (const file of paths) {
-        const dir = file.split('/').slice(0, -1).join('/');
+        const dir = parentDir(file);
         if (dir) dirs.add(dir);
     }
     return [...dirs];
 }
 
-/** Marks the start of a commit in `git log --name-only`'s output, so a file list never reads as the next subject. */
+/** Marks the start of a commit in `git log --name-status`'s output, so a file list never reads as the next subject. */
 const COMMIT_MARK = '\x01';
 
 /**
- * Keeps the commits whose changed files include one in the closure, as `hash<TAB>subject` lines.
- *
- * The directory pre-filter is not enough: a closure that holds a flat file such as `ui/ripple.ts` puts its parent,
- * `ui`, in the query, and git then returns every commit under it, so one package's changelog would list another's.
+ * Whether one `--name-status` line (`M<TAB>path`) is about the closure. A file that left the closure (deleted, or
+ * renamed away, which `--no-renames` reports as a delete) is not in today's closure, yet its commit is still about
+ * what the consumer lost: a deleted file counts when it sat directly in a closure directory.
  */
+function touchesClosure(line: string, paths: ReadonlySet<string>, dirs: ReadonlySet<string>): boolean {
+    const [status, ...rest] = line.split('\t');
+    const file = rest.join('\t');
+    return paths.has(file) || (status === 'D' && dirs.has(parentDir(file)));
+}
+
+/** Keeps the commits that changed a file of the closure, as `hash<TAB>subject` lines. */
 function commitsTouchingClosure(log: string | null, paths: ReadonlySet<string>): string {
     if (!log) return '';
+    const dirs = new Set(closureDirs(paths));
     return log
         .split(COMMIT_MARK)
         .filter(Boolean)
         .flatMap((block) => {
-            const [headline, ...files] = block.split('\n');
-            return files.some((file) => paths.has(file)) ? [headline] : [];
+            const [headline, ...changes] = block.split('\n');
+            return changes.some((line) => touchesClosure(line, paths, dirs)) ? [headline] : [];
         })
         .join('\n');
 }
@@ -247,7 +259,10 @@ function commitsTouchingClosure(log: string | null, paths: ReadonlySet<string>):
 /** Conventional commits since the base that touched a file in the closure. */
 export function packageCommits(baseRef: string, paths: ReadonlySet<string>, git: GitProbe): Commit[] {
     const log = git.probe(
-        'log', `${baseRef}..HEAD`, '--no-merges', '--name-only', '--format=%x01%H%x09%s', '--', ...closureDirs(paths),
+        // quotepath off: git would otherwise quote a non-ASCII name and it would never match the closure.
+        '-c', 'core.quotepath=false',
+        'log', `${baseRef}..HEAD`, '--no-merges', '--no-renames', '--name-status', '--format=%x01%H%x09%s',
+        '--', ...closureDirs(paths),
     );
     return parseCommitLog(commitsTouchingClosure(log, paths));
 }

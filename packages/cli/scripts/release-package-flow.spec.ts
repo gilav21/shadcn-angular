@@ -12,7 +12,12 @@
  * The load-bearing claim throughout: the script does everything up to the push
  * and then STOPS. Nothing here may produce an `npm publish` invocation.
  */
-import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { releaseCommitArgv } from './release-cli-lib.js';
 import {
@@ -155,35 +160,80 @@ describe('parseCommitLog', () => {
 });
 
 describe('packageCommits', () => {
-    // The closure holds a flat file (ui/ripple.ts), so its parent directory `ui` is queried and git returns every
-    // commit under ui/ as well. Only the commits that touch a file in the closure are about what the consumer gets.
-    const CLOSURE = new Set(['ui/rte/a.ts', 'ui/ripple.ts']);
-    const LOG_KEY = 'log base..HEAD --no-merges --name-only --format=%x01%H%x09%s -- ui/rte ui';
-
-    /** One commit as `git log --name-only --format=%x01%H%x09%s` prints it: marker, hash, subject, blank line, files. */
-    const entry = (hash: string, subject: string, files: string[]): string =>
-        `\x01${hash}\t${subject}\n\n${files.join('\n')}\n`;
-
-    it('keeps only the commits that touch a file in the closure, not everything under a shared directory', () => {
-        const log = [
-            entry('h1', 'feat(rte): x', ['ui/rte/a.ts']),
-            entry('h2', 'fix(data-table): y', ['ui/data-table/b.ts', 'ui/data-table/c.html']),
-            entry('h3', 'fix(input): z', ['ui/data-table/b.ts', 'ui/ripple.ts']),
-        ].join('');
-
-        expect(packageCommits('base', CLOSURE, fakeGit({ [LOG_KEY]: log }))).toEqual([
-            { hash: 'h1', subject: 'feat(rte): x' },
-            { hash: 'h3', subject: 'fix(input): z' },
-        ]);
+    it('reports nothing when git has no commits since the base', () => {
+        expect(packageCommits('base', new Set(['ui/rte/a.ts']), fakeGit({}))).toEqual([]);
     });
 
-    it('reports nothing when no commit touches the closure', () => {
-        const log = entry('h2', 'fix(data-table): y', ['ui/data-table/b.ts']);
-        expect(packageCommits('base', CLOSURE, fakeGit({ [LOG_KEY]: log }))).toEqual([]);
-    });
+    // Against real git, because the parser rests on how `git log --name-status` lays its output out and on what it does
+    // to a non-ASCII name; a hand-written log would only repeat the parser's own assumptions.
+    describe('in a real repository', () => {
+        let repo = '';
+        const git = (...args: string[]): string =>
+            execFileSync(
+                'git',
+                ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'commit.gpgsign=false', ...args],
+                { cwd: repo, encoding: 'utf8' },
+            );
+        const probe: GitProbe = {
+            run: git,
+            probe: (...args) => {
+                try {
+                    return git(...args);
+                } catch {
+                    return null;
+                }
+            },
+        };
+        const write = (file: string, text: string): void => {
+            mkdirSync(join(repo, dirname(file)), { recursive: true });
+            writeFileSync(join(repo, file), text);
+        };
+        const commit = (subject: string): void => {
+            git('add', '-A');
+            git('commit', '-q', '-m', subject);
+        };
+        const accented = `ui/rte/caf${String.fromCodePoint(0xe9)}.ts`;
 
-    it('reads an empty log as no commits', () => {
-        expect(packageCommits('base', CLOSURE, fakeGit({ [LOG_KEY]: '' }))).toEqual([]);
+        beforeAll(() => {
+            repo = mkdtempSync(join(tmpdir(), 'release-package-commits-'));
+            git('init', '-q');
+            for (const file of ['ui/rte/a.ts', 'ui/rte/old.ts', 'ui/ripple.ts', 'ui/data-table/b.ts', 'ui/data-table/gone.ts', accented]) {
+                write(file, 'v1\n');
+            }
+            commit('base');
+        });
+
+        afterAll(() => rmSync(repo, { recursive: true, force: true }));
+
+        // The closure holds a flat file (ui/ripple.ts), so its parent `ui` is queried and git returns every commit
+        // under ui/ as well. Only the commits that change what the consumer gets are the package's changelog.
+        it('lists the commits that change a closure file, or remove one, and not the rest of a shared directory', () => {
+            const base = git('rev-parse', 'HEAD').trim();
+            // One commit that changes a closure file and another package's file together is still the package's.
+            write('ui/rte/a.ts', 'v2\n');
+            write('ui/data-table/b.ts', 'v2\n');
+            commit('fix(rte): a');
+            write('ui/data-table/b.ts', 'v3\n');
+            commit('fix(data-table): b');
+            rmSync(join(repo, 'ui/rte/old.ts'));
+            commit('refactor(rte): drop old');
+            rmSync(join(repo, 'ui/data-table/gone.ts'));
+            commit('refactor(data-table): drop gone');
+            write(accented, 'v2\n');
+            commit('fix(rte): accent');
+            write('ui/ripple.ts', 'v2\n');
+            commit('fix(ripple): flat file');
+
+            // Today's closure: old.ts was deleted, so it is no longer in it.
+            const closure = new Set(['ui/rte/a.ts', accented, 'ui/ripple.ts']);
+
+            expect(packageCommits(base, closure, probe).map(commit => commit.subject)).toEqual([
+                'fix(ripple): flat file',
+                'fix(rte): accent',
+                'refactor(rte): drop old',
+                'fix(rte): a',
+            ]);
+        });
     });
 });
 
