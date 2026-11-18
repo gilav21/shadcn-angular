@@ -26,7 +26,7 @@
 } @else if (needsContainer()) {
   <div [class]="containerClasses()" [attr.data-slot]="'input-container'">
     @if (prefix()) {
-      <span class="text-muted-foreground flex shrink-0 items-center ps-3 pe-1 text-sm select-none">{{ prefix() }}</span>
+      <span [class]="prefixClasses()">{{ prefix() }}</span>
     }
     <input
       [class]="innerClasses()"
@@ -52,19 +52,19 @@
         type="button"
         (click)="clearValue()"
         tabindex="-1"
-        class="flex shrink-0 items-center justify-center pe-2 text-muted-foreground hover:text-foreground"
+        [class]="clearButtonClasses()"
         aria-label="Clear"
       >
         <ui-icon name="x" class="size-3.5" />
       </button>
     }
     @if (loading()) {
-      <div class="flex shrink-0 items-center pe-2 pointer-events-none">
+      <div [class]="spinnerClasses()">
         <ui-spinner size="xs" />
       </div>
     }
     @if (suffix() && !loading()) {
-      <span class="text-muted-foreground flex shrink-0 items-center ps-1 pe-3 text-sm select-none">{{ suffix() }}</span>
+      <span [class]="suffixClasses()">{{ suffix() }}</span>
     }
   </div>
 } @else {

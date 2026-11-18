@@ -33,6 +33,22 @@ const inputVariants = cva(
     }
 );
 
+const containerVariants = cva(
+    'relative flex w-full items-center bg-transparent transition-[color,border-color,box-shadow]',
+    {
+        variants: {
+            variant: {
+                outline: 'rounded-lg border border-input shadow-xs dark:bg-input/30 has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50',
+                underline: 'rounded-none border-b border-input has-[input:focus-visible]:border-ring',
+                ghost: '',
+            },
+        },
+        defaultVariants: {
+            variant: 'outline',
+        },
+    }
+);
+
 export type InputVariant = VariantProps<typeof inputVariants>['variant'];
 
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
@@ -203,20 +219,52 @@ export class InputComponent implements ControlValueAccessor {
         cn(inputVariants({ variant: this.effectiveVariant() }), this.class())
     );
 
+    /**
+     * The container's frame follows the same effective variant as a plain input, so
+     * inside a group (variant `ghost`) it draws nothing and the group owns the one border.
+     */
     readonly containerClasses = computed(() => cn(
-        'relative flex w-full items-center rounded-lg border border-input shadow-xs',
-        'transition-[color,box-shadow]',
-        'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50',
-        'dark:bg-input/30 bg-transparent',
+        containerVariants({ variant: this.effectiveVariant() }),
         this.isDisabled() && 'opacity-50 pointer-events-none cursor-not-allowed',
         this.class()
     ));
 
+    /**
+     * Whether a frame sits on the container's start and end edges: its own outline
+     * frame or, inside a group, the group's, which only an `outline` group draws. Text
+     * and affixes are inset from a frame; with none (a standalone ghost/underline, or a
+     * ghost/underline group) the container stays flush like a plain input.
+     */
+    protected readonly framed = computed(() => {
+        if (this.group !== null) return (this.group.variant() ?? 'outline') === 'outline';
+        return this.effectiveVariant() === 'outline';
+    });
+
     readonly innerClasses = computed(() => cn(
         inputVariants({ variant: 'ghost' }),
         'flex-1 h-full',
-        // Ghost is flush (px-0); without a prefix the text would sit on the border. `\_` keeps Tailwind from reading `_` as a space, and String.raw keeps the single backslash its class scanner needs in source.
-        !this.prefix() && String.raw`ps-[calc(0.75rem*var(--\_d))]`,
+        // Ghost is flush (px-0); without a prefix the text would sit on the frame (see `framed`). `\_` keeps Tailwind from reading `_` as a space, and String.raw keeps the single backslash its class scanner needs in source.
+        !this.prefix() && this.framed() && String.raw`ps-[calc(0.75rem*var(--\_d))]`,
+    ));
+
+    protected readonly prefixClasses = computed(() => cn(
+        'text-muted-foreground flex shrink-0 items-center pe-1 text-sm select-none',
+        this.framed() && 'ps-3'
+    ));
+
+    protected readonly suffixClasses = computed(() => cn(
+        'text-muted-foreground flex shrink-0 items-center ps-1 text-sm select-none',
+        this.framed() && 'pe-3'
+    ));
+
+    protected readonly clearButtonClasses = computed(() => cn(
+        'flex shrink-0 items-center justify-center text-muted-foreground hover:text-foreground',
+        this.framed() && 'pe-2'
+    ));
+
+    protected readonly spinnerClasses = computed(() => cn(
+        'flex shrink-0 items-center pointer-events-none',
+        this.framed() && 'pe-2'
     ));
 
     readonly floatingLabelClasses = computed(() => cn(
