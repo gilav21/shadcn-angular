@@ -223,11 +223,33 @@ export function closureDirs(paths: ReadonlySet<string>): string[] {
     return [...dirs];
 }
 
-/** Conventional commits since the base that touched anything in the closure. */
+/** Marks the start of a commit in `git log --name-only`'s output, so a file list never reads as the next subject. */
+const COMMIT_MARK = '\x01';
+
+/**
+ * Keeps the commits whose changed files include one in the closure, as `hash<TAB>subject` lines.
+ *
+ * The directory pre-filter is not enough: a closure that holds a flat file such as `ui/ripple.ts` puts its parent,
+ * `ui`, in the query, and git then returns every commit under it, so one package's changelog would list another's.
+ */
+function commitsTouchingClosure(log: string | null, paths: ReadonlySet<string>): string {
+    if (!log) return '';
+    return log
+        .split(COMMIT_MARK)
+        .filter(Boolean)
+        .flatMap((block) => {
+            const [headline, ...files] = block.split('\n');
+            return files.some((file) => paths.has(file)) ? [headline] : [];
+        })
+        .join('\n');
+}
+
+/** Conventional commits since the base that touched a file in the closure. */
 export function packageCommits(baseRef: string, paths: ReadonlySet<string>, git: GitProbe): Commit[] {
-    return parseCommitLog(
-        git.probe('log', `${baseRef}..HEAD`, '--no-merges', '--format=%H%x09%s', '--', ...closureDirs(paths)),
+    const log = git.probe(
+        'log', `${baseRef}..HEAD`, '--no-merges', '--name-only', '--format=%x01%H%x09%s', '--', ...closureDirs(paths),
     );
+    return parseCommitLog(commitsTouchingClosure(log, paths));
 }
 
 // ── Guards ─────────────────────────────────────────────────────────────────

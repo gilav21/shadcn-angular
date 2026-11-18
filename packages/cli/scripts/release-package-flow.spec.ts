@@ -155,10 +155,35 @@ describe('parseCommitLog', () => {
 });
 
 describe('packageCommits', () => {
-    it('scopes the log to the closure directories', () => {
-        const key = 'log base..HEAD --no-merges --format=%H%x09%s -- ui/rte';
-        const commits = packageCommits('base', new Set(['ui/rte/a.ts']), fakeGit({ [key]: 'h1\tfeat: x' }));
-        expect(commits).toEqual([{ hash: 'h1', subject: 'feat: x' }]);
+    // The closure holds a flat file (ui/ripple.ts), so its parent directory `ui` is queried and git returns every
+    // commit under ui/ as well. Only the commits that touch a file in the closure are about what the consumer gets.
+    const CLOSURE = new Set(['ui/rte/a.ts', 'ui/ripple.ts']);
+    const LOG_KEY = 'log base..HEAD --no-merges --name-only --format=%x01%H%x09%s -- ui/rte ui';
+
+    /** One commit as `git log --name-only --format=%x01%H%x09%s` prints it: marker, hash, subject, blank line, files. */
+    const entry = (hash: string, subject: string, files: string[]): string =>
+        `\x01${hash}\t${subject}\n\n${files.join('\n')}\n`;
+
+    it('keeps only the commits that touch a file in the closure, not everything under a shared directory', () => {
+        const log = [
+            entry('h1', 'feat(rte): x', ['ui/rte/a.ts']),
+            entry('h2', 'fix(data-table): y', ['ui/data-table/b.ts', 'ui/data-table/c.html']),
+            entry('h3', 'fix(input): z', ['ui/data-table/b.ts', 'ui/ripple.ts']),
+        ].join('');
+
+        expect(packageCommits('base', CLOSURE, fakeGit({ [LOG_KEY]: log }))).toEqual([
+            { hash: 'h1', subject: 'feat(rte): x' },
+            { hash: 'h3', subject: 'fix(input): z' },
+        ]);
+    });
+
+    it('reports nothing when no commit touches the closure', () => {
+        const log = entry('h2', 'fix(data-table): y', ['ui/data-table/b.ts']);
+        expect(packageCommits('base', CLOSURE, fakeGit({ [LOG_KEY]: log }))).toEqual([]);
+    });
+
+    it('reads an empty log as no commits', () => {
+        expect(packageCommits('base', CLOSURE, fakeGit({ [LOG_KEY]: '' }))).toEqual([]);
     });
 });
 
