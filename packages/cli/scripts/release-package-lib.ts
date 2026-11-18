@@ -228,30 +228,23 @@ export function closureDirs(paths: ReadonlySet<string>): string[] {
     return [...dirs];
 }
 
-/** Marks the start of a commit in `git log --name-status`'s output, so a file list never reads as the next subject. */
+/** Marks the start of a commit in `git log --name-only`'s output, so a file list never reads as the next subject. */
 const COMMIT_MARK = '\x01';
 
 /**
- * Whether one `--name-status` line (`M<TAB>path`) is about the closure. A file that left the closure (deleted, or
- * renamed away, which `--no-renames` reports as a delete) is not in today's closure, yet its commit is still about
- * what the consumer lost: a deleted file counts when it sat directly in a closure directory.
+ * Keeps the commits that changed a file of the closure, as `hash<TAB>subject` lines.
+ *
+ * "The closure" is today's, the same definition the release verdict uses (`packageVerdict`), so the changelog and the
+ * verdict agree about what the package is. The registry that defines it is only known at HEAD, so a commit that does
+ * nothing but delete a file the package no longer ships is not listed, and neither does the verdict count it.
  */
-function touchesClosure(line: string, paths: ReadonlySet<string>, dirs: ReadonlySet<string>): boolean {
-    const [status, ...rest] = line.split('\t');
-    const file = rest.join('\t');
-    return paths.has(file) || (status === 'D' && dirs.has(parentDir(file)));
-}
-
-/** Keeps the commits that changed a file of the closure, as `hash<TAB>subject` lines. */
-function commitsTouchingClosure(log: string | null, paths: ReadonlySet<string>): string {
-    if (!log) return '';
-    const dirs = new Set(closureDirs(paths));
+function commitsTouchingClosure(log: string, paths: ReadonlySet<string>): string {
     return log
         .split(COMMIT_MARK)
         .filter(Boolean)
         .flatMap((block) => {
-            const [headline, ...changes] = block.split('\n');
-            return changes.some((line) => touchesClosure(line, paths, dirs)) ? [headline] : [];
+            const [headline, ...files] = block.split('\n');
+            return files.some((file) => paths.has(file)) ? [headline] : [];
         })
         .join('\n');
 }
@@ -261,9 +254,11 @@ export function packageCommits(baseRef: string, paths: ReadonlySet<string>, git:
     const log = git.probe(
         // quotepath off: git would otherwise quote a non-ASCII name and it would never match the closure.
         '-c', 'core.quotepath=false',
-        'log', `${baseRef}..HEAD`, '--no-merges', '--no-renames', '--name-status', '--format=%x01%H%x09%s',
+        'log', `${baseRef}..HEAD`, '--no-merges', '--name-only', '--format=%x01%H%x09%s',
         '--', ...closureDirs(paths),
     );
+    // A probe answers null when git failed (an unknown ref, or output past the buffer): that is an error, not "no commits".
+    if (log === null) throw new Error(`git log ${baseRef}..HEAD failed, so the changelog cannot be built`);
     return parseCommitLog(commitsTouchingClosure(log, paths));
 }
 

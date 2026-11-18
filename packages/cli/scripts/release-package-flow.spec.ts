@@ -160,25 +160,41 @@ describe('parseCommitLog', () => {
 });
 
 describe('packageCommits', () => {
-    it('reports nothing when git has no commits since the base', () => {
-        expect(packageCommits('base', new Set(['ui/rte/a.ts']), fakeGit({}))).toEqual([]);
+    const LOG_KEY = '-c core.quotepath=false log base..HEAD --no-merges --name-only --format=%x01%H%x09%s -- ui/rte';
+
+    it('reports nothing when git answers with no commits since the base', () => {
+        expect(packageCommits('base', new Set(['ui/rte/a.ts']), fakeGit({ [LOG_KEY]: '' }))).toEqual([]);
     });
 
-    // Against real git, because the parser rests on how `git log --name-status` lays its output out and on what it does
+    // A probe answers null when git failed (an unknown ref, or output past the buffer). That must not read as "no
+    // commits": the release would be planned with an empty changelog and nothing would say so.
+    it('fails loudly when git itself fails, instead of building an empty changelog', () => {
+        expect(() => packageCommits('base', new Set(['ui/rte/a.ts']), fakeGit({}))).toThrow(/git log base\.\.HEAD failed/);
+    });
+
+    // Against real git, because the parser rests on how `git log --name-only` lays its output out and on what it does
     // to a non-ASCII name; a hand-written log would only repeat the parser's own assumptions.
     describe('in a real repository', () => {
         let repo = '';
+        // Isolated from the developer's git setup (global config, hooks, templates), which could change the commits.
+        const NO_CONFIG = process.platform === 'win32' ? 'NUL' : '/dev/null';
         const git = (...args: string[]): string =>
             execFileSync(
                 'git',
                 ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'commit.gpgsign=false', ...args],
-                { cwd: repo, encoding: 'utf8' },
+                {
+                    cwd: repo,
+                    encoding: 'utf8',
+                    stdio: ['ignore', 'pipe', 'ignore'],
+                    env: { ...process.env, GIT_CONFIG_GLOBAL: NO_CONFIG, GIT_CONFIG_NOSYSTEM: '1' },
+                },
             );
+        // The same shape as the release script's probe: trimmed output, null when git exits non-zero.
         const probe: GitProbe = {
             run: git,
             probe: (...args) => {
                 try {
-                    return git(...args);
+                    return git(...args).trim();
                 } catch {
                     return null;
                 }
@@ -197,7 +213,7 @@ describe('packageCommits', () => {
         beforeAll(() => {
             repo = mkdtempSync(join(tmpdir(), 'release-package-commits-'));
             git('init', '-q');
-            for (const file of ['ui/rte/a.ts', 'ui/rte/old.ts', 'ui/ripple.ts', 'ui/data-table/b.ts', 'ui/data-table/gone.ts', accented]) {
+            for (const file of ['ui/rte/a.ts', 'ui/rte/b2.ts', 'ui/ripple.ts', 'ui/data-table/b.ts', accented]) {
                 write(file, 'v1\n');
             }
             commit('base');
@@ -207,7 +223,7 @@ describe('packageCommits', () => {
 
         // The closure holds a flat file (ui/ripple.ts), so its parent `ui` is queried and git returns every commit
         // under ui/ as well. Only the commits that change what the consumer gets are the package's changelog.
-        it('lists the commits that change a closure file, or remove one, and not the rest of a shared directory', () => {
+        it('lists the commits that change a closure file, and not the rest of a shared directory', () => {
             const base = git('rev-parse', 'HEAD').trim();
             // One commit that changes a closure file and another package's file together is still the package's.
             write('ui/rte/a.ts', 'v2\n');
@@ -215,22 +231,19 @@ describe('packageCommits', () => {
             commit('fix(rte): a');
             write('ui/data-table/b.ts', 'v3\n');
             commit('fix(data-table): b');
-            rmSync(join(repo, 'ui/rte/old.ts'));
-            commit('refactor(rte): drop old');
-            rmSync(join(repo, 'ui/data-table/gone.ts'));
-            commit('refactor(data-table): drop gone');
+            git('mv', 'ui/rte/b2.ts', 'ui/rte/b3.ts');
+            commit('refactor(rte): rename b');
             write(accented, 'v2\n');
             commit('fix(rte): accent');
             write('ui/ripple.ts', 'v2\n');
             commit('fix(ripple): flat file');
 
-            // Today's closure: old.ts was deleted, so it is no longer in it.
-            const closure = new Set(['ui/rte/a.ts', accented, 'ui/ripple.ts']);
+            const closure = new Set(['ui/rte/a.ts', 'ui/rte/b3.ts', accented, 'ui/ripple.ts']);
 
             expect(packageCommits(base, closure, probe).map(commit => commit.subject)).toEqual([
                 'fix(ripple): flat file',
                 'fix(rte): accent',
-                'refactor(rte): drop old',
+                'refactor(rte): rename b',
                 'fix(rte): a',
             ]);
         });
@@ -583,7 +596,10 @@ function world(
             },
             probe: (...args) => {
                 calls.push(`git? ${args.join(' ')}`);
-                return transcript[args.join(' ')] ?? null;
+                // A history query names every closure directory, so it is not worth a transcript key: unless a test
+                // records one, the repo has no commits since the tag. (packageCommits' own tests cover a failing git.)
+                const history = args.includes('log') ? '' : null;
+                return transcript[args.join(' ')] ?? history;
             },
         },
         npm: (command) => {

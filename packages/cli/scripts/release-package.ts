@@ -54,6 +54,9 @@ export const EFFECTS = nodeReleaseEffects(REPO_ROOT, {
             return execFileSync('git', ['-C', REPO_ROOT, ...args], {
                 encoding: 'utf-8',
                 stdio: ['ignore', 'pipe', 'ignore'],
+                // The changelog query lists the files of every commit under a shared directory; past the 1 MiB default
+                // Node throws, this probe turns that into null, and the changelog would silently come out empty.
+                maxBuffer: 256 * 1024 * 1024,
             }).trim();
         } catch {
             return null;
