@@ -1,18 +1,28 @@
 // A pixel-perfect PDF page is laid out in absolute coordinates and its text is already in visual order, so where a
-// glyph is drawn must not depend on the direction of the page that hosts it. A host with dir="rtl" used to mirror
-// every text run (the runs inherited direction:rtl under unicode-bidi:bidi-override). The golden hashes fix the CSS
-// bytes only; this renders real PDFs into an ltr and an rtl host and compares where every glyph lands, which needs
-// a real layout engine.
+// glyph is drawn must not depend on the direction of the page that hosts it, and every run must read left to right.
+// The golden hashes fix the CSS bytes only; this renders real PDFs into an ltr and an rtl host and compares where
+// every glyph lands, which needs a real layout engine.
 import { describe, expect, it } from 'vitest';
 import hebrewReceiptUrl from '../../../../demo/public/examples/hebrew-receipt.pdf?url';
 import invoiceUrl from '../../../../demo/public/examples/invoice.pdf?url';
-import { renderPixelPerfectPaged } from './pdf-pixel-perfect';
+import { renderPixelPerfectPaged, type PixelPerfectPagedResult } from './pdf-pixel-perfect';
 
-const HEBREW = /[\u0590-\u05FF]/;
+/** Wider than any page, so a page never overflows the host: overflow goes to a different side in an rtl host. */
+const HOST_WIDTH_PX = 3000;
+/** Sub-pixel noise between two layouts of the same page is not a difference. */
+const TOLERANCE_PX = 0.5;
+const MIN_GLYPHS = 20;
+
+interface Placed {
+    /** What was placed: a run, or a glyph's character. */
+    readonly label: string;
+    /** Where it is drawn: left and top, and for a run also its width. */
+    readonly values: readonly number[];
+}
 
 interface Rendered {
     /** Each run's box, then each of its glyphs with the position it is drawn at, in document order. */
-    readonly layout: string[];
+    readonly layout: readonly Placed[];
     readonly text: string;
     /**
      * Runs that read right to left overall: more than half of the steps from one glyph to the next go leftwards. A
@@ -22,41 +32,64 @@ interface Rendered {
     readonly reversedRuns: number;
 }
 
-/** Each glyph of a run with the box it is drawn in. */
+const rendered = new Map<string, Promise<PixelPerfectPagedResult>>();
+
+/** Each PDF is parsed once for the whole file. */
+function pdfPages(url: string): Promise<PixelPerfectPagedResult> {
+    let pages = rendered.get(url);
+    if (!pages) {
+        pages = fetch(url).then(response => response.arrayBuffer()).then(bytes => renderPixelPerfectPaged(bytes));
+        rendered.set(url, pages);
+    }
+    return pages;
+}
+
+function hasHebrew(text: string): boolean {
+    return Array.from(text).some((char) => {
+        const code = char.codePointAt(0) ?? 0;
+        return code >= 0x590 && code <= 0x5ff;
+    });
+}
+
+/** Each character of a run with the box it is drawn in. */
 function glyphsOf(run: Element): Array<{ char: string; box: DOMRect }> {
     const glyphs: Array<{ char: string; box: DOMRect }> = [];
     const walker = document.createTreeWalker(run, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
         const content = node.textContent ?? '';
-        for (let i = 0; i < content.length; i++) {
+        let offset = 0;
+        for (const char of content) {
             const range = document.createRange();
-            range.setStart(node, i);
-            range.setEnd(node, i + 1);
-            glyphs.push({ char: content[i], box: range.getBoundingClientRect() });
+            range.setStart(node, offset);
+            range.setEnd(node, offset + char.length);
+            glyphs.push({ char, box: range.getBoundingClientRect() });
+            offset += char.length;
         }
     }
     return glyphs;
 }
 
-function render(css: string, pagesHtml: string, dir: 'ltr' | 'rtl'): Rendered {
+async function render(result: PixelPerfectPagedResult, dir: 'ltr' | 'rtl'): Promise<Rendered> {
     const host = document.createElement('div');
     host.setAttribute('dir', dir);
-    host.style.cssText = 'width:1000px;position:relative';
-    host.innerHTML = `<style>${css}</style>${pagesHtml}`;
+    host.style.cssText = `width:${HOST_WIDTH_PX}px;position:relative`;
+    host.innerHTML = `<style>${result.globalCss}</style>${result.pages.map(page => page.html).join('')}`;
     document.body.appendChild(host);
     try {
-        const layout: string[] = [];
+        // The PDF's fonts load on first use; measuring before they have would compare a fallback font.
+        await document.fonts.ready;
+        const layout: Placed[] = [];
         let text = '';
         let reversedRuns = 0;
         for (const run of Array.from(host.querySelectorAll<HTMLElement>('.t'))) {
             const box = run.getBoundingClientRect();
-            layout.push(`run ${box.left.toFixed(1)},${box.top.toFixed(1)},${box.width.toFixed(1)}`);
+            layout.push({ label: 'run', values: [box.left, box.top, box.width] });
             const glyphs = glyphsOf(run);
             for (const { char, box: glyph } of glyphs) {
-                layout.push(`${char} ${glyph.left.toFixed(1)},${glyph.top.toFixed(1)}`);
+                layout.push({ label: char, values: [glyph.left, glyph.top] });
                 text += char;
             }
-            const leftSteps = glyphs.filter((glyph, i) => i > 0 && glyph.box.left < glyphs[i - 1].box.left - 0.5).length;
+            const leftSteps = glyphs.filter((glyph, i) => i > 0 && glyph.box.left < glyphs[i - 1].box.left - TOLERANCE_PX).length;
             if (leftSteps > (glyphs.length - 1) / 2) reversedRuns++;
         }
         return { layout, text, reversedRuns };
@@ -66,9 +99,19 @@ function render(css: string, pagesHtml: string, dir: 'ltr' | 'rtl'): Rendered {
 }
 
 async function renderInBothHosts(url: string): Promise<{ ltr: Rendered; rtl: Rendered }> {
-    const result = await renderPixelPerfectPaged(await fetch(url).then(r => r.arrayBuffer()));
-    const pagesHtml = result.pages.map(page => page.html).join('');
-    return { ltr: render(result.globalCss, pagesHtml, 'ltr'), rtl: render(result.globalCss, pagesHtml, 'rtl') };
+    const result = await pdfPages(url);
+    const ltr = await render(result, 'ltr');
+    const rtl = await render(result, 'rtl');
+    expect(ltr.text.length, 'the page has text to measure').toBeGreaterThan(MIN_GLYPHS);
+    return { ltr, rtl };
+}
+
+/** The largest distance, in px, between where the two layouts draw the same thing. */
+function largestDeviation(a: readonly Placed[], b: readonly Placed[]): number {
+    return a.reduce((largest, placed, i) => {
+        const other = b[i].values;
+        return placed.values.reduce((l, value, v) => Math.max(l, Math.abs(value - other[v])), largest);
+    }, 0);
 }
 
 const PDFS: ReadonlyArray<readonly [string, string, boolean]> = [
@@ -77,16 +120,16 @@ const PDFS: ReadonlyArray<readonly [string, string, boolean]> = [
 ];
 
 describe('pixel-perfect PDF pages in a host of either direction', () => {
-    it.each(PDFS)('%s: every glyph is drawn where it is in an ltr host', async (...[, url, hasHebrew]) => {
+    it.each(PDFS)('%s: every glyph is drawn where it is in an ltr host', async (...[, url, holdsHebrew]) => {
         const { ltr, rtl } = await renderInBothHosts(url);
 
-        expect(ltr.text.length, 'the page has text to compare').toBeGreaterThan(20);
-        expect(HEBREW.test(ltr.text), 'the fixture holds the kind of text the host direction would reorder').toBe(hasHebrew);
-        expect(rtl.layout).toEqual(ltr.layout);
+        expect(hasHebrew(ltr.text), 'the fixture holds the kind of text the host direction would reorder').toBe(holdsHebrew);
+        expect(rtl.layout.map(placed => placed.label)).toEqual(ltr.layout.map(placed => placed.label));
+        expect(largestDeviation(ltr.layout, rtl.layout)).toBeLessThan(TOLERANCE_PX);
     });
 
     // The text is stored in visual order, so it must be drawn in document order, left to right, whatever the host:
-    // two hosts that both mirror the runs would agree with each other and still be wrong.
+    // two hosts that both mirror the runs agree with each other and are still wrong.
     it.each(PDFS)('%s: every run reads left to right, in the order its text is stored', async (...[, url]) => {
         const { ltr, rtl } = await renderInBothHosts(url);
 
