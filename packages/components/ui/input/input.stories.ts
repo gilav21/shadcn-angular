@@ -133,7 +133,7 @@ export const WithPrefixAndSuffix: Story = {
 export const ContainerVariants: Story = {
     render: () => ({
         template: `
-            <div class="flex flex-col gap-4 w-[300px]">
+            <div class="flex flex-col gap-4 w-full sm:w-[300px]">
                 <ui-input variant="outline" [clearable]="true" value="Outline" prefix="$" suffix="kg" />
                 <ui-input variant="underline" [clearable]="true" value="Underline" prefix="$" suffix="kg" />
                 <ui-input variant="ghost" [clearable]="true" value="Ghost" prefix="$" suffix="kg" />

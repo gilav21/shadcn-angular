@@ -231,11 +231,14 @@ export class InputComponent implements ControlValueAccessor {
 
     /**
      * Whether a frame sits on the container's start and end edges: its own outline
-     * frame or, inside a group, the group's. Text and affixes are inset from a frame;
-     * a standalone ghost/underline container has no side edges and stays flush like
-     * a plain input of that variant.
+     * frame or, inside a group, the group's, which only an `outline` group draws. Text
+     * and affixes are inset from a frame; with none (a standalone ghost/underline, or a
+     * ghost/underline group) the container stays flush like a plain input.
      */
-    readonly framed = computed(() => this.group !== null || this.effectiveVariant() === 'outline');
+    protected readonly framed = computed(() => {
+        if (this.group !== null) return (this.group.variant?.() ?? 'outline') === 'outline';
+        return this.effectiveVariant() === 'outline';
+    });
 
     readonly innerClasses = computed(() => cn(
         inputVariants({ variant: 'ghost' }),
@@ -244,22 +247,22 @@ export class InputComponent implements ControlValueAccessor {
         !this.prefix() && this.framed() && String.raw`ps-[calc(0.75rem*var(--\_d))]`,
     ));
 
-    readonly prefixClasses = computed(() => cn(
+    protected readonly prefixClasses = computed(() => cn(
         'text-muted-foreground flex shrink-0 items-center pe-1 text-sm select-none',
         this.framed() && 'ps-3'
     ));
 
-    readonly suffixClasses = computed(() => cn(
+    protected readonly suffixClasses = computed(() => cn(
         'text-muted-foreground flex shrink-0 items-center ps-1 text-sm select-none',
         this.framed() && 'pe-3'
     ));
 
-    readonly clearButtonClasses = computed(() => cn(
+    protected readonly clearButtonClasses = computed(() => cn(
         'flex shrink-0 items-center justify-center text-muted-foreground hover:text-foreground',
         this.framed() && 'pe-2'
     ));
 
-    readonly spinnerClasses = computed(() => cn(
+    protected readonly spinnerClasses = computed(() => cn(
         'flex shrink-0 items-center pointer-events-none',
         this.framed() && 'pe-2'
     ));
