@@ -23,6 +23,10 @@ import { buildStoredZip } from './zip-test-fixtures';
  * sources identical to 14216e9b, before any parser change (the pptx and ppt
  * entries were added later in Task 1, but no pptx, ppt or OLE2 source had
  * changed); a limit that truncates a real document changes its hash.
+ *
+ * The six renderPixelPerfectPaged hashes were recaptured when BASE_CSS gained
+ * direction:ltr on .pf and .t (c28b3765). Removing exactly those two additions
+ * reproduces the previous hashes, so nothing else in that output moved.
  */
 const GOLDEN: Readonly<Record<string, string>> = {
     'built-doc/parseDoc': '9120a865fe36fa5d401940aa42e7033557af11c44f63ccb68457a3ed255fd8f0',
@@ -30,30 +34,30 @@ const GOLDEN: Readonly<Record<string, string>> = {
     'built-pdf/parsePdf': '21874ac9fde4739a4440ed636c53aa5679085d7a253140fd9b8ef9b754fbc816',
     'built-pdf/parsePdfPaged': 'd878979cf6ded271ad02ec9ffa78799667e74dbc9a0ee25e6bc942e718dc764f',
     'built-pdf/parsePdfReadable': '739dde4041852b4950a5393630f6cfc1cffa6c75165eb5949f18b4b701f37724',
-    'built-pdf/renderPixelPerfectPaged': '2209c47ba4c227fb8b65b859149ee990ce5bae76d1dd5c03786026b890ec561f',
+    'built-pdf/renderPixelPerfectPaged': 'e8b17f197010101409c7f396bec3c7e920e1e0c7b0c7eb607b025d560867740e',
     'built-ppt/parsePpt': '2aad5916ab0328e938bdcee5970bee325557c3bfe15cf691fd5b6732ba23befc',
     'built-pptx/parsePptx': '339ab2dd4f7e0df9d171560052beaff5f7492b22f7d85e0856465781ac9c8d28',
     'generated-xlsx/parseXlsx': 'd4a312bcbfcd9098609cfecc56d3eac732085f2f7e47a19a98b4af52ba377835',
     'hebrew-receipt/parsePdf': '866e7deac53b87a8c8ecab0422be79a03d2a9b8d1e4ad470ac29851a1ace1188',
     'hebrew-receipt/parsePdfPaged': '37840093a815bed69373bdf0d30ed0a1f3b73e37937fc2828c6408d0a4c49e75',
     'hebrew-receipt/parsePdfReadable': '9009112d78c5fce423d84c6aaf65b7750ae9730b37fe9fabe9421070a6785d0a',
-    'hebrew-receipt/renderPixelPerfectPaged': '8757b6c797648e219dbea1d38c2502fd2ef23c991b2d10dd9f802379458e14a4',
+    'hebrew-receipt/renderPixelPerfectPaged': '0c3ad26f8882a644421ddf6e291608e3799b8d23de3a65b5e995c79b2b4c391b',
     'invoice/parsePdf': '23d5356bb47d23e50b157eb0081439e58973cbe928896af979fb324e98edade6',
     'invoice/parsePdfPaged': '1b34fd423e71025629327a082b35bedc133c5d458d2be9b0ad87943822fc4b19',
     'invoice/parsePdfReadable': 'dae2c6136c240783b689072df8c18b05d9c550989b799cdbcb85edbf9425cfd4',
-    'invoice/renderPixelPerfectPaged': '1bb05f400cb0e7115a159d61568efcdf83ca87702a5594cfc1d720d35760a1eb',
+    'invoice/renderPixelPerfectPaged': 'd0dc364e6d1fe45f3e8c7c0a202983c756a7d275ff74f651385260988ce0fba7',
     'newsletter/parsePdf': '8d32ea256a0c107ba0846ecf8e0f78854e21577c97c8568aaf5c980018c1cea4',
     'newsletter/parsePdfPaged': 'a713bbab16e8a53eb22a8f62ac37f3a5464b0155bfa37a8d27a5f2f2e19dbfd1',
     'newsletter/parsePdfReadable': '3c88cd09194077fec5ed0da13bed12e72c1836a2549f661a6602e420d7a2e0ce',
-    'newsletter/renderPixelPerfectPaged': '0862423842e986e0930c551b6124167dc048c5368a99ae8ba1712f20edc9275a',
+    'newsletter/renderPixelPerfectPaged': '04e15dbaa8ca8f69c9c7039c508704d5bca1a1bbc566f24b94982127a6496a73',
     'quarterly-report/parsePdf': 'f82c55b84324040b3d6817781bf876bdcb8306687c21a68916bbcaddee3b5334',
     'quarterly-report/parsePdfPaged': 'f94639027ecf81a6861c19a7c2093788bf2cc5b86692cfef0c3335f6e7646a9a',
     'quarterly-report/parsePdfReadable': '12e6b75ea6e3d6a6077d50d273f3d95495bade5269a1bcdb801433dfdac172ed',
-    'quarterly-report/renderPixelPerfectPaged': 'd81ea8aa044eee77b4f2a4c6ddb8664da47d91b1f822e8235ec3b93850ac45e3',
+    'quarterly-report/renderPixelPerfectPaged': '26724c4515bfb0757faeb093fae66d8cb365ceb11fc2d0880e974128035cf1f2',
     'registration-form/parsePdf': '9c43ef4a09dc8501d1bdda3f6a1fb04cf2253889dcf437c040c4e6a50e0d8ca2',
     'registration-form/parsePdfPaged': '3e5b072f89b383f9732b6953896c086f3f96b81e27d67280fa0097e4e2c7fef7',
     'registration-form/parsePdfReadable': 'cb85d41fdadd7ece48f7004e3020951899149ed59cd070208748a227d68b02e6',
-    'registration-form/renderPixelPerfectPaged': '5923b59b0cb8a3f93983963b612bf4f3e8f4676be395c04f27308ae18d57d1e9',
+    'registration-form/renderPixelPerfectPaged': '23b11821cf07007da7bbfbda288c443e6069de4b1d2656a9a1cc566c0b5acef7',
 };
 
 const DEMO_PDFS: ReadonlyArray<readonly [string, string]> = [
