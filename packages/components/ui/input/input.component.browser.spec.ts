@@ -153,7 +153,10 @@ describe('Input container frame details', () => {
         underline.querySelector('input')!.blur();
         outline.querySelector('input')!.focus();
         await vi.waitFor(() => {
-            expect(getComputedStyle(outline).boxShadow).not.toBe(outlineShadow);
+            // The 3px focus ring, on top of the resting shadow.
+            const focused = getComputedStyle(outline).boxShadow;
+            expect(focused).not.toBe(outlineShadow);
+            expect(focused).toContain('3px');
         });
     });
 
@@ -169,6 +172,31 @@ describe('Input container frame details', () => {
         const [plain, container] = Array.from(root.querySelectorAll('input'));
         expect(getComputedStyle(plain).paddingLeft).toBe('0px');
         expect(getComputedStyle(container).paddingLeft).toBe('0px');
+    });
+
+    it.each([
+        { attrs: 'variant="underline" prefix="$" suffix="kg"', inGroup: false, flush: true },
+        { attrs: 'variant="ghost" prefix="$" suffix="kg"', inGroup: false, flush: true },
+        { attrs: 'prefix="$" suffix="kg"', inGroup: false, flush: false },
+        { attrs: 'prefix="$" suffix="kg"', inGroup: true, flush: false },
+    ])('places the prefix and suffix against the frame only where one exists: $attrs (group: $inGroup)', ({ attrs, inGroup, flush }) => {
+        const root = mountContainers([attrs], inGroup);
+        const container = root.querySelector('[data-slot="input-container"]')!.getBoundingClientRect();
+        // The text's own box: a span's border box also holds its padding, which is what is under test.
+        const [prefix, suffix] = Array.from(root.querySelectorAll('[data-slot="input-container"] span')).map((el) => {
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            return range.getBoundingClientRect();
+        });
+        const startGap = prefix.left - container.left;
+        const endGap = container.right - suffix.right;
+        if (flush) {
+            expect(startGap).toBeCloseTo(0, 0);
+            expect(endGap).toBeCloseTo(0, 0);
+        } else {
+            expect(startGap).toBeGreaterThan(4);
+            expect(endGap).toBeGreaterThan(4);
+        }
     });
 
     it('insets a container input from the group frame, as the group input does', () => {

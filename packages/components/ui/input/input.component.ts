@@ -34,7 +34,7 @@ const inputVariants = cva(
 );
 
 const containerVariants = cva(
-    'relative flex w-full items-center bg-transparent transition-[color,box-shadow]',
+    'relative flex w-full items-center bg-transparent transition-[color,border-color,box-shadow]',
     {
         variants: {
             variant: {
@@ -229,11 +229,39 @@ export class InputComponent implements ControlValueAccessor {
         this.class()
     ));
 
+    /**
+     * Whether a frame sits on the container's start and end edges: its own outline
+     * frame or, inside a group, the group's. Text and affixes are inset from a frame;
+     * a standalone ghost/underline container has no side edges and stays flush like
+     * a plain input of that variant.
+     */
+    readonly framed = computed(() => this.group !== null || this.effectiveVariant() === 'outline');
+
     readonly innerClasses = computed(() => cn(
         inputVariants({ variant: 'ghost' }),
         'flex-1 h-full',
-        // Ghost is flush (px-0); without a prefix the text would sit on a border. That is the container's own outline frame or, inside a group, the group's frame (like `ui-input-group-input`'s padding). A standalone ghost/underline container has no start edge, so it stays flush like a plain input of that variant. `\_` keeps Tailwind from reading `_` as a space, and String.raw keeps the single backslash its class scanner needs in source.
-        !this.prefix() && (this.group !== null || this.effectiveVariant() === 'outline') && String.raw`ps-[calc(0.75rem*var(--\_d))]`,
+        // Ghost is flush (px-0); without a prefix the text would sit on the frame (see `framed`). `\_` keeps Tailwind from reading `_` as a space, and String.raw keeps the single backslash its class scanner needs in source.
+        !this.prefix() && this.framed() && String.raw`ps-[calc(0.75rem*var(--\_d))]`,
+    ));
+
+    readonly prefixClasses = computed(() => cn(
+        'text-muted-foreground flex shrink-0 items-center pe-1 text-sm select-none',
+        this.framed() && 'ps-3'
+    ));
+
+    readonly suffixClasses = computed(() => cn(
+        'text-muted-foreground flex shrink-0 items-center ps-1 text-sm select-none',
+        this.framed() && 'pe-3'
+    ));
+
+    readonly clearButtonClasses = computed(() => cn(
+        'flex shrink-0 items-center justify-center text-muted-foreground hover:text-foreground',
+        this.framed() && 'pe-2'
+    ));
+
+    readonly spinnerClasses = computed(() => cn(
+        'flex shrink-0 items-center pointer-events-none',
+        this.framed() && 'pe-2'
     ));
 
     readonly floatingLabelClasses = computed(() => cn(
