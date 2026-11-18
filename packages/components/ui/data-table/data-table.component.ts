@@ -160,6 +160,11 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
+/** A select option's value that has a string form to match against (data from JSON stores 1 as '1'). */
+function isScalarOptionValue(value: unknown): value is string | number | boolean | bigint {
+  return ['string', 'number', 'boolean', 'bigint'].includes(typeof value);
+}
+
 /** Inputs whose keys are not the control's own: a checkbox or button has no arrows, caret or undo (a range and a radio do). */
 const NON_TEXT_INPUT_TYPES = new Set(['checkbox', 'button', 'submit', 'reset', 'image', 'file', 'color', 'hidden']);
 
@@ -550,6 +555,12 @@ export class DataTableComponent<T>
   readonly editError = output<CellEditErrorEvent<T>>();
   readonly editingCell = signal<EditingCell | null>(null);
   readonly editValue = signal<unknown>(null);
+  /**
+   * The text a number input shows: what it started with, then the text of each valid keystroke. The input is bound
+   * to this, not to {@link editValue}: typing "-0" parses to -0, and writing that back would turn the field into
+   * "0" and lose the minus sign. It stays in step with {@link editValue}, so a re-created input shows what commits.
+   */
+  readonly editText = signal('');
   readonly cellEditError = signal<CellEditError | null>(null);
   /** Stable id for the inline edit-error message, linked via `aria-describedby`. */
   readonly cellEditErrorId = `ui-data-table-cell-edit-error-${dataTableUid++}`;
@@ -4863,6 +4874,7 @@ export class DataTableComponent<T>
     const currentValue = this.getCellValue(row, col.accessorKey, col);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
+    this.editText.set(typeof currentValue === 'number' || typeof currentValue === 'string' ? String(currentValue) : '');
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
@@ -4896,6 +4908,15 @@ export class DataTableComponent<T>
     if (rows.length > 0) this.keepEditorOnItsRow(rows);
     const editing = this.editingCell();
     if (!editing) return;
+    if (this.editorHoldsPartialNumber()) {
+      this.cellEditError.set({
+        rowIndex: editing.rowIndex,
+        columnKey: editing.columnKey,
+        value: this.editValue(),
+        message: 'Enter a valid number',
+      });
+      return;
+    }
 
     const col = this.enhancedColumns().find(
       (c) => String(c.accessorKey) === editing.columnKey,
@@ -5143,6 +5164,57 @@ export class DataTableComponent<T>
   }
 
   /**
+   * Whether the open number editor holds text that is not a number. Read from the field itself: it is the one place
+   * that knows, and it stays right if the input is re-created while the editor is open.
+   */
+  private editorHoldsPartialNumber(): boolean {
+    const input = (this._el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[data-edit-input]');
+    return input?.validity.badInput ?? false;
+  }
+
+  /**
+   * Stores what a text or number editor holds: a number (null when cleared) for `editType: 'number'`, else the
+   * text. A half-typed number ("-", "1e") is not a value: while the field holds one, Enter, Tab and blur refuse
+   * to commit and show "Enter a valid number" inline, and the cell keeps its value however the text got there (after
+   * clearing the field or after selecting the digits). Like a validator rejection the editor stays open so the text
+   * can be fixed; unlike one it emits no editError, since no validator was involved.
+   */
+  onEditInput(input: HTMLInputElement, col: ColumnDef<T>): void {
+    if (col.editType !== 'number') {
+      this.onEditValueChange(input.value);
+      return;
+    }
+    if (input.validity.badInput) {
+      // The text changed, so a message about the previous value no longer describes it.
+      this.cellEditError.set(null);
+      return;
+    }
+    this.editText.set(input.value);
+    this.onEditValueChange(input.value === '' ? null : input.valueAsNumber);
+  }
+
+  /**
+   * Which option the select shows as current: the one whose value is the edit value, else the first whose scalar
+   * has its string form (as data from JSON does); -1 when no option stands for it, and the select then shows blank.
+   */
+  editOptionIndex(col: ColumnDef<T>): number {
+    const options = col.editOptions ?? [];
+    const value = this.editValue();
+    const exact = options.findIndex((option) => option.value === value);
+    if (exact !== -1) return exact;
+    if (!isScalarOptionValue(value)) return -1;
+    return options.findIndex((option) => isScalarOptionValue(option.value) && String(option.value) === String(value));
+  }
+
+  /** Commits the chosen option's own value, not its string form, so numbers and booleans keep their type. */
+  onEditSelect(select: HTMLSelectElement, col: ColumnDef<T>): void {
+    const option = select.value === '' ? undefined : col.editOptions?.[Number(select.value)];
+    if (!option) return;
+    this.onEditValueChange(option.value);
+    this.commitEdit();
+  }
+
+  /**
    * Stores the editor's in-progress value and clears any visible validation
    * message, so the error disappears as soon as the user types. Nothing is
    * written to the row until {@link commitEdit}.
@@ -5179,15 +5251,25 @@ export class DataTableComponent<T>
 
     if (event.key === 'Tab') {
       event.stopPropagation();
-      if (this.isEditTabAtGridEdge(event.shiftKey)) {
-        // Commit but let the browser move focus out of the grid.
-        this.commitEdit();
-        return;
-      }
-      event.preventDefault();
-      this.commitEdit();
-      this.advanceEditToNextCell(event.shiftKey);
+      this.onEditTab(event);
     }
+  }
+
+  /**
+   * Tab commits, then moves on. A refused commit (a validator rejection, a half-typed number) keeps the editor and
+   * its text where they are: moving on would drop them without a word.
+   */
+  private onEditTab(event: KeyboardEvent): void {
+    const leavesGrid = this.isEditTabAtGridEdge(event.shiftKey);
+    this.commitEdit();
+    if (this.editingCell() !== null) {
+      event.preventDefault();
+      return;
+    }
+    // At the grid edge the browser moves focus out of the grid on its own.
+    if (leavesGrid) return;
+    event.preventDefault();
+    this.advanceEditToNextCell(event.shiftKey);
   }
 
   private isEditTabAtGridEdge(shiftKey: boolean): boolean {
