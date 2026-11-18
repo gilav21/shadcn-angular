@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { InputComponent, InputVariant } from './input.component';
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
@@ -122,5 +122,57 @@ describe('Input container chrome follows the effective variant', () => {
         const style = containerStyle('[clearable]="true" value="x"', false);
         expect(style.borderTopWidth).toBe('1px');
         expect(style.borderLeftWidth).toBe('1px');
+    });
+});
+
+describe('Input container frame details', () => {
+    const GROUP = { provide: UI_INPUT_GROUP, useValue: { disabled: () => false } };
+
+    function mountContainers(attrs: string[], inGroup = false): HTMLElement {
+        if (inGroup) TestBed.configureTestingModule({ providers: [GROUP] });
+        TestBed.overrideComponent(PaddingHost, { set: { template: attrs.map(a => `<ui-input ${a} />`).join('') } });
+        const fixture = TestBed.createComponent(PaddingHost);
+        fixture.detectChanges();
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    it('rings and rounds the outline container on focus, and rules the underline one', async () => {
+        const root = mountContainers(['[clearable]="true" value="x"', 'variant="underline" [clearable]="true" value="x"']);
+        const [outline, underline] = Array.from(root.querySelectorAll<HTMLElement>('[data-slot="input-container"]'));
+        const underlineRule = getComputedStyle(underline).borderBottomColor;
+        const outlineShadow = getComputedStyle(outline).boxShadow;
+        expect(Number.parseFloat(getComputedStyle(outline).borderTopLeftRadius)).toBeGreaterThan(0);
+        expect(getComputedStyle(underline).borderTopLeftRadius).toBe('0px');
+
+        outline.querySelector('input')!.focus();
+        underline.querySelector('input')!.focus();
+        // box-shadow and the rule colour transition, so read them once settled.
+        await vi.waitFor(() => {
+            expect(getComputedStyle(underline).borderBottomColor).not.toBe(underlineRule);
+        });
+        underline.querySelector('input')!.blur();
+        outline.querySelector('input')!.focus();
+        await vi.waitFor(() => {
+            expect(getComputedStyle(outline).boxShadow).not.toBe(outlineShadow);
+        });
+    });
+
+    it('keeps an explicit underline container as a bottom rule inside a group', () => {
+        const root = mountContainers(['variant="underline" [clearable]="true" value="x"'], true);
+        const style = getComputedStyle(root.querySelector('[data-slot="input-container"]')!);
+        expect(style.borderBottomWidth).toBe('1px');
+        expect(style.borderTopWidth).toBe('0px');
+    });
+
+    it.each(['ghost', 'underline'])('starts a standalone %s container flush, like a plain input of that variant', (variant) => {
+        const root = mountContainers([`variant="${variant}"`, `variant="${variant}" [clearable]="true" value="x"`]);
+        const [plain, container] = Array.from(root.querySelectorAll('input'));
+        expect(getComputedStyle(plain).paddingLeft).toBe('0px');
+        expect(getComputedStyle(container).paddingLeft).toBe('0px');
+    });
+
+    it('insets a container input from the group frame, as the group input does', () => {
+        const root = mountContainers(['[clearable]="true" value="x"'], true);
+        expect(getComputedStyle(root.querySelector('input')!).paddingLeft).not.toBe('0px');
     });
 });
