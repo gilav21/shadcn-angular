@@ -30,6 +30,8 @@ interface Rendered {
      * monotonic order would be wrong; a mirrored run steps left almost every time.
      */
     readonly reversedRuns: number;
+    /** Runs of two or more glyphs: the only ones whose direction can be judged. */
+    readonly judgedRuns: number;
 }
 
 const rendered = new Map<string, Promise<PixelPerfectPagedResult>>();
@@ -69,6 +71,12 @@ function glyphsOf(run: Element): Array<{ char: string; box: DOMRect }> {
     return glyphs;
 }
 
+/** Whether more than half of the steps from one glyph to the next go leftwards. */
+function readsRightToLeft(glyphs: ReadonlyArray<{ box: DOMRect }>): boolean {
+    const leftSteps = glyphs.filter((glyph, i) => i > 0 && glyph.box.left < glyphs[i - 1].box.left - TOLERANCE_PX).length;
+    return leftSteps > (glyphs.length - 1) / 2;
+}
+
 async function render(result: PixelPerfectPagedResult, dir: 'ltr' | 'rtl'): Promise<Rendered> {
     const host = document.createElement('div');
     host.setAttribute('dir', dir);
@@ -76,11 +84,13 @@ async function render(result: PixelPerfectPagedResult, dir: 'ltr' | 'rtl'): Prom
     host.innerHTML = `<style>${result.globalCss}</style>${result.pages.map(page => page.html).join('')}`;
     document.body.appendChild(host);
     try {
-        // The PDF's fonts load on first use; measuring before they have would compare a fallback font.
+        // The PDF's fonts load on first use: force layout so they are requested, then wait, or a fallback font is measured.
+        host.getBoundingClientRect();
         await document.fonts.ready;
         const layout: Placed[] = [];
         let text = '';
         let reversedRuns = 0;
+        let judgedRuns = 0;
         for (const run of Array.from(host.querySelectorAll<HTMLElement>('.t'))) {
             const box = run.getBoundingClientRect();
             layout.push({ label: 'run', values: [box.left, box.top, box.width] });
@@ -89,10 +99,11 @@ async function render(result: PixelPerfectPagedResult, dir: 'ltr' | 'rtl'): Prom
                 layout.push({ label: char, values: [glyph.left, glyph.top] });
                 text += char;
             }
-            const leftSteps = glyphs.filter((glyph, i) => i > 0 && glyph.box.left < glyphs[i - 1].box.left - TOLERANCE_PX).length;
-            if (leftSteps > (glyphs.length - 1) / 2) reversedRuns++;
+            const judged = glyphs.length > 1;
+            judgedRuns += judged ? 1 : 0;
+            reversedRuns += judged && readsRightToLeft(glyphs) ? 1 : 0;
         }
-        return { layout, text, reversedRuns };
+        return { layout, text, reversedRuns, judgedRuns };
     } finally {
         host.remove();
     }
@@ -103,10 +114,11 @@ async function renderInBothHosts(url: string): Promise<{ ltr: Rendered; rtl: Ren
     const ltr = await render(result, 'ltr');
     const rtl = await render(result, 'rtl');
     expect(ltr.text.length, 'the page has text to measure').toBeGreaterThan(MIN_GLYPHS);
+    expect(rtl.text.length, 'the page has text to measure in the rtl host too').toBeGreaterThan(MIN_GLYPHS);
     return { ltr, rtl };
 }
 
-/** The largest distance, in px, between where the two layouts draw the same thing. */
+/** The largest distance, in px, between where the two layouts draw the same thing. They must hold the same things in the same order (the caller checks the labels first). */
 function largestDeviation(a: readonly Placed[], b: readonly Placed[]): number {
     return a.reduce((largest, placed, i) => {
         const other = b[i].values;
@@ -133,6 +145,7 @@ describe('pixel-perfect PDF pages in a host of either direction', () => {
     it.each(PDFS)('%s: every run reads left to right, in the order its text is stored', async (...[, url]) => {
         const { ltr, rtl } = await renderInBothHosts(url);
 
+        expect(ltr.judgedRuns, 'there are runs whose direction can be judged').toBeGreaterThan(0);
         expect(ltr.reversedRuns).toBe(0);
         expect(rtl.reversedRuns).toBe(0);
     });
