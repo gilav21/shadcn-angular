@@ -1034,9 +1034,9 @@ function extractFontMetrics(
 
 // ── Base CSS (equivalent of pdf2htmlEX base.css.in) ───────────────────
 
-const BASE_CSS = `.pf{position:relative;background-color:white;overflow:hidden;margin:13px auto;box-shadow:1px 1px 3px 1px #333;border-collapse:separate}
+const BASE_CSS = `.pf{position:relative;background-color:white;overflow:hidden;margin:13px auto;box-shadow:1px 1px 3px 1px #333;border-collapse:separate;direction:ltr}
 .pc{position:absolute;border:0;padding:0;margin:0;top:0;left:0;width:100%;height:100%;overflow:hidden;display:block;transform-origin:0 0;-ms-transform-origin:0 0;-webkit-transform-origin:0 0}
-.t{position:absolute;white-space:pre;font-size:1px;transform-origin:0% 100%;-ms-transform-origin:0% 100%;-webkit-transform-origin:0% 100%;unicode-bidi:bidi-override;-moz-font-feature-settings:"liga" 0}
+.t{position:absolute;white-space:pre;font-size:1px;transform-origin:0% 100%;-ms-transform-origin:0% 100%;-webkit-transform-origin:0% 100%;unicode-bidi:bidi-override;-moz-font-feature-settings:"liga" 0;direction:ltr}
 .t:after{content:''}
 .t:before{content:'';display:inline-block}
 .t span{position:relative;unicode-bidi:bidi-override}
