@@ -259,7 +259,7 @@
           @if (chosen === -1) {
             <option value="" selected disabled hidden></option>
           }
-          @for (opt of col.editOptions; track opt.value; let i = $index) {
+          @for (opt of col.editOptions; track $index; let i = $index) {
             <option [value]="i" [selected]="i === chosen">{{ opt.label }}</option>
           }
         </select>

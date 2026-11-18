@@ -556,6 +556,11 @@ export class DataTableComponent<T>
    * "0" and lose the minus sign. It stays in step with {@link editValue}, so a re-created input shows what commits.
    */
   readonly editText = signal('');
+  /**
+   * True while a number editor holds text that is not a number (a half-typed "-" or "1e"). The field then has no value,
+   * so {@link commitEdit} commits nothing; {@link editValue} is only the last valid one, which is not what the user sees.
+   */
+  private editHoldsPartialNumber = false;
   readonly cellEditError = signal<CellEditError | null>(null);
   /** Stable id for the inline edit-error message, linked via `aria-describedby`. */
   readonly cellEditErrorId = `ui-data-table-cell-edit-error-${dataTableUid++}`;
@@ -4870,6 +4875,7 @@ export class DataTableComponent<T>
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
     this.editText.set(typeof currentValue === 'number' || typeof currentValue === 'string' ? String(currentValue) : '');
+    this.editHoldsPartialNumber = false;
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
@@ -4903,6 +4909,10 @@ export class DataTableComponent<T>
     if (rows.length > 0) this.keepEditorOnItsRow(rows);
     const editing = this.editingCell();
     if (!editing) return;
+    if (this.editHoldsPartialNumber) {
+      this.cancelEdit();
+      return;
+    }
 
     const col = this.enhancedColumns().find(
       (c) => String(c.accessorKey) === editing.columnKey,
@@ -5124,6 +5134,7 @@ export class DataTableComponent<T>
   private dropEdit(): void {
     this.editingCell.set(null);
     this.editingRowId = undefined;
+    this.editHoldsPartialNumber = false;
     this.editValue.set(null);
     this.cellEditError.set(null);
   }
@@ -5151,15 +5162,21 @@ export class DataTableComponent<T>
 
   /**
    * Stores what a text or number editor holds: a number (null when cleared) for `editType: 'number'`, else the
-   * text. A half-typed number ("-", "1e") is not a value and keeps the last valid one, so leaving the field
-   * does not delete the cell.
+   * text. A half-typed number ("-", "1e") is not a value: while the field holds one, Enter, Tab and blur commit
+   * nothing and leave the cell as it was, as Escape does, however the text got there (after clearing the field
+   * or after selecting the digits).
    */
   onEditInput(input: HTMLInputElement, col: ColumnDef<T>): void {
     if (col.editType !== 'number') {
       this.onEditValueChange(input.value);
       return;
     }
-    if (input.validity.badInput) return;
+    this.editHoldsPartialNumber = input.validity.badInput;
+    if (this.editHoldsPartialNumber) {
+      // The text changed, so a message about the previous value no longer describes it.
+      this.cellEditError.set(null);
+      return;
+    }
     this.editText.set(input.value);
     this.onEditValueChange(input.value === '' ? null : input.valueAsNumber);
   }

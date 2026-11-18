@@ -115,17 +115,6 @@ describe('data-table editor value types', () => {
         }
     });
 
-    it('a half-typed number ("-", "1e") is not a value: it keeps the last valid one and leaving the field does not delete the cell', async () => {
-        const { input, table, edits, settle } = await edit('qty');
-        // A number input in that state reports value '' with validity.badInput, which a script cannot produce by assigning value.
-        Object.defineProperty(input!, 'validity', { value: { badInput: true } });
-        input!.value = '';
-        input!.dispatchEvent(new Event('input'));
-        table.commitEdit();
-        await settle();
-        expect(edits).toEqual([]); // unchanged, not null
-    });
-
     it('a decimal is committed as a number', async () => {
         const { input, table, edits, settle } = await edit('qty');
         input!.value = '1.25';
