@@ -57,15 +57,28 @@ async function openEditor(columnKey: 'qty' | 'tier') {
     return { table, edits, errors, root, settle, message };
 }
 
+// A key typed before the render of the previous input event has run can be overwritten by that render, which writes the
+// field's earlier text back (seen under full-suite load: "1.25" committed as 251). A typist's keys are never that close
+// together, so the helpers below make each event wait for its render.
+async function clearField(input: HTMLInputElement, settle: () => Promise<void>) {
+    await userEvent.clear(input);
+    await settle();
+}
+
+async function typeKeys(keys: string, settle: () => Promise<void>) {
+    for (const key of keys) {
+        await userEvent.keyboard(key);
+        await settle();
+    }
+}
+
 describe('number editor, driven by real keystrokes', () => {
     it.each([
-        ['after clearing the field', async (input: HTMLInputElement) => { await userEvent.clear(input); await userEvent.keyboard('-'); }],
-        ['after selecting the digits', async (input: HTMLInputElement) => { input.select(); await userEvent.keyboard('-'); }],
+        ['after clearing the field', async (input: HTMLInputElement, settle: () => Promise<void>) => { await clearField(input, settle); await typeKeys('-', settle); }],
+        ['after selecting the digits', async (input: HTMLInputElement, settle: () => Promise<void>) => { input.select(); await typeKeys('-', settle); }],
         ['after a valid number was typed first', async (input: HTMLInputElement, settle: () => Promise<void>) => {
-            await userEvent.clear(input);
-            await userEvent.keyboard('12');
-            await settle(); // the editor re-renders the valid text; a keystroke racing that render would be overwritten
-            await userEvent.keyboard('e');
+            await clearField(input, settle);
+            await typeKeys('12e', settle);
         }],
     ])('a field that holds a half-typed number refuses to commit, whichever way it got there: %s', async (...[, type]: [string, (input: HTMLInputElement, settle: () => Promise<void>) => Promise<void>]) => {
         const { table, edits, root, settle, message } = await openEditor('qty');
@@ -87,9 +100,8 @@ describe('number editor, driven by real keystrokes', () => {
         const { table, edits, root, settle, message } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
-        await userEvent.clear(input);
-        await userEvent.keyboard('12');
-        await settle();
+        await clearField(input, settle);
+        await typeKeys('12', settle);
         await userEvent.keyboard('e{Enter}');
         await settle();
         expect(message()).toBe('Enter a valid number');
@@ -110,9 +122,8 @@ describe('number editor, driven by real keystrokes', () => {
         table.focusedCell.set({ rowIndex: 0, columnKey: 'qty' }); // what clicking the cell does; Tab moves on from the focused cell
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
-        await userEvent.clear(input);
-        await userEvent.keyboard(typed);
-        await settle();
+        await clearField(input, settle);
+        await typeKeys(typed, settle);
 
         await userEvent.keyboard('{Tab}');
         await settle();
@@ -127,13 +138,8 @@ describe('number editor, driven by real keystrokes', () => {
         const { table, edits, root, settle } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
-        await userEvent.clear(input);
-        for (const key of typed) {
-            await userEvent.keyboard(key);
-            // The render of the previous keystroke writes the field's text back; a key that lands before it is overwritten
-            // (zoneless change detection can lag a frame under load), so each key waits for its render, as a typist's does.
-            await settle();
-        }
+        await clearField(input, settle);
+        await typeKeys(typed, settle);
         await userEvent.keyboard('{Enter}');
         await settle();
 
@@ -145,8 +151,9 @@ describe('number editor, driven by real keystrokes', () => {
         const { root, errors, settle, message } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
-        await userEvent.clear(input);
-        await userEvent.keyboard('0{Enter}');
+        await clearField(input, settle);
+        await typeKeys('0', settle);
+        await userEvent.keyboard('{Enter}');
         await settle();
         expect(errors).toEqual(['Zero is not allowed']);
         expect(message()).toBe('Zero is not allowed');
@@ -161,8 +168,9 @@ describe('number editor, driven by real keystrokes', () => {
         const { table, root, settle } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
-        await userEvent.clear(input);
-        await userEvent.keyboard('12{Enter}');
+        await clearField(input, settle);
+        await typeKeys('12', settle);
+        await userEvent.keyboard('{Enter}');
         await settle();
         expect(table.data()[0].qty).toBe(12);
 
