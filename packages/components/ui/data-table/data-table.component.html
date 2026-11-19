@@ -273,7 +273,7 @@
           [class.ring-destructive]="editErr"
           [attr.aria-invalid]="editErr ? true : null"
           [attr.aria-describedby]="editErr ? cellEditErrorId : null"
-          [value]="col.editType === 'number' ? editText() : editValue()"
+          [attr.value]="col.editType === 'number' ? editText() : editValue()"
           (input)="onEditInput($any($event.target), col)"
           (keydown)="onEditKeydown($event)"
           (blur)="editingCell() ? commitEdit() : null"

@@ -57,15 +57,19 @@ async function openEditor(columnKey: 'qty' | 'tier') {
     return { table, edits, errors, root, settle, message };
 }
 
-// A key typed before the render of the previous input event has run can be overwritten by that render, which writes the
-// field's earlier text back (seen under full-suite load: "1.25" committed as 251). A typist's keys are never that close
-// together, so the helpers below make each event wait for its render.
-async function clearField(input: HTMLInputElement, settle: () => Promise<void>) {
+type Settle = () => Promise<void>;
+type FieldTyper = (input: HTMLInputElement, settle: Settle) => Promise<void>;
+
+// Real keystrokes arrive as separate events with a render in between. Under full-suite load the render can slip behind
+// the next key, so the helpers below let every event render before the next one and keep each step independent of
+// scheduler timing. That a render which does land late must not rewrite the typed text is its own case further down.
+async function clearField(input: HTMLInputElement, settle: Settle) {
     await userEvent.clear(input);
     await settle();
 }
 
-async function typeKeys(keys: string, settle: () => Promise<void>) {
+/** Types plain printable characters one at a time; `{Enter}`-style descriptors go to `userEvent.keyboard` directly. */
+async function typeKeys(keys: string, settle: Settle) {
     for (const key of keys) {
         await userEvent.keyboard(key);
         await settle();
@@ -74,13 +78,13 @@ async function typeKeys(keys: string, settle: () => Promise<void>) {
 
 describe('number editor, driven by real keystrokes', () => {
     it.each([
-        ['after clearing the field', async (input: HTMLInputElement, settle: () => Promise<void>) => { await clearField(input, settle); await typeKeys('-', settle); }],
-        ['after selecting the digits', async (input: HTMLInputElement, settle: () => Promise<void>) => { input.select(); await typeKeys('-', settle); }],
-        ['after a valid number was typed first', async (input: HTMLInputElement, settle: () => Promise<void>) => {
+        ['after clearing the field', async (input, settle) => { await clearField(input, settle); await typeKeys('-', settle); }],
+        ['after selecting the digits', async (input, settle) => { input.select(); await typeKeys('-', settle); }],
+        ['after a valid number was typed first', async (input, settle) => {
             await clearField(input, settle);
             await typeKeys('12e', settle);
         }],
-    ])('a field that holds a half-typed number refuses to commit, whichever way it got there: %s', async (...[, type]: [string, (input: HTMLInputElement, settle: () => Promise<void>) => Promise<void>]) => {
+    ] satisfies [string, FieldTyper][])('a field that holds a half-typed number refuses to commit, whichever way it got there: %s', async (...[, type]: [string, FieldTyper]) => {
         const { table, edits, root, settle, message } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
@@ -145,6 +149,32 @@ describe('number editor, driven by real keystrokes', () => {
 
         expect(edits).toEqual([expected]);
         expect(table.data()[0].qty).toBe(expected);
+    });
+
+    it('never lets a render overwrite the live text of the field being typed in', async () => {
+        const { table, edits, root, settle } = await openEditor('qty');
+        const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
+        input.focus();
+        await clearField(input, settle);
+
+        // A render that lags a keystroke by one key writes its stale text over the field ("1." becomes "1", the caret
+        // jumps to the start and the next keys land in front: "1.25" commits as 251). Whether it lags depends on
+        // scheduler timing, so what is pinned is the cause: no render writes the field's value property once it is typed in.
+        const nativeValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!;
+        const writes: string[] = [];
+        Object.defineProperty(input, 'value', {
+            configurable: true,
+            get: () => nativeValue.get!.call(input),
+            set: (text: string) => { writes.push(text); nativeValue.set!.call(input, text); },
+        });
+
+        await typeKeys('1.25', settle);
+        await userEvent.keyboard('{Enter}');
+        await settle();
+
+        expect(writes, 'renders left the field text alone').toEqual([]);
+        expect(edits).toEqual([1.25]);
+        expect(table.data()[0].qty).toBe(1.25);
     });
 
     it('drops the validation message once the text is no longer the value it described', async () => {

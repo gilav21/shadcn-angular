@@ -559,6 +559,9 @@ export class DataTableComponent<T>
    * The text a number input shows: what it started with, then the text of each valid keystroke. The input is bound
    * to this, not to {@link editValue}: typing "-0" parses to -0, and writing that back would turn the field into
    * "0" and lose the minus sign. It stays in step with {@link editValue}, so a re-created input shows what commits.
+   * The binding is the input's `value` ATTRIBUTE (its default text), never its `value` property: a property write
+   * from a render that lags a keystroke replaces the field's live text ("1." becomes "1", the caret jumps to the
+   * start and the next keys land in front), while a field the user has typed in ignores a changed default.
    */
   readonly editText = signal('');
   readonly cellEditError = signal<CellEditError | null>(null);
