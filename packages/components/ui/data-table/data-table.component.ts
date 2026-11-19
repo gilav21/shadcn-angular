@@ -561,7 +561,8 @@ export class DataTableComponent<T>
    * "0" and lose the minus sign. It stays in step with {@link editValue}, so a re-created input shows what commits.
    * The binding is the input's `value` ATTRIBUTE (its default text), never its `value` property: a property write
    * from a render that lags a keystroke replaces the field's live text ("1." becomes "1", the caret jumps to the
-   * start and the next keys land in front), while a field the user has typed in ignores a changed default.
+   * start and the next keys land in front), while a field the user has typed in ignores a changed default. The one
+   * place the model changes behind the field's back is re-opening the cell being edited: {@link resetEditField}.
    */
   readonly editText = signal('');
   readonly cellEditError = signal<CellEditError | null>(null);
@@ -4875,12 +4876,26 @@ export class DataTableComponent<T>
     if (this.isDisabled(row)) return;
 
     const currentValue = this.getCellValue(row, col.accessorKey, col);
+    const seededText = typeof currentValue === 'number' || typeof currentValue === 'string' ? String(currentValue) : '';
+    const reopened = this.isEditing(rowIndex, columnKey);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
-    this.editText.set(typeof currentValue === 'number' || typeof currentValue === 'string' ? String(currentValue) : '');
+    this.editText.set(seededText);
+    if (reopened) this.resetEditField(seededText);
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
+  }
+
+  /**
+   * Puts the seeded text back into the field of the cell that is already being edited (a double-click inside the editor
+   * reaches here). The field is bound through its `value` attribute, which a field the user has typed in ignores, so
+   * without this the field would keep the typed text while the model went back to the cell's value, and Enter would
+   * commit what the user no longer sees.
+   */
+  private resetEditField(text: string): void {
+    const field = (this._el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[data-edit-input]');
+    if (field !== null) field.value = text;
   }
 
   private focusEditInput(): void {

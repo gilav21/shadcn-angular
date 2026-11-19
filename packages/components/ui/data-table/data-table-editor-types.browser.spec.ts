@@ -143,12 +143,24 @@ describe('number editor, driven by real keystrokes', () => {
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
         await clearField(input, settle);
-        await typeKeys(typed, settle);
-        await userEvent.keyboard('{Enter}');
+        await userEvent.keyboard(`${typed}{Enter}`); // as a typist sends it: no waiting for a render between the keys
         await settle();
 
         expect(edits).toEqual([expected]);
         expect(table.data()[0].qty).toBe(expected);
+    });
+
+    it('shows the cell value again when the cell being edited is re-opened from inside the editor', async () => {
+        const { root, settle } = await openEditor('qty');
+        const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
+        input.focus();
+        await clearField(input, settle);
+        await typeKeys('15', settle);
+
+        await userEvent.dblClick(input); // bubbles to the cell, which opens it again and resets the edit to the cell's 5
+        await settle();
+
+        expect(input.value, 'the field shows what Enter would commit').toBe('5');
     });
 
     it('never lets a render overwrite the live text of the field being typed in', async () => {
