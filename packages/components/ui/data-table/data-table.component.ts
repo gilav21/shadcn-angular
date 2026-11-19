@@ -4887,21 +4887,21 @@ export class DataTableComponent<T>
 
     const currentValue = this.getCellValue(row, col.accessorKey, col);
     const seededText = editorTextFor(currentValue);
+    const reopened = this.isEditing(rowIndex, columnKey);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
     this.editText.set(seededText);
-    this.resetEditField(seededText);
+    if (reopened) this.resetEditField(seededText);
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
   }
 
   /**
-   * Puts the seeded text into the field that is already open, if one is (a double-click inside the editor reaches here,
-   * and so does a close and re-open of the same cell before the render that would drop the field). The field is bound
-   * through its `value` attribute, which a field the user has typed in ignores, so without this the field would keep
-   * the typed text while the model went back to the cell's value, and Enter would commit what the user no longer sees.
-   * When the open field belongs to another cell, the next render removes it and the write is never seen.
+   * Puts the seeded text into the field of the cell that is already being edited (a double-click inside the editor
+   * reaches here). The field is bound through its `value` attribute, which a field the user has typed in ignores, so
+   * without this the field would keep the typed text while the model went back to the cell's value, and Enter would
+   * commit what the user no longer sees. Writing the value also clears a half-typed number the field was holding.
    */
   private resetEditField(text: string): void {
     const field = this.openEditInput();

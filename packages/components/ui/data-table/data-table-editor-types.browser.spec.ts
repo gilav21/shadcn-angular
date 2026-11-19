@@ -154,17 +154,21 @@ describe('number editor, driven by real keystrokes', () => {
         expect(table.data()[0].qty).toBe(expected);
     });
 
-    it('shows the cell value again when the cell being edited is re-opened from inside the editor', async () => {
+    it.each([
+        ['a typed number', '15'],
+        ['a half-typed number', '-'],
+    ])('shows the cell value again when the cell being edited is re-opened from inside the editor, holding %s', async (...[, typed]: [string, string]) => {
         const { root, settle } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
         await clearField(input, settle);
-        await typeKeys('15', settle);
+        await typeKeys(typed, settle);
 
         await userEvent.dblClick(input); // bubbles to the cell, which opens it again and resets the edit to the cell's 5
         await settle();
 
         expect(input.value, 'the field shows what Enter would commit').toBe('5');
+        expect(input.validity.badInput, 'no half-typed text is left in the field').toBe(false);
     });
 
     it('shows the cell value again when a text editor is re-opened from inside the editor, whatever type the value has', async () => {
