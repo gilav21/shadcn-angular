@@ -12,7 +12,12 @@
  * The load-bearing claim throughout: the script does everything up to the push
  * and then STOPS. Nothing here may produce an `npm publish` invocation.
  */
-import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { releaseCommitArgv } from './release-cli-lib.js';
 import {
@@ -155,10 +160,95 @@ describe('parseCommitLog', () => {
 });
 
 describe('packageCommits', () => {
-    it('scopes the log to the closure directories', () => {
-        const key = 'log base..HEAD --no-merges --format=%H%x09%s -- ui/rte';
-        const commits = packageCommits('base', new Set(['ui/rte/a.ts']), fakeGit({ [key]: 'h1\tfeat: x' }));
-        expect(commits).toEqual([{ hash: 'h1', subject: 'feat: x' }]);
+    const LOG_KEY = '-c core.quotepath=false log base..HEAD --no-merges --name-only --format=%x01%H%x09%s -- ui/rte';
+
+    it('reports nothing when git answers with no commits since the base', () => {
+        expect(packageCommits('base', new Set(['ui/rte/a.ts']), fakeGit({ [LOG_KEY]: '' }))).toEqual([]);
+    });
+
+    // A failing git (an unknown ref, output past the buffer) must not read as "no commits": the release would be
+    // planned with an empty changelog and nothing would say so. `run` throws, where a probe would answer null.
+    it('fails loudly when git itself fails, instead of building an empty changelog', () => {
+        expect(() => packageCommits('base', new Set(['ui/rte/a.ts']), fakeGit({}))).toThrow(/log base\.\.HEAD.* failed/);
+    });
+
+    // Against real git, because the parser rests on how `git log --name-only` lays its output out and on what it does
+    // to a non-ASCII name; a hand-written log would only repeat the parser's own assumptions.
+    describe('in a real repository', () => {
+        let repo = '';
+        // Isolated from the developer's git setup (global config, hooks, templates), which could change the commits.
+        const NO_CONFIG = process.platform === 'win32' ? 'NUL' : '/dev/null';
+        const git = (...args: string[]): string =>
+            execFileSync(
+                'git',
+                ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'commit.gpgsign=false', ...args],
+                {
+                    cwd: repo,
+                    encoding: 'utf8',
+                    stdio: ['ignore', 'pipe', 'ignore'],
+                    env: { ...process.env, GIT_CONFIG_GLOBAL: NO_CONFIG, GIT_CONFIG_NOSYSTEM: '1' },
+                },
+            );
+        // The same shape as the release script's git: trimmed output; `probe` answers null when git exits non-zero.
+        const probe: GitProbe = {
+            run: (...args) => git(...args).trim(),
+            probe: (...args) => {
+                try {
+                    return git(...args).trim();
+                } catch {
+                    return null;
+                }
+            },
+        };
+        const write = (file: string, text: string): void => {
+            mkdirSync(join(repo, dirname(file)), { recursive: true });
+            writeFileSync(join(repo, file), text);
+        };
+        const commit = (subject: string): void => {
+            git('add', '-A');
+            git('commit', '-q', '-m', subject);
+        };
+        const accented = `ui/rte/caf${String.fromCodePoint(0xe9)}.ts`;
+        // Each of these spawns git a dozen times; a loaded Windows machine can take far longer than vitest's 10 s default.
+        const GIT_TIMEOUT_MS = 30_000;
+
+        beforeAll(() => {
+            repo = mkdtempSync(join(tmpdir(), 'release-package-commits-'));
+            git('init', '-q');
+            for (const file of ['ui/rte/a.ts', 'ui/rte/b2.ts', 'ui/ripple.ts', 'ui/data-table/b.ts', accented]) {
+                write(file, 'v1\n');
+            }
+            commit('base');
+        }, GIT_TIMEOUT_MS);
+
+        afterAll(() => rmSync(repo, { recursive: true, force: true }));
+
+        // The closure holds a flat file (ui/ripple.ts), so its parent `ui` is queried and git returns every commit
+        // under ui/ as well. Only the commits that change what the consumer gets are the package's changelog.
+        it('lists the commits that change a closure file, and not the rest of a shared directory', () => {
+            const base = git('rev-parse', 'HEAD').trim();
+            // One commit that changes a closure file and another package's file together is still the package's.
+            write('ui/rte/a.ts', 'v2\n');
+            write('ui/data-table/b.ts', 'v2\n');
+            commit('fix(rte): a');
+            write('ui/data-table/b.ts', 'v3\n');
+            commit('fix(data-table): b');
+            git('mv', 'ui/rte/b2.ts', 'ui/rte/b3.ts');
+            commit('refactor(rte): rename b');
+            write(accented, 'v2\n');
+            commit('fix(rte): accent');
+            write('ui/ripple.ts', 'v2\n');
+            commit('fix(ripple): flat file');
+
+            const closure = new Set(['ui/rte/a.ts', 'ui/rte/b3.ts', accented, 'ui/ripple.ts']);
+
+            expect(packageCommits(base, closure, probe).map(commit => commit.subject)).toEqual([
+                'fix(ripple): flat file',
+                'fix(rte): accent',
+                'refactor(rte): rename b',
+                'fix(rte): a',
+            ]);
+        }, GIT_TIMEOUT_MS);
     });
 });
 

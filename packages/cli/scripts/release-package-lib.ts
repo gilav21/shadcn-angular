@@ -209,25 +209,58 @@ export function resolveBaseRef(id: PackageId, git: GitProbe): BaseRef {
     return resolveBaseRefFor({ tagPattern: `${id}-v*`, versionFile: `${packageDir(id)}/package.json` }, git);
 }
 
+function parentDir(file: string): string {
+    return file.split('/').slice(0, -1).join('/');
+}
+
 /**
- * The directories the changelog query is scoped to: the parent of every closure
- * path. `git log -- <dirs>` needs directories, and scoping is the point — the
- * changelog is about what the CONSUMER gets, not about every commit in the repo.
+ * The directories the changelog query starts from: the parent of every closure path. This is only a coarse
+ * pre-filter. The closure is a couple of hundred files, too many to pass one by one on a Windows command line, and a
+ * flat closure file such as `ui/ripple.ts` puts `ui` itself in the list, so git also returns commits to other
+ * packages' files under `ui/`. {@link packageCommits} does the exact scoping afterwards.
  */
 export function closureDirs(paths: ReadonlySet<string>): string[] {
     const dirs = new Set<string>();
     for (const file of paths) {
-        const dir = file.split('/').slice(0, -1).join('/');
+        const dir = parentDir(file);
         if (dir) dirs.add(dir);
     }
     return [...dirs];
 }
 
-/** Conventional commits since the base that touched anything in the closure. */
+/** Marks the start of a commit in `git log --name-only`'s output, so a file list never reads as the next subject. */
+const COMMIT_MARK = '\x01';
+
+/**
+ * Keeps the commits that changed a file of the closure, as `hash<TAB>subject` lines.
+ *
+ * "The closure" is today's, the same set the release verdict checks (`packageVerdict`). It is only known at HEAD, so a
+ * commit that does nothing but delete a file the package no longer ships is not listed, and the verdict does not count
+ * such a deletion either. The changelog is a per-commit history, the verdict a net diff, so a change that was later
+ * reverted is listed here although the verdict would not justify a release for it.
+ */
+function commitsTouchingClosure(log: string, paths: ReadonlySet<string>): string {
+    return log
+        .split(COMMIT_MARK)
+        .filter(Boolean)
+        .flatMap((block) => {
+            const [headline, ...files] = block.split('\n');
+            return files.some((file) => paths.has(file)) ? [headline] : [];
+        })
+        .join('\n');
+}
+
+/** Conventional commits since the base that touched a file in the closure. */
 export function packageCommits(baseRef: string, paths: ReadonlySet<string>, git: GitProbe): Commit[] {
-    return parseCommitLog(
-        git.probe('log', `${baseRef}..HEAD`, '--no-merges', '--format=%H%x09%s', '--', ...closureDirs(paths)),
+    // `run`, not `probe`: a probe turns any failure into null, which would read as "no commits" and plan the release
+    // with an empty changelog. `run` throws with git's own message (an unknown ref, output past the buffer).
+    const log = git.run(
+        // quotepath off: git would otherwise quote a non-ASCII name and it would never match the closure.
+        '-c', 'core.quotepath=false',
+        'log', `${baseRef}..HEAD`, '--no-merges', '--name-only', '--format=%x01%H%x09%s',
+        '--', ...closureDirs(paths),
     );
+    return parseCommitLog(commitsTouchingClosure(log, paths));
 }
 
 // ── Guards ─────────────────────────────────────────────────────────────────

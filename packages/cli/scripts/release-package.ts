@@ -43,7 +43,8 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '../../..');
 
 const git = (args: readonly string[]): string =>
-    execFileSync('git', ['-C', REPO_ROOT, ...args], { encoding: 'utf-8' }).trim();
+    // The changelog query lists the files of every commit under a shared directory: past the 1 MiB default Node throws.
+    execFileSync('git', ['-C', REPO_ROOT, ...args], { encoding: 'utf-8', maxBuffer: 256 * 1024 * 1024 }).trim();
 
 /** The composed effects, exported so the wiring itself is checkable. */
 export const EFFECTS = nodeReleaseEffects(REPO_ROOT, {
