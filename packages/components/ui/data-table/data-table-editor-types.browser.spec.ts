@@ -128,7 +128,13 @@ describe('number editor, driven by real keystrokes', () => {
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
         await userEvent.clear(input);
-        await userEvent.keyboard(`${typed}{Enter}`);
+        for (const key of typed) {
+            await userEvent.keyboard(key);
+            // The render of the previous keystroke writes the field's text back; a key that lands before it is overwritten
+            // (zoneless change detection can lag a frame under load), so each key waits for its render, as a typist's does.
+            await settle();
+        }
+        await userEvent.keyboard('{Enter}');
         await settle();
 
         expect(edits).toEqual([expected]);
