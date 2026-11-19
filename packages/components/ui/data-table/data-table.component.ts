@@ -160,13 +160,16 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
-/** A select option's value that has a string form to match against (data from JSON stores 1 as '1'). */
-/** What a text editor shows for a cell value, as a bound `value` would: nothing for null and undefined, else its string form. */
-function textEditorText(value: unknown): string {
-  if (value === null || value === undefined) return '';
-  return String(value);
+/**
+ * What the inline text or number field shows for a cell value: the string form of a string, number, boolean or bigint,
+ * a Date as `Date.toString()`, and nothing for null, undefined or anything else (an object has no text to edit).
+ */
+function editorTextFor(value: unknown): string {
+  if (isScalarOptionValue(value)) return String(value);
+  return value instanceof Date ? value.toString() : '';
 }
 
+/** A select option's value that has a string form to match against (data from JSON stores 1 as '1'). */
 function isScalarOptionValue(value: unknown): value is string | number | boolean | bigint {
   return ['string', 'number', 'boolean', 'bigint'].includes(typeof value);
 }
@@ -562,9 +565,10 @@ export class DataTableComponent<T>
   readonly editingCell = signal<EditingCell | null>(null);
   readonly editValue = signal<unknown>(null);
   /**
-   * The text a number input shows: what it started with, then the text of each valid keystroke. The input is bound
-   * to this, not to {@link editValue}: typing "-0" parses to -0, and writing that back would turn the field into
-   * "0" and lose the minus sign. It stays in step with {@link editValue}, so a re-created input shows what commits.
+   * The text the number or text input shows: what it started with ({@link editorTextFor}), then the text of each
+   * keystroke that is a value. The input is bound to this, not to {@link editValue}: typing "-0" parses to -0, and
+   * writing that back would turn the field into "0" and lose the minus sign. It stays in step with
+   * {@link editValue}, so a re-created input shows what commits.
    * The binding is the input's `value` ATTRIBUTE (its default text), never its `value` property: a property write
    * from a render that lags a keystroke replaces the field's live text ("1." becomes "1", the caret jumps to the
    * start and the next keys land in front), while a field the user has typed in ignores a changed default. The one
@@ -4882,22 +4886,22 @@ export class DataTableComponent<T>
     if (this.isDisabled(row)) return;
 
     const currentValue = this.getCellValue(row, col.accessorKey, col);
-    const seededText = typeof currentValue === 'number' || typeof currentValue === 'string' ? String(currentValue) : '';
-    const reopened = this.isEditing(rowIndex, columnKey);
+    const seededText = editorTextFor(currentValue);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
     this.editText.set(seededText);
-    if (reopened) this.resetEditField(col.editType === 'number' ? seededText : textEditorText(currentValue));
+    this.resetEditField(seededText);
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
   }
 
   /**
-   * Puts the seeded text back into the field of the cell that is already being edited (a double-click inside the editor
-   * reaches here). The field is bound through its `value` attribute, which a field the user has typed in ignores, so
-   * without this the field would keep the typed text while the model went back to the cell's value, and Enter would
-   * commit what the user no longer sees.
+   * Puts the seeded text into the field that is already open, if one is (a double-click inside the editor reaches here,
+   * and so does a close and re-open of the same cell before the render that would drop the field). The field is bound
+   * through its `value` attribute, which a field the user has typed in ignores, so without this the field would keep
+   * the typed text while the model went back to the cell's value, and Enter would commit what the user no longer sees.
+   * When the open field belongs to another cell, the next render removes it and the write is never seen.
    */
   private resetEditField(text: string): void {
     const field = this.openEditInput();
@@ -5209,6 +5213,7 @@ export class DataTableComponent<T>
    */
   onEditInput(input: HTMLInputElement, col: ColumnDef<T>): void {
     if (col.editType !== 'number') {
+      this.editText.set(input.value);
       this.onEditValueChange(input.value);
       return;
     }
