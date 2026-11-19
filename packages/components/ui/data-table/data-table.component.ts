@@ -161,6 +161,12 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
 };
 
 /** A select option's value that has a string form to match against (data from JSON stores 1 as '1'). */
+/** What a text editor shows for a cell value, as a bound `value` would: nothing for null and undefined, else its string form. */
+function textEditorText(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value);
+}
+
 function isScalarOptionValue(value: unknown): value is string | number | boolean | bigint {
   return ['string', 'number', 'boolean', 'bigint'].includes(typeof value);
 }
@@ -4881,7 +4887,7 @@ export class DataTableComponent<T>
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
     this.editText.set(seededText);
-    if (reopened) this.resetEditField(seededText);
+    if (reopened) this.resetEditField(col.editType === 'number' ? seededText : textEditorText(currentValue));
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
@@ -4894,8 +4900,13 @@ export class DataTableComponent<T>
    * commit what the user no longer sees.
    */
   private resetEditField(text: string): void {
-    const field = (this._el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[data-edit-input]');
+    const field = this.openEditInput();
     if (field !== null) field.value = text;
+  }
+
+  /** The text or number field of the open inline editor; only one editor is ever open. */
+  private openEditInput(): HTMLInputElement | null {
+    return (this._el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[data-edit-input]');
   }
 
   private focusEditInput(): void {
@@ -5186,8 +5197,7 @@ export class DataTableComponent<T>
    * that knows, and it stays right if the input is re-created while the editor is open.
    */
   private editorHoldsPartialNumber(): boolean {
-    const input = (this._el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[data-edit-input]');
-    return input?.validity.badInput ?? false;
+    return this.openEditInput()?.validity.badInput ?? false;
   }
 
   /**

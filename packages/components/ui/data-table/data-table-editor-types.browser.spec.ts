@@ -7,13 +7,17 @@ import { userEvent } from 'vitest/browser';
 import { DataTableComponent } from './data-table.component';
 import type { ColumnDef } from './data-table.types';
 
-interface Row { id: number; qty: number | null; tier: number }
+interface Row { id: number; qty: number | null; tier: number; flag: boolean }
 
 const columns: ColumnDef<Row>[] = [
     {
         accessorKey: 'qty', header: 'Qty', editable: true, editType: 'number',
         editValidator: (value) => value !== 0 || 'Zero is not allowed',
         valueSetter: (row, value) => ({ ...row, qty: value as number | null }),
+    },
+    {
+        accessorKey: 'flag', header: 'Flag', editable: true, editType: 'text',
+        valueSetter: (row, value) => ({ ...row, flag: value === 'true' }),
     },
     {
         accessorKey: 'tier', header: 'Tier', editable: true, editType: 'select',
@@ -31,10 +35,10 @@ const columns: ColumnDef<Row>[] = [
 class Host {
     readonly table = viewChild.required(DataTableComponent<Row>);
     readonly columns = columns;
-    readonly data: Row[] = [{ id: 1, qty: 5, tier: 1 }];
+    readonly data: Row[] = [{ id: 1, qty: 5, tier: 1, flag: true }];
 }
 
-async function openEditor(columnKey: 'qty' | 'tier') {
+async function openEditor(columnKey: 'qty' | 'tier' | 'flag') {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({ imports: [Host] }).compileComponents();
     const fixture = TestBed.createComponent(Host);
@@ -161,6 +165,20 @@ describe('number editor, driven by real keystrokes', () => {
         await settle();
 
         expect(input.value, 'the field shows what Enter would commit').toBe('5');
+    });
+
+    it('shows the cell value again when a text editor is re-opened from inside the editor, whatever type the value has', async () => {
+        const { root, settle } = await openEditor('flag');
+        const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
+        input.focus();
+        expect(input.value, 'a boolean cell opens as its string form').toBe('true');
+        await clearField(input, settle);
+        await typeKeys('no', settle);
+
+        await userEvent.dblClick(input);
+        await settle();
+
+        expect(input.value).toBe('true');
     });
 
     it('never lets a render overwrite the live text of the field being typed in', async () => {
