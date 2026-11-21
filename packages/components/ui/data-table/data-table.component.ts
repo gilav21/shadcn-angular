@@ -160,6 +160,15 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
+/**
+ * What the inline text or number field shows for a cell value: the string form of a string, number, boolean or bigint,
+ * a Date as `Date.toString()`, and nothing for null, undefined or anything else (an object has no text to edit).
+ */
+function editorTextFor(value: unknown): string {
+  if (isScalarOptionValue(value)) return String(value);
+  return value instanceof Date ? value.toString() : '';
+}
+
 /** A select option's value that has a string form to match against (data from JSON stores 1 as '1'). */
 function isScalarOptionValue(value: unknown): value is string | number | boolean | bigint {
   return ['string', 'number', 'boolean', 'bigint'].includes(typeof value);
@@ -556,9 +565,14 @@ export class DataTableComponent<T>
   readonly editingCell = signal<EditingCell | null>(null);
   readonly editValue = signal<unknown>(null);
   /**
-   * The text a number input shows: what it started with, then the text of each valid keystroke. The input is bound
-   * to this, not to {@link editValue}: typing "-0" parses to -0, and writing that back would turn the field into
-   * "0" and lose the minus sign. It stays in step with {@link editValue}, so a re-created input shows what commits.
+   * The text the number or text input shows: what it started with ({@link editorTextFor}), then the text of each
+   * keystroke that is a value. The input is bound to this, not to {@link editValue}: typing "-0" parses to -0, and
+   * writing that back would turn the field into "0" and lose the minus sign. It stays in step with
+   * {@link editValue}, so a re-created input shows what commits.
+   * The binding is the input's `value` ATTRIBUTE (its default text), never its `value` property: a property write
+   * from a render that lags a keystroke replaces the field's live text ("1." becomes "1", the caret jumps to the
+   * start and the next keys land in front), while a field the user has typed in ignores a changed default. The one
+   * place the model changes behind the field's back is re-opening the cell being edited: {@link resetEditField}.
    */
   readonly editText = signal('');
   readonly cellEditError = signal<CellEditError | null>(null);
@@ -4516,6 +4530,8 @@ export class DataTableComponent<T>
     if (isGridColumnKey(key))
       return;
     event.stopPropagation();
+    // Inside the open editor a double-click selects a word: opening the cell again would throw the typed text away.
+    if (this.isEditing(rowIndex, key)) return;
     this.startEditing(rowIndex, key);
   }
 
@@ -4537,6 +4553,8 @@ export class DataTableComponent<T>
     const key = String(col.accessorKey);
     if (isGridColumnKey(key))
       return;
+    // Taps inside the open editor place the caret or select a word; they are not a request to open the cell again.
+    if (this.isEditing(rowIndex, key)) return;
     const now = Date.now();
     const isSameCell =
       this._lastTapRowIndex === rowIndex && this._lastTapColumnKey === key;
@@ -4872,12 +4890,33 @@ export class DataTableComponent<T>
     if (this.isDisabled(row)) return;
 
     const currentValue = this.getCellValue(row, col.accessorKey, col);
+    const seededText = editorTextFor(currentValue);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
-    this.editText.set(typeof currentValue === 'number' || typeof currentValue === 'string' ? String(currentValue) : '');
+    this.editText.set(seededText);
+    this.resetEditField(seededText);
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
+  }
+
+  /**
+   * Puts the seeded text into the edit field that is mounted, for a caller that opens a cell again (the double-click
+   * and double-tap handlers ignore the open cell, so no gesture reaches here). The field is bound through its `value`
+   * attribute, which a field the user has typed in ignores, so without this the field would keep the typed text while
+   * the model went back to the cell's value, and Enter would commit what the user no longer sees. This also covers a
+   * cancel or commit followed at once by a re-open of the same cell, when no render has dropped the field yet. A field
+   * is mounted only while the template maps it to the editing cell, so one that belongs to another cell is removed by
+   * the next render and the write is never seen. Writing the value also clears a half-typed number.
+   */
+  private resetEditField(text: string): void {
+    const field = this.openEditInput();
+    if (field !== null) field.value = text;
+  }
+
+  /** The text or number field of the open inline editor; only one editor is ever open. */
+  private openEditInput(): HTMLInputElement | null {
+    return (this._el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[data-edit-input]');
   }
 
   private focusEditInput(): void {
@@ -5168,8 +5207,7 @@ export class DataTableComponent<T>
    * that knows, and it stays right if the input is re-created while the editor is open.
    */
   private editorHoldsPartialNumber(): boolean {
-    const input = (this._el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[data-edit-input]');
-    return input?.validity.badInput ?? false;
+    return this.openEditInput()?.validity.badInput ?? false;
   }
 
   /**
@@ -5181,6 +5219,7 @@ export class DataTableComponent<T>
    */
   onEditInput(input: HTMLInputElement, col: ColumnDef<T>): void {
     if (col.editType !== 'number') {
+      this.editText.set(input.value);
       this.onEditValueChange(input.value);
       return;
     }
