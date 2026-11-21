@@ -185,6 +185,21 @@ describe('number editor, driven by real keystrokes', () => {
         expect(input.value).toBe('true');
     });
 
+    it('shows the cell value when an edit is cancelled and the cell re-opened before the next render', async () => {
+        const { table, root, settle } = await openEditor('qty');
+        const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
+        input.focus();
+        await clearField(input, settle);
+        await typeKeys('15', settle);
+
+        table.cancelEdit(); // no render in between, so the field with the typed text is still mounted for the same cell
+        table.startEditing(0, 'qty');
+        await settle();
+
+        expect(root.querySelector('input[data-edit-input]'), 'the same field stayed mounted').toBe(input);
+        expect(input.value, 'the field shows what Enter would commit').toBe('5');
+    });
+
     it('leaves the typed text alone when the field is double-clicked to select a word', async () => {
         const { table, edits, root, settle } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;

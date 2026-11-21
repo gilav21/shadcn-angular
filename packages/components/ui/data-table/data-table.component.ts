@@ -4891,22 +4891,23 @@ export class DataTableComponent<T>
 
     const currentValue = this.getCellValue(row, col.accessorKey, col);
     const seededText = editorTextFor(currentValue);
-    const reopened = this.isEditing(rowIndex, columnKey);
     this.cellEditError.set(null);
     this.editValue.set(currentValue);
     this.editText.set(seededText);
-    if (reopened) this.resetEditField(seededText);
+    this.resetEditField(seededText);
     this.editingRowId = this.getRowId()(row);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
   }
 
   /**
-   * Puts the seeded text into the field of the cell that is already being edited, for a caller that opens that cell
-   * again (the double-click and double-tap handlers ignore the open cell, so no gesture reaches here). The field is
-   * bound through its `value` attribute, which a field the user has typed in ignores, so without this the field would
-   * keep the typed text while the model went back to the cell's value, and Enter would commit what the user no longer
-   * sees. Writing the value also clears a half-typed number the field was holding.
+   * Puts the seeded text into the edit field that is mounted, for a caller that opens a cell again (the double-click
+   * and double-tap handlers ignore the open cell, so no gesture reaches here). The field is bound through its `value`
+   * attribute, which a field the user has typed in ignores, so without this the field would keep the typed text while
+   * the model went back to the cell's value, and Enter would commit what the user no longer sees. This also covers a
+   * cancel or commit followed at once by a re-open of the same cell, when no render has dropped the field yet. A field
+   * is mounted only while the template maps it to the editing cell, so one that belongs to another cell is removed by
+   * the next render and the write is never seen. Writing the value also clears a half-typed number.
    */
   private resetEditField(text: string): void {
     const field = this.openEditInput();
