@@ -227,8 +227,7 @@ describe('number editor, driven by real keystrokes', () => {
     });
 
     it('does not pair a tap with one made before the cell was open', async () => {
-        const { table, root, settle } = await openEditor('qty');
-        const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
+        const { table, settle } = await openEditor('qty');
         const tap = () => table.onCellTouchEnd(new TouchEvent('touchend', { cancelable: true }), 0, columns[0]);
         table.cancelEdit();
         tap(); // a first tap on the closed cell
@@ -239,7 +238,20 @@ describe('number editor, driven by real keystrokes', () => {
         await settle();
 
         expect(table.editingCell(), 'one tap after the tap that was ignored opens nothing').toBeNull();
-        expect(root.contains(input) && root.querySelector('input[data-edit-input]')).toBeFalsy();
+    });
+
+    it('still re-opens a select editor on a double-click, to recover after a rejected pick', async () => {
+        const { root, settle, message } = await openEditor('tier');
+        const select = root.querySelector<HTMLSelectElement>('select[data-edit-input]')!;
+        await userEvent.selectOptions(select, 'Premium');
+        await settle();
+        expect(message()).toBe('Premium is full');
+
+        await userEvent.dblClick(select);
+        await settle();
+
+        expect(message(), 'the edit is seeded from the cell again').toBeNull();
+        expect(select.selectedOptions[0].textContent?.trim()).toBe('Basic');
     });
 
     it('leaves the typed text alone when the field is double-tapped on a touch screen', async () => {

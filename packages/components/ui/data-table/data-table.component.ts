@@ -4532,8 +4532,8 @@ export class DataTableComponent<T>
     if (isGridColumnKey(key))
       return;
     event.stopPropagation();
-    // Inside the open editor a double-click selects a word: opening the cell again would throw the typed text away.
-    if (this.isEditing(rowIndex, key)) return;
+    // Inside an open text field a double-click selects a word: opening the cell again would throw the typed text away.
+    if (this.isEditing(rowIndex, key) && this.openEditInput() !== null) return;
     this.startEditing(rowIndex, key);
   }
 
@@ -4555,9 +4555,9 @@ export class DataTableComponent<T>
     const key = String(col.accessorKey);
     if (isGridColumnKey(key))
       return;
-    // Taps inside the open editor place the caret or select a word; they are not a request to open the cell again, and
-    // they must not pair with a tap made before it opened.
-    if (this.isEditing(rowIndex, key)) {
+    // Taps inside an open text field place the caret or select a word; they are not a request to open the cell again,
+    // and they must not pair with a tap made before it opened.
+    if (this.isEditing(rowIndex, key) && this.openEditInput() !== null) {
       this._lastTapTime = 0;
       return;
     }
@@ -4907,13 +4907,10 @@ export class DataTableComponent<T>
   }
 
   /**
-   * Puts the seeded text into the edit field that is mounted, for a caller that opens a cell again (the double-click
-   * and double-tap handlers ignore the open cell, so no gesture reaches here). The field is bound through its `value`
-   * attribute, which a field the user has typed in ignores, so without this the field would keep the typed text while
-   * the model went back to the cell's value, and Enter would commit what the user no longer sees. This also covers a
-   * cancel or commit followed at once by a re-open of the same cell, when no render has dropped the field yet. A field
-   * is mounted only while the template maps it to the editing cell, so one that belongs to another cell is removed by
-   * the next render and the write is never seen. Writing the value also clears a half-typed number.
+   * Puts the seeded text into the mounted edit field. The field is bound through its `value` attribute, which a field
+   * the user has typed in ignores, so a re-open (including a cancel followed at once by one, before a render drops the
+   * field) must write it by hand or Enter would commit text the user no longer sees. It also clears a half-typed number.
+   * A field of another cell is removed by the next render, so the write is never seen.
    */
   private resetEditField(text: string): void {
     const field = this.openEditInput();
