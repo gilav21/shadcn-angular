@@ -264,6 +264,7 @@
           }
         </select>
       } @else {
+        <!-- value is bound as an ATTRIBUTE on purpose: a property write from a late render overwrites what is being typed (see editText) -->
         <input
           data-edit-input
           [type]="col.editType === 'number' ? 'number' : 'text'"

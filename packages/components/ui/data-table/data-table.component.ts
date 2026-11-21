@@ -167,7 +167,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
  */
 function editorTextFor(value: unknown): string {
   if (isScalarOptionValue(value)) return String(value);
-  if (Array.isArray(value)) return value.map(editorTextFor).join(',');
+  if (Array.isArray(value)) return value.map((item) => (isScalarOptionValue(item) ? String(item) : '')).join(',');
   return value instanceof Date ? value.toString() : '';
 }
 
@@ -4559,6 +4559,8 @@ export class DataTableComponent<T>
     // and they must not pair with a tap made before it opened.
     if (this.isEditing(rowIndex, key) && this.openEditInput() !== null) {
       this._lastTapTime = 0;
+      this._lastTapRowIndex = -1;
+      this._lastTapColumnKey = "";
       return;
     }
     const now = Date.now();
@@ -5181,6 +5183,7 @@ export class DataTableComponent<T>
     this.editingCell.set(null);
     this.editingRowId = undefined;
     this.editValue.set(null);
+    this.editText.set('');
     this.cellEditError.set(null);
   }
 
