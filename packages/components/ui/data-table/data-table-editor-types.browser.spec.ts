@@ -2,7 +2,7 @@
 // half-typed number (a number input reports validity.badInput only for text the user typed), so this is browser-only.
 import { TestBed } from '@angular/core/testing';
 import { Component, viewChild } from '@angular/core';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { DataTableComponent } from './data-table.component';
 import type { ColumnDef } from './data-table.types';
@@ -157,56 +157,85 @@ describe('number editor, driven by real keystrokes', () => {
     it.each([
         ['a typed number', '15'],
         ['a half-typed number', '-'],
-    ])('shows the cell value again when the cell being edited is re-opened from inside the editor, holding %s', async (...[, typed]: [string, string]) => {
-        const { root, settle } = await openEditor('qty');
+    ])('shows the cell value again when startEditing re-opens the cell being edited, holding %s', async (...[, typed]: [string, string]) => {
+        const { table, root, settle } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
         await clearField(input, settle);
         await typeKeys(typed, settle);
 
-        await userEvent.dblClick(input); // bubbles to the cell, which opens it again and resets the edit to the cell's 5
+        table.startEditing(0, 'qty'); // the edit goes back to the cell's 5: the field has to show it
         await settle();
 
         expect(input.value, 'the field shows what Enter would commit').toBe('5');
         expect(input.validity.badInput, 'no half-typed text is left in the field').toBe(false);
     });
 
-    it('shows the cell value again when a text editor is re-opened from inside the editor, whatever type the value has', async () => {
-        const { root, settle } = await openEditor('flag');
+    it('shows the cell value again when startEditing re-opens a text editor, whatever type the value has', async () => {
+        const { table, root, settle } = await openEditor('flag');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
         expect(input.value, 'a boolean cell opens as its string form').toBe('true');
         await clearField(input, settle);
         await typeKeys('no', settle);
 
-        await userEvent.dblClick(input);
+        table.startEditing(0, 'flag');
         await settle();
 
         expect(input.value).toBe('true');
     });
 
-    it('never lets a render overwrite the live text of the field being typed in', async () => {
+    it('leaves the typed text alone when the field is double-clicked to select a word', async () => {
+        const { table, edits, root, settle } = await openEditor('qty');
+        const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
+        input.focus();
+        await clearField(input, settle);
+        await typeKeys('15', settle);
+
+        await userEvent.dblClick(input); // bubbles to the cell: it is already open, so nothing is reset
+        await settle();
+        await userEvent.keyboard('{Enter}');
+        await settle();
+
+        expect(edits).toEqual([15]);
+        expect(table.data()[0].qty).toBe(15);
+    });
+
+    it('leaves the typed text alone when the field is double-tapped on a touch screen', async () => {
+        const { table, edits, root, settle } = await openEditor('qty');
+        const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
+        input.focus();
+        await clearField(input, settle);
+        await typeKeys('15', settle);
+
+        table.onCellTouchEnd(new TouchEvent('touchend', { cancelable: true }), 0, columns[0]); // two taps on the open cell, within 300 ms
+        table.onCellTouchEnd(new TouchEvent('touchend', { cancelable: true }), 0, columns[0]);
+        await settle();
+        await userEvent.keyboard('{Enter}');
+        await settle();
+
+        expect(edits).toEqual([15]);
+    });
+
+    it('keeps what is typed when the render of a key lands one key late, after the decimal point', async () => {
         const { table, edits, root, settle } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
         input.focus();
         await clearField(input, settle);
 
-        // A render that lags a keystroke by one key writes its stale text over the field ("1." becomes "1", the caret
-        // jumps to the start and the next keys land in front: "1.25" commits as 251). Whether it lags depends on
-        // scheduler timing, so what is pinned is the cause: no render writes the field's value property once it is typed in.
-        const nativeValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!;
-        const writes: string[] = [];
-        Object.defineProperty(input, 'value', {
-            configurable: true,
-            get: () => nativeValue.get!.call(input),
-            set: (text: string) => { writes.push(text); nativeValue.set!.call(input, text); },
-        });
-
-        await typeKeys('1.25', settle);
-        await userEvent.keyboard('{Enter}');
+        // The zoneless scheduler schedules each render with the global setTimeout and requestAnimationFrame, so faking
+        // both holds renders back; releasing them after "1." is what a busy main thread does. The render of "1" then
+        // runs with the field showing "1.", and must not replace it ("1." becoming "1" put the caret first: 251).
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame'] });
+        try {
+            await userEvent.keyboard('1.');
+            await vi.advanceTimersByTimeAsync(50);
+        } finally {
+            vi.useRealTimers();
+        }
+        await userEvent.keyboard('25{Enter}');
         await settle();
 
-        expect(writes, 'renders left the field text alone').toEqual([]);
         expect(edits).toEqual([1.25]);
         expect(table.data()[0].qty).toBe(1.25);
     });

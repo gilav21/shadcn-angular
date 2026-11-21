@@ -4530,6 +4530,8 @@ export class DataTableComponent<T>
     if (isGridColumnKey(key))
       return;
     event.stopPropagation();
+    // Inside the open editor a double-click selects a word: opening the cell again would throw the typed text away.
+    if (this.isEditing(rowIndex, key)) return;
     this.startEditing(rowIndex, key);
   }
 
@@ -4551,6 +4553,8 @@ export class DataTableComponent<T>
     const key = String(col.accessorKey);
     if (isGridColumnKey(key))
       return;
+    // Taps inside the open editor place the caret or select a word; they are not a request to open the cell again.
+    if (this.isEditing(rowIndex, key)) return;
     const now = Date.now();
     const isSameCell =
       this._lastTapRowIndex === rowIndex && this._lastTapColumnKey === key;
@@ -4898,10 +4902,11 @@ export class DataTableComponent<T>
   }
 
   /**
-   * Puts the seeded text into the field of the cell that is already being edited (a double-click inside the editor
-   * reaches here). The field is bound through its `value` attribute, which a field the user has typed in ignores, so
-   * without this the field would keep the typed text while the model went back to the cell's value, and Enter would
-   * commit what the user no longer sees. Writing the value also clears a half-typed number the field was holding.
+   * Puts the seeded text into the field of the cell that is already being edited, for a caller that opens that cell
+   * again (the double-click and double-tap handlers ignore the open cell, so no gesture reaches here). The field is
+   * bound through its `value` attribute, which a field the user has typed in ignores, so without this the field would
+   * keep the typed text while the model went back to the cell's value, and Enter would commit what the user no longer
+   * sees. Writing the value also clears a half-typed number the field was holding.
    */
   private resetEditField(text: string): void {
     const field = this.openEditInput();
