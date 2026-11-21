@@ -162,10 +162,12 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
 
 /**
  * What the inline text or number field shows for a cell value: the string form of a string, number, boolean or bigint,
- * a Date as `Date.toString()`, and nothing for null, undefined or anything else (an object has no text to edit).
+ * a Date as `Date.toString()`, an array as its items joined by commas, and nothing for null, undefined or anything else
+ * (an object has no text to edit).
  */
 function editorTextFor(value: unknown): string {
   if (isScalarOptionValue(value)) return String(value);
+  if (Array.isArray(value)) return value.map(editorTextFor).join(',');
   return value instanceof Date ? value.toString() : '';
 }
 
@@ -4553,8 +4555,12 @@ export class DataTableComponent<T>
     const key = String(col.accessorKey);
     if (isGridColumnKey(key))
       return;
-    // Taps inside the open editor place the caret or select a word; they are not a request to open the cell again.
-    if (this.isEditing(rowIndex, key)) return;
+    // Taps inside the open editor place the caret or select a word; they are not a request to open the cell again, and
+    // they must not pair with a tap made before it opened.
+    if (this.isEditing(rowIndex, key)) {
+      this._lastTapTime = 0;
+      return;
+    }
     const now = Date.now();
     const isSameCell =
       this._lastTapRowIndex === rowIndex && this._lastTapColumnKey === key;

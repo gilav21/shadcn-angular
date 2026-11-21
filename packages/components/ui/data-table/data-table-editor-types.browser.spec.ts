@@ -7,7 +7,7 @@ import { userEvent } from 'vitest/browser';
 import { DataTableComponent } from './data-table.component';
 import type { ColumnDef } from './data-table.types';
 
-interface Row { id: number; qty: number | null; tier: number; flag: boolean }
+interface Row { id: number; qty: number | null; tier: number; flag: boolean; tags: string[] }
 
 const columns: ColumnDef<Row>[] = [
     {
@@ -18,6 +18,10 @@ const columns: ColumnDef<Row>[] = [
     {
         accessorKey: 'flag', header: 'Flag', editable: true, editType: 'text',
         valueSetter: (row, value) => ({ ...row, flag: value === 'true' }),
+    },
+    {
+        accessorKey: 'tags', header: 'Tags', editable: true, editType: 'text',
+        valueSetter: (row, value) => ({ ...row, tags: String(value).split(',') }),
     },
     {
         accessorKey: 'tier', header: 'Tier', editable: true, editType: 'select',
@@ -35,10 +39,10 @@ const columns: ColumnDef<Row>[] = [
 class Host {
     readonly table = viewChild.required(DataTableComponent<Row>);
     readonly columns = columns;
-    readonly data: Row[] = [{ id: 1, qty: 5, tier: 1, flag: true }];
+    readonly data: Row[] = [{ id: 1, qty: 5, tier: 1, flag: true, tags: ['a', 'b'] }];
 }
 
-async function openEditor(columnKey: 'qty' | 'tier' | 'flag') {
+async function openEditor(columnKey: 'qty' | 'tier' | 'flag' | 'tags') {
     TestBed.resetTestingModule();
     await TestBed.configureTestingModule({ imports: [Host] }).compileComponents();
     const fixture = TestBed.createComponent(Host);
@@ -216,6 +220,28 @@ describe('number editor, driven by real keystrokes', () => {
         expect(table.data()[0].qty).toBe(15);
     });
 
+    it('opens a text editor on an array cell as its items joined by commas', async () => {
+        const { root } = await openEditor('tags');
+
+        expect(root.querySelector<HTMLInputElement>('input[data-edit-input]')!.value).toBe('a,b');
+    });
+
+    it('does not pair a tap with one made before the cell was open', async () => {
+        const { table, root, settle } = await openEditor('qty');
+        const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
+        const tap = () => table.onCellTouchEnd(new TouchEvent('touchend', { cancelable: true }), 0, columns[0]);
+        table.cancelEdit();
+        tap(); // a first tap on the closed cell
+        table.startEditing(0, 'qty'); // it opens by another route (F2, say) and a tap on the open cell is ignored ...
+        tap();
+        table.cancelEdit(); // ... then it closes again within the double-tap window
+        tap();
+        await settle();
+
+        expect(table.editingCell(), 'one tap after the tap that was ignored opens nothing').toBeNull();
+        expect(root.contains(input) && root.querySelector('input[data-edit-input]')).toBeFalsy();
+    });
+
     it('leaves the typed text alone when the field is double-tapped on a touch screen', async () => {
         const { table, edits, root, settle } = await openEditor('qty');
         const input = root.querySelector<HTMLInputElement>('input[data-edit-input]')!;
@@ -239,8 +265,8 @@ describe('number editor, driven by real keystrokes', () => {
         await clearField(input, settle);
 
         // The zoneless scheduler schedules each render with the global setTimeout and requestAnimationFrame, so faking
-        // both holds renders back; releasing them after "1." is what a busy main thread does. The render of "1" then
-        // runs with the field showing "1.", and must not replace it ("1." becoming "1" put the caret first: 251).
+        // both holds renders back, and releasing them after "1." is what a busy main thread does: the render of "1"
+        // then runs with the field showing "1." and must leave its text alone.
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame'] });
         try {
             await userEvent.keyboard('1.');
