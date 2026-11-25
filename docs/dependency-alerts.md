@@ -23,19 +23,23 @@ should be corrected from it.
   pins, which fixes the three `@angular/router` advisories), the vitest family 4.1.10 -> 4.1.12 (`npm update` cannot move
   it: each `@vitest/*` package pins the others exactly), `body-parser` 2.4.0, `brace-expansion` 5.0.12.
 - **`e2e/fixture-app-21/package-lock.json`**: `hono`, `@hono/node-server`, `qs`, `fast-uri` and `undici` 6.x.
-- Checked after each step: no package disappeared and none ended lower than it started, `npm ci` installs the lock,
-  typecheck, the full test suite and the demo build pass. The root lock does lose 31 entries, and all of them are moves, not
-  losses: the 22 `@oxc-resolver/binding-*` platform packages and `oxc-resolver` itself reappear nested under `storybook`
-  (see below), the CLI workspace's own copy of the MCP SDK is hoisted to the root, and a few nested copies are deduped
-  (`readable-stream`, `semver`, `pify`, `image-size`, `@noble/hashes`). One version is lower: `oxc-resolver` 11.24.2 ->
-  11.21.2, because `storybook` 10.6.9 (the fix for its critical alert) pins 11.21.2 exactly. Three `@emnapi/*` entries that a
-  plain update dropped from the fixture lock are restored, since `@napi-rs/wasm-runtime` still asks for them. The `--before`
-  date cutoff of the earlier triage was not needed: the resolver crash does not occur on npm 11.5.1, and a cutoff would have
-  excluded the fixes.
+- Checked: `npm ci` installs the lock exactly, `typecheck`, the full test suite and the demo build pass. Three `@emnapi/*`
+  entries that a plain update dropped from the fixture lock are restored, since `@napi-rs/wasm-runtime` still asks for them.
+  The `--before` date cutoff of the earlier triage was not needed: the resolver crash does not occur on npm 11.5.1, and a
+  cutoff would have excluded the fixes.
+- **What changed in the root lock's shape** (31 entries removed, 40 added; read this before auditing a build regression):
+  the 22 `@oxc-resolver/binding-*` platform packages and `oxc-resolver` reappear nested under `storybook`; the CLI
+  workspace's own copy of the MCP SDK is hoisted to the root; `less` 4.4.2 -> 4.9.0 swaps `image-size` and `pify` for
+  `probe-image-size` 7.5.0; the build chain now nests a second `webpack` (5.112.0) beside the top-level 5.105.2, with
+  `minimizer-webpack-plugin` 5.14.1 and fresh `enhanced-resolve`, `schema-utils` and `watchpack` copies; a few more nested
+  copies are deduped (`readable-stream`, `semver`, `@noble/hashes`).
+- **Accepted tradeoff, not a passed check:** `oxc-resolver` goes down, 11.24.2 -> 11.21.2, because `storybook` 10.6.9 (the
+  fix for its critical alert) pins 11.21.2 exactly. Nothing else ends lower than it started.
 
-**Bumping the Angular pins.** Angular is declared in three places that nothing ties together: the nine `overrides` in
-the root `package.json`, the demo's exact pins in `demo/package.json` (and its workspace entry in the root lock), and the
-version table in `README.md` (`npm run docs:readme`). `npm update` cannot move them. Edit the nine lock entries in place from
+**Bumping the Angular pins.** Angular is declared in three places: the nine `overrides` in the root `package.json`, the
+demo's exact pins in `demo/package.json` (and its workspace entry in the root lock), and the version table in `README.md`
+(`npm run docs:readme`, which follows the demo's pins). `packages/cli/scripts/angular-pins.spec.ts` fails if the first two
+disagree; the README is checked by `npm run docs:check`. `npm update` cannot move them. Edit the nine lock entries in place from
 `npm view <pkg>@<version> --json` (`version`, `resolved` = `dist.tarball`, `integrity` = `dist.integrity`, and the
 `dependencies`, `peerDependencies`, `engines` blocks), then prove it with `npm ci`, `typecheck`, the tests and the demo build.
 `e2e/fixture-app-21` is not a fourth pin: it declares Angular as `^21.2.0` ranges and resolves them in its own lock, so it
@@ -53,6 +57,9 @@ Counted per advisory, not per package: one package can carry several.
 | 2: `zod` 3.25.76, one in the root lock and one in `packages/cli/package.json` | The advisory covers every 3.x (`< 4.6.6`), so the fix is a major move of the CLI to zod 4. The CLI one is the only alert in something that ships to consumers, and it is **not** in this change: it needs its own CLI release (the root-lock copy follows). |
 
 ## Earlier triage (2026-10-17)
+
+Superseded where the section above says so: `piscina`, `@angular/build`, `@angular-devkit/build-angular`,
+`webpack-dev-server` and `@angular/router` listed below as waiting for an Angular bump are fixed by the 2026-11-25 change.
 
 Triage of the GitHub Dependabot alerts on `master` (50 open on 2026-10-17: 5 critical, 13 high,
 26 medium, 6 low), all in `package-lock.json` except one in `demo/package.json`.
