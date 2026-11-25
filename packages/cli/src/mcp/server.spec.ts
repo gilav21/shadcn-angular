@@ -81,6 +81,27 @@ describe('MCP server (in-memory)', () => {
     expect(tools.find(t => t.name === 'why')?.annotations?.readOnlyHint).toBe(true);
   });
 
+  it('advertises its argument types and bounds and enforces them before a handler runs', async () => {
+    const { tools } = await client.listTools();
+    const density = tools.find(t => t.name === 'set_density');
+    const advertised = density?.inputSchema.properties as Record<string, { type?: string; minimum?: number; maximum?: number }>;
+    expect(advertised['level']).toMatchObject({ type: 'integer', minimum: 1, maximum: 5 });
+    expect(density?.inputSchema.required).toContain('level');
+
+    // Rejected by input validation, so the destructive tool never runs and writes nothing.
+    for (const level of [0, 6, 2.5, '3']) {
+      const res = await callTool('set_density', { level });
+      expect(res.isError, `level ${String(level)}`).toBe(true);
+      expect(firstText(res), `level ${String(level)}`).toContain('-32602');
+    }
+
+    // An undeclared argument is ignored; a wrongly typed declared one is rejected.
+    expect((await callTool('search_components', { query: 'button', undeclared: true })).isError).toBeFalsy();
+    const wrongType = await callTool('search_components', { query: 123 });
+    expect(wrongType.isError).toBe(true);
+    expect(firstText(wrongType)).toContain('-32602');
+  });
+
   it('every registry-backed tool accepts branch / registry / remote', async () => {
     const { tools } = await client.listTools();
     const sourceAware = [
