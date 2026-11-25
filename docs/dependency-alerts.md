@@ -54,7 +54,18 @@ Counted per advisory, not per package: one package can carry several.
 | 13: `e2e/fixture-app-21`, MCP SDK 1.31.0 (3), `undici` 7.29.1 (5) and `vite` 7.3.6 (5) | Test fixture app (a pristine Angular install the e2e suite copies components into), never shipped, never exposed to input. Its `@angular/cli` 21.2.26 pins the SDK exactly and its `@angular/build` 21.2.26 pins `undici` and `vite` exactly. `npm update` moves the CLI (to 21.2.31) but leaves `@angular/build` where it is even though the manifest allows `^21.2.0`. The CLI and the builder are released together and share `@angular-devkit/*` internals, so moving only one leaves a pair Angular never shipped; the fixture waits for a bump of the whole chain. (The root lock is different and safe: its build chain moved together to 21.2.31, and the runtime packages it sits beside, still at 21.2.26, only need the builder's `^21` peer range.) |
 | 1: `i18next` 25.7.4 (fix 26.3.4) | Major bump of a documentation-tooling dependency. |
 | 1: `webpack-dev-middleware` 6.1.3 | The copy nested in `@storybook/builder-webpack5`, which asks for 6.x. The 7.x copy is patched. Development server only. |
-| 2: `zod` 3.25.76, one in the root lock and one in `packages/cli/package.json` | The advisory covers every 3.x (`< 4.6.6`), so the fix is a major move of the CLI to zod 4. The CLI one is the only alert in something that ships to consumers, and it is **not** in this change: it needs its own CLI release (the root-lock copy follows). |
+| 2: `zod` 3.25.76, one in the root lock and one in `packages/cli/package.json` | The advisory covers every 3.x (`< 4.6.6`), so the fix is a major move of the CLI to zod 4. The CLI one is the only alert in something that ships to consumers. **Closed by the follow-up change below**, which needs a CLI release to reach users. |
+
+### Follow-up: the CLI moves to zod 4 (closes the last alert in something that ships)
+
+`packages/cli/package.json`: `zod` `^3.25.76` -> `^4.6.6`; the lock resolves 4.6.7 and the root-lock copy of zod 3 is gone.
+Why this is safe to do: the CLI uses zod only to describe its MCP tools (`string`, `boolean`, `number`, `array`, `enum`
+with `.describe`, `.optional`, `.min`, `.max`, `.int`), and the MCP SDK it ships with accepts `^3.25 || ^4.0`. What a client
+sees from `tools/list` for all 22 tools was dumped before and after: after sorting keys the only difference is that
+`additionalProperties: false` is no longer advertised at the root of each `inputSchema`. The server still ignores an
+undeclared argument and still rejects a wrongly typed one with `-32602` (measured on zod 4; zod 3's default object mode also
+strips unknown keys). **Reaches consumers only with the next CLI release**, since the range is part of the published manifest.
+After that release, 15 alerts remain: the 13 fixture ones, `i18next` and `webpack-dev-middleware`.
 
 ## Earlier triage (2026-10-17)
 
