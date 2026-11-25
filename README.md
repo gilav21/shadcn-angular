@@ -23,7 +23,7 @@ Two of the largest components are *also* published as ordinary compiled packages
 
 | | Developed against | Verified in a consumer install |
 |---|---|---|
-| Angular | 21.2.22 | 20.3.0 |
+| Angular | 21.2.26 | 20.3.0 |
 | TypeScript | 5.9.2 | 5.9.2 |
 
 "Verified in a consumer install" is not a compatibility promise on paper: every release runs the e2e suite, which `init`s a pristine Angular app, `add`s components into it exactly as a user would, and builds it with `strictTemplates`. Angular 20 and 21 are both covered.
