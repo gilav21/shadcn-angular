@@ -20,7 +20,8 @@ function readPackage(relative: string): PackageJson {
     return JSON.parse(fs.readFileSync(path.join(REPO_ROOT, relative), 'utf-8')) as PackageJson;
 }
 
-const EXACT_VERSION = /^\d+\.\d+\.\d+$/;
+// An exact pin, prereleases included ("22.0.0-rc.1"); ranges such as "^21.2.0" are not pins.
+const EXACT_VERSION = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 
 function exactAngularPins(entries: [string, unknown][]): Record<string, string> {
     const pins = entries.filter(([name, version]) => name.startsWith('@angular/') && typeof version === 'string' && EXACT_VERSION.test(version));
