@@ -36,7 +36,7 @@ describe('toFetchOptions', () => {
   it('exposes branch/registry/remote as optional schema fields', () => {
     expect(Object.keys(sourceInputSchema)).toEqual(['branch', 'registry', 'remote']);
     for (const field of Object.values(sourceInputSchema)) {
-      expect(field.isOptional()).toBe(true);
+      expect(field.safeParse(undefined).success).toBe(true);
     }
   });
 });
