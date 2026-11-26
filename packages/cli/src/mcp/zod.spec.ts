@@ -41,6 +41,31 @@ describe('loadSdkZod', () => {
     expect((loadSdkZod(requireFromCli) as unknown as { z: { copy: string } }).z.copy).toBe('project root');
   });
 
+  it('resolves the real SDK entry the way loadSdkZod does, so the fallback is not what runs here', () => {
+    // If a future SDK stops exposing the entry under `require`, loadSdkZod would fall back without a sound (in this repository
+    // both paths give the same zod); this is the test that notices.
+    expect(() => createRequire(import.meta.url).resolve('@modelcontextprotocol/sdk/server/mcp.js')).not.toThrow();
+  });
+
+  it('falls back to the CLI\'s own zod when the SDK resolves but has no zod of its own to load', async () => {
+    const lonelyProject = await fs.mkdtemp(path.join(os.tmpdir(), 'sdk-nozod-'));
+    try {
+      await writePackage(
+        lonelyProject,
+        '@modelcontextprotocol/sdk',
+        { exports: { './server/mcp.js': { require: './cjs/server/mcp.js' } } },
+        { 'cjs/server/mcp.js': 'module.exports = {};' },
+      );
+      await writePackage(path.join(lonelyProject, 'node_modules', 'cli'), 'zod', { main: 'index.js' }, { 'index.js': "module.exports = { z: { copy: 'nested under the CLI' } };" });
+      await fs.outputFile(path.join(lonelyProject, 'node_modules', 'cli', 'entry.js'), '');
+
+      const requireFromCli = createRequire(path.join(lonelyProject, 'node_modules', 'cli', 'entry.js'));
+      expect((loadSdkZod(requireFromCli) as unknown as { z: { copy: string } }).z.copy).toBe('nested under the CLI');
+    } finally {
+      await fs.remove(lonelyProject);
+    }
+  });
+
   it('falls back to the CLI\'s own zod instead of throwing when the SDK entry cannot be resolved', () => {
     const resolveFails = Object.assign(() => ({ z: { copy: 'the CLI\'s own' } }), {
       resolve: () => { throw new Error('ERR_PACKAGE_PATH_NOT_EXPORTED'); },
