@@ -60,19 +60,18 @@ Counted per advisory, not per package: one package can carry several.
 
 `packages/cli/package.json`: `zod` `^3.25.76` -> `^4.6.6`; the lock resolves 4.6.7 and the root-lock copy of zod 3 is gone.
 Why this is safe to do: the CLI uses zod only to describe its MCP tools (`string`, `boolean`, `number`, `array`, `enum`
-with `.describe`, `.optional`, `.min`, `.max`, `.int`), and the MCP SDK it ships with accepts `^3.25 || ^4.0`. What a client
-sees from `tools/list` for all 22 tools was dumped before and after: after sorting keys the only difference is that
-`additionalProperties: false` is no longer advertised at the root of each `inputSchema`. The server still ignores an
-undeclared argument and still rejects a wrongly typed one with `-32602` (measured on zod 4, and on zod 3's behaviour through
-the `zod/v3` build bundled in zod 4: both strip an undeclared key); `server.spec.ts` now holds that contract (advertised
-`integer` / 1..5 / required, `branch` / `registry` / `remote` optional with their types, a valid level accepted, and
-rejection before a destructive handler runs).
+with `.describe`, `.optional`, `.min`, `.max`, `.int`), and the MCP SDK it ships with accepts `^3.25 || ^4.0`.
 
-**The one visible change, and why it is accepted.** A client or an LLM that read `additionalProperties: false` to avoid
-guessing argument names no longer sees it, so a mistyped argument (`dry_run` for `dryRun`) is ignored by the server, as it
-was before, but no longer discouraged by the advertised schema. The MCP SDK builds each tool's object from the raw shape the
-CLI hands it, so keeping the old advertisement would mean wrapping every tool in a strict object: a larger change for a
-hint. Revisit if a client is found to depend on it.
+**No visible change for clients.** What a client sees from `tools/list` for all 22 tools was dumped on zod 3.25.76 and on
+zod 4 and compared with keys sorted: identical. Left alone, zod 4 stops advertising `additionalProperties: false` (the hint
+that tells a client or an LLM not to invent argument names), so `src/mcp/closed-inputs.ts` wraps the tool registration the
+way `serialize.ts` already does and attaches it as schema metadata (`z.object(shape).meta({ additionalProperties: false })`).
+`.strict()` would also advertise it but would make the server reject an undeclared argument, which it never did. Measured on
+the real zod 3.25.76 with the SDK the CLI ships (1.32.1), in a scratch project: tools with arguments advertise
+`additionalProperties: false`, an undeclared argument is ignored, an out-of-range one is rejected with `-32602`; the same
+holds on zod 4 with the wrapper. `server.spec.ts` holds it: every tool advertises a closed object, `set_density`'s `level` is
+an integer 1..5 and required, `branch` / `registry` / `remote` stay optional with their types, an invalid level is rejected
+before the destructive handler runs, an undeclared argument is ignored and a wrongly typed one rejected.
 
 **Reaches consumers only with the next CLI release**, since the range is part of the published manifest: the Dependabot
 alert clears when this merges, the fix ships when the CLI is published.
