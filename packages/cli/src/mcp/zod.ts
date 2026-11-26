@@ -10,8 +10,9 @@ import type * as ZodTypes from 'zod';
  * and `tools/list` loses every description and numeric bound. Building the schemas with the SDK's copy keeps them in one place
  * in every layout.
  *
- * Every CLI command imports this module, so it must never throw: where the SDK's entry cannot be resolved this way (a package
- * manager or an SDK release that exposes it differently), the CLI's own zod is used, which is how it behaved before.
+ * Where the SDK's entry cannot be resolved this way (a package manager or an SDK release that exposes it differently), the
+ * CLI's own zod is used, which is how it behaved before. Only a missing zod (a broken install) can still throw. Only the `mcp`
+ * command loads this module (program.ts imports the server lazily), so nothing else pays for it.
  */
 export function loadSdkZod(requireFromCli: NodeJS.Require = createRequire(import.meta.url)): typeof ZodTypes {
     try {

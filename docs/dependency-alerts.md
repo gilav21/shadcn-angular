@@ -82,8 +82,12 @@ CLI resolves. After the change the real packed CLI's `tools/list` is identical t
 repository, a project with no zod, and a project whose root zod is 3.25.76, 4.2.0 or 4.3.6. In the zod 3 project the CLI then
 runs on that project's own zod 3 (as it did before this change), so the advisory still applies to that project's copy;
 everywhere zod 4 is installed, the CLI uses it. Every command imports this module, so it never throws: if the SDK's entry cannot
-be resolved that way, the CLI's own zod is used (the old behaviour). Cost: about 5 ms of cold start per command (a plain ESM
-import of zod 78 ms, the shim 83 ms, median of 7 fresh processes).
+be resolved that way, the CLI's own zod is used (the old behaviour). Cost, measured (median of 9 fresh processes): the shim adds
+about 72 ms (the SDK alone 192 ms, the SDK plus the shim 264 ms) because the SDK still loads its own ESM zod beside the shim's
+CommonJS copy. An earlier note here said 5 ms; it compared the shim with a plain zod import and left the SDK's copy out.
+`program.ts` used to import the MCP server for every command, so every command already paid the SDK's ~190 ms; the server is
+now loaded only by the `mcp` command, which takes a trivial command (`--version`) from a median 584 ms to 325 ms and leaves
+the 72 ms with `mcp` alone. `program.spec.ts` holds it.
 
 **Known limit: a project whose root zod is 4.0.0 to 4.1.x.** There the descriptions and `additionalProperties: false` are
 lost again (measured on 4.0.0, 4.0.17 and 4.1.0: 0 of 95 descriptions, 0 of 22 closed objects; bounds, types and runtime

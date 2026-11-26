@@ -88,8 +88,10 @@ describe('MCP server (in-memory)', () => {
     }
 
     const density = tools.find(t => t.name === 'set_density');
-    const level = (density?.inputSchema.properties as Record<string, { type?: string; minimum?: number; maximum?: number }>)['level'];
+    const level = (density?.inputSchema.properties as Record<string, { type?: string; minimum?: number; maximum?: number; description?: string }>)['level'];
     expect(level).toMatchObject({ type: 'integer', minimum: 1, maximum: 5 });
+    // The description travels in zod's metadata registry, which the CLI's copy of zod and the SDK's have to share.
+    expect(level?.description, 'argument descriptions reach the client').toEqual(expect.any(String));
     expect(density?.inputSchema.required).toContain('level');
 
     // The source arguments every registry-backed tool takes stay optional, with their types.
