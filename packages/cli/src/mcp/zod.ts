@@ -9,10 +9,17 @@ import type * as ZodTypes from 'zod';
  * under the CLI and hoists the SDK to the root, so the SDK reads a different copy than the one the schemas were built with
  * and `tools/list` loses every description and numeric bound. Building the schemas with the SDK's copy keeps them in one place
  * in every layout.
+ *
+ * Every CLI command imports this module, so it must never throw: where the SDK's entry cannot be resolved this way (a package
+ * manager or an SDK release that exposes it differently), the CLI's own zod is used, which is how it behaved before.
  */
 export function loadSdkZod(requireFromCli: NodeJS.Require = createRequire(import.meta.url)): typeof ZodTypes {
-    const sdkEntry = requireFromCli.resolve('@modelcontextprotocol/sdk/server/mcp.js');
-    return createRequire(sdkEntry)('zod') as typeof ZodTypes;
+    try {
+        const sdkEntry = requireFromCli.resolve('@modelcontextprotocol/sdk/server/mcp.js');
+        return createRequire(sdkEntry)('zod') as typeof ZodTypes;
+    } catch {
+        return requireFromCli('zod') as typeof ZodTypes;
+    }
 }
 
 export const z = loadSdkZod().z;

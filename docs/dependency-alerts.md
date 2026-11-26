@@ -81,7 +81,12 @@ runtime validation survived). `src/mcp/zod.ts` therefore builds the tool schemas
 CLI resolves. After the change the real packed CLI's `tools/list` is identical to the zod 3 baseline in all three layouts: this
 repository, a project that already has zod 3, and a project with no zod. In the zod 3 project the CLI then runs on that
 project's own zod 3 (as it did before this change), so the advisory still applies to that project's copy; everywhere zod 4 is
-installed, the CLI uses it. `zod.spec.ts` builds that layout from fake packages and checks which copy is loaded.
+installed, the CLI uses it. Every command imports this module, so it never throws: if the SDK's entry cannot be resolved that
+way, the CLI's own zod is used (the old behaviour). Tests: `zod.spec.ts` builds the nested layout from fake packages and checks
+which copy is loaded, and that the fallback is taken; `server.zod3.spec.ts` builds all 22 tools with zod 3's API (the `zod/v3`
+build bundled in zod 4) so a zod-4-only call in a tool fails in CI instead of for users in a zod 3 project;
+`closed-inputs.spec.ts` checks a raw shape is wrapped and a ready-made schema is not. The layout measurements above were made
+by hand on the packed CLI; no script in the repository reproduces them.
 
 **Reaches consumers only with the next CLI release**, since the range is part of the published manifest: the Dependabot
 alert clears when this merges, the fix ships when the CLI is published.

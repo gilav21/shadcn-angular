@@ -40,4 +40,12 @@ describe('loadSdkZod', () => {
 
     expect((loadSdkZod(requireFromCli) as unknown as { z: { copy: string } }).z.copy).toBe('project root');
   });
+
+  it('falls back to the CLI\'s own zod instead of throwing when the SDK entry cannot be resolved', () => {
+    const resolveFails = Object.assign(() => ({ z: { copy: 'the CLI\'s own' } }), {
+      resolve: () => { throw new Error('ERR_PACKAGE_PATH_NOT_EXPORTED'); },
+    }) as unknown as NodeJS.Require;
+
+    expect((loadSdkZod(resolveFails) as unknown as { z: { copy: string } }).z.copy).toBe('the CLI\'s own');
+  });
 });
