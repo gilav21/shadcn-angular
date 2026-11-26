@@ -19,6 +19,8 @@ export function loadSdkZod(requireFromCli: NodeJS.Require = createRequire(import
         const sdkEntry = requireFromCli.resolve('@modelcontextprotocol/sdk/server/mcp.js');
         return createRequire(sdkEntry)('zod') as typeof ZodTypes;
     } catch {
+        // stderr: the MCP stream owns stdout. Only the `mcp` command loads this module, so the line costs nothing elsewhere.
+        console.error("shadcn-angular: could not load the MCP SDK's own zod, so the tool schemas use the CLI's copy; some clients may not see argument descriptions.");
         return requireFromCli('zod') as typeof ZodTypes;
     }
 }

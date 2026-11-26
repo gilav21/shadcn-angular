@@ -81,8 +81,9 @@ runtime validation survived). `src/mcp/zod.ts` therefore builds the tool schemas
 CLI resolves. After the change the real packed CLI's `tools/list` is identical to the zod 3 baseline when installed into this
 repository, a project with no zod, and a project whose root zod is 3.25.76, 4.2.0 or 4.3.6. In the zod 3 project the CLI then
 runs on that project's own zod 3 (as it did before this change), so the advisory still applies to that project's copy;
-everywhere zod 4 is installed, the CLI uses it. Every command imports this module, so it never throws: if the SDK's entry cannot
-be resolved that way, the CLI's own zod is used (the old behaviour). Cost, measured (median of 9 fresh processes): the shim adds
+everywhere zod 4 is installed, the CLI uses it. Only the `mcp` command loads this module, and it does not fail for a reason of
+its own: if the SDK's entry cannot be resolved that way, the CLI's own zod is used (the old behaviour) and a line says so on
+stderr, which the MCP stream does not use. A missing zod (a broken install) still fails, as it would anywhere. Cost, measured (median of 9 fresh processes): the shim adds
 about 72 ms (the SDK alone 192 ms, the SDK plus the shim 264 ms) because the SDK still loads its own ESM zod beside the shim's
 CommonJS copy. An earlier note here said 5 ms; it compared the shim with a plain zod import and left the SDK's copy out.
 `program.ts` used to import the MCP server for every command, so every command already paid the SDK's ~190 ms; the server is

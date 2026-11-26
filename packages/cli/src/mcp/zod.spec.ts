@@ -49,9 +49,13 @@ describe('loadSdkZod', () => {
     const askedForZod = vi.fn();
     const recording = Object.assign((id: string) => { askedForZod(id); return real(id); }, real) as unknown as NodeJS.Require;
 
+    const warned = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
     loadSdkZod(recording);
 
     expect(askedForZod).not.toHaveBeenCalled();
+    expect(warned, 'no fallback warning when the SDK path is taken').not.toHaveBeenCalled();
+    warned.mockRestore();
   });
 
   it('falls back to the CLI\'s own zod when the SDK resolves but has no zod of its own to load', async () => {
@@ -67,7 +71,10 @@ describe('loadSdkZod', () => {
       await fs.outputFile(path.join(lonelyProject, 'node_modules', 'cli', 'entry.js'), '');
 
       const requireFromCli = createRequire(path.join(lonelyProject, 'node_modules', 'cli', 'entry.js'));
+      const warned = vi.spyOn(console, 'error').mockImplementation(() => undefined);
       expect((loadSdkZod(requireFromCli) as unknown as { z: { copy: string } }).z.copy).toBe('nested under the CLI');
+      expect(warned, 'the fallback says so on stderr').toHaveBeenCalledWith(expect.stringContaining("could not load the MCP SDK's own zod"));
+      warned.mockRestore();
     } finally {
       await fs.remove(lonelyProject);
     }
@@ -78,6 +85,10 @@ describe('loadSdkZod', () => {
       resolve: () => { throw new Error('ERR_PACKAGE_PATH_NOT_EXPORTED'); },
     }) as unknown as NodeJS.Require;
 
+    const warned = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
     expect((loadSdkZod(resolveFails) as unknown as { z: { copy: string } }).z.copy).toBe('the CLI\'s own');
+    expect(warned, 'the fallback says so on stderr').toHaveBeenCalledWith(expect.stringContaining("could not load the MCP SDK's own zod"));
+    warned.mockRestore();
   });
 });
