@@ -1558,8 +1558,8 @@
       "lines": 2
     },
     "data-table/addons/pivot/pivot.directive.spec.ts": {
-      "bytes": 7741,
-      "lines": 211
+      "bytes": 8905,
+      "lines": 232
     },
     "data-table/addons/pivot/pivot.directive.ts": {
       "bytes": 1315,
@@ -1570,8 +1570,8 @@
       "lines": 137
     },
     "data-table/data-table-advanced-filter.spec.ts": {
-      "bytes": 14786,
-      "lines": 377
+      "bytes": 15552,
+      "lines": 393
     },
     "data-table/data-table-ai.spec.ts": {
       "bytes": 7476,
@@ -1589,21 +1589,41 @@
       "bytes": 3084,
       "lines": 80
     },
+    "data-table/data-table-editor-types.browser.spec.ts": {
+      "bytes": 15886,
+      "lines": 344
+    },
+    "data-table/data-table-editor-types.spec.ts": {
+      "bytes": 8977,
+      "lines": 192
+    },
     "data-table/data-table-fill.spec.ts": {
       "bytes": 4534,
       "lines": 119
     },
     "data-table/data-table-grid-semantics.spec.ts": {
-      "bytes": 10283,
-      "lines": 244
+      "bytes": 12883,
+      "lines": 297
+    },
+    "data-table/data-table-key-scope.spec.ts": {
+      "bytes": 14825,
+      "lines": 284
     },
     "data-table/data-table-paste.spec.ts": {
-      "bytes": 1314,
-      "lines": 48
+      "bytes": 2140,
+      "lines": 63
+    },
+    "data-table/data-table-pinned-resize.spec.ts": {
+      "bytes": 3025,
+      "lines": 62
     },
     "data-table/data-table-query.spec.ts": {
       "bytes": 7912,
       "lines": 223
+    },
+    "data-table/data-table-roving-focus.spec.ts": {
+      "bytes": 3183,
+      "lines": 70
     },
     "data-table/data-table-view-state.spec.ts": {
       "bytes": 11643,
@@ -1618,32 +1638,32 @@
       "lines": 529
     },
     "data-table/data-table.component.css": {
-      "bytes": 4243,
-      "lines": 132
+      "bytes": 4973,
+      "lines": 148
     },
     "data-table/data-table.component.html": {
-      "bytes": 69611,
-      "lines": 1531
+      "bytes": 69697,
+      "lines": 1533
     },
     "data-table/data-table.component.spec.ts": {
-      "bytes": 318347,
-      "lines": 7077
+      "bytes": 327458,
+      "lines": 7244
     },
     "data-table/data-table.component.ts": {
-      "bytes": 234068,
-      "lines": 6411
+      "bytes": 255177,
+      "lines": 6815
     },
     "data-table/data-table.coverage.spec.ts": {
-      "bytes": 19823,
-      "lines": 543
+      "bytes": 20044,
+      "lines": 546
     },
     "data-table/data-table.host.spec.ts": {
       "bytes": 7012,
       "lines": 189
     },
     "data-table/data-table.host.ts": {
-      "bytes": 5519,
-      "lines": 114
+      "bytes": 5668,
+      "lines": 117
     },
     "data-table/data-table.locales.ts": {
       "bytes": 12901,
@@ -1658,12 +1678,12 @@
       "lines": 1938
     },
     "data-table/data-table.types.ts": {
-      "bytes": 15183,
-      "lines": 487
+      "bytes": 15362,
+      "lines": 489
     },
     "data-table/data-table.utils.ts": {
-      "bytes": 27657,
-      "lines": 814
+      "bytes": 30995,
+      "lines": 885
     },
     "data-table/index.ts": {
       "bytes": 675,
@@ -3178,8 +3198,8 @@
       "lines": 4
     },
     "input-group/input-group.component.browser.spec.ts": {
-      "bytes": 1728,
-      "lines": 38
+      "bytes": 3280,
+      "lines": 77
     },
     "input-group/input-group.component.css": {
       "bytes": 164,
@@ -3198,8 +3218,8 @@
       "lines": 76
     },
     "input-group/input-group.stories.ts": {
-      "bytes": 4957,
-      "lines": 137
+      "bytes": 6012,
+      "lines": 160
     },
     "input-group/sub/input-group-addon.component.css": {
       "bytes": 472,
@@ -3290,15 +3310,15 @@
       "lines": 1
     },
     "input/input.component.browser.spec.ts": {
-      "bytes": 3694,
-      "lines": 80
+      "bytes": 12133,
+      "lines": 232
     },
     "input/input.component.css": {
       "bytes": 1697,
       "lines": 40
     },
     "input/input.component.html": {
-      "bytes": 2942,
+      "bytes": 2719,
       "lines": 90
     },
     "input/input.component.spec.ts": {
@@ -3306,12 +3326,12 @@
       "lines": 328
     },
     "input/input.component.ts": {
-      "bytes": 11892,
-      "lines": 288
+      "bytes": 13784,
+      "lines": 336
     },
     "input/input.stories.ts": {
-      "bytes": 5435,
-      "lines": 144
+      "bytes": 6321,
+      "lines": 157
     },
     "kanban/index.ts": {
       "bytes": 436,
@@ -6916,8 +6936,8 @@
       "lines": 19
     },
     "input-group.token.ts": {
-      "bytes": 462,
-      "lines": 12
+      "bytes": 811,
+      "lines": 18
     },
     "media.ts": {
       "bytes": 562,
@@ -7064,8 +7084,8 @@
       "lines": 398
     },
     "parsers/parser-golden.spec.ts": {
-      "bytes": 11689,
-      "lines": 202
+      "bytes": 11924,
+      "lines": 206
     },
     "parsers/pdf-hostile-fixtures.ts": {
       "bytes": 1775,
@@ -7083,12 +7103,16 @@
       "bytes": 267439,
       "lines": 6903
     },
+    "parsers/pdf-pixel-perfect.rtl-host.browser.spec.ts": {
+      "bytes": 7196,
+      "lines": 152
+    },
     "parsers/pdf-pixel-perfect.spec.ts": {
       "bytes": 101490,
       "lines": 2141
     },
     "parsers/pdf-pixel-perfect.ts": {
-      "bytes": 139963,
+      "bytes": 139991,
       "lines": 3490
     },
     "parsers/pdf-readable/pdf-readable.spec.ts": {
