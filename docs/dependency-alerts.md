@@ -73,6 +73,16 @@ holds on zod 4 with the wrapper. `server.spec.ts` holds it: every tool advertise
 an integer 1..5 and required, `branch` / `registry` / `remote` stay optional with their types, an invalid level is rejected
 before the destructive handler runs, an undeclared argument is ignored and a wrongly typed one rejected.
 
+**One zod copy, in every install layout.** The SDK reads each schema's metadata (argument descriptions, bounds) from its own
+zod copy. Installed into a project that already has zod 3, npm nests the CLI's zod 4 under the CLI and hoists the SDK to the
+project's root, so the two disagree: measured on the real packed CLI in such a project, `tools/list` lost all 95 argument
+descriptions, every `minimum` / `maximum` / `minItems` and `additionalProperties: false` (types, enums, `required` and the
+runtime validation survived). `src/mcp/zod.ts` therefore builds the tool schemas with the zod the SDK resolves, not the one the
+CLI resolves. After the change the real packed CLI's `tools/list` is identical to the zod 3 baseline in all three layouts: this
+repository, a project that already has zod 3, and a project with no zod. In the zod 3 project the CLI then runs on that
+project's own zod 3 (as it did before this change), so the advisory still applies to that project's copy; everywhere zod 4 is
+installed, the CLI uses it. `zod.spec.ts` builds that layout from fake packages and checks which copy is loaded.
+
 **Reaches consumers only with the next CLI release**, since the range is part of the published manifest: the Dependabot
 alert clears when this merges, the fix ships when the CLI is published.
 After that release, 15 alerts remain: the 13 fixture ones, `i18next` and `webpack-dev-middleware`.

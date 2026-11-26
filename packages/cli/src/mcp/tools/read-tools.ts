@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '../zod.js';
 import type { ToolHost } from '../serialize.js';
 import fs from 'fs-extra';
 import path from 'node:path';

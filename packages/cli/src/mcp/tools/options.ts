@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '../zod.js';
 import { DEFAULT_BRANCH } from '../../utils/paths.js';
 import { type FetchOptions } from '../../core/fetch.js';
 import { loadRegistry } from '../../registry/load.js';
