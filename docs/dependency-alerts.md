@@ -73,16 +73,25 @@ holds on zod 4 with the wrapper. `server.spec.ts` holds it: every tool advertise
 an integer 1..5 and required, `branch` / `registry` / `remote` stay optional with their types, an invalid level is rejected
 before the destructive handler runs, an undeclared argument is ignored and a wrongly typed one rejected.
 
-**One zod copy, in every install layout.** The SDK reads each schema's metadata (argument descriptions, bounds) from its own
+**One zod copy, in the layouts that matter.** The SDK reads each schema's metadata (argument descriptions, bounds) from its own
 zod copy. Installed into a project that already has zod 3, npm nests the CLI's zod 4 under the CLI and hoists the SDK to the
 project's root, so the two disagree: measured on the real packed CLI in such a project, `tools/list` lost all 95 argument
 descriptions, every `minimum` / `maximum` / `minItems` and `additionalProperties: false` (types, enums, `required` and the
 runtime validation survived). `src/mcp/zod.ts` therefore builds the tool schemas with the zod the SDK resolves, not the one the
-CLI resolves. After the change the real packed CLI's `tools/list` is identical to the zod 3 baseline in all three layouts: this
-repository, a project that already has zod 3, and a project with no zod. In the zod 3 project the CLI then runs on that
-project's own zod 3 (as it did before this change), so the advisory still applies to that project's copy; everywhere zod 4 is
-installed, the CLI uses it. Every command imports this module, so it never throws: if the SDK's entry cannot be resolved that
-way, the CLI's own zod is used (the old behaviour). Tests: `zod.spec.ts` builds the nested layout from fake packages and checks
+CLI resolves. After the change the real packed CLI's `tools/list` is identical to the zod 3 baseline when installed into this
+repository, a project with no zod, and a project whose root zod is 3.25.76, 4.2.0 or 4.3.6. In the zod 3 project the CLI then
+runs on that project's own zod 3 (as it did before this change), so the advisory still applies to that project's copy;
+everywhere zod 4 is installed, the CLI uses it. Every command imports this module, so it never throws: if the SDK's entry cannot
+be resolved that way, the CLI's own zod is used (the old behaviour). Cost: about 5 ms of cold start per command (a plain ESM
+import of zod 78 ms, the shim 83 ms, median of 7 fresh processes).
+
+**Known limit: a project whose root zod is 4.0.0 to 4.1.x.** There the descriptions and `additionalProperties: false` are
+lost again (measured on 4.0.0, 4.0.17 and 4.1.0: 0 of 95 descriptions, 0 of 22 closed objects; bounds, types and runtime
+validation survive). The shim loads the CommonJS build while the SDK imports the ESM one, and a metadata registry shared
+between the two builds only exists from zod 4.2 (`__zod_globalRegistry`; absent from the source of 4.0.0, 4.0.17 and 4.1.0).
+Fixing it means loading the SDK's ESM build by hand from the SDK's location, which makes the module load asynchronous for
+every command; not done, because the affected installs are narrow (zod 4.0 or 4.1 at the root of a project that installs
+the CLI locally). Revisit if one is reported. Tests: `zod.spec.ts` builds the nested layout from fake packages and checks
 which copy is loaded, and that the fallback is taken; `server.zod3.spec.ts` builds all 22 tools with zod 3's API (the `zod/v3`
 build bundled in zod 4) so a zod-4-only call in a tool fails in CI instead of for users in a zod 3 project;
 `closed-inputs.spec.ts` checks a raw shape is wrapped and a ready-made schema is not. The layout measurements above were made
