@@ -63,10 +63,19 @@ Why this is safe to do: the CLI uses zod only to describe its MCP tools (`string
 with `.describe`, `.optional`, `.min`, `.max`, `.int`), and the MCP SDK it ships with accepts `^3.25 || ^4.0`. What a client
 sees from `tools/list` for all 22 tools was dumped before and after: after sorting keys the only difference is that
 `additionalProperties: false` is no longer advertised at the root of each `inputSchema`. The server still ignores an
-undeclared argument and still rejects a wrongly typed one with `-32602` (measured on zod 4; zod 3's default object mode also
-strips unknown keys); `server.spec.ts` now holds that contract (advertised `integer` / 1..5 / required, and rejection before
-a destructive handler runs). **Reaches consumers only with the next CLI release**, since the range is part of the published
-manifest: the Dependabot alert clears when this merges, the fix ships when the CLI is published.
+undeclared argument and still rejects a wrongly typed one with `-32602` (measured on zod 4, and on zod 3's behaviour through
+the `zod/v3` build bundled in zod 4: both strip an undeclared key); `server.spec.ts` now holds that contract (advertised
+`integer` / 1..5 / required, `branch` / `registry` / `remote` optional with their types, a valid level accepted, and
+rejection before a destructive handler runs).
+
+**The one visible change, and why it is accepted.** A client or an LLM that read `additionalProperties: false` to avoid
+guessing argument names no longer sees it, so a mistyped argument (`dry_run` for `dryRun`) is ignored by the server, as it
+was before, but no longer discouraged by the advertised schema. The MCP SDK builds each tool's object from the raw shape the
+CLI hands it, so keeping the old advertisement would mean wrapping every tool in a strict object: a larger change for a
+hint. Revisit if a client is found to depend on it.
+
+**Reaches consumers only with the next CLI release**, since the range is part of the published manifest: the Dependabot
+alert clears when this merges, the fix ships when the CLI is published.
 After that release, 15 alerts remain: the 13 fixture ones, `i18next` and `webpack-dev-middleware`.
 
 ## Earlier triage (2026-10-17)

@@ -95,6 +95,17 @@ describe('MCP server (in-memory)', () => {
       expect(firstText(res), `level ${String(level)}`).toContain('-32602');
     }
 
+    // A valid level gets past validation. There is no components.json here, so the tool then stops at its own guard
+    // and writes nothing; what matters is that the refusal is not an input-validation error.
+    const valid = await callTool('set_density', { level: 3 });
+    expect(firstText(valid)).not.toContain('-32602');
+
+    // The source arguments every registry-backed tool takes stay optional, with their types.
+    const source = tools.find(t => t.name === 'list_components')?.inputSchema;
+    const sourceProps = source?.properties as Record<string, { type?: string }>;
+    expect([sourceProps['branch']?.type, sourceProps['registry']?.type, sourceProps['remote']?.type]).toEqual(['string', 'string', 'boolean']);
+    expect(source?.required ?? []).toEqual([]);
+
     // An undeclared argument is ignored; a wrongly typed declared one is rejected.
     expect((await callTool('search_components', { query: 'button', undeclared: true })).isError).toBeFalsy();
     const wrongType = await callTool('search_components', { query: 123 });
