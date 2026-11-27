@@ -1,4 +1,5 @@
-import { z } from 'zod';
+import type { z as ZodTypes } from 'zod';
+import { z } from '../zod.js';
 import type { ToolHost } from '../serialize.js';
 import fs from 'fs-extra';
 import path from 'node:path';
@@ -79,7 +80,7 @@ const initInputSchema = {
     ...sourceInputSchema,
 };
 
-type InitArgs = z.infer<z.ZodObject<typeof initInputSchema>>;
+type InitArgs = ZodTypes.infer<ZodTypes.ZodObject<typeof initInputSchema>>;
 
 /** The invalid-argument message for `init_project`, or null when the args are usable. */
 function validateInitArgs(args: InitArgs): string | null {

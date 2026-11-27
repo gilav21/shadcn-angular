@@ -81,6 +81,41 @@ describe('MCP server (in-memory)', () => {
     expect(tools.find(t => t.name === 'why')?.annotations?.readOnlyHint).toBe(true);
   });
 
+  it('advertises every tool\'s inputs as a closed object, with the declared types and bounds', async () => {
+    const { tools } = await client.listTools();
+    for (const tool of tools) {
+      expect(tool.inputSchema['additionalProperties'], `${tool.name} tells clients not to invent argument names`).toBe(false);
+    }
+
+    const density = tools.find(t => t.name === 'set_density');
+    const level = (density?.inputSchema.properties as Record<string, { type?: string; minimum?: number; maximum?: number; description?: string }>)['level'];
+    expect(level).toMatchObject({ type: 'integer', minimum: 1, maximum: 5 });
+    // The description travels in zod's metadata registry, which the CLI's copy of zod and the SDK's have to share.
+    expect(level?.description, 'argument descriptions reach the client').toEqual(expect.any(String));
+    expect(density?.inputSchema.required).toContain('level');
+
+    // The source arguments every registry-backed tool takes stay optional, with their types.
+    const source = tools.find(t => t.name === 'list_components')?.inputSchema;
+    const sourceProps = source?.properties as Record<string, { type?: string }>;
+    expect([sourceProps['branch']?.type, sourceProps['registry']?.type, sourceProps['remote']?.type]).toEqual(['string', 'string', 'boolean']);
+    expect(source?.required ?? []).toEqual([]);
+  });
+
+  it('rejects an out-of-range, fractional or string level before the destructive handler runs', async () => {
+    for (const level of [0, 6, 2.5, '3']) {
+      const res = await callTool('set_density', { level });
+      expect(res.isError, `level ${String(level)}`).toBe(true);
+      expect(firstText(res), `level ${String(level)}`).toContain('-32602');
+    }
+  });
+
+  it('ignores an undeclared argument and rejects a wrongly typed declared one', async () => {
+    expect((await callTool('search_components', { query: 'button', undeclared: true })).isError).toBeFalsy();
+    const wrongType = await callTool('search_components', { query: 123 });
+    expect(wrongType.isError).toBe(true);
+    expect(firstText(wrongType)).toContain('-32602');
+  });
+
   it('every registry-backed tool accepts branch / registry / remote', async () => {
     const { tools } = await client.listTools();
     const sourceAware = [

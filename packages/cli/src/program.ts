@@ -19,7 +19,6 @@ import { setMotion } from './commands/set-motion.js';
 import { setLocale } from './commands/set-locale.js';
 import { setTestRunner } from './commands/set-test-runner.js';
 import { changeTheme } from './commands/change-theme.js';
-import { startMcpServer } from './mcp/server.js';
 import { loadRegistry } from './registry/load.js';
 import { readConfiguredRegistry } from './utils/config.js';
 
@@ -196,6 +195,8 @@ function registerMaintenanceCommands(program: Command): void {
         .command('mcp')
         .description('Start the MCP server (stdio) for AI agents')
         .action(async () => {
+            // Loaded here, not at the top: the MCP SDK and its zod cost a few hundred ms that no other command should pay.
+            const { startMcpServer } = await import('./mcp/server.js');
             await startMcpServer(process.cwd());
         });
 }

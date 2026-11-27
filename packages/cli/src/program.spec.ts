@@ -26,6 +26,20 @@ vi.mock('./commands/why.js', async (importOriginal) => ({
 }));
 vi.mock('./commands/help.js', () => ({ help: vi.fn(async () => undefined) }));
 
+// `loaded` records whether anything imported the MCP server: its factory runs only when a module imports it.
+const mcp = vi.hoisted(() => ({ loaded: false, start: vi.fn(async () => undefined) }));
+
+/** A fresh `createProgram`, with the MCP server replaced by a stub that notes it was loaded. */
+async function freshProgram(): Promise<typeof createProgram> {
+    mcp.loaded = false;
+    vi.resetModules();
+    vi.doMock('./mcp/server.js', () => {
+        mcp.loaded = true;
+        return { startMcpServer: mcp.start };
+    });
+    return (await import('./program.js')).createProgram;
+}
+
 const FORK = 'https://git.example/org/fork/-/raw/main/packages/components';
 const FLAG = 'https://mirror.example/components';
 
@@ -91,5 +105,25 @@ describe('the registry a command loads its manifest from', () => {
         await run('help');
 
         expect(loadedFrom()).toBeUndefined();
+    });
+});
+
+describe('the MCP server', () => {
+    it('is not loaded for a command that does not use it, so that command does not pay for the SDK', async () => {
+        const fresh = await freshProgram();
+
+        await fresh().parseAsync(['node', 'shadcn-angular', 'why', 'button']);
+
+        expect(mcp.loaded).toBe(false);
+    });
+
+    it('is loaded and started by the mcp command', async () => {
+        const fresh = await freshProgram();
+        expect(mcp.loaded, 'importing the program must not load it').toBe(false);
+
+        await fresh().parseAsync(['node', 'shadcn-angular', 'mcp']);
+
+        expect(mcp.loaded).toBe(true);
+        expect(mcp.start).toHaveBeenCalledWith(project);
     });
 });

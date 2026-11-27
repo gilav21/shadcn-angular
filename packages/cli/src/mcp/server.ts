@@ -3,12 +3,13 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { registerReadTools } from './tools/read-tools.js';
 import { registerWriteTools } from './tools/write-tools.js';
 import { serializeToolCalls } from './serialize.js';
+import { closeInputSchemas } from './closed-inputs.js';
 
 export function createMcpServer(cwd: string): McpServer {
     const server = new McpServer({ name: 'shadcn-angular', version: '0.1.0' });
     // Tool handlers share the module-level registry, which each call repoints at
     // its own branch/fork — they must not interleave. See ./serialize.ts.
-    const host = serializeToolCalls(server);
+    const host = closeInputSchemas(serializeToolCalls(server));
     registerReadTools(host, cwd);
     registerWriteTools(host, cwd);
     return server;
